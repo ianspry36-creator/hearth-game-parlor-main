@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: game-parlor
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: node .output/server/index.mjs
+    healthCheckPath: /
+    envVars:
+      # Builds a standard Node server instead of the default Cloudflare Workers output.
+      - key: NITRO_PRESET
+        value: node-server
+      # Supabase config (secrets are never committed; Render prompts for these).
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_PUBLISHABLE_KEY
+        sync: false
+      - key: SUPABASE_PROJECT_ID
+        sync: false
+      # VITE_* variants are baked into the client bundle at build time.
+      - key: VITE_SUPABASE_URL
+        sync: false
+      - key: VITE_SUPABASE_PUBLISHABLE_KEY
+        sync: false
+      - key: VITE_SUPABASE_PROJECT_ID
+        sync: false

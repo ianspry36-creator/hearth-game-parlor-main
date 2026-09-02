@@ -1,0 +1,345 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Design system definition.
+ *
+ * The @theme inline block maps CSS custom properties to Tailwind utility
+ * classes (e.g. --color-primary -> bg-primary, text-primary).
+ *
+ * The :root and .dark blocks define the actual color values using oklch.
+ * All colors MUST use oklch format.
+ *
+ * To add a new semantic color:
+ * 1. Add the variable to :root (light value) and .dark (dark value)
+ * 2. Register it in @theme inline as --color-<name>: var(--<name>)
+ */
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+  --font-display: "Cormorant Garamond", serif;
+  --font-body: "Karla", sans-serif;
+  --font-sans: "Karla", sans-serif;
+  --color-brand: var(--brand);
+  --color-surface: var(--surface);
+  --color-cream: var(--cream);
+  --color-gold: var(--gold);
+  --color-gold-bright: var(--gold-bright);
+  --color-ivory: var(--ivory);
+  --color-sage: var(--sage);
+  --color-player-coral: var(--player-coral);
+  --color-player-teal: var(--player-teal);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ring-offset-background: var(--background);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+
+:root {
+  --radius: 0.625rem;
+
+  /* Love Card Games palette — electric coral on deep plum */
+  --brand: oklch(0.235 0.055 300);
+  --surface: oklch(0.305 0.065 302);
+  --cream: oklch(0.968 0.014 20);
+  --gold: oklch(0.72 0.168 22);
+  --gold-bright: oklch(0.795 0.135 22);
+  --ivory: oklch(0.912 0.026 18);
+  --sage: oklch(0.655 0.185 8);
+  --player-coral: oklch(0.7 0.19 25);
+  --player-teal: oklch(0.75 0.12 195);
+
+  --background: var(--brand);
+  --foreground: var(--cream);
+  --card: var(--surface);
+  --card-foreground: var(--cream);
+  --popover: oklch(0.275 0.06 301);
+  --popover-foreground: var(--cream);
+  --primary: var(--gold);
+  --primary-foreground: oklch(0.2 0.05 300);
+  --secondary: var(--surface);
+  --secondary-foreground: var(--ivory);
+  --muted: oklch(0.34 0.06 302);
+  --muted-foreground: oklch(0.79 0.03 18);
+  --accent: oklch(0.375 0.075 340);
+  --accent-foreground: var(--cream);
+  --destructive: oklch(0.577 0.18 27.325);
+  --destructive-foreground: var(--cream);
+  --border: oklch(0.72 0.168 22 / 25%);
+  --input: oklch(0.72 0.168 22 / 30%);
+  --ring: oklch(0.72 0.168 22 / 60%);
+  --chart-1: var(--gold);
+  --chart-2: var(--sage);
+  --chart-3: var(--ivory);
+  --chart-4: oklch(0.6 0.14 350);
+  --chart-5: oklch(0.55 0.11 300);
+  --sidebar: var(--surface);
+  --sidebar-foreground: var(--cream);
+  --sidebar-primary: var(--gold);
+  --sidebar-primary-foreground: oklch(0.2 0.05 300);
+  --sidebar-accent: var(--accent);
+  --sidebar-accent-foreground: var(--cream);
+  --sidebar-border: oklch(0.72 0.168 22 / 20%);
+  --sidebar-ring: var(--ring);
+}
+
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-body);
+  }
+}
+
+@keyframes deal-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) rotate(-2deg);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) rotate(0);
+  }
+}
+
+@utility animate-deal {
+  animation: deal-in 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+
+@keyframes deal-flip {
+  0% {
+    opacity: 0;
+    transform: translate(-140px, -180px) rotateY(180deg) scale(0.85);
+  }
+  60% {
+    opacity: 1;
+    transform: translate(0, 0) rotateY(180deg) scale(1);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(0, 0) rotateY(0deg) scale(1);
+  }
+}
+
+@utility animate-deal-flip {
+  animation: deal-flip 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+}
+
+@keyframes deal-out {
+  0% {
+    opacity: 0;
+    transform: translate(-120px, 150px) scale(0.85);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+}
+
+@utility animate-deal-out {
+  animation: deal-out 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes deal-in-player {
+  0% {
+    opacity: 0;
+    transform: translate(-120px, -170px) scale(0.85);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+}
+
+@utility animate-deal-in-player {
+  animation: deal-in-player 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes turn-over {
+  0% {
+    transform: rotateY(90deg) scale(0.96);
+  }
+  100% {
+    transform: rotateY(0deg) scale(1);
+  }
+}
+
+@utility animate-turn-over {
+  animation: turn-over 0.32s ease-out both;
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+}
+
+@keyframes sort-slide {
+  0% {
+    transform: translateY(-14px) scale(0.94);
+  }
+  60% {
+    transform: translateY(3px) scale(1.02);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+  }
+}
+
+@utility animate-sort {
+  animation: sort-slide 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes cut-to-seat {
+  0% {
+    opacity: 0;
+    transform: translateY(120px) rotate(-4deg) scale(0.92);
+  }
+  55% {
+    opacity: 1;
+    transform: translateY(34px) rotate(-2deg) scale(0.97);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) rotate(0) scale(1);
+  }
+}
+
+@utility animate-cut-to-seat {
+  animation: cut-to-seat 1.1s cubic-bezier(0.33, 0, 0.25, 1) both;
+}
+
+@keyframes lay-from-bottom {
+  0% {
+    opacity: 0;
+    transform: translateY(170px) rotate(-8deg) scale(0.9);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(40px) rotate(-3deg) scale(0.97);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) rotate(0) scale(1);
+  }
+}
+
+@utility animate-lay-player {
+  animation: lay-from-bottom 0.95s cubic-bezier(0.33, 0, 0.25, 1) both;
+}
+
+@keyframes lay-from-top {
+  0% {
+    opacity: 0;
+    transform: translateY(-170px) rotate(8deg) scale(0.9);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(-40px) rotate(3deg) scale(0.97);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) rotate(0) scale(1);
+  }
+}
+
+@utility animate-lay-cpu {
+  animation: lay-from-top 0.95s cubic-bezier(0.33, 0, 0.25, 1) both;
+}
+
+@keyframes float-selected {
+  0% {
+    transform: translateY(0);
+  }
+  60% {
+    transform: translateY(-10px);
+  }
+  100% {
+    transform: translateY(-6px);
+  }
+}
+
+@utility animate-float-selected {
+  animation: float-selected 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+@keyframes die-to-player {
+  0% {
+    opacity: 0;
+    transform: translateY(-150px) rotate(-14deg) scale(0.55);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(10px) rotate(4deg) scale(1.06);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) rotate(0) scale(1);
+  }
+}
+
+@utility animate-die-to-player {
+  animation: die-to-player 0.6s cubic-bezier(0.33, 0, 0.25, 1) both;
+}
+
+@keyframes die-to-cpu {
+  0% {
+    opacity: 0;
+    transform: translateY(150px) rotate(14deg) scale(0.55);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(-10px) rotate(-4deg) scale(1.06);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) rotate(0) scale(1);
+  }
+}
+
+@utility animate-die-to-cpu {
+  animation: die-to-cpu 0.6s cubic-bezier(0.33, 0, 0.25, 1) both;
+}
