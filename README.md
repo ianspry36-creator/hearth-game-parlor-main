@@ -8,7 +8,7 @@ This project was built with [Lovable](https://lovable.dev).
 
 ## Deploy to Render
 
-Click the button below to deploy this app to [Render](https://render.com). It reads the service definition in [`render.yaml`](./render.yaml) and builds a standard Node.js server (via the `NITRO_PRESET=node-server` env var) instead of the default Cloudflare Workers output.
+Click the button below to deploy this app to [Render](https://render.com). It reads the service definition in [`render.yaml`](./render.yaml) and builds a standard Node.js server (via the `NITRO_PRESET=node-server` env var) instead of 0the default Cloudflare Workers output.
 
 > ⚠️ **Before you deploy:** replace `YOUR_USERNAME` and `YOUR_REPO` in the link below with your real GitHub repository URL. The repository must be public for the one-click button to work.
 
