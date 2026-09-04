@@ -3,13 +3,13 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 export const Route = createFileRoute("/contact")({
   head: () => ({
     meta: [
-      { title: "Contact — Love Card Games" },
+      { title: "Contact — Cards and Games" },
       {
         name: "description",
         content:
-          "Get in touch with Love Card Games. Send feedback, report a bug, or ask a question about our classic card and board games.",
+          "Get in touch with Cards and Games. Send feedback, report a bug, or ask a question about our classic card and board games.",
       },
-      { property: "og:title", content: "Contact — Love Card Games" },
+      { property: "og:title", content: "Contact — Cards and Games" },
       {
         property: "og:description",
         content:
@@ -31,7 +31,7 @@ function ContactPage() {
             to="/"
             className="text-sm font-medium text-gold transition-colors hover:text-gold-bright"
           >
-            ← Back to Love Card Games
+            ← Back to Cards and Games
           </Link>
         </header>
 
@@ -48,10 +48,10 @@ function ContactPage() {
             The quickest way to reach us is by email:
           </p>
           <a
-            href="mailto:contact@simplycards.online"
+            href="mailto:contact@cardsandgames.uk"
             className="mt-4 inline-block text-lg font-medium text-gold underline decoration-gold/30 underline-offset-4 transition-colors hover:text-gold-bright hover:decoration-gold-bright/50"
           >
-            contact@simplycards.online
+            contact@cardsandgames.uk
           </a>
 
           <div className="mt-8 space-y-4 text-sm text-ivory/70">
@@ -68,7 +68,7 @@ function ContactPage() {
         </div>
 
         <footer className="mt-16 border-t border-gold/12 pt-6 text-center text-[11px] uppercase tracking-[0.28em] text-ivory/30">
-          Love Card Games · Cards dealt nightly
+          Cards and Games · Cards dealt nightly
         </footer>
       </div>
     </div>

@@ -13,7 +13,6 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as BackgammonRouteImport } from './routes/backgammon'
 import { Route as BattleshipRouteImport } from './routes/battleship'
-import { Route as ChaseTheAceRouteImport } from './routes/chase-the-ace'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as CrazyEightsRouteImport } from './routes/crazy-eights'
 import { Route as CribbageRouteImport } from './routes/cribbage'
@@ -21,7 +20,6 @@ import { Route as FarkleRouteImport } from './routes/farkle'
 import { Route as FreecellRouteImport } from './routes/freecell'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ReversiRouteImport } from './routes/reversi'
-import { Route as RummyRouteImport } from './routes/rummy'
 import { Route as SolitaireRouteImport } from './routes/solitaire'
 import { Route as TrianglesRouteImport } from './routes/triangles'
 import { Route as YahtzeeRouteImport } from './routes/yahtzee'
@@ -44,11 +42,6 @@ const BackgammonRoute = BackgammonRouteImport.update({
 const BattleshipRoute = BattleshipRouteImport.update({
   id: '/battleship',
   path: '/battleship',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ChaseTheAceRoute = ChaseTheAceRouteImport.update({
-  id: '/chase-the-ace',
-  path: '/chase-the-ace',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ContactRoute = ContactRouteImport.update({
@@ -86,11 +79,6 @@ const ReversiRoute = ReversiRouteImport.update({
   path: '/reversi',
   getParentRoute: () => rootRouteImport,
 } as any)
-const RummyRoute = RummyRouteImport.update({
-  id: '/rummy',
-  path: '/rummy',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const SolitaireRoute = SolitaireRouteImport.update({
   id: '/solitaire',
   path: '/solitaire',
@@ -112,7 +100,6 @@ export interface FileRoutesByFullPath {
   '/about': typeof AboutRoute
   '/backgammon': typeof BackgammonRoute
   '/battleship': typeof BattleshipRoute
-  '/chase-the-ace': typeof ChaseTheAceRoute
   '/contact': typeof ContactRoute
   '/crazy-eights': typeof CrazyEightsRoute
   '/cribbage': typeof CribbageRoute
@@ -120,7 +107,6 @@ export interface FileRoutesByFullPath {
   '/freecell': typeof FreecellRoute
   '/privacy': typeof PrivacyRoute
   '/reversi': typeof ReversiRoute
-  '/rummy': typeof RummyRoute
   '/solitaire': typeof SolitaireRoute
   '/triangles': typeof TrianglesRoute
   '/yahtzee': typeof YahtzeeRoute
@@ -130,7 +116,6 @@ export interface FileRoutesByTo {
   '/about': typeof AboutRoute
   '/backgammon': typeof BackgammonRoute
   '/battleship': typeof BattleshipRoute
-  '/chase-the-ace': typeof ChaseTheAceRoute
   '/contact': typeof ContactRoute
   '/crazy-eights': typeof CrazyEightsRoute
   '/cribbage': typeof CribbageRoute
@@ -138,7 +123,6 @@ export interface FileRoutesByTo {
   '/freecell': typeof FreecellRoute
   '/privacy': typeof PrivacyRoute
   '/reversi': typeof ReversiRoute
-  '/rummy': typeof RummyRoute
   '/solitaire': typeof SolitaireRoute
   '/triangles': typeof TrianglesRoute
   '/yahtzee': typeof YahtzeeRoute
@@ -149,7 +133,6 @@ export interface FileRoutesById {
   '/about': typeof AboutRoute
   '/backgammon': typeof BackgammonRoute
   '/battleship': typeof BattleshipRoute
-  '/chase-the-ace': typeof ChaseTheAceRoute
   '/contact': typeof ContactRoute
   '/crazy-eights': typeof CrazyEightsRoute
   '/cribbage': typeof CribbageRoute
@@ -157,7 +140,6 @@ export interface FileRoutesById {
   '/freecell': typeof FreecellRoute
   '/privacy': typeof PrivacyRoute
   '/reversi': typeof ReversiRoute
-  '/rummy': typeof RummyRoute
   '/solitaire': typeof SolitaireRoute
   '/triangles': typeof TrianglesRoute
   '/yahtzee': typeof YahtzeeRoute
@@ -169,7 +151,6 @@ export interface FileRouteTypes {
     | '/about'
     | '/backgammon'
     | '/battleship'
-    | '/chase-the-ace'
     | '/contact'
     | '/crazy-eights'
     | '/cribbage'
@@ -177,7 +158,6 @@ export interface FileRouteTypes {
     | '/freecell'
     | '/privacy'
     | '/reversi'
-    | '/rummy'
     | '/solitaire'
     | '/triangles'
     | '/yahtzee'
@@ -187,7 +167,6 @@ export interface FileRouteTypes {
     | '/about'
     | '/backgammon'
     | '/battleship'
-    | '/chase-the-ace'
     | '/contact'
     | '/crazy-eights'
     | '/cribbage'
@@ -195,7 +174,6 @@ export interface FileRouteTypes {
     | '/freecell'
     | '/privacy'
     | '/reversi'
-    | '/rummy'
     | '/solitaire'
     | '/triangles'
     | '/yahtzee'
@@ -205,7 +183,6 @@ export interface FileRouteTypes {
     | '/about'
     | '/backgammon'
     | '/battleship'
-    | '/chase-the-ace'
     | '/contact'
     | '/crazy-eights'
     | '/cribbage'
@@ -213,7 +190,6 @@ export interface FileRouteTypes {
     | '/freecell'
     | '/privacy'
     | '/reversi'
-    | '/rummy'
     | '/solitaire'
     | '/triangles'
     | '/yahtzee'
@@ -224,7 +200,6 @@ export interface RootRouteChildren {
   AboutRoute: typeof AboutRoute
   BackgammonRoute: typeof BackgammonRoute
   BattleshipRoute: typeof BattleshipRoute
-  ChaseTheAceRoute: typeof ChaseTheAceRoute
   ContactRoute: typeof ContactRoute
   CrazyEightsRoute: typeof CrazyEightsRoute
   CribbageRoute: typeof CribbageRoute
@@ -232,7 +207,6 @@ export interface RootRouteChildren {
   FreecellRoute: typeof FreecellRoute
   PrivacyRoute: typeof PrivacyRoute
   ReversiRoute: typeof ReversiRoute
-  RummyRoute: typeof RummyRoute
   SolitaireRoute: typeof SolitaireRoute
   TrianglesRoute: typeof TrianglesRoute
   YahtzeeRoute: typeof YahtzeeRoute
@@ -266,13 +240,6 @@ declare module '@tanstack/react-router' {
       path: '/battleship'
       fullPath: '/battleship'
       preLoaderRoute: typeof BattleshipRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/chase-the-ace': {
-      id: '/chase-the-ace'
-      path: '/chase-the-ace'
-      fullPath: '/chase-the-ace'
-      preLoaderRoute: typeof ChaseTheAceRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/contact': {
@@ -324,13 +291,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReversiRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/rummy': {
-      id: '/rummy'
-      path: '/rummy'
-      fullPath: '/rummy'
-      preLoaderRoute: typeof RummyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/solitaire': {
       id: '/solitaire'
       path: '/solitaire'
@@ -360,7 +320,6 @@ const rootRouteChildren: RootRouteChildren = {
   AboutRoute: AboutRoute,
   BackgammonRoute: BackgammonRoute,
   BattleshipRoute: BattleshipRoute,
-  ChaseTheAceRoute: ChaseTheAceRoute,
   ContactRoute: ContactRoute,
   CrazyEightsRoute: CrazyEightsRoute,
   CribbageRoute: CribbageRoute,
@@ -368,7 +327,6 @@ const rootRouteChildren: RootRouteChildren = {
   FreecellRoute: FreecellRoute,
   PrivacyRoute: PrivacyRoute,
   ReversiRoute: ReversiRoute,
-  RummyRoute: RummyRoute,
   SolitaireRoute: SolitaireRoute,
   TrianglesRoute: TrianglesRoute,
   YahtzeeRoute: YahtzeeRoute,

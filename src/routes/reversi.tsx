@@ -27,13 +27,13 @@ export const Route = createFileRoute("/reversi")({
   }),
   head: () => ({
     meta: [
-      { title: "Play Reversi — Love Card Games" },
+      { title: "Play Reversi — Cards and Games" },
       {
         name: "description",
         content:
           "Outflank Charlotte on the 8×8 board: place a disc, flip every disc you sandwich, and own the most squares when the board is full.",
       },
-      { property: "og:title", content: "Play Reversi — Love Card Games" },
+      { property: "og:title", content: "Play Reversi — Cards and Games" },
       {
         property: "og:description",
         content: "Reversi in the parlour: sandwich, flip, and finish with the most discs.",
@@ -90,6 +90,9 @@ function ReversiTable() {
     opponentName: liveOpponent,
     remoteState,
     publish,
+    opponentDisconnected,
+    disconnectSecondsLeft,
+    disconnectExpired,
   } = useMatch<State>(matchId);
   const [state, setState] = useState<State>(() => freshState());
   const stateRef = useRef(state);
@@ -204,6 +207,9 @@ function ReversiTable() {
       game={game}
       opponentName={opponentName}
       opponentStatus={status}
+      opponentDisconnected={opponentDisconnected}
+      disconnectSecondsLeft={disconnectSecondsLeft}
+      disconnectExpired={disconnectExpired}
       gameInProgress={state.phase === "play" && moved}
       onMatched={(nickname, newMatchId) => {
         navigate({ to: "/reversi", search: { opponent: nickname, match: newMatchId } });

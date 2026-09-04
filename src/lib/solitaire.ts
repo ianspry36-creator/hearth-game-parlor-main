@@ -1,4 +1,4 @@
-import { freshDeck, type Card } from "./cribbage";
+import { freshDeck, type Card, type Suit } from "./cribbage";
 
 export type DrawMode = 1 | 3;
 
@@ -72,12 +72,18 @@ export function canPlaceOnTableau(cards: Card[], pile: TableauPile): boolean {
   return top.rank === bottom.rank + 1 && isRed(top.suit) !== isRed(bottom.suit);
 }
 
-/** First foundation index that accepts `card`, if any. */
+/**
+ * The four foundations are each reserved for a fixed suit, shown left to right
+ * as spades, hearts, diamonds, clubs. A card only ever lands on its own suit's
+ * column, so it snaps to the matching predefined box.
+ */
+export const FOUNDATION_SUITS: Suit[] = ["S", "H", "D", "C"];
+
+/** The foundation index reserved for `card`'s suit, if it can be placed there. */
 export function foundationTarget(card: Card, foundations: Card[][]): number | null {
-  for (let i = 0; i < foundations.length; i++) {
-    if (canPlaceOnFoundation(card, foundations[i]!)) return i;
-  }
-  return null;
+  const index = FOUNDATION_SUITS.indexOf(card.suit);
+  if (index === -1 || !canPlaceOnFoundation(card, foundations[index]!)) return null;
+  return index;
 }
 
 /** A move that changed nothing (illegal) returns the same state reference. */
@@ -211,8 +217,7 @@ export function autoComplete(state: GameState): GameState {
   for (const suit of Object.keys(bySuit) as Card["suit"][]) {
     const cards = bySuit[suit]!.sort((a, b) => a.rank - b.rank);
     if (cards.length === 0) continue;
-    let index = foundations.findIndex((p) => p.length > 0 && p[0]!.suit === suit);
-    if (index === -1) index = foundations.findIndex((p) => p.length === 0);
+    const index = FOUNDATION_SUITS.indexOf(suit);
     if (index === -1) continue;
     foundations[index] = [...foundations[index]!, ...cards];
   }

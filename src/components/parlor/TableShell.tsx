@@ -15,6 +15,8 @@ import { RulesDialog } from "@/components/parlor/RulesDialog";
 import { WaitingRoom } from "@/components/parlor/WaitingRoom";
 import { ChatDialog } from "@/components/parlor/ChatDialog";
 import { ChatContext } from "@/components/parlor/ChatContext";
+import { CardMark } from "@/components/parlor/CardMark";
+import { DisconnectDialog } from "@/components/parlor/DisconnectDialog";
 import type { GameMeta } from "@/lib/games";
 
 export function TableShell({
@@ -27,6 +29,9 @@ export function TableShell({
   rail,
   children,
   hideOpponent = false,
+  opponentDisconnected = false,
+  disconnectSecondsLeft = 10,
+  disconnectExpired = false,
 }: {
   game: GameMeta;
   opponentName: string;
@@ -37,6 +42,9 @@ export function TableShell({
   rail: ReactNode;
   children: ReactNode;
   hideOpponent?: boolean;
+  opponentDisconnected?: boolean;
+  disconnectSecondsLeft?: number;
+  disconnectExpired?: boolean;
 }) {
   const [confirming, setConfirming] = useState<"new" | "human" | null>(null);
   const [humanOpen, setHumanOpen] = useState(false);
@@ -61,17 +69,21 @@ export function TableShell({
   const openWaitingRoom = () => (gameInProgress ? setConfirming("human") : setHumanOpen(true));
   return (
     <div className="min-h-screen bg-brand text-cream">
+      <DisconnectDialog
+        open={opponentDisconnected || disconnectExpired}
+        secondsLeft={disconnectSecondsLeft}
+        expired={disconnectExpired}
+        opponentName={opponentName}
+      />
       <div className="mx-auto max-w-6xl px-6 py-8">
         <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <Link
               to="/"
-              aria-label="Love Card Games home"
+              aria-label="Cards and Games home"
               className="grid size-10 place-items-center rounded-full bg-gold text-brand transition-colors hover:bg-gold-bright"
             >
-              <svg viewBox="0 0 24 24" aria-hidden className="size-5" fill="currentColor">
-                <path d="M12 21s-7.5-4.7-9.3-9A5.3 5.3 0 0 1 12 6.4 5.3 5.3 0 0 1 21.3 12c-1.8 4.3-9.3 9-9.3 9Z" />
-              </svg>
+              <CardMark className="size-5" />
             </Link>
             <div>
               <p className="text-[11px] uppercase tracking-[0.28em] text-gold">Now on the table</p>
@@ -114,7 +126,7 @@ export function TableShell({
                   game={game}
                   trigger={
                     <Button variant="parlorGhost" className="w-full">
-                      Rules
+                      How to Play
                     </Button>
                   }
                 />

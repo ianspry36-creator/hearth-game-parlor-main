@@ -32,13 +32,13 @@ export const Route = createFileRoute("/crazy-eights")({
   }),
   head: () => ({
     meta: [
-      { title: "Play Crazy Eights — Love Card Games" },
+      { title: "Play Crazy Eights — Cards and Games" },
       {
         name: "description",
         content:
           "Match suit or rank, nominate a suit with a wild eight, and shed your hand first against Charlotte or a live opponent.",
       },
-      { property: "og:title", content: "Play Crazy Eights — Love Card Games" },
+      { property: "og:title", content: "Play Crazy Eights — Cards and Games" },
       {
         property: "og:description",
         content: "Crazy Eights in the parlor: follow suit or rank, and let the eights run wild.",
@@ -128,6 +128,9 @@ function CrazyEightsTable() {
     opponentName: liveOpponent,
     remoteState,
     publish,
+    opponentDisconnected,
+    disconnectSecondsLeft,
+    disconnectExpired,
   } = useMatch<State>(matchId);
   const [state, setState] = useState<State>(() => freshState(mulberry32(SSR_SEED)));
   const [playerAvatar, setPlayerAvatar] = useState<string>(readAvatar);
@@ -445,6 +448,9 @@ function CrazyEightsTable() {
       game={game}
       opponentName={opponentName}
       opponentStatus={status}
+      opponentDisconnected={opponentDisconnected}
+      disconnectSecondsLeft={disconnectSecondsLeft}
+      disconnectExpired={disconnectExpired}
       gameInProgress={state.phase !== "over" && state.pile.length > 1}
       onMatched={(nickname, newMatchId) => {
         navigate({ to: "/crazy-eights", search: { opponent: nickname, match: newMatchId } });

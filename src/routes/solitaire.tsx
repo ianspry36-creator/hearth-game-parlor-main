@@ -3,12 +3,15 @@ import { useEffect, useRef, useState, type DragEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { RulesDialog } from "@/components/parlor/RulesDialog";
 import { getGame } from "@/lib/games";
+import { CardMark } from "@/components/parlor/CardMark";
 import { RANK_LABEL, SUIT_SYMBOL, cardLabel, type Card } from "@/lib/cribbage";
 import {
   autoComplete,
   canAutoComplete,
+  canPlaceOnTableau,
   drawStock,
   flipTableau,
+  FOUNDATION_SUITS,
   foundationTarget,
   freshGame,
   isRed,
@@ -29,13 +32,13 @@ export const Route = createFileRoute("/solitaire")({
   validateSearch: (search: Record<string, unknown>) => ({}),
   head: () => ({
     meta: [
-      { title: "Play Solitaire — Love Card Games" },
+      { title: "Play Solitaire — Cards and Games" },
       {
         name: "description",
         content:
           "Klondike solitaire in the parlor: deal the tableau, build the foundations by suit, and send all fifty-two cards home.",
       },
-      { property: "og:title", content: "Play Solitaire — Love Card Games" },
+      { property: "og:title", content: "Play Solitaire — Cards and Games" },
       {
         property: "og:description",
         content: "A patient game of Klondike solitaire, dealt fresh every hand.",
@@ -63,15 +66,17 @@ type DragSource =
   | { type: "foundation"; index: number };
 
 const CARD_H = 90; // px — matches h-[90px]
-const FACE_DOWN_VISIBLE = 20;
-const FACE_UP_VISIBLE = 30;
+const FACE_DOWN_VISIBLE = 15;
+const FACE_UP_VISIBLE = 15;
 
 function SolitaireTable() {
   const game = getGame("solitaire");
   const [state, setState] = useState<GameState>(() => freshGame(mulberry32(SSR_SEED)));
   const [history, setHistory] = useState<GameState[]>([]);
   const [selection, setSelection] = useState<Selection>(null);
-  const [drawMode, setDrawMode] = useState<DrawMode>(1);
+  const [drawMode, setDrawMode] = useState<DrawMode>(3);
+  const stateRef = useRef(state);
+  stateRef.current = state;
 
   useEffect(() => {
     setState(freshGame());
@@ -112,18 +117,34 @@ function SolitaireTable() {
   const doubleClickWaste = () => {
     if (state.waste.length === 0) return;
     const card = state.waste[state.waste.length - 1]!;
+    // Prefer a foundation move, then fall back to the first legal tableau pile.
     const target = foundationTarget(card, state.foundations);
-    if (target !== null) apply(moveWasteToFoundation(state, target));
+    if (target !== null) {
+      apply(moveWasteToFoundation(state, target));
+    } else {
+      const to = state.tableau.findIndex((pile) => canPlaceOnTableau([card], pile));
+      if (to !== -1) apply(moveWasteToTableau(state, to));
+    }
     setSelection(null);
   };
 
   const clickFoundation = (index: number) => {
+    const currentState = stateRef.current;
     if (selection) {
-      if (selection.type === "waste") apply(moveWasteToFoundation(state, index));
-      else if (selection.type === "tableau") {
-        const pile = state.tableau[selection.index]!;
+      if (selection.type === "waste") {
+        const card = currentState.waste[currentState.waste.length - 1];
+        if (card) {
+          const target = foundationTarget(card, currentState.foundations);
+          if (target !== null) apply(moveWasteToFoundation(currentState, target));
+        }
+      } else if (selection.type === "tableau") {
+        const pile = currentState.tableau[selection.index]!;
         if (selection.cardIndex === pile.faceUp.length - 1) {
-          apply(moveTableauToFoundation(state, selection.index, index));
+          const card = pile.faceUp[selection.cardIndex];
+          if (card) {
+            const target = foundationTarget(card, currentState.foundations);
+            if (target !== null) apply(moveTableauToFoundation(currentState, selection.index, target));
+          }
         } else {
           setSelection(null);
         }
@@ -132,7 +153,7 @@ function SolitaireTable() {
       }
       return;
     }
-    if (state.foundations[index]!.length > 0) setSelection({ type: "foundation", index });
+    if (currentState.foundations[index]!.length > 0) setSelection({ type: "foundation", index });
   };
 
   const clickTableau = (index: number, cardIndex: number) => {
@@ -161,8 +182,14 @@ function SolitaireTable() {
     const pile = state.tableau[index]!;
     if (pile.faceUp.length === 0) return;
     const card = pile.faceUp[pile.faceUp.length - 1]!;
+    // Prefer a foundation move, then fall back to the first legal tableau pile.
     const target = foundationTarget(card, state.foundations);
-    if (target !== null) apply(moveTableauToFoundation(state, index, target));
+    if (target !== null) {
+      apply(moveTableauToFoundation(state, index, target));
+    } else {
+      const to = state.tableau.findIndex((p, i) => i !== index && canPlaceOnTableau([card], p));
+      if (to !== -1) apply(moveTableauToTableau(state, index, 1, to));
+    }
     setSelection(null);
   };
 
@@ -197,11 +224,22 @@ function SolitaireTable() {
     const source = dragRef.current;
     if (!source) return;
     dragRef.current = null;
-    if (source.type === "waste") apply(moveWasteToFoundation(state, index));
-    else if (source.type === "tableau") {
-      const pile = state.tableau[source.index]!;
+    const currentState = stateRef.current;
+    
+    if (source.type === "waste") {
+      const card = currentState.waste[currentState.waste.length - 1];
+      if (card) {
+        const target = foundationTarget(card, currentState.foundations);
+        if (target !== null) apply(moveWasteToFoundation(currentState, target));
+      }
+    } else if (source.type === "tableau") {
+      const pile = currentState.tableau[source.index]!;
       if (source.cardIndex === pile.faceUp.length - 1) {
-        apply(moveTableauToFoundation(state, source.index, index));
+        const card = pile.faceUp[source.cardIndex];
+        if (card) {
+          const target = foundationTarget(card, currentState.foundations);
+          if (target !== null) apply(moveTableauToFoundation(currentState, source.index, target));
+        }
       }
     }
   };
@@ -213,12 +251,10 @@ function SolitaireTable() {
           <div className="flex items-center gap-3">
             <Link
               to="/"
-              aria-label="Love Card Games home"
+              aria-label="Cards and Games home"
               className="grid size-10 place-items-center rounded-full bg-gold text-brand transition-colors hover:bg-gold-bright"
             >
-              <svg viewBox="0 0 24 24" aria-hidden className="size-5" fill="currentColor">
-                <path d="M12 21s-7.5-4.7-9.3-9A5.3 5.3 0 0 1 12 6.4 5.3 5.3 0 0 1 21.3 12c-1.8 4.3-9.3 9-9.3 9Z" />
-              </svg>
+              <CardMark className="size-5" />
             </Link>
             <div>
               <p className="text-[11px] uppercase tracking-[0.28em] text-gold">Now on the table</p>
@@ -226,14 +262,6 @@ function SolitaireTable() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <RulesDialog
-              game={game}
-              trigger={
-                <Button variant="parlorGhost" className="text-xs uppercase tracking-[0.2em]">
-                  Rules
-                </Button>
-              }
-            />
             <Link to="/" className="text-xs uppercase tracking-[0.2em] text-ivory/50 hover:text-gold">
               ← Back to the game room
             </Link>
@@ -258,6 +286,7 @@ function SolitaireTable() {
                   <FoundationSlot
                     key={index}
                     pile={pile}
+                    suitIndex={index}
                     selected={selection?.type === "foundation" && selection.index === index}
                     onClick={() => clickFoundation(index)}
                     onDragOver={onDragOver}
@@ -286,21 +315,23 @@ function SolitaireTable() {
 
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gold/15 pt-4">
               <div className="flex items-center gap-3">
+                <Button variant="parlorOutline" onClick={reset}>
+                  Start again
+                </Button>
+                <RulesDialog
+                  game={game}
+                  trigger={
+                    <Button variant="parlorOutline">
+                      How to Play
+                    </Button>
+                  }
+                />
                 <Button variant="parlorOutline" onClick={undo} disabled={history.length === 0}>
                   Undo
                 </Button>
                 <span className="text-sm text-ivory/60">
                   {state.moves} {state.moves === 1 ? "move" : "moves"}
                 </span>
-              </div>
-              <div className="flex items-center gap-2 text-sm text-ivory/60">
-                <span className="mr-1">Draw</span>
-                <Button variant={drawMode === 1 ? "parlor" : "parlorGhost"} onClick={() => setDrawMode(1)}>
-                  1
-                </Button>
-                <Button variant={drawMode === 3 ? "parlor" : "parlorGhost"} onClick={() => setDrawMode(3)}>
-                  3
-                </Button>
               </div>
             </div>
           </div>
@@ -442,6 +473,7 @@ function WastePile({
 
 function FoundationSlot({
   pile,
+  suitIndex,
   selected,
   onClick,
   onDrop,
@@ -449,6 +481,7 @@ function FoundationSlot({
   onDragStart,
 }: {
   pile: Card[];
+  suitIndex: number;
   selected: boolean;
   onClick: () => void;
   onDrop?: (e: DragEvent) => void;
@@ -456,10 +489,12 @@ function FoundationSlot({
   onDragStart: (e: DragEvent) => void;
 }) {
   const top = pile[pile.length - 1];
+  const suit = FOUNDATION_SUITS[suitIndex];
+  const suitSymbol = suit ? SUIT_SYMBOL[suit] : "";
   return (
     <div className="relative" onDragOver={onDragOver} onDrop={onDrop}>
       {!top ? (
-        <EmptySlot onClick={onClick} symbol="A" />
+        <EmptySlot onClick={onClick} symbol={suitSymbol} />
       ) : (
         <>
           {pile.length > 1 && (
@@ -516,7 +551,7 @@ function TableauPile({
           const isSelected =
             selection?.type === "tableau" && selection.index === index && selection.cardIndex === i;
           return (
-            <div key={card.id} style={{ marginTop: i === 0 ? 0 : -(CARD_H - FACE_UP_VISIBLE) }}>
+            <div key={card.id} style={{ marginTop: pile.faceDown.length === 0 && i === 0 ? 0 : -(CARD_H - FACE_UP_VISIBLE) }}>
               <CardFace
                 card={card}
                 selected={isSelected}

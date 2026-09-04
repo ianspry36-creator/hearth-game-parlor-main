@@ -29,13 +29,13 @@ export const Route = createFileRoute("/triangles")({
   }),
   head: () => ({
     meta: [
-      { title: "Play Triangles — Love Card Games" },
+      { title: "Play Triangles — Cards and Games" },
       {
         name: "description",
         content:
           "Twenty spots scattered at random: draw lines against Charlotte or a live opponent and fill each triangle you close with your colour.",
       },
-      { property: "og:title", content: "Play Triangles — Love Card Games" },
+      { property: "og:title", content: "Play Triangles — Cards and Games" },
       {
         property: "og:description",
         content: "Triangles in the parlor: claim the most triangles by closing the third line.",
@@ -110,6 +110,9 @@ function TrianglesTable() {
     opponentName: liveOpponent,
     remoteState,
     publish,
+    opponentDisconnected,
+    disconnectSecondsLeft,
+    disconnectExpired,
   } = useMatch<State>(matchId);
   const [state, setState] = useState<State>(() => freshState(SSR_SEED));
   const stateRef = useRef(state);
@@ -267,6 +270,9 @@ function TrianglesTable() {
       game={game}
       opponentName={opponentName}
       opponentStatus={status}
+      opponentDisconnected={opponentDisconnected}
+      disconnectSecondsLeft={disconnectSecondsLeft}
+      disconnectExpired={disconnectExpired}
       gameInProgress={state.phase === "play" && Object.keys(state.lines).length > 0}
       onMatched={(nickname, newMatchId) => {
         navigate({ to: "/triangles", search: { opponent: nickname, match: newMatchId } });

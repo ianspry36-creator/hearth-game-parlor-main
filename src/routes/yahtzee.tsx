@@ -34,13 +34,13 @@ export const Route = createFileRoute("/yahtzee")({
   }),
   head: () => ({
     meta: [
-      { title: "Play Yahtzee — Love Card Games" },
+      { title: "Play Yahtzee — Cards and Games" },
       {
         name: "description",
         content:
           "Roll five dice against Charlotte or a live opponent: hold what you need, fill thirteen boxes and chase the fifty-point Yahtzee.",
       },
-      { property: "og:title", content: "Play Yahtzee — Love Card Games" },
+      { property: "og:title", content: "Play Yahtzee — Cards and Games" },
       {
         property: "og:description",
         content: "Yahtzee in the parlor: three throws a turn, thirteen boxes, one scorecard each.",
@@ -141,6 +141,9 @@ function YahtzeeTable() {
     opponentName: liveOpponent,
     remoteState,
     publish,
+    opponentDisconnected,
+    disconnectSecondsLeft,
+    disconnectExpired,
   } = useMatch<State>(matchId);
   const [state, setState] = useState<State>(freshState);
   const stateRef = useRef(state);
@@ -503,6 +506,9 @@ function YahtzeeTable() {
       game={game}
       opponentName={opponentName}
       opponentStatus={status}
+      opponentDisconnected={opponentDisconnected}
+      disconnectSecondsLeft={disconnectSecondsLeft}
+      disconnectExpired={disconnectExpired}
       hideOpponent
       gameInProgress={
         state.phase === "play" && (state.rolls > 0 || Object.keys(myCard).length > 0)
@@ -563,7 +569,7 @@ function YahtzeeTable() {
               {state.phase === "over"
                 ? "Card full"
                 : state.phase === "rolloff"
-                  ? "Who goes first?"
+                  ? ""
                   : state.turn === "human"
                     ? "Your turn"
                     : `${opponentName}'s turn`}
@@ -585,7 +591,6 @@ function YahtzeeTable() {
         <section className="grid min-h-32 place-items-center rounded-2xl border border-dashed border-gold/20 bg-brand/20 p-6">
           {state.phase === "rolloff" ? (
             <div className="text-center">
-              <p className="text-[11px] uppercase tracking-[0.3em] text-gold">Who goes first?</p>
               <p className="mt-2 font-display text-2xl font-bold">Highest roll starts the game</p>
               <div className="mt-6 flex items-center justify-center gap-8">
                 <div className="flex flex-col items-center gap-2">

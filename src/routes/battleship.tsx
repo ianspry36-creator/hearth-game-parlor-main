@@ -36,13 +36,13 @@ export const Route = createFileRoute("/battleship")({
   }),
   head: () => ({
     meta: [
-      { title: "Play Battleship — Love Card Games" },
+      { title: "Play Battleship — Cards and Games" },
       {
         name: "description",
         content:
           "Hide your fleet, call your shots and sink Charlotte's ships — or take on a live human opponent from the waiting room.",
       },
-      { property: "og:title", content: "Play Battleship — Love Card Games" },
+      { property: "og:title", content: "Play Battleship — Cards and Games" },
       {
         property: "og:description",
         content: "Battleship in the parlor: place five ships, fire square by square, sink the fleet.",
@@ -126,6 +126,9 @@ function BattleshipTable() {
     opponentName: liveOpponent,
     remoteState,
     publish,
+    opponentDisconnected,
+    disconnectSecondsLeft,
+    disconnectExpired,
   } = useMatch<State>(matchId);
   const [state, setState] = useState<State>(() => freshState(mulberry32(SSR_SEED)));
   const [grab, setGrab] = useState<{ name: string; cell: number } | null>(null);
@@ -362,6 +365,9 @@ function BattleshipTable() {
       game={game}
       opponentName={opponentName}
       opponentStatus={status}
+      opponentDisconnected={opponentDisconnected}
+      disconnectSecondsLeft={disconnectSecondsLeft}
+      disconnectExpired={disconnectExpired}
       gameInProgress={state.phase === "play"}
       onMatched={(nickname, newMatchId) => {
         navigate({ to: "/battleship", search: { opponent: nickname, match: newMatchId } });

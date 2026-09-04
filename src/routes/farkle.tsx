@@ -25,13 +25,13 @@ export const Route = createFileRoute("/farkle")({
   }),
   head: () => ({
     meta: [
-      { title: "Play Farkle — Love Card Games" },
+      { title: "Play Farkle — Cards and Games" },
       {
         name: "description",
         content:
           "Throw six dice against Charlotte or a live opponent: set aside the scorers, press your luck and bank before you farkle.",
       },
-      { property: "og:title", content: "Play Farkle — Love Card Games" },
+      { property: "og:title", content: "Play Farkle — Cards and Games" },
       {
         property: "og:description",
         content: "Farkle in the parlor: six dice, rising piles of points, and the nerve to stop.",
@@ -159,6 +159,9 @@ function FarkleTable() {
     opponentName: liveOpponent,
     remoteState,
     publish,
+    opponentDisconnected,
+    disconnectSecondsLeft,
+    disconnectExpired,
   } = useMatch<State>(matchId);
   const [state, setState] = useState<State>(freshState);
   const [selected, setSelected] = useState<number[]>([]);
@@ -519,6 +522,9 @@ function FarkleTable() {
       game={game}
       opponentName={opponentName}
       opponentStatus={status}
+      opponentDisconnected={opponentDisconnected}
+      disconnectSecondsLeft={disconnectSecondsLeft}
+      disconnectExpired={disconnectExpired}
       gameInProgress={state.phase === "play" && (state.turnScore > 0 || state.scores.human > 0)}
       onMatched={(nickname, newMatchId) => {
         navigate({ to: "/farkle", search: { opponent: nickname, match: newMatchId } });
