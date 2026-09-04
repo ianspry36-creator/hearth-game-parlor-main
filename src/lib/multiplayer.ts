@@ -52,6 +52,9 @@ const INVITE_COLUMNS =
 /** Invites older than this are treated as expired. */
 export const INVITE_TTL_MS = 60_000;
 
+/** Seconds a live opponent is given to reconnect before the match is awarded. */
+export const RECONNECT_SECONDS = 10;
+
 export async function sendInvite(params: {
   game: GameId;
   fromNickname: string;
@@ -134,6 +137,14 @@ export function useMatch<T>(matchId: string | undefined) {
   const [loading, setLoading] = useState(Boolean(matchId));
   const version = useRef(0);
 
+  // Opponent presence / disconnection tracking.
+  const [opponentOnline, setOpponentOnline] = useState(true);
+  const [opponentDisconnected, setOpponentDisconnected] = useState(false);
+  const [disconnectSecondsLeft, setDisconnectSecondsLeft] = useState(RECONNECT_SECONDS);
+  const [disconnectExpired, setDisconnectExpired] = useState(false);
+  const seenOpponentRef = useRef(false);
+  const expiredRef = useRef(false);
+
   useEffect(() => {
     if (!matchId) {
       setMatch(null);
@@ -209,7 +220,76 @@ export function useMatch<T>(matchId: string | undefined) {
   const sessionId = typeof window === "undefined" ? "" : getSessionId();
   const isHost = Boolean(match && match.host_session === sessionId);
   const opponentName = match ? (isHost ? match.guest_nickname : match.host_nickname) : null;
+  const opponentSession = match ? (isHost ? match.guest_session : match.host_session) : null;
   const remoteState = (match?.state ?? null) as T | null;
 
-  return { match, loading, isHost, opponentName, remoteState, publish };
+  // Track the opponent's live connection through a Realtime presence channel so a
+  // dropped peer can be detected and given a short window to reconnect.
+  useEffect(() => {
+    if (!matchId || !opponentSession) return;
+    const mySession = sessionId || getSessionId();
+
+    const markOnline = () => {
+      if (expiredRef.current) return;
+      seenOpponentRef.current = true;
+      setOpponentOnline(true);
+      setOpponentDisconnected(false);
+      setDisconnectSecondsLeft(RECONNECT_SECONDS);
+    };
+    const markOffline = () => {
+      if (!seenOpponentRef.current || expiredRef.current) return;
+      setOpponentOnline(false);
+      setOpponentDisconnected(true);
+    };
+
+    const channel = supabase
+      .channel(`match-presence-${matchId}`, {
+        config: { presence: { key: mySession } },
+      })
+      .on("presence", { event: "sync" }, () => {
+        const state = channel.presenceState();
+        if (state[opponentSession] && state[opponentSession].length > 0) markOnline();
+        else if (seenOpponentRef.current) markOffline();
+      })
+      .on("presence", { event: "join" }, ({ key }) => {
+        if (key === opponentSession) markOnline();
+      })
+      .on("presence", { event: "leave" }, ({ key }) => {
+        if (key === opponentSession) markOffline();
+      })
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") void channel.track({ online_at: new Date().toISOString() });
+      });
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [matchId, opponentSession, sessionId]);
+
+  // Count the reconnect window down; when it reaches zero the match is awarded
+  // to the player who stayed connected.
+  useEffect(() => {
+    if (!opponentDisconnected) return;
+    if (disconnectSecondsLeft <= 0) {
+      expiredRef.current = true;
+      setDisconnectExpired(true);
+      setOpponentDisconnected(false);
+      return;
+    }
+    const timer = setTimeout(() => setDisconnectSecondsLeft((s) => s - 1), 1_000);
+    return () => clearTimeout(timer);
+  }, [opponentDisconnected, disconnectSecondsLeft]);
+
+  return {
+    match,
+    loading,
+    isHost,
+    opponentName,
+    opponentOnline,
+    opponentDisconnected,
+    disconnectSecondsLeft,
+    disconnectExpired,
+    remoteState,
+    publish,
+  };
 }

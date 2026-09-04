@@ -3,13 +3,13 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 export const Route = createFileRoute("/about")({
   head: () => ({
     meta: [
-      { title: "About Us — Love Card Games" },
+      { title: "About Us — Cards and Games" },
       {
         name: "description",
         content:
-          "Learn about Love Card Games, a friendly online parlour where you can play classic card and board games against Charlotte or a real human opponent.",
+          "Learn about Cards and Games, a friendly online parlour where you can play classic card and board games against Charlotte or a real human opponent.",
       },
-      { property: "og:title", content: "About Us — Love Card Games" },
+      { property: "og:title", content: "About Us — Cards and Games" },
       {
         property: "og:description",
         content:
@@ -31,7 +31,7 @@ function AboutPage() {
             to="/"
             className="text-sm font-medium text-gold transition-colors hover:text-gold-bright"
           >
-            ← Back to Love Card Games
+            ← Back to Cards and Games
           </Link>
         </header>
 
@@ -39,7 +39,7 @@ function AboutPage() {
           About us
         </h1>
         <p className="mt-3 text-[15px] leading-relaxed text-ivory/70">
-          Love Card Games is a small, friendly parlour of classic card and board games, built to be enjoyed anywhere.
+          Cards and Games is a small, friendly parlour of classic card and board games, built to be enjoyed anywhere.
         </p>
 
         <section className="mt-10 space-y-8 text-[15px] leading-relaxed text-ivory/85">
@@ -77,7 +77,7 @@ function AboutPage() {
         </section>
 
         <footer className="mt-16 border-t border-gold/12 pt-6 text-center text-[11px] uppercase tracking-[0.28em] text-ivory/30">
-          Love Card Games · Cards dealt nightly
+          Cards and Games · Cards dealt nightly
         </footer>
       </div>
     </div>

@@ -77,13 +77,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Love Card Games — Classic Card & Board Games Online" },
+      { title: "Cards and Games — Classic Card & Board Games Online" },
       {
         name: "description",
         content:
-          "Love Card Games: play cribbage, backgammon, crazy eights, yahtzee and more against Charlotte or a human opponent.",
+          "Cards and Games: play cribbage, backgammon, crazy eights, yahtzee and more against Charlotte or a human opponent.",
       },
-      { property: "og:title", content: "Love Card Games — Classic Card & Board Games Online" },
+      { property: "og:title", content: "Cards and Games — Classic Card & Board Games Online" },
       {
         property: "og:description",
         content: "Cribbage, backgammon and more against Charlotte or a human opponent.",

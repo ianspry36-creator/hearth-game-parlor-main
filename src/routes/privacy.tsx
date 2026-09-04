@@ -3,17 +3,17 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 export const Route = createFileRoute("/privacy")({
   head: () => ({
     meta: [
-      { title: "Privacy Policy — Love Card Games" },
+      { title: "Privacy Policy — Cards and Games" },
       {
         name: "description",
         content:
-          "Read the Love Card Games privacy policy to learn how we handle your data while you play classic card and board games online.",
+          "Read the Cards and Games privacy policy to learn how we handle your data while you play classic card and board games online.",
       },
-      { property: "og:title", content: "Privacy Policy — Love Card Games" },
+      { property: "og:title", content: "Privacy Policy — Cards and Games" },
       {
         property: "og:description",
         content:
-          "How Love Card Games collects, uses and protects your information.",
+          "How Cards and Games collects, uses and protects your information.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -31,7 +31,7 @@ function PrivacyPage() {
             to="/"
             className="text-sm font-medium text-gold transition-colors hover:text-gold-bright"
           >
-            ← Back to Love Card Games
+            ← Back to Cards and Games
           </Link>
         </header>
 
@@ -44,7 +44,7 @@ function PrivacyPage() {
           <div>
             <h2 className="font-display text-2xl font-semibold text-gold">Who we are</h2>
             <p className="mt-2">
-              Love Card Games is a free online parlour where you can play classic card and board games against Charlotte or a human opponent. We want you to enjoy the games without worrying about your personal data.
+              Cards and Games is a free online parlour where you can play classic card and board games against Charlotte or a human opponent. We want you to enjoy the games without worrying about your personal data.
             </p>
           </div>
 
@@ -84,7 +84,7 @@ function PrivacyPage() {
           <div>
             <h2 className="font-display text-2xl font-semibold text-gold">Children</h2>
             <p className="mt-2">
-              Love Card Games is intended for a general audience. We do not knowingly collect personal information from children under 13. If you believe a child has provided personal data, please contact us and we will remove it.
+              Cards and Games is intended for a general audience. We do not knowingly collect personal information from children under 13. If you believe a child has provided personal data, please contact us and we will remove it.
             </p>
           </div>
 
@@ -97,7 +97,7 @@ function PrivacyPage() {
         </section>
 
         <footer className="mt-16 border-t border-gold/12 pt-6 text-center text-[11px] uppercase tracking-[0.28em] text-ivory/30">
-          Love Card Games · Cards dealt nightly
+          Cards and Games · Cards dealt nightly
         </footer>
       </div>
     </div>

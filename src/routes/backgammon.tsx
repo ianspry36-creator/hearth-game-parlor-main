@@ -27,13 +27,13 @@ export const Route = createFileRoute("/backgammon")({
   }),
   head: () => ({
     meta: [
-      { title: "Play Backgammon — Love Card Games" },
+      { title: "Play Backgammon — Cards and Games" },
       {
         name: "description",
         content:
           "Roll the dice and race your checkers home against Charlotte or a live human opponent, with hitting, the bar, and bearing off.",
       },
-      { property: "og:title", content: "Play Backgammon — Love Card Games" },
+      { property: "og:title", content: "Play Backgammon — Cards and Games" },
       {
         property: "og:description",
         content: "Backgammon against Charlotte or a live opponent: hit blots, hold points, bear off first.",
@@ -120,7 +120,7 @@ function BackgammonTable() {
   const game = getGame("backgammon");
   const navigate = useNavigate();
   const { opponent, match: matchId } = Route.useSearch();
-  const { match, isHost, opponentName: liveOpponent, remoteState, publish } = useMatch<State>(matchId);
+  const { match, isHost, opponentName: liveOpponent, remoteState, publish, opponentDisconnected, disconnectSecondsLeft, disconnectExpired } = useMatch<State>(matchId);
   const [state, setState] = useState<State>(freshState);
   const [selected, setSelected] = useState<number | "bar" | null>(null);
   const stateRef = useRef(state);
@@ -257,7 +257,7 @@ function BackgammonTable() {
           }),
         };
       });
-    }, 3000);
+    }, 2000);
     return () => clearTimeout(timer);
   }, [isMulti, isHost, state.phase, state.rolloff.human, state.rolloff.cpu]);
 
@@ -381,6 +381,9 @@ function BackgammonTable() {
       game={game}
       opponentName={opponentName}
       opponentStatus={status}
+      opponentDisconnected={opponentDisconnected}
+      disconnectSecondsLeft={disconnectSecondsLeft}
+      disconnectExpired={disconnectExpired}
       gameInProgress={!state.winner}
       onMatched={(nickname, newMatchId) => {
         navigate({ to: "/backgammon", search: { opponent: nickname, match: newMatchId } });
@@ -472,13 +475,33 @@ function BackgammonTable() {
                 Play again
               </Button>
             ) : state.phase === "rolloff" ? (
-              <Button variant="parlor" onClick={rollForFirst} disabled={!canRollOff}>
-                {state.rolloff.human === null
-                  ? "Roll for first turn"
-                  : state.rolloff.cpu === null
-                    ? "Rolling…"
-                    : "Roll again"}
-              </Button>
+              <div className="relative">
+                <svg
+                  className="absolute -inset-3 pointer-events-none"
+                  viewBox="0 0 200 80"
+                  preserveAspectRatio="none"
+                >
+                  <path
+                    d="M 10 40 Q 15 20, 30 15 T 60 10 T 90 12 T 120 15 T 150 20 Q 165 25, 175 40 Q 180 50, 175 60 Q 165 70, 150 75 T 120 80 T 90 82 T 60 80 T 30 75 Q 15 70, 10 60 Q 5 50, 10 40"
+                    fill="none"
+                    stroke="url(#swirlGrad)"
+                    strokeWidth="2"
+                  />
+                  <defs>
+                    <linearGradient id="swirlGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="rgb(212, 175, 55)" stopOpacity="0.6" />
+                      <stop offset="100%" stopColor="rgb(212, 175, 55)" stopOpacity="0.3" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+                <Button variant="parlor" onClick={rollForFirst} disabled={!canRollOff}>
+                  {state.rolloff.human === null
+                    ? "Roll for first turn"
+                    : state.rolloff.cpu === null
+                      ? "Rolling…"
+                      : "Roll again"}
+                </Button>
+              </div>
             ) : (
               <Button
                 variant="parlor"
@@ -672,8 +695,8 @@ function Board({
     // the checker that is now already rendered in the destination point.
     const settleTimer = window.setTimeout(() => {
       setFlies((current) => current.map((f) => ({ ...f, settled: true })));
-    }, 320);
-    const clearTimer = window.setTimeout(() => setFlies([]), 650);
+    }, 750);
+    const clearTimer = window.setTimeout(() => setFlies([]), 1000);
     return () => {
       cancelAnimationFrame(raf);
       clearTimeout(settleTimer);
@@ -775,7 +798,7 @@ function Board({
           {flies.map((f) => (
             <span
               key={f.key}
-              className={`absolute size-5 rounded-full border shadow-md shadow-black/40 transition-all duration-300 ease-out ${
+              className={`absolute size-5 rounded-full border shadow-md shadow-black/40 transition-all duration-700 ease-out ${
                 f.side === "human" ? "border-black/20 bg-cream" : "border-gold/40 bg-surface"
               } ${f.arrived && (f.fadeOut || f.settled) ? "scale-50 opacity-0" : "opacity-100"}`}
               style={{

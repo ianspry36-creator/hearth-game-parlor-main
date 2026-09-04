@@ -3,12 +3,14 @@ import { useEffect, useRef, useState, type DragEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { RulesDialog } from "@/components/parlor/RulesDialog";
 import { getGame } from "@/lib/games";
+import { CardMark } from "@/components/parlor/CardMark";
 import { RANK_LABEL, SUIT_SYMBOL, cardLabel, type Card } from "@/lib/cribbage";
 import {
   autoComplete,
   autoCompleteFrames,
   canAutoComplete,
-  cellCardMoves,
+  FOUNDATION_SUITS,
+  foundationTarget,
   freshGame,
   isRed,
   isRun,
@@ -20,7 +22,6 @@ import {
   moveTableauToCell,
   moveTableauToFoundation,
   moveTableauToTableau,
-  tableauCardMoves,
   type GameState,
 } from "@/lib/freecell";
 import { mulberry32 } from "@/lib/random";
@@ -29,13 +30,13 @@ export const Route = createFileRoute("/freecell")({
   validateSearch: (search: Record<string, unknown>) => ({}),
   head: () => ({
     meta: [
-      { title: "Play FreeCell — Love Card Games" },
+      { title: "Play FreeCell — Cards and Games" },
       {
         name: "description",
         content:
           "FreeCell solitaire in the parlor: four free cells, eight piles, and fifty-two cards to send home by suit.",
       },
-      { property: "og:title", content: "Play FreeCell — Love Card Games" },
+      { property: "og:title", content: "Play FreeCell — Cards and Games" },
       {
         property: "og:description",
         content: "A patient game of FreeCell solitaire, dealt fresh every hand.",
@@ -142,20 +143,26 @@ function FreeCellTable() {
     const card = state.cells[index]!;
     if (card === null) return;
     setSelection(null);
-    const moves = cellCardMoves(state, index);
-    if (moves.length !== 1) return;
-    const move = moves[0]!;
-    if (move.kind === "foundation") apply(moveCellToFoundation(state, index, move.foundationIndex));
-    else if (move.kind === "tableau") apply(moveCellToTableau(state, index, move.toIndex));
+    const foundationIndex = foundationTarget(card, state.foundations);
+    if (foundationIndex !== null) apply(moveCellToFoundation(state, index, foundationIndex));
   };
 
   const clickFoundation = (index: number) => {
     if (selection) {
-      if (selection.type === "cell") apply(moveCellToFoundation(state, selection.index, index));
-      else if (selection.type === "tableau") {
+      if (selection.type === "cell") {
+        const card = state.cells[selection.index];
+        if (card) {
+          const target = foundationTarget(card, state.foundations);
+          if (target !== null) apply(moveCellToFoundation(state, selection.index, target));
+        }
+      } else if (selection.type === "tableau") {
         const pile = state.tableau[selection.index]!;
         if (selection.cardIndex === pile.length - 1) {
-          apply(moveTableauToFoundation(state, selection.index, index));
+          const card = pile[selection.cardIndex];
+          if (card) {
+            const target = foundationTarget(card, state.foundations);
+            if (target !== null) apply(moveTableauToFoundation(state, selection.index, target));
+          }
         } else {
           setSelection(null);
         }
@@ -190,12 +197,14 @@ function FreeCellTable() {
     const pile = state.tableau[index]!;
     if (pile.length === 0) return;
     setSelection(null);
-    const moves = tableauCardMoves(state, index);
-    if (moves.length !== 1) return;
-    const move = moves[0]!;
-    if (move.kind === "foundation") apply(moveTableauToFoundation(state, index, move.foundationIndex));
-    else if (move.kind === "cell") apply(moveTableauToCell(state, index, move.cellIndex));
-    else apply(moveTableauToTableau(state, index, 1, move.toIndex));
+    const card = pile[pile.length - 1]!;
+    const foundationIndex = foundationTarget(card, state.foundations);
+    if (foundationIndex !== null) {
+      apply(moveTableauToFoundation(state, index, foundationIndex));
+      return;
+    }
+    const emptyCell = state.cells.findIndex((c) => c === null);
+    if (emptyCell !== -1) apply(moveTableauToCell(state, index, emptyCell));
   };
 
 
@@ -227,11 +236,20 @@ function FreeCellTable() {
     const source = dragRef.current;
     if (!source) return;
     dragRef.current = null;
-    if (source.type === "cell") apply(moveCellToFoundation(state, source.index, index));
-    else if (source.type === "tableau") {
+    if (source.type === "cell") {
+      const card = state.cells[source.index];
+      if (card) {
+        const target = foundationTarget(card, state.foundations);
+        if (target !== null) apply(moveCellToFoundation(state, source.index, target));
+      }
+    } else if (source.type === "tableau") {
       const pile = state.tableau[source.index]!;
       if (source.cardIndex === pile.length - 1) {
-        apply(moveTableauToFoundation(state, source.index, index));
+        const card = pile[source.cardIndex];
+        if (card) {
+          const target = foundationTarget(card, state.foundations);
+          if (target !== null) apply(moveTableauToFoundation(state, source.index, target));
+        }
       }
     }
   };
@@ -257,12 +275,10 @@ function FreeCellTable() {
           <div className="flex items-center gap-3">
             <Link
               to="/"
-              aria-label="Love Card Games home"
+              aria-label="Cards and Games home"
               className="grid size-10 place-items-center rounded-full bg-gold text-brand transition-colors hover:bg-gold-bright"
             >
-              <svg viewBox="0 0 24 24" aria-hidden className="size-5" fill="currentColor">
-                <path d="M12 21s-7.5-4.7-9.3-9A5.3 5.3 0 0 1 12 6.4 5.3 5.3 0 0 1 21.3 12c-1.8 4.3-9.3 9-9.3 9Z" />
-              </svg>
+              <CardMark className="size-5" />
             </Link>
             <div>
               <p className="text-[11px] uppercase tracking-[0.28em] text-gold">Now on the table</p>
@@ -270,14 +286,6 @@ function FreeCellTable() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <RulesDialog
-              game={game}
-              trigger={
-                <Button variant="parlorGhost" className="text-xs uppercase tracking-[0.2em]">
-                  Rules
-                </Button>
-              }
-            />
             <Link to="/" className="text-xs uppercase tracking-[0.2em] text-ivory/50 hover:text-gold">
               ← Back to the game room
             </Link>
@@ -306,6 +314,7 @@ function FreeCellTable() {
                   <FoundationSlot
                     key={index}
                     pile={pile}
+                    suitIndex={index}
                     selected={selection?.type === "foundation" && selection.index === index}
                     onClick={() => clickFoundation(index)}
                     onDragOver={onDragOver}
@@ -334,6 +343,17 @@ function FreeCellTable() {
 
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gold/15 pt-4">
               <div className="flex items-center gap-3">
+                <Button variant="parlorOutline" onClick={reset}>
+                  New game
+                </Button>
+                <RulesDialog
+                  game={game}
+                  trigger={
+                    <Button variant="parlorOutline">
+                      How to Play
+                    </Button>
+                  }
+                />
                 <Button
                   variant="parlorOutline"
                   onClick={undo}
@@ -459,6 +479,7 @@ function CellSlot({
 
 function FoundationSlot({
   pile,
+  suitIndex,
   selected,
   onClick,
   onDrop,
@@ -466,6 +487,7 @@ function FoundationSlot({
   onDragStart,
 }: {
   pile: Card[];
+  suitIndex: number;
   selected: boolean;
   onClick: () => void;
   onDrop?: (e: DragEvent) => void;
@@ -473,12 +495,14 @@ function FoundationSlot({
   onDragStart: (e: DragEvent) => void;
 }) {
   const top = pile[pile.length - 1];
+  const suit = FOUNDATION_SUITS[suitIndex];
+  const suitSymbol = suit ? SUIT_SYMBOL[suit] : "";
   return (
     <div className="relative" onDragOver={onDragOver} onDrop={onDrop}>
       {top ? (
         <CardFace card={top} selected={selected} onClick={onClick} onDragStart={onDragStart} />
       ) : (
-        <EmptySlot onClick={onClick} symbol="A" />
+        <EmptySlot onClick={onClick} symbol={suitSymbol} />
       )}
     </div>
   );

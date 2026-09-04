@@ -41,13 +41,13 @@ export const Route = createFileRoute("/cribbage")({
   }),
   head: () => ({
     meta: [
-      { title: "Play Cribbage — Love Card Games" },
+      { title: "Play Cribbage — Cards and Games" },
       {
         name: "description",
         content:
           "Play a full game of cribbage to 121 against Charlotte or a live human opponent: discard to the crib, peg the play, and score the show.",
       },
-      { property: "og:title", content: "Play Cribbage — Love Card Games" },
+      { property: "og:title", content: "Play Cribbage — Cards and Games" },
       {
         property: "og:description",
         content: "Cribbage against Charlotte or a live opponent, with pegging, the crib, and the show.",
@@ -400,7 +400,7 @@ function CribbageTable() {
   const game = getGame("cribbage");
   const navigate = useNavigate();
   const { opponent, match: matchId } = Route.useSearch();
-  const { match, isHost, opponentName: liveOpponent, remoteState, publish } = useMatch<State>(matchId);
+  const { match, isHost, opponentName: liveOpponent, remoteState, publish, opponentDisconnected, disconnectSecondsLeft, disconnectExpired } = useMatch<State>(matchId);
   const isMulti = Boolean(matchId);
   const freshGame = () => (isMulti ? dealtGame() : cutForDeal());
   const [state, setState] = useState<State>(() => (matchId ? dealtGame() : cutForDeal()));
@@ -658,6 +658,7 @@ function CribbageTable() {
       apply((current) => {
         const s = { ...current };
         s.pile = [];
+        s.lastPeg = null;
         s.phase = "play";
         return s;
       });
@@ -816,6 +817,9 @@ function CribbageTable() {
       game={game}
       opponentName={opponentName}
       opponentStatus={turnLabel}
+      opponentDisconnected={opponentDisconnected}
+      disconnectSecondsLeft={disconnectSecondsLeft}
+      disconnectExpired={disconnectExpired}
       gameInProgress={state.phase !== "cut" && state.phase !== "over"}
       onMatched={(nickname, newMatchId) => {
         navigate({ to: "/cribbage", search: { opponent: nickname, match: newMatchId } });

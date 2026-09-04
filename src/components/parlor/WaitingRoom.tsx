@@ -22,6 +22,12 @@ import {
   setInviteStatus,
   type InviteRow,
 } from "@/lib/multiplayer";
+import {
+  INAPPROPRIATE_NAME_MESSAGE,
+  MAX_NICKNAME_LENGTH,
+  NICKNAME_TOO_LONG_MESSAGE,
+} from "@/lib/nickname";
+import { moderateNickname } from "@/lib/moderation";
 
 /** Players not seen for this long are treated as having left the room. */
 const STALE_MS = 45_000;
@@ -206,6 +212,24 @@ export function WaitingRoom({
     void refresh();
   };
 
+  const submitNickname = async (value: string) => {
+    setLoading(true);
+    setError(null);
+    if (value.length > MAX_NICKNAME_LENGTH) {
+      setLoading(false);
+      setError(NICKNAME_TOO_LONG_MESSAGE);
+      return;
+    }
+    const result = await moderateNickname(value);
+    if (!result.allowed) {
+      setLoading(false);
+      setError(INAPPROPRIATE_NAME_MESSAGE);
+      return;
+    }
+    save(value);
+    void join(value);
+  };
+
   const invitePlayer = async (player: WaitingPlayer) => {
     setError(null);
     const invite = await sendInvite({
@@ -274,8 +298,7 @@ export function WaitingRoom({
               event.preventDefault();
               const value = draft.trim();
               if (!value) return;
-              save(value);
-              void join(value);
+              void submitNickname(value);
             }}
           >
             <div>
@@ -288,7 +311,7 @@ export function WaitingRoom({
               <Input
                 id="nickname"
                 value={draft}
-                maxLength={20}
+                maxLength={MAX_NICKNAME_LENGTH}
                 onChange={(event) => setDraft(event.target.value)}
                 placeholder="e.g. Cardboard Jack"
                 className="border-gold/30 bg-brand/60 text-cream placeholder:text-ivory/40"

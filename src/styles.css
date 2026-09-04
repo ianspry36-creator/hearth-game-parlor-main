@@ -77,7 +77,7 @@
 :root {
   --radius: 0.625rem;
 
-  /* Love Card Games palette — electric coral on deep plum */
+  /* Cards and Games palette — electric coral on deep plum */
   --brand: oklch(0.235 0.055 300);
   --surface: oklch(0.305 0.065 302);
   --cream: oklch(0.968 0.014 20);

@@ -1,6 +1,11 @@
 import { freshDeck, type Card, type Suit } from "./cribbage";
 
-const SUITS: Suit[] = ["S", "H", "D", "C"];
+/**
+ * The four foundations are each reserved for a fixed suit, shown left to right
+ * as spades, hearts, diamonds, clubs. A card only ever lands on its own suit's
+ * column, so it snaps to the matching predefined box.
+ */
+export const FOUNDATION_SUITS: Suit[] = ["S", "H", "D", "C"];
 
 export type GameState = {
   cells: (Card | null)[]; // four free cells, each empty or holding a single card
@@ -56,12 +61,11 @@ export function canPlaceOnTableau(cards: Card[], pile: Card[]): boolean {
   return top.rank === bottom.rank + 1 && isRed(top.suit) !== isRed(bottom.suit);
 }
 
-/** First foundation index that accepts `card`, if any. */
+/** The foundation index reserved for `card`'s suit, if it can be placed there. */
 export function foundationTarget(card: Card, foundations: Card[][]): number | null {
-  for (let i = 0; i < foundations.length; i++) {
-    if (canPlaceOnFoundation(card, foundations[i]!)) return i;
-  }
-  return null;
+  const index = FOUNDATION_SUITS.indexOf(card.suit);
+  if (index === -1 || !canPlaceOnFoundation(card, foundations[index]!)) return null;
+  return index;
 }
 
 /** A legal single-card destination for a double-click auto-move. */
@@ -76,9 +80,8 @@ export function tableauCardMoves(state: GameState, fromIndex: number): CardMove[
   if (pile.length === 0) return [];
   const card = pile[pile.length - 1]!;
   const moves: CardMove[] = [];
-  state.foundations.forEach((p, i) => {
-    if (canPlaceOnFoundation(card, p)) moves.push({ kind: "foundation", foundationIndex: i });
-  });
+  const foundationIndex = foundationTarget(card, state.foundations);
+  if (foundationIndex !== null) moves.push({ kind: "foundation", foundationIndex });
   state.cells.forEach((c, i) => {
     if (c === null) moves.push({ kind: "cell", cellIndex: i });
   });
@@ -93,9 +96,8 @@ export function cellCardMoves(state: GameState, cellIndex: number): CardMove[] {
   const card = state.cells[cellIndex]!;
   if (card === null) return [];
   const moves: CardMove[] = [];
-  state.foundations.forEach((p, i) => {
-    if (canPlaceOnFoundation(card, p)) moves.push({ kind: "foundation", foundationIndex: i });
-  });
+  const foundationIndex = foundationTarget(card, state.foundations);
+  if (foundationIndex !== null) moves.push({ kind: "foundation", foundationIndex });
   state.tableau.forEach((p, i) => {
     if (canPlaceOnTableau([card], p)) moves.push({ kind: "tableau", toIndex: i });
   });
@@ -246,11 +248,10 @@ export function autoComplete(state: GameState): GameState {
   const foundations = state.foundations.map((p) => [...p]);
   const bySuit: Record<Suit, Card[]> = { S: [], H: [], D: [], C: [] };
   for (const p of state.tableau) for (const c of p) bySuit[c.suit].push(c);
-  for (const suit of SUITS) {
+  for (const suit of FOUNDATION_SUITS) {
     const cards = bySuit[suit].sort((a, b) => a.rank - b.rank);
     if (cards.length === 0) continue;
-    let index = foundations.findIndex((p) => p.length > 0 && p[0]!.suit === suit);
-    if (index === -1) index = foundations.findIndex((p) => p.length === 0);
+    const index = FOUNDATION_SUITS.indexOf(suit);
     if (index === -1) continue;
     foundations[index] = [...foundations[index]!, ...cards];
   }
@@ -265,13 +266,12 @@ export function autoCompleteFrames(state: GameState): GameState[] {
   const bySuit: Record<Suit, Card[]> = { S: [], H: [], D: [], C: [] };
   for (const p of tableau) for (const c of p) bySuit[c.suit].push(c);
   const order: Card[] = [];
-  for (const suit of SUITS) order.push(...bySuit[suit].sort((a, b) => a.rank - b.rank));
+  for (const suit of FOUNDATION_SUITS) order.push(...bySuit[suit].sort((a, b) => a.rank - b.rank));
   for (const card of order) {
     const pileIndex = tableau.findIndex((p) => p.length > 0 && p[p.length - 1] === card);
     if (pileIndex === -1) continue;
     tableau[pileIndex]!.pop();
-    let fi = foundations.findIndex((p) => p.length > 0 && p[0]!.suit === card.suit);
-    if (fi === -1) fi = foundations.findIndex((p) => p.length === 0);
+    const fi = FOUNDATION_SUITS.indexOf(card.suit);
     if (fi === -1) continue;
     foundations[fi]!.push(card);
     frames.push({

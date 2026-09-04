@@ -1,11 +1,11 @@
-export type GameId = "cribbage" | "backgammon" | "battleship" | "chase-the-ace" | "farkle" | "yahtzee" | "crazy-eights" | "rummy" | "triangles" | "solitaire" | "freecell" | "reversi";
+export type GameId = "cribbage" | "backgammon" | "battleship" | "farkle" | "yahtzee" | "crazy-eights" | "triangles" | "solitaire" | "freecell" | "reversi";
 
 export type GameMeta = {
   id: GameId;
   name: string;
   initial: string;
   tagline: string;
-  path: "/cribbage" | "/backgammon" | "/battleship" | "/chase-the-ace" | "/farkle" | "/yahtzee" | "/crazy-eights" | "/rummy" | "/triangles" | "/solitaire" | "/freecell" | "/reversi";
+  path: "/cribbage" | "/backgammon" | "/battleship" | "/farkle" | "/yahtzee" | "/crazy-eights" | "/triangles" | "/solitaire" | "/freecell" | "/reversi";
   rules: { heading: string; body: string }[];
   beta?: boolean;
 };
@@ -17,7 +17,6 @@ export const GAMES: GameMeta[] = [
     initial: "C",
     tagline: "Four suits, a peg, and a quiet duel of points and patience.",
     path: "/cribbage",
-    beta: true,
     rules: [
       {
         heading: "The object",
@@ -47,7 +46,6 @@ export const GAMES: GameMeta[] = [
     initial: "B",
     tagline: "Twenty-four points across the board, decided by a roll of the dice.",
     path: "/backgammon",
-    beta: true,
     rules: [
       {
         heading: "The object",
@@ -188,70 +186,6 @@ export const GAMES: GameMeta[] = [
     ],
   },
   {
-    id: "chase-the-ace",
-    name: "Chase the Ace",
-    initial: "A",
-    tagline: "One card each, three lives apiece, and the nerve not to be caught low.",
-    path: "/chase-the-ace",
-    beta: true,
-    rules: [
-      {
-        heading: "The object",
-        body: "Hold onto your three lives. Each round the player left holding the lower card loses one, and the last player standing wins the table.",
-      },
-      {
-        heading: "The deal",
-        body: "A single card each from one pack. Aces are low and kings are high, so the ace is the card you never want to be caught holding.",
-      },
-      {
-        heading: "Your turn",
-        body: "Look at your card, then keep it or chase a better one by swapping it for the top of the deck. You will see what you draw.",
-      },
-      {
-        heading: "Charlotte's turn",
-        body: "Charlotte peeks at her card and either keeps it or chases a stronger one from the deck.",
-      },
-      {
-        heading: "The reveal",
-        body: "Both cards turn face up. The lower card loses a life; a tie loses nothing. When one of you runs out of lives, the other wins.",
-      },
-    ],
-  },
-  {
-    id: "rummy",
-    name: "Gin Rummy",
-    initial: "G",
-    tagline: "Meld your runs and sets, shed the deadwood, and knock for gin.",
-    path: "/rummy",
-    beta: true,
-    rules: [
-      {
-        heading: "The object",
-        body: "Be first to reach one hundred points. Points are won each hand by melding your cards and knocking before your opponent.",
-      },
-      {
-        heading: "The deal",
-        body: "Ten cards each from one pack. One card is turned up to start the discard, and the rest becomes the stock.",
-      },
-      {
-        heading: "The play",
-        body: "On your turn draw the top of the stock or take the top discard, then lay one card on the discard. Aces run low.",
-      },
-      {
-        heading: "Melds",
-        body: "A meld is a set of three or four of a rank, or a run of three or more consecutive cards in one suit. Everything else is deadwood, scored by its pip — faces count ten, aces one.",
-      },
-      {
-        heading: "The knock",
-        body: "When your deadwood is ten points or fewer you may knock, laying a card face down to end the hand. If you have no deadwood at all it is gin, worth a twenty-five point bonus.",
-      },
-      {
-        heading: "The count",
-        body: "Both hands are shown. The player who didn't knock lays their deadwood onto the knocker's melds. The knocker scores the difference — or is undercut, worth a twenty-five point bonus to the opponent. First to one hundred wins the table.",
-      },
-    ],
-  },
-  {
     id: "triangles",
     name: "Triangles",
     initial: "T",
@@ -286,7 +220,6 @@ export const GAMES: GameMeta[] = [
     initial: "S",
     tagline: "Deal the tableau, build four foundations, and send every card home.",
     path: "/solitaire",
-    beta: true,
     rules: [
       {
         heading: "The object",
@@ -320,7 +253,6 @@ export const GAMES: GameMeta[] = [
     initial: "F",
     tagline: "Eight piles, four free cells, and a careful path home.",
     path: "/freecell",
-    beta: true,
     rules: [
       {
         heading: "The object",
@@ -354,7 +286,6 @@ export const GAMES: GameMeta[] = [
     initial: "R",
     tagline: "Outflank your opponent and turn the board your colour.",
     path: "/reversi",
-    beta: true,
     rules: [
       {
         heading: "The object",
