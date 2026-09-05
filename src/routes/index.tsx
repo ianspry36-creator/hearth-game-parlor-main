@@ -12,7 +12,7 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Cards and Games is a warm little parlour of classics. Play cribbage, backgammon, crazy eights, yahtzee, farkle, battleship, triangles, solitaire or freecell against Ada, a human opponent, or the deck.",
+          "Cards and Games is a warm little parlour of classics. Play cribbage, backgammon, crazy eights, yahtzee, farkle, warship, triangles, solitaire or freecell against Ada, a human opponent, or the deck.",
       },
       { property: "og:title", content: "Cards and Games — Play Cribbage, Backgammon & More" },
       {
