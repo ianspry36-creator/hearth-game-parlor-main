@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { TableShell } from "@/components/parlor/TableShell";
 import { GameOverDialog } from "@/components/parlor/GameOverDialog";
 import { PlayerAvatar } from "@/components/parlor/PlayerAvatar";
-import { CHARLOTTE_AVATAR, readAvatar } from "@/lib/avatars";
+import { ADA_AVATAR, readAvatar } from "@/lib/avatars";
 import { getGame } from "@/lib/games";
 import { useMatch } from "@/lib/multiplayer";
 import { RANK_LABEL, SUIT_SYMBOL, cardLabel, type Card, type Suit } from "@/lib/cribbage";
@@ -36,7 +36,7 @@ export const Route = createFileRoute("/crazy-eights")({
       {
         name: "description",
         content:
-          "Match suit or rank, nominate a suit with a wild eight, and shed your hand first against Charlotte or a live opponent.",
+          "Match suit or rank, nominate a suit with a wild eight, and shed your hand first against Ada or a live opponent.",
       },
       { property: "og:title", content: "Play Crazy Eights — Cards and Games" },
       {
@@ -159,7 +159,7 @@ function CrazyEightsTable() {
 
 
   const isMulti = Boolean(matchId);
-  const opponentName = liveOpponent ?? opponent ?? "Charlotte";
+  const opponentName = liveOpponent ?? opponent ?? "Ada";
 
   // Reshuffle the opening deal once we're on the client (avoids an SSR mismatch).
   const didDeal = useRef(false);
@@ -339,7 +339,7 @@ function CrazyEightsTable() {
     apply((current) => ({ ...current, turn: flip("human"), drew: false }));
   };
 
-  // Charlotte's turn, one deliberate step at a time (solo play only).
+  // Ada's turn, one deliberate step at a time (solo play only).
   useEffect(() => {
     if (isMulti || dealing) return;
 
@@ -355,7 +355,7 @@ function CrazyEightsTable() {
       } else {
         const card = chooseCard(current.hands.cpu, currentTop, current.wildSuit);
         if (card) {
-          // Charlotte leads with her legal card, then sheds the rest of that rank —
+          // Ada leads with her legal card, then sheds the rest of that rank —
           // saving the suit she holds most of for last.
           const counts = new Map<Suit, number>();
           for (const c of current.hands.cpu)
@@ -441,7 +441,7 @@ function CrazyEightsTable() {
                   : "Nothing follows — draw a card"
               : isMulti
                 ? `Waiting for ${opponentName}…`
-                : "Charlotte is thinking…";
+                : "Ada is thinking…";
 
   return (
     <TableShell
@@ -504,7 +504,7 @@ function CrazyEightsTable() {
         <section>
           <div className="mb-2 flex items-center gap-3">
             <img
-              src={CHARLOTTE_AVATAR}
+              src={ADA_AVATAR}
               alt=""
               aria-hidden="true"
               className="size-10 rounded-full border border-gold/40 object-cover"

@@ -5,7 +5,7 @@ import { TableShell } from "@/components/parlor/TableShell";
 import { GameOverDialog } from "@/components/parlor/GameOverDialog";
 import { PlayerAvatar } from "@/components/parlor/PlayerAvatar";
 import { getGame } from "@/lib/games";
-import { CHARLOTTE_AVATAR, readAvatar } from "@/lib/avatars";
+import { ADA_AVATAR, readAvatar } from "@/lib/avatars";
 import { useMatch } from "@/lib/multiplayer";
 import {
   BOARD_HEIGHT,
@@ -33,7 +33,7 @@ export const Route = createFileRoute("/triangles")({
       {
         name: "description",
         content:
-          "Twenty spots scattered at random: draw lines against Charlotte or a live opponent and fill each triangle you close with your colour.",
+          "Twenty spots scattered at random: draw lines against Ada or a live opponent and fill each triangle you close with your colour.",
       },
       { property: "og:title", content: "Play Triangles — Cards and Games" },
       {
@@ -121,7 +121,7 @@ function TrianglesTable() {
   const board = useMemo(() => makeBoard(state.seed), [state.seed]);
 
   const isMulti = Boolean(matchId);
-  const opponentName = liveOpponent ?? opponent ?? "Charlotte";
+  const opponentName = liveOpponent ?? opponent ?? "Ada";
 
   const apply = (fn: (current: State) => State) => {
     const next = fn(stateRef.current);
@@ -230,7 +230,7 @@ function TrianglesTable() {
     apply((current) => drawLine(current, key, "human"));
   };
 
-  // Charlotte draws her line (solo play only).
+  // Ada draws her line (solo play only).
   useEffect(() => {
     if (isMulti) return;
     if (state.phase !== "play" || state.turn !== "cpu") return;
@@ -263,7 +263,7 @@ function TrianglesTable() {
           ? "Your line"
           : isMulti
             ? `Waiting for ${opponentName}…`
-            : "Charlotte studies the spots…";
+            : "Ada studies the spots…";
 
   return (
     <TableShell
@@ -314,7 +314,7 @@ function TrianglesTable() {
         {/* Opponent — top of the table */}
         <section className="flex items-center gap-3 rounded-2xl border border-gold/15 bg-brand/50 p-4">
           <img
-            src={CHARLOTTE_AVATAR}
+            src={ADA_AVATAR}
             alt={opponentName}
             width={64}
             height={64}

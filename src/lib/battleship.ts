@@ -6,6 +6,9 @@ export const FLEET = [
   { name: "Cruiser", size: 3 },
   { name: "Submarine", size: 3 },
   { name: "Destroyer", size: 2 },
+  { name: "Patrol Boat", size: 1 },
+  { name: "Gunboat", size: 1 },
+  { name: "Scout", size: 1 },
 ] as const;
 
 export type Ship = { name: string; size: number; cells: number[] };
@@ -154,7 +157,7 @@ const neighbours = (cell: number) => {
   return list;
 };
 
-/** Charlotte hunts around unresolved hits, otherwise fires on a parity pattern. */
+/** Ada hunts around unresolved hits, otherwise fires on a parity pattern. */
 export function chooseCpuShot(targetShips: Ship[], fired: number[]): number {
   const openHits = targetShips
     .filter((ship) => !isSunk(ship, fired))

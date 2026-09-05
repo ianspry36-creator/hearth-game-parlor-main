@@ -6,7 +6,7 @@ import { GameOverDialog } from "@/components/parlor/GameOverDialog";
 import { PlayerAvatar } from "@/components/parlor/PlayerAvatar";
 import { getGame } from "@/lib/games";
 import { useMatch } from "@/lib/multiplayer";
-import { CHARLOTTE_AVATAR, readAvatar } from "@/lib/avatars";
+import { ADA_AVATAR, readAvatar } from "@/lib/avatars";
 import {
   DICE_COUNT,
   TARGET,
@@ -29,7 +29,7 @@ export const Route = createFileRoute("/farkle")({
       {
         name: "description",
         content:
-          "Throw six dice against Charlotte or a live opponent: set aside the scorers, press your luck and bank before you farkle.",
+          "Throw six dice against Ada or a live opponent: set aside the scorers, press your luck and bank before you farkle.",
       },
       { property: "og:title", content: "Play Farkle — Cards and Games" },
       {
@@ -56,7 +56,7 @@ type State = {
   turnScore: number;
   rolled: boolean;
   farkled: boolean;
-  /** Dice queued to set aside one at a time during Charlotte's solo turn. */
+  /** Dice queued to set aside one at a time during Ada's solo turn. */
   pending: number[];
   /** Points from the queued keep, added once every die has landed. */
   pendingScore: number;
@@ -189,13 +189,13 @@ function FarkleTable() {
     if (gained > 0) showCpuMessage(`${gained.toLocaleString()} banked`);
     prevCpuScore.current = state.scores.cpu;
   }, [state.scores.cpu]);
-  // Charlotte (or the live opponent) announces a farkle in her chat cloud.
+  // Ada (or the live opponent) announces a farkle in her chat cloud.
   useEffect(() => {
     if (state.farkled && state.turn === "cpu" && state.phase === "play") {
       showCpuMessage("Farkle!");
     }
   }, [state.farkled, state.turn, state.phase]);
-  // Charlotte announces "Hot Dice!" once she clears all six dice.
+  // Ada announces "Hot Dice!" once she clears all six dice.
   useEffect(() => {
     if (cpuHotRef.current) {
       cpuHotRef.current = false;
@@ -211,7 +211,7 @@ function FarkleTable() {
   );
 
   const isMulti = Boolean(matchId);
-  const opponentName = liveOpponent ?? opponent ?? "Charlotte";
+  const opponentName = liveOpponent ?? opponent ?? "Ada";
 
   const apply = (fn: (current: State) => State) => {
     const next = fn(stateRef.current);
@@ -404,7 +404,7 @@ function FarkleTable() {
     setSelected([]);
   };
 
-  // Charlotte's turn, one deliberate step at a time (solo play only). When she
+  // Ada's turn, one deliberate step at a time (solo play only). When she
   // decides what to keep, the chosen dice move to her area one per second.
   useEffect(() => {
     if (isMulti) return;
@@ -464,13 +464,6 @@ function FarkleTable() {
     }, 1000);
     return () => clearTimeout(timer);
   }, [isMulti, state.phase, state.turn, state.rolled, state.farkled, state.dice, state.turnScore, state.pending, state.pendingScore]);
-
-  const logLine = (entry: LogEntry) =>
-    entry.side === null
-      ? entry.text
-      : entry.side === "human"
-        ? `You ${entry.text}`
-        : `${opponentName} ${entry.text}`;
 
   const status =
     isMulti && !match
@@ -534,14 +527,6 @@ function FarkleTable() {
       rail={
         <>
           {meldBox}
-          <div className="rounded-xl border border-gold/15 bg-brand/40 p-5">
-            <p className="mb-3 text-[11px] uppercase tracking-[0.22em] text-ivory/60">Table talk</p>
-            <ul className="space-y-1.5 text-xs leading-relaxed text-ivory/65">
-              {state.log.slice(0, 7).map((entry, index) => (
-                <li key={`${entry.text}-${index}`}>{logLine(entry)}</li>
-              ))}
-            </ul>
-          </div>
         </>
       }
     >
@@ -556,12 +541,12 @@ function FarkleTable() {
         onPlayAgain={reset}
       />
       <div className="flex min-h-[560px] flex-col justify-between gap-6">
-        {/* Charlotte — top of the table */}
+        {/* Ada — top of the table */}
         <div className="flex flex-col items-center gap-4 rounded-2xl border border-gold/15 bg-brand/50 p-4 sm:flex-row sm:justify-between">
           <div className="flex items-center gap-3">
             <div className="relative inline-block">
               <img
-                src={CHARLOTTE_AVATAR}
+                src={ADA_AVATAR}
                 alt={opponentName}
                 width={64}
                 height={64}
@@ -662,28 +647,30 @@ function FarkleTable() {
                 {state.rolled ? `${diceLeft} dice in hand` : "Six dice waiting"}
               </p>
               <div className="flex flex-wrap justify-center gap-3">
-                {activeDice.map((die) => {
-                  const realIndex = state.dice.indexOf(die);
-                  const { angle, dx, dy } = scatterFor(realIndex, die.face);
+                {state.dice.map((die, i) => {
+                  if (die.set) {
+                    return <div key={i} className="size-16" aria-hidden />;
+                  }
+                  const { angle, dx, dy } = scatterFor(i, die.face);
                   return (
                     <div
-                      key={realIndex}
+                      key={i}
                       style={{ transform: `translate(${dx}px, ${dy}px) rotate(${angle}deg)` }}
                     >
                       <DieFace
                         face={die.face}
                         dim={!state.rolled}
-                        selected={selected.includes(realIndex)}
+                        selected={selected.includes(i)}
                         interactive={myTurn && state.rolled && !state.farkled}
-                        onClick={() => toggle(realIndex)}
+                        onClick={() => toggle(i)}
                       />
                     </div>
                   );
                 })}
-                {diceLeft === 0 && state.rolled && (
-                  <p className="text-sm text-ivory/60">Hot dice — throw all six again.</p>
-                )}
               </div>
+              {diceLeft === 0 && state.rolled && (
+                <p className="mt-3 text-center text-sm text-ivory/60">Hot dice — throw all six again.</p>
+              )}
             </div>
           )}
         </div>

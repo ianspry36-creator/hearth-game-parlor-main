@@ -5,7 +5,7 @@ import { TableShell } from "@/components/parlor/TableShell";
 import { GameOverDialog } from "@/components/parlor/GameOverDialog";
 import { PlayerAvatar } from "@/components/parlor/PlayerAvatar";
 import { getGame } from "@/lib/games";
-import { CHARLOTTE_AVATAR, readAvatar } from "@/lib/avatars";
+import { ADA_AVATAR, readAvatar } from "@/lib/avatars";
 import { useMatch } from "@/lib/multiplayer";
 import { playExplosion, playSinking, playSplash } from "@/lib/battleship-sounds";
 import {
@@ -40,12 +40,12 @@ export const Route = createFileRoute("/battleship")({
       {
         name: "description",
         content:
-          "Hide your fleet, call your shots and sink Charlotte's ships — or take on a live human opponent from the waiting room.",
+          "Hide your fleet, call your shots and sink Ada's ships — or take on a live human opponent from the waiting room.",
       },
       { property: "og:title", content: "Play Battleship — Cards and Games" },
       {
         property: "og:description",
-        content: "Battleship in the parlor: place five ships, fire square by square, sink the fleet.",
+        content: "Battleship in the parlor: place your fleet, fire square by square, sink the enemy.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -137,7 +137,7 @@ function BattleshipTable() {
 
 
   const isMulti = Boolean(matchId);
-  const opponentName = liveOpponent ?? opponent ?? "Charlotte";
+  const opponentName = liveOpponent ?? opponent ?? "Ada";
 
   // Re-place the opening fleet once we're on the client (avoids an SSR mismatch).
   const didPlace = useRef(false);
@@ -194,7 +194,7 @@ function BattleshipTable() {
     }));
   }, [isMulti, isHost, state.phase, state.ready.human, state.ready.cpu]);
 
-  // Charlotte's shot (solo play only).
+  // Ada's shot (solo play only).
   useEffect(() => {
     if (isMulti) return;
     if (state.phase !== "play" || state.turn !== "cpu" || state.winner) return;
@@ -353,7 +353,7 @@ function BattleshipTable() {
         : state.phase === "place"
           ? state.ready.human
             ? `Waiting for ${opponentName} to place their fleet…`
-            : "Place your five ships"
+            : "Place your fleet"
           : state.turn === "human"
             ? "Call your shot"
             : isMulti
@@ -391,7 +391,7 @@ function BattleshipTable() {
           <p className="text-sm text-ivory/60">
             {placing
               ? nextShip
-                ? `Placing the ${nextShip.name} (${nextShip.size} squares) — ships must never touch.`
+                ? `Placing the ${nextShip.name} (${nextShip.size} square${nextShip.size === 1 ? "" : "s"}) — ships must never touch.`
                 : "Drag a ship to move it, double-click to rotate, then hit Ready."
               : status}
           </p>
@@ -423,7 +423,13 @@ function BattleshipTable() {
         </div>
 
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-          <section className="flex-1">
+          <section
+            className={
+              state.phase === "place"
+                ? "flex-1"
+                : "order-2 w-3/4 self-end lg:order-1 lg:w-auto lg:flex-1 lg:self-auto"
+            }
+          >
             <div className="mb-2 flex items-center gap-3">
               <PlayerAvatar avatar={playerAvatar} onSelect={setPlayerAvatar} />
               <p className="text-[11px] uppercase tracking-[0.3em] text-gold">Your waters</p>
@@ -438,13 +444,20 @@ function BattleshipTable() {
               onGrab={grabAt}
               onDrop={dropAt}
               onRotate={rotateAt}
+              hideLabelsOnMobile
             />
 
           </section>
-          <section className="flex-1">
+          <section
+            className={
+              state.phase === "place"
+                ? "hidden flex-1 lg:block"
+                : "order-1 w-full lg:order-2 lg:w-auto lg:flex-1"
+            }
+          >
             <div className="mb-2 flex items-center gap-3">
               <img
-                src={CHARLOTTE_AVATAR}
+                src={ADA_AVATAR}
                 alt={`${opponentName}'s avatar`}
                 width={64}
                 height={64}
@@ -470,11 +483,14 @@ function BattleshipTable() {
 
 /** Hull colours and deck markings per ship class. */
 const HULL: Record<string, { body: string; mark: string; glyph: string }> = {
-  Carrier: { body: "bg-slate-500", mark: "border-slate-200/70", glyph: "✈" },
-  Battleship: { body: "bg-slate-600", mark: "border-amber-200/60", glyph: "⌖" },
-  Cruiser: { body: "bg-sky-700", mark: "border-sky-200/60", glyph: "⚓" },
-  Submarine: { body: "bg-slate-800", mark: "border-rose-200/50", glyph: "◉" },
-  Destroyer: { body: "bg-zinc-500", mark: "border-zinc-100/60", glyph: "▲" },
+  Carrier: { body: "bg-red-600", mark: "border-red-200/70", glyph: "✈" },
+  Battleship: { body: "bg-yellow-500", mark: "border-yellow-200/60", glyph: "⌖" },
+  Cruiser: { body: "bg-cyan-600", mark: "border-cyan-200/60", glyph: "⚓" },
+  Submarine: { body: "bg-cyan-600", mark: "border-cyan-200/60", glyph: "◉" },
+  Destroyer: { body: "bg-pink-500", mark: "border-pink-200/60", glyph: "▲" },
+  "Patrol Boat": { body: "bg-teal-600", mark: "border-teal-200/60", glyph: "◎" },
+  Gunboat: { body: "bg-orange-600", mark: "border-orange-200/60", glyph: "◆" },
+  Scout: { body: "bg-purple-600", mark: "border-purple-200/60", glyph: "▪" },
 };
 
 function ShipSegment({ ship, cell }: { ship: Ship; cell: number }) {
@@ -514,6 +530,7 @@ function Grid({
   onGrab,
   onDrop,
   onRotate,
+  hideLabelsOnMobile = false,
 }: {
   ships: Ship[];
   shots: number[];
@@ -524,23 +541,36 @@ function Grid({
   onGrab?: (cell: number) => void;
   onDrop?: (cell: number) => void;
   onRotate?: (cell: number) => void;
+  hideLabelsOnMobile?: boolean;
 }) {
   const occupied = new Set(ships.flatMap((ship) => ship.cells));
   return (
     <div className="w-full rounded-2xl border border-gold/25 bg-brand/70 p-2.5 shadow-2xl shadow-black/40">
-      <div className="grid grid-cols-[1rem_repeat(10,minmax(0,1fr))] gap-1">
-        <span />
+      <div
+        className={`grid gap-1 ${
+          hideLabelsOnMobile
+            ? "grid-cols-10 lg:grid-cols-[1rem_repeat(10,minmax(0,1fr))]"
+            : "grid-cols-[1rem_repeat(10,minmax(0,1fr))]"
+        }`}
+      >
+        <span className={hideLabelsOnMobile ? "hidden lg:block" : ""} />
         {Array.from({ length: SIZE }, (_, col) => (
           <span
             key={`c${col}`}
-            className="text-center text-[8px] uppercase tracking-widest text-ivory/35"
+            className={`text-center text-[8px] uppercase tracking-widest text-ivory/35 ${
+              hideLabelsOnMobile ? "hidden lg:block" : ""
+            }`}
           >
             {col + 1}
           </span>
         ))}
         {Array.from({ length: SIZE }, (_, row) => (
           <Row key={`r${row}`}>
-            <span className="grid place-items-center text-[8px] uppercase tracking-widest text-ivory/35">
+            <span
+              className={`grid place-items-center text-[8px] uppercase tracking-widest text-ivory/35 ${
+                hideLabelsOnMobile ? "hidden lg:grid" : ""
+              }`}
+            >
               {String.fromCharCode(65 + row)}
             </span>
             {Array.from({ length: SIZE }, (_, col) => {

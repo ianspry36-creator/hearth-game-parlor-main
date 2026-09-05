@@ -18,6 +18,7 @@ import { Route as CrazyEightsRouteImport } from './routes/crazy-eights'
 import { Route as CribbageRouteImport } from './routes/cribbage'
 import { Route as FarkleRouteImport } from './routes/farkle'
 import { Route as FreecellRouteImport } from './routes/freecell'
+import { Route as FutureImprovementsRouteImport } from './routes/future-improvements'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ReversiRouteImport } from './routes/reversi'
 import { Route as SolitaireRouteImport } from './routes/solitaire'
@@ -69,6 +70,11 @@ const FreecellRoute = FreecellRouteImport.update({
   path: '/freecell',
   getParentRoute: () => rootRouteImport,
 } as any)
+const FutureImprovementsRoute = FutureImprovementsRouteImport.update({
+  id: '/future-improvements',
+  path: '/future-improvements',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PrivacyRoute = PrivacyRouteImport.update({
   id: '/privacy',
   path: '/privacy',
@@ -105,6 +111,7 @@ export interface FileRoutesByFullPath {
   '/cribbage': typeof CribbageRoute
   '/farkle': typeof FarkleRoute
   '/freecell': typeof FreecellRoute
+  '/future-improvements': typeof FutureImprovementsRoute
   '/privacy': typeof PrivacyRoute
   '/reversi': typeof ReversiRoute
   '/solitaire': typeof SolitaireRoute
@@ -121,6 +128,7 @@ export interface FileRoutesByTo {
   '/cribbage': typeof CribbageRoute
   '/farkle': typeof FarkleRoute
   '/freecell': typeof FreecellRoute
+  '/future-improvements': typeof FutureImprovementsRoute
   '/privacy': typeof PrivacyRoute
   '/reversi': typeof ReversiRoute
   '/solitaire': typeof SolitaireRoute
@@ -138,6 +146,7 @@ export interface FileRoutesById {
   '/cribbage': typeof CribbageRoute
   '/farkle': typeof FarkleRoute
   '/freecell': typeof FreecellRoute
+  '/future-improvements': typeof FutureImprovementsRoute
   '/privacy': typeof PrivacyRoute
   '/reversi': typeof ReversiRoute
   '/solitaire': typeof SolitaireRoute
@@ -156,6 +165,7 @@ export interface FileRouteTypes {
     | '/cribbage'
     | '/farkle'
     | '/freecell'
+    | '/future-improvements'
     | '/privacy'
     | '/reversi'
     | '/solitaire'
@@ -172,6 +182,7 @@ export interface FileRouteTypes {
     | '/cribbage'
     | '/farkle'
     | '/freecell'
+    | '/future-improvements'
     | '/privacy'
     | '/reversi'
     | '/solitaire'
@@ -188,6 +199,7 @@ export interface FileRouteTypes {
     | '/cribbage'
     | '/farkle'
     | '/freecell'
+    | '/future-improvements'
     | '/privacy'
     | '/reversi'
     | '/solitaire'
@@ -205,6 +217,7 @@ export interface RootRouteChildren {
   CribbageRoute: typeof CribbageRoute
   FarkleRoute: typeof FarkleRoute
   FreecellRoute: typeof FreecellRoute
+  FutureImprovementsRoute: typeof FutureImprovementsRoute
   PrivacyRoute: typeof PrivacyRoute
   ReversiRoute: typeof ReversiRoute
   SolitaireRoute: typeof SolitaireRoute
@@ -277,6 +290,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FreecellRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/future-improvements': {
+      id: '/future-improvements'
+      path: '/future-improvements'
+      fullPath: '/future-improvements'
+      preLoaderRoute: typeof FutureImprovementsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/privacy': {
       id: '/privacy'
       path: '/privacy'
@@ -325,6 +345,7 @@ const rootRouteChildren: RootRouteChildren = {
   CribbageRoute: CribbageRoute,
   FarkleRoute: FarkleRoute,
   FreecellRoute: FreecellRoute,
+  FutureImprovementsRoute: FutureImprovementsRoute,
   PrivacyRoute: PrivacyRoute,
   ReversiRoute: ReversiRoute,
   SolitaireRoute: SolitaireRoute,

@@ -63,9 +63,6 @@ type DragSource =
   | { type: "tableau"; index: number; cardIndex: number }
   | { type: "foundation"; index: number };
 
-const CARD_H = 112; // px — matches h-[112px]
-const VISIBLE = 24; // px of each stacked tableau card left showing
-
 function FreeCellTable() {
   const game = getGame("freecell");
   const [state, setState] = useState<GameState>(() => freshGame(mulberry32(SSR_SEED)));
@@ -294,8 +291,8 @@ function FreeCellTable() {
 
         <div className="relative rounded-2xl border border-gold/20 bg-surface/40 p-5 sm:p-8">
           <div className="space-y-8">
-            <div className="flex flex-wrap items-start justify-between gap-6">
-              <div className="flex gap-2">
+            <div className="flex items-start gap-1 sm:gap-2">
+              <div className="flex gap-1 sm:gap-2">
                 {state.cells.map((card, index) => (
                   <CellSlot
                     key={index}
@@ -309,7 +306,7 @@ function FreeCellTable() {
                   />
                 ))}
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-1 sm:gap-2">
                 {state.foundations.map((pile, index) => (
                   <FoundationSlot
                     key={index}
@@ -325,7 +322,7 @@ function FreeCellTable() {
               </div>
             </div>
 
-            <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
+            <div className="grid grid-cols-8 gap-1 sm:gap-2">
               {state.tableau.map((pile, index) => (
                 <TableauPile
                   key={index}
@@ -341,15 +338,15 @@ function FreeCellTable() {
               ))}
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gold/15 pt-4">
-              <div className="flex items-center gap-3">
-                <Button variant="parlorOutline" onClick={reset}>
+            <div className="flex flex-col items-center justify-center gap-3 border-t border-gold/15 pt-4 text-center">
+              <div className="flex flex-wrap items-center justify-center gap-3">
+                <Button variant="parlorOutline" onClick={reset} className="scale-75 sm:scale-100">
                   New game
                 </Button>
                 <RulesDialog
                   game={game}
                   trigger={
-                    <Button variant="parlorOutline">
+                    <Button variant="parlorOutline" className="scale-75 sm:scale-100">
                       How to Play
                     </Button>
                   }
@@ -358,6 +355,7 @@ function FreeCellTable() {
                   variant="parlorOutline"
                   onClick={undo}
                   disabled={history.length === 0 || autocompleting}
+                  className="scale-75 sm:scale-100"
                 >
                   Undo
                 </Button>
@@ -415,15 +413,15 @@ function CardFace({
       onDragStart={onDragStart}
       draggable={!!onDragStart}
       aria-label={cardLabel(card)}
-      className={`relative block h-[112px] w-20 select-none rounded-lg border border-black/10 bg-white text-left shadow-md shadow-black/30 transition-transform ${
+      className={`relative block h-[var(--fc-card-h)] w-[var(--fc-card-w)] select-none rounded-lg border border-black/10 bg-white text-left shadow-md shadow-black/30 transition-transform ${
         red ? "text-[#c0392b]" : "text-brand"
       } ${selected ? "-translate-y-1 ring-2 ring-gold" : ""}`}
     >
-      <span className="absolute left-1 top-1 flex flex-col items-center font-display text-lg font-bold leading-none">
+      <span className="absolute left-1 top-1 flex flex-col items-center font-display text-xs font-bold leading-none sm:text-lg">
         <span>{RANK_LABEL[card.rank]}</span>
-        <span className="mt-0.5 text-sm">{SUIT_SYMBOL[card.suit]}</span>
+        <span className="mt-0.5 text-[10px] sm:text-sm">{SUIT_SYMBOL[card.suit]}</span>
       </span>
-      <span className="absolute inset-0 grid place-items-center text-4xl">
+      <span className="absolute inset-0 grid place-items-center text-2xl sm:text-4xl">
         {isFace ? RANK_LABEL[card.rank] : SUIT_SYMBOL[card.suit]}
       </span>
     </button>
@@ -436,7 +434,7 @@ function EmptySlot({ onClick, symbol }: { onClick?: () => void; symbol?: string 
       type="button"
       onClick={onClick}
       aria-label="Empty pile"
-      className="grid h-[112px] w-20 place-items-center rounded-lg border border-dashed border-gold/30 text-2xl text-gold/30"
+      className="grid h-[var(--fc-card-h)] w-[var(--fc-card-w)] place-items-center rounded-lg border border-dashed border-gold/30 text-base text-gold/30 sm:text-2xl"
     >
       {symbol ?? ""}
     </button>
@@ -534,7 +532,7 @@ function TableauPile({
           const isSelected =
             selection?.type === "tableau" && selection.index === index && selection.cardIndex === i;
           return (
-            <div key={card.id} style={{ marginTop: i === 0 ? 0 : -(CARD_H - VISIBLE) }}>
+            <div key={card.id} style={{ marginTop: i === 0 ? 0 : "calc(var(--fc-visible) - var(--fc-card-h))" }}>
               <CardFace
                 card={card}
                 selected={isSelected}

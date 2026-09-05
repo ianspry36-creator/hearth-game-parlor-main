@@ -44,7 +44,7 @@ function PrivacyPage() {
           <div>
             <h2 className="font-display text-2xl font-semibold text-gold">Who we are</h2>
             <p className="mt-2">
-              Cards and Games is a free online parlour where you can play classic card and board games against Charlotte or a human opponent. We want you to enjoy the games without worrying about your personal data.
+              Cards and Games is a free online parlour where you can play classic card and board games against Ada or a human opponent. We want you to enjoy the games without worrying about your personal data.
             </p>
           </div>
 

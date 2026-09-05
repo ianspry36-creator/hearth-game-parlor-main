@@ -12,13 +12,13 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Cards and Games is a warm little parlour of classics. Play cribbage, backgammon, crazy eights, yahtzee, farkle, battleship, triangles, solitaire or freecell against Charlotte, a human opponent, or the deck.",
+          "Cards and Games is a warm little parlour of classics. Play cribbage, backgammon, crazy eights, yahtzee, farkle, battleship, triangles, solitaire or freecell against Ada, a human opponent, or the deck.",
       },
       { property: "og:title", content: "Cards and Games — Play Cribbage, Backgammon & More" },
       {
         property: "og:description",
         content:
-          "Ten classic games, played against Charlotte, a real human from the waiting room, or the deck.",
+          "Ten classic games, played against Ada, a real human from the waiting room, or the deck.",
       },
     ],
   }),
@@ -65,8 +65,8 @@ function Lobby() {
             <span className="text-gold">completely free.</span>
           </h1>
           <p className="mx-auto mt-5 max-w-xl text-[15px] leading-relaxed text-ivory/70">
-            Pick a table and play straight away — against Charlotte, or against a real person
-            waiting in the room. No sign-ups, no fuss, and totally free!
+            Pick a table and play straight away — against Ada, or against a real person
+            in the multiplayer waiting room. No fuss and totally free.
           </p>
         </section>
 
@@ -137,6 +137,13 @@ function Lobby() {
               className="text-ivory/50 transition-colors hover:text-gold"
             >
               Contact
+            </Link>
+            <span className="text-ivory/25">·</span>
+            <Link
+              to="/future-improvements"
+              className="text-ivory/50 transition-colors hover:text-gold"
+            >
+              Future improvements
             </Link>
           </div>
         </footer>

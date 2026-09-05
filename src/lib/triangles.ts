@@ -179,7 +179,7 @@ export function makeBoard(seed: number): Board {
 }
 
 /**
- * Charlotte's line: close a triangle when she can, otherwise avoid handing one
+ * Ada's line: close a triangle when she can, otherwise avoid handing one
  * over, otherwise anything left.
  */
 export function chooseEdge(

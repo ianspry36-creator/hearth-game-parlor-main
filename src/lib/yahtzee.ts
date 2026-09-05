@@ -120,7 +120,7 @@ export const grandTotal = (card: Card) =>
 export const cardComplete = (card: Card) =>
   CATEGORIES.every((cat) => card[cat] !== undefined);
 
-/** Which dice Charlotte should hold, as indexes into `faces`. */
+/** Which dice Ada should hold, as indexes into `faces`. */
 export function bestHold(faces: number[], card: Card): number[] {
   const c = tally(faces);
 
@@ -162,7 +162,7 @@ export function bestHold(faces: number[], card: Card): number[] {
     .filter((i) => i >= 0);
 }
 
-/** The category Charlotte should take, weighted a little to keep options open. */
+/** The category Ada should take, weighted a little to keep options open. */
 export function bestCategory(faces: number[], card: Card): Category {
   let choice: Category | null = null;
   let bestValue = -Infinity;

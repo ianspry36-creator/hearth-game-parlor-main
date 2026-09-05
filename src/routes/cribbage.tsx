@@ -31,7 +31,7 @@ import {
 import cardBackAsset from "@/assets/card-back.png";
 import skunk from "@/assets/skunk.png";
 import { PlayerAvatar } from "@/components/parlor/PlayerAvatar";
-import { AVATAR_OPTIONS, CHARLOTTE_AVATAR, CHARLOTTE_HAPPY, CHARLOTTE_SAD, readAvatar } from "@/lib/avatars";
+import { AVATAR_OPTIONS, ADA_AVATAR, ADA_HAPPY, ADA_SAD, readAvatar } from "@/lib/avatars";
 
 
 export const Route = createFileRoute("/cribbage")({
@@ -45,12 +45,12 @@ export const Route = createFileRoute("/cribbage")({
       {
         name: "description",
         content:
-          "Play a full game of cribbage to 121 against Charlotte or a live human opponent: discard to the crib, peg the play, and score the show.",
+          "Play a full game of cribbage to 121 against Ada or a live human opponent: discard to the crib, peg the play, and score the show.",
       },
       { property: "og:title", content: "Play Cribbage — Cards and Games" },
       {
         property: "og:description",
-        content: "Cribbage against Charlotte or a live opponent, with pegging, the crib, and the show.",
+        content: "Cribbage against Ada or a live opponent, with pegging, the crib, and the show.",
       },
     ],
   }),
@@ -339,7 +339,7 @@ function GameOverDialog({
           <div className="flex flex-col items-center gap-2">
             <div className="relative">
               <img
-                src={winner === "player" ? playerAvatar : CHARLOTTE_HAPPY}
+                src={winner === "player" ? playerAvatar : ADA_HAPPY}
                 alt={winnerName}
                 width={96}
                 height={96}
@@ -368,7 +368,7 @@ function GameOverDialog({
               />
             ) : null}
             <img
-              src={loser === "player" ? playerAvatar : CHARLOTTE_SAD}
+              src={loser === "player" ? playerAvatar : ADA_SAD}
               alt={loserName}
               width={96}
               height={96}
@@ -411,7 +411,7 @@ function CribbageTable() {
   // Cards land face down, then turn over one at a time.
   const [faceUpCount, setFaceUpCount] = useState(6);
   const [sorting, setSorting] = useState(false);
-  // Cut ceremony: my card flips and floats to my seat, then Charlotte's follows.
+  // Cut ceremony: my card flips and floats to my seat, then Ada's follows.
   const [cutStage, setCutStage] = useState<
     "idle" | "flipMine" | "seatMine" | "flipTheirs" | "seated"
   >("idle");
@@ -435,7 +435,7 @@ function CribbageTable() {
   const stateRef = useRef(state);
   stateRef.current = state;
 
-  const opponentName = liveOpponent ?? opponent ?? "Charlotte";
+  const opponentName = liveOpponent ?? opponent ?? "Ada";
 
   /** Commit a move: locally always, and to the shared table in a live match. */
   const apply = (fn: (current: State) => State) => {
@@ -530,13 +530,13 @@ function CribbageTable() {
   const cutDeck = (card: Card) => {
     if (state.playerCut) return;
     const remaining = state.cutFan.filter((c) => c.id !== card.id);
-    const charlotte = remaining[Math.floor(Math.random() * remaining.length)]!;
+    const ada = remaining[Math.floor(Math.random() * remaining.length)]!;
     setCutStage("flipMine");
     setState((current) => {
-      const next: State = { ...current, playerCut: card, cpuCut: charlotte };
+      const next: State = { ...current, playerCut: card, cpuCut: ada };
       next.log = note(next.log, {
         side: null,
-        text: `You cut ${cardLabel(card)}, ${opponentName} cut ${cardLabel(charlotte)}.`,
+        text: `You cut ${cardLabel(card)}, ${opponentName} cut ${cardLabel(ada)}.`,
       });
       stateRef.current = next;
       return next;
@@ -629,7 +629,7 @@ function CribbageTable() {
     }
   }, [state.scores]);
 
-  // Charlotte's pegging turn (solo play only).
+  // Ada's pegging turn (solo play only).
   useEffect(() => {
     if (isMulti) return;
     if (state.phase !== "play" || state.turn !== "cpu" || state.winner) return;
@@ -865,7 +865,7 @@ function CribbageTable() {
               avatar={
                 <span className="grid size-8 place-items-center overflow-hidden rounded-full bg-gold/20 ring-1 ring-gold/40">
                   <img
-                    src={CHARLOTTE_AVATAR}
+                    src={ADA_AVATAR}
                     alt={`${opponentName}'s avatar`}
                     width={64}
                     height={64}

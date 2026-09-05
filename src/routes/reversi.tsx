@@ -1,11 +1,10 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Button } from "@/components/ui/button";
 import { TableShell } from "@/components/parlor/TableShell";
 import { GameOverDialog } from "@/components/parlor/GameOverDialog";
 import { PlayerAvatar } from "@/components/parlor/PlayerAvatar";
 import { getGame } from "@/lib/games";
-import { CHARLOTTE_AVATAR, readAvatar } from "@/lib/avatars";
+import { ADA_AVATAR, readAvatar } from "@/lib/avatars";
 import { useMatch } from "@/lib/multiplayer";
 import {
   applyMove,
@@ -31,7 +30,7 @@ export const Route = createFileRoute("/reversi")({
       {
         name: "description",
         content:
-          "Outflank Charlotte on the 8×8 board: place a disc, flip every disc you sandwich, and own the most squares when the board is full.",
+          "Outflank Ada on the 8×8 board: place a disc, flip every disc you sandwich, and own the most squares when the board is full.",
       },
       { property: "og:title", content: "Play Reversi — Cards and Games" },
       {
@@ -62,7 +61,7 @@ const freshState = (): State => ({
   log: [
     {
       side: null,
-      text: "You play the dark discs and move first. Place a disc to sandwich Charlotte's discs, flip them, and own the most squares when the board is full.",
+      text: "You play the dark discs and move first. Place a disc to sandwich Ada's discs, flip them, and own the most squares when the board is full.",
     },
   ],
   winner: null,
@@ -99,7 +98,7 @@ function ReversiTable() {
   stateRef.current = state;
 
   const isMulti = Boolean(matchId);
-  const opponentName = liveOpponent ?? opponent ?? "Charlotte";
+  const opponentName = liveOpponent ?? opponent ?? "Ada";
 
   const apply = (fn: (current: State) => State) => {
     const next = fn(stateRef.current);
@@ -167,7 +166,7 @@ function ReversiTable() {
     apply((current) => placeDisc(current, index, "human"));
   };
 
-  // Charlotte places her disc (solo play only).
+  // Ada places her disc (solo play only).
   useEffect(() => {
     if (isMulti) return;
     if (state.phase !== "play" || state.turn !== "cpu") return;
@@ -200,7 +199,7 @@ function ReversiTable() {
           ? "Your move"
           : isMulti
             ? `Waiting for ${opponentName}…`
-            : "Charlotte studies the board…";
+            : "Ada studies the board…";
 
   return (
     <TableShell
@@ -229,40 +228,22 @@ function ReversiTable() {
         onPlayAgain={reset}
       />
       <div className="space-y-8">
-        <section className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <p className="text-[11px] uppercase tracking-[0.3em] text-gold">
-              {state.turn === "human" ? "Your turn" : `${opponentName}'s turn`}
-            </p>
-            <p className="mt-1 font-display text-3xl font-bold">
-              <span className="text-player-coral">{human}</span>{" "}
-              <span className="text-sm font-normal text-ivory/50">to</span>{" "}
-              <span className="text-player-teal">{cpu}</span>
-            </p>
-            <p className="mt-1 text-sm text-ivory/55">{status}</p>
-          </div>
-          {state.phase === "over" && (
-            <Button variant="parlor" onClick={reset}>
-              Play again
-            </Button>
-          )}
-        </section>
-
         {/* Opponent — top of the table */}
         <section className="flex items-center gap-3 rounded-2xl border border-gold/15 bg-brand/50 p-4">
           <img
-            src={CHARLOTTE_AVATAR}
+            src={ADA_AVATAR}
             alt={opponentName}
             width={64}
             height={64}
             className="size-14 rounded-full border-2 border-player-teal/50 bg-surface object-cover"
           />
-          <div>
-            <p className="font-display text-lg font-bold">{opponentName}</p>
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-display text-lg font-bold">{opponentName}</p>
             <p className="text-xs text-ivory/60">
               {state.turn === "cpu" && state.phase === "play" ? "Their turn" : "Waiting"}
             </p>
           </div>
+          <p className="font-display text-2xl font-bold text-player-teal">{cpu}</p>
         </section>
 
         {/* Board */}
@@ -322,10 +303,11 @@ function ReversiTable() {
         {/* Player — bottom of the table */}
         <section className="flex items-center gap-3 rounded-2xl border border-gold/15 bg-brand/50 p-4">
           <PlayerAvatar avatar={playerAvatar} onSelect={setPlayerAvatar} />
-          <div>
-            <p className="font-display text-lg font-bold">You</p>
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-display text-lg font-bold">You</p>
             <p className="text-xs text-ivory/60">{myTurn ? "Your turn" : "Waiting"}</p>
           </div>
+          <p className="font-display text-2xl font-bold text-player-coral">{human}</p>
         </section>
       </div>
     </TableShell>

@@ -1,6 +1,6 @@
-import charlotte from "@/assets/avatar-charlotte.png";
-import charlotteHappy from "@/assets/avatar-charlotte-happy.png";
-import charlotteSad from "@/assets/avatar-charlotte-sad.png";
+import ada from "@/assets/avatar-ada.png";
+import adaHappy from "@/assets/avatar-ada-happy.png";
+import adaSad from "@/assets/avatar-ada-sad.png";
 import a13 from "@/assets/avatar-13.png";
 import a14 from "@/assets/avatar-14.png";
 import a15 from "@/assets/avatar-15.png";
@@ -14,9 +14,9 @@ import a22 from "@/assets/avatar-22.png";
 import a23 from "@/assets/avatar-23.png";
 import a24 from "@/assets/avatar-24.png";
 
-export const CHARLOTTE_AVATAR = charlotte;
-export const CHARLOTTE_HAPPY = charlotteHappy;
-export const CHARLOTTE_SAD = charlotteSad;
+export const ADA_AVATAR = ada;
+export const ADA_HAPPY = adaHappy;
+export const ADA_SAD = adaSad;
 
 export type AvatarOption = { id: string; url: string; label: string };
 
