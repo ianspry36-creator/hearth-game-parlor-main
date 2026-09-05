@@ -5,7 +5,7 @@ import { TableShell } from "@/components/parlor/TableShell";
 import { GameOverDialog } from "@/components/parlor/GameOverDialog";
 import { PlayerAvatar } from "@/components/parlor/PlayerAvatar";
 import { getGame } from "@/lib/games";
-import { CHARLOTTE_AVATAR, readAvatar } from "@/lib/avatars";
+import { ADA_AVATAR, readAvatar } from "@/lib/avatars";
 import { useMatch } from "@/lib/multiplayer";
 import {
   CATEGORY_LABELS,
@@ -13,7 +13,6 @@ import {
   LOWER,
   MAX_ROLLS,
   UPPER,
-  UPPER_BONUS_THRESHOLD,
   bestCategory,
   bestHold,
   bonusFor,
@@ -38,7 +37,7 @@ export const Route = createFileRoute("/yahtzee")({
       {
         name: "description",
         content:
-          "Roll five dice against Charlotte or a live opponent: hold what you need, fill thirteen boxes and chase the fifty-point Yahtzee.",
+          "Roll five dice against Ada or a live opponent: hold what you need, fill thirteen boxes and chase the fifty-point Yahtzee.",
       },
       { property: "og:title", content: "Play Yahtzee — Cards and Games" },
       {
@@ -99,6 +98,10 @@ const freshState = (): State => ({
 const note = (log: LogEntry[], entry: LogEntry) => [entry, ...log].slice(0, 40);
 const flip = (side: Seat): Seat => (side === "human" ? "cpu" : "human");
 
+// Truncate a long nickname for the narrow scorecard column: over 7 characters
+// shows the first four characters followed by three dots.
+const shortName = (name: string) => (name.length > 7 ? `${name.slice(0, 4)}...` : name);
+
 function rollOff(current: State): State {
   const human = rollFace();
   const cpu = rollFace();
@@ -150,7 +153,7 @@ function YahtzeeTable() {
   stateRef.current = state;
 
   const isMulti = Boolean(matchId);
-  const opponentName = liveOpponent ?? opponent ?? "Charlotte";
+  const opponentName = liveOpponent ?? opponent ?? "Ada";
 
   const apply = (fn: (current: State) => State) => {
     const next = fn(stateRef.current);
@@ -300,7 +303,7 @@ function YahtzeeTable() {
     apply((current) => takeBox(current, "human", category));
   };
 
-  // Charlotte's turn, one step at a time (solo play only).
+  // Ada's turn, one step at a time (solo play only).
   useEffect(() => {
     if (isMulti) return;
     if (state.phase !== "play" || state.turn !== "cpu") return;
@@ -411,30 +414,27 @@ function YahtzeeTable() {
     const kept = active ? keptDice : [];
     return (
       <section
-        className={`rounded-2xl border p-5 transition-colors ${
+        className={`rounded-2xl border p-3 transition-colors lg:p-5 ${
           active ? "border-gold/50 bg-brand/70" : "border-gold/15 bg-brand/40"
         }`}
       >
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
+        <div className="flex justify-center lg:justify-start">
+          <div className="flex flex-col items-center gap-1.5 lg:flex-row lg:gap-3">
             {mine ? (
               <PlayerAvatar avatar={playerAvatar} onSelect={setPlayerAvatar} />
             ) : (
               <img
-                src={CHARLOTTE_AVATAR}
+                src={ADA_AVATAR}
                 alt={`${opponentName}'s avatar`}
                 width={64}
                 height={64}
                 className="size-10 rounded-full border-2 border-gold/40 object-cover"
               />
             )}
-            <p className="font-display text-xl">{mine ? "You" : opponentName}</p>
+            <p className="font-display text-base">{mine ? "You" : opponentName}</p>
           </div>
-          <p className="font-display text-2xl text-gold">
-            {grandTotal(mine ? myCard : theirCard)}
-          </p>
         </div>
-        <div className="mt-4 min-h-20 grid place-items-center">
+        <div className="mt-4 min-h-16 grid place-items-center">
           {kept.length > 0 ? (
             <div className="flex flex-wrap justify-center gap-3">{kept.map((i) => dieAt(i))}</div>
           ) : (
@@ -444,14 +444,11 @@ function YahtzeeTable() {
           )}
         </div>
         {mine && (
-          <div className="mt-4 flex flex-wrap items-center gap-3">
+          <div className="mt-4 flex h-9 flex-wrap items-center gap-3">
             {canRoll && !rolling && (
               <Button variant="parlor" onClick={roll}>
                 {state.rolls === 0 ? "Throw the dice" : "Throw again"}
               </Button>
-            )}
-            {myTurn && state.rolls > 0 && !rolling && (
-              <p className="text-sm text-ivory/55">Choose a box on the scorecard.</p>
             )}
           </div>
         )}
@@ -463,13 +460,13 @@ function YahtzeeTable() {
   const Row = ({ category }: { category: Category }) => {
     const taken = myCard[category] !== undefined;
     const preview =
-      !taken && myTurn && state.rolls > 0 && !rolling ? scoreCategory(category, faces) : null;
+      !taken && myTurn && state.rolls > 0 ? scoreCategory(category, faces) : null;
     return (
       <tr className="border-t border-gold/10">
-        <td className="py-1.5 pr-2 text-ivory/75">{CATEGORY_LABELS[category]}</td>
-        <td className="py-1.5 text-right">
+        <td className="py-0.5 pr-2 text-ivory/75 lg:py-1.5">{CATEGORY_LABELS[category]}</td>
+        <td className="h-6 text-right lg:h-8">
           {taken ? (
-            <span className="font-display text-base text-gold">{myCard[category]}</span>
+            <span className="font-display text-[13px] text-gold lg:text-[15px]">{myCard[category]}</span>
           ) : preview !== null ? (
             <button
               type="button"
@@ -482,9 +479,9 @@ function YahtzeeTable() {
             <span className="text-ivory/25">—</span>
           )}
         </td>
-        <td className="py-1.5 text-right">
+        <td className="h-6 text-right lg:h-8">
           {theirCard[category] !== undefined ? (
-            <span className="font-display text-base text-ivory">{theirCard[category]}</span>
+            <span className="font-display text-[13px] text-ivory lg:text-[15px]">{theirCard[category]}</span>
           ) : (
             <span className="text-ivory/25">—</span>
           )}
@@ -495,10 +492,40 @@ function YahtzeeTable() {
 
   const Totals = ({ label, mine, theirs }: { label: string; mine: number; theirs: number }) => (
     <tr className="border-t border-gold/25 bg-gold/5">
-      <td className="py-1.5 pr-2 text-[11px] uppercase tracking-[0.16em] text-ivory/60">{label}</td>
-      <td className="py-1.5 text-right font-display text-base text-gold">{mine}</td>
-      <td className="py-1.5 text-right font-display text-base text-ivory">{theirs}</td>
+      <td className="py-0.5 pr-2 text-[11px] uppercase tracking-[0.16em] text-ivory/60 lg:py-1.5">{label}</td>
+      <td className="py-0.5 text-right font-display text-[13px] text-gold lg:py-1.5 lg:text-[15px]">{mine}</td>
+      <td className="py-0.5 text-right font-display text-[13px] text-ivory lg:py-1.5 lg:text-[15px]">{theirs}</td>
     </tr>
+  );
+
+  const scorecard = (
+    <div className="rounded-xl border border-gold/20 bg-brand/50 p-4">
+      <p className="mb-2 text-[11px] uppercase tracking-[0.22em] text-ivory/60">Scorecard</p>
+      <table className="w-full text-[11px] lg:text-[13px]">
+        <thead>
+          <tr className="text-[10px] uppercase tracking-[0.18em] text-ivory/40">
+            <th className="pb-1 text-left font-normal" />
+            <th className="pb-1 text-right font-normal">You</th>
+            <th className="pb-1 text-right font-normal">{shortName(opponentName)}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {UPPER.map((category) => (
+            <Row key={category} category={category} />
+          ))}
+          <Totals label="Sum" mine={upperTotal(myCard)} theirs={upperTotal(theirCard)} />
+          <Totals label="Bonus" mine={bonusFor(myCard)} theirs={bonusFor(theirCard)} />
+          {LOWER.map((category) => (
+            <Row key={category} category={category} />
+          ))}
+          <Totals
+            label="Total score"
+            mine={grandTotal(myCard)}
+            theirs={grandTotal(theirCard)}
+          />
+        </tbody>
+      </table>
+    </div>
   );
 
   return (
@@ -518,39 +545,7 @@ function YahtzeeTable() {
         reset();
       }}
       onNewGame={reset}
-      rail={
-        <div className="rounded-xl border border-gold/20 bg-brand/50 p-4">
-          <p className="mb-2 text-[11px] uppercase tracking-[0.22em] text-ivory/60">Scorecard</p>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-[10px] uppercase tracking-[0.18em] text-ivory/40">
-                <th className="pb-1 text-left font-normal" />
-                <th className="pb-1 text-right font-normal">You</th>
-                <th className="pb-1 text-right font-normal">{opponentName}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {UPPER.map((category) => (
-                <Row key={category} category={category} />
-              ))}
-              <Totals label="Sum" mine={upperTotal(myCard)} theirs={upperTotal(theirCard)} />
-              <Totals label="Bonus" mine={bonusFor(myCard)} theirs={bonusFor(theirCard)} />
-              {LOWER.map((category) => (
-                <Row key={category} category={category} />
-              ))}
-              <Totals
-                label="Total score"
-                mine={grandTotal(myCard)}
-                theirs={grandTotal(theirCard)}
-              />
-            </tbody>
-          </table>
-          <p className="mt-3 text-xs text-ivory/45">
-            Upper {upperTotal(myCard)} of {UPPER_BONUS_THRESHOLD} for the bonus
-            {bonusFor(myCard) ? " — earned" : ""}
-          </p>
-        </div>
-      }
+      rail={<div className="hidden lg:block">{scorecard}</div>}
     >
       <GameOverDialog
         open={state.phase === "over"}
@@ -574,9 +569,11 @@ function YahtzeeTable() {
                     ? "Your turn"
                     : `${opponentName}'s turn`}
             </p>
-            <p className="mt-1 font-display text-3xl font-bold">
-              {state.rolls === 0 ? "—" : `Throw ${Math.min(state.rolls, MAX_ROLLS)} of ${MAX_ROLLS}`}
-            </p>
+            {state.phase === "play" && state.rolls > 0 && (
+              <p className="mt-1 font-display text-3xl font-bold">
+                Throw {Math.min(state.rolls, MAX_ROLLS)} of {MAX_ROLLS}
+              </p>
+            )}
             <p className="mt-1 text-sm text-ivory/55">{status}</p>
           </div>
           {state.phase === "over" && (
@@ -586,58 +583,63 @@ function YahtzeeTable() {
           )}
         </section>
 
-        {seatBox("cpu")}
+        <div className="grid grid-cols-2 items-start gap-3 lg:block">
+          <div className="min-w-0 space-y-2.5">
+            {seatBox("cpu")}
 
-        <section className="grid min-h-32 place-items-center rounded-2xl border border-dashed border-gold/20 bg-brand/20 p-6">
-          {state.phase === "rolloff" ? (
-            <div className="text-center">
-              <p className="mt-2 font-display text-2xl font-bold">Highest roll starts the game</p>
-              <div className="mt-6 flex items-center justify-center gap-8">
-                <div className="flex flex-col items-center gap-2">
-                  <p className="font-display">You</p>
-                  {state.rolloff.human !== null ? (
-                    <DieFace face={state.rolloff.human} />
-                  ) : (
-                    <div className="grid size-16 place-items-center rounded-xl border-2 border-dashed border-gold/30" />
+            <section className="grid h-44 place-items-center rounded-2xl border border-dashed border-gold/20 bg-brand/20 p-3 lg:h-64 lg:p-6">
+              {state.phase === "rolloff" ? (
+                <div className="text-center">
+                  <p className="mt-1 font-display text-xs font-bold">Highest roll starts game</p>
+                  <div className="mt-2 flex items-center justify-center gap-8">
+                    <div className="flex flex-col items-center gap-2">
+                      <p className="font-display">You</p>
+                      {state.rolloff.human !== null ? (
+                        <DieFace face={state.rolloff.human} />
+                      ) : (
+                        <div className="grid size-[1.6rem] lg:size-16 place-items-center rounded-xl border-2 border-dashed border-gold/30" />
+                      )}
+                    </div>
+                    <p className="font-display text-2xl text-gold">vs</p>
+                    <div className="flex flex-col items-center gap-2">
+                      <p className="font-display">{opponentName}</p>
+                      {state.rolloff.cpu !== null ? (
+                        <DieFace face={state.rolloff.cpu} />
+                      ) : (
+                        <div className="grid size-[1.6rem] lg:size-16 place-items-center rounded-xl border-2 border-dashed border-gold/30" />
+                      )}
+                    </div>
+                  </div>
+                  {state.rolloff.human !== null &&
+                    (rolloffWinner === null ? (
+                      <p className="mt-2 text-sm text-ivory/55">Tie at {state.rolloff.human} — roll again.</p>
+                    ) : (
+                      <p className="mt-2 text-sm text-ivory/55">
+                        {rolloffWinner === "human" ? "You go first!" : `${opponentName} goes first!`}
+                      </p>
+                    ))}
+                  {!rolloffResolving && (
+                    <div className="mt-2">
+                      <Button variant="parlor" onClick={rollForFirst} disabled={!canRollOff}>
+                        {state.rolloff.human === null ? "Roll for first turn" : "Roll again"}
+                      </Button>
+                    </div>
                   )}
                 </div>
-                <p className="font-display text-2xl text-gold">vs</p>
-                <div className="flex flex-col items-center gap-2">
-                  <p className="font-display">{opponentName}</p>
-                  {state.rolloff.cpu !== null ? (
-                    <DieFace face={state.rolloff.cpu} />
-                  ) : (
-                    <div className="grid size-16 place-items-center rounded-xl border-2 border-dashed border-gold/30" />
-                  )}
-                </div>
-              </div>
-              {state.rolloff.human !== null &&
-                (rolloffWinner === null ? (
-                  <p className="mt-4 text-sm text-ivory/55">Tie at {state.rolloff.human} — roll again.</p>
-                ) : (
-                  <p className="mt-4 text-sm text-ivory/55">
-                    {rolloffWinner === "human" ? "You go first!" : `${opponentName} goes first!`}
-                  </p>
-                ))}
-              {!rolloffResolving && (
-                <div className="mt-6">
-                  <Button variant="parlor" onClick={rollForFirst} disabled={!canRollOff}>
-                    {state.rolloff.human === null ? "Roll for first turn" : "Roll again"}
-                  </Button>
-                </div>
+              ) : centreDice.length > 0 ? (
+                <div className="flex flex-wrap justify-center gap-3">{centreDice.map((i) => dieAt(i, true))}</div>
+              ) : (
+                <p className="text-[10px] uppercase tracking-[0.22em] text-ivory/35">
+                  {state.rolls === 0 ? "Throwing area" : "Tap a kept die to send it back"}
+                </p>
               )}
-            </div>
-          ) : centreDice.length > 0 ? (
-            <div className="flex flex-wrap justify-center gap-3">{centreDice.map((i) => dieAt(i, true))}</div>
-          ) : (
-            <p className="text-[10px] uppercase tracking-[0.22em] text-ivory/35">
-              {state.rolls === 0 ? "Throwing area" : "Tap a kept die to send it back"}
-            </p>
-          )}
-        </section>
+            </section>
 
+            {seatBox("human")}
+          </div>
 
-        {seatBox("human")}
+          <div className="min-w-0 lg:hidden">{scorecard}</div>
+        </div>
       </div>
     </TableShell>
   );
@@ -674,7 +676,7 @@ function DieFace({
       aria-pressed={held}
       disabled={!interactive}
       onClick={onClick}
-      className={`grid size-16 rounded-xl border-2 bg-cream p-1.5 transition-all ${
+      className={`grid size-[1.6rem] lg:size-16 rounded-xl border lg:border-2 bg-cream p-1 lg:p-1.5 transition-all ${
         held ? "-translate-y-1.5 border-gold shadow-lg shadow-black/40" : "border-cream/40"
       } ${dim ? "opacity-40" : ""} ${
         interactive ? "cursor-pointer hover:-translate-y-1 hover:border-gold" : "cursor-default"
@@ -684,7 +686,7 @@ function DieFace({
         {Array.from({ length: 9 }, (_, cell) => (
           <span
             key={cell}
-            className={`m-auto size-2 rounded-full ${pips.includes(cell) ? "bg-brand" : ""}`}
+            className={`m-auto size-[0.2rem] lg:size-2 rounded-full ${pips.includes(cell) ? "bg-brand" : ""}`}
           />
         ))}
       </span>

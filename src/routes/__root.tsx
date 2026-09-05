@@ -81,12 +81,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         name: "description",
         content:
-          "Cards and Games: play cribbage, backgammon, crazy eights, yahtzee and more against Charlotte or a human opponent.",
+          "Cards and Games: play cribbage, backgammon, crazy eights, yahtzee and more against Ada or a human opponent.",
       },
       { property: "og:title", content: "Cards and Games — Classic Card & Board Games Online" },
       {
         property: "og:description",
-        content: "Cribbage, backgammon and more against Charlotte or a human opponent.",
+        content: "Cribbage, backgammon and more against Ada or a human opponent.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

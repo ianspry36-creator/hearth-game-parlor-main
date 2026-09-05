@@ -91,7 +91,7 @@ export function bestKeep(faces: number[]): { indexes: number[]; score: number } 
   return winner;
 }
 
-/** Charlotte banks once the turn is worth having, or when the risk gets steep. */
+/** Ada banks once the turn is worth having, or when the risk gets steep. */
 export function shouldBank(turnScore: number, diceLeft: number, behindBy: number): boolean {
   if (diceLeft === 0) return false; // hot dice — always worth another throw
   if (behindBy > 1500 && turnScore < 1000) return false;

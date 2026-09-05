@@ -7,7 +7,7 @@ export const Route = createFileRoute("/about")({
       {
         name: "description",
         content:
-          "Learn about Cards and Games, a friendly online parlour where you can play classic card and board games against Charlotte or a real human opponent.",
+          "Learn about Cards and Games, a friendly online parlour where you can play classic card and board games against Ada or a real human opponent.",
       },
       { property: "og:title", content: "About Us — Cards and Games" },
       {
@@ -46,7 +46,7 @@ function AboutPage() {
           <div>
             <h2 className="font-display text-2xl font-semibold text-gold">What we do</h2>
             <p className="mt-2">
-              We bring together timeless games — Cribbage, Backgammon, Battleship, Farkle, Yahtzee, Crazy Eights and Triangles — into one simple, no-fuss place. You can play against Charlotte, our patient computer opponent, or challenge a real person from the waiting room.
+              We bring together timeless games — Cribbage, Backgammon, Battleship, Farkle, Yahtzee, Crazy Eights and Triangles — into one simple, no-fuss place. You can play against Ada, our patient computer opponent, or challenge a real person from the waiting room.
             </p>
           </div>
 
@@ -54,13 +54,6 @@ function AboutPage() {
             <h2 className="font-display text-2xl font-semibold text-gold">No sign-ups needed</h2>
             <p className="mt-2">
               We believe getting into a game should be quick. Just pick a table and play. If you choose a human opponent, we only ask for a nickname so the other player knows who they are sitting across from.
-            </p>
-          </div>
-
-          <div>
-            <h2 className="font-display text-2xl font-semibold text-gold">Built with heart</h2>
-            <p className="mt-2">
-              Every detail, from the card animations to the score bubbles, is designed to make the experience feel warm and welcoming. We are always adding new tables and polishing the ones we have.
             </p>
           </div>
 

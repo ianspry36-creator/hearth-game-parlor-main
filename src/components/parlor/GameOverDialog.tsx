@@ -8,7 +8,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { CHARLOTTE_HAPPY, CHARLOTTE_SAD, CHARLOTTE_AVATAR } from "@/lib/avatars";
+import { ADA_HAPPY, ADA_SAD, ADA_AVATAR } from "@/lib/avatars";
 import skunk from "@/assets/skunk.png";
 
 export type GameOverResult = "win" | "loss" | "draw";
@@ -62,7 +62,7 @@ export function GameOverDialog({
   const them = {
     name: opponentName,
     score: opponentScore,
-    avatar: result === "loss" ? CHARLOTTE_HAPPY : result === "win" ? CHARLOTTE_SAD : CHARLOTTE_AVATAR,
+    avatar: result === "loss" ? ADA_HAPPY : result === "win" ? ADA_SAD : ADA_AVATAR,
     won: result === "loss",
     lost: result === "win",
   };

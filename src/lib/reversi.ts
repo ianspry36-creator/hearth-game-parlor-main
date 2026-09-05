@@ -110,7 +110,7 @@ export function isGameOver(board: Board): boolean {
 const CORNERS = new Set([idx(0, 0), idx(0, SIZE - 1), idx(SIZE - 1, 0), idx(SIZE - 1, SIZE - 1)]);
 
 /**
- * Charlotte's move: take a corner when it's on offer, otherwise the move that
+ * Ada's move: take a corner when it's on offer, otherwise the move that
  * flips the most discs, with a small preference for the edges.
  */
 export function chooseMove(board: Board, player: Player): number | null {

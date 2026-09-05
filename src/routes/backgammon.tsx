@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { TableShell } from "@/components/parlor/TableShell";
 import { GameOverDialog } from "@/components/parlor/GameOverDialog";
 import { PlayerAvatar } from "@/components/parlor/PlayerAvatar";
-import { CHARLOTTE_AVATAR, readAvatar } from "@/lib/avatars";
+import { ADA_AVATAR, readAvatar } from "@/lib/avatars";
 import { getGame } from "@/lib/games";
 import { useMatch } from "@/lib/multiplayer";
 import {
@@ -31,12 +31,12 @@ export const Route = createFileRoute("/backgammon")({
       {
         name: "description",
         content:
-          "Roll the dice and race your checkers home against Charlotte or a live human opponent, with hitting, the bar, and bearing off.",
+          "Roll the dice and race your checkers home against Ada or a live human opponent, with hitting, the bar, and bearing off.",
       },
       { property: "og:title", content: "Play Backgammon — Cards and Games" },
       {
         property: "og:description",
-        content: "Backgammon against Charlotte or a live opponent: hit blots, hold points, bear off first.",
+        content: "Backgammon against Ada or a live opponent: hit blots, hold points, bear off first.",
       },
     ],
   }),
@@ -128,7 +128,7 @@ function BackgammonTable() {
   const hitRef = useRef(false);
 
   const isMulti = Boolean(matchId);
-  const opponentName = liveOpponent ?? opponent ?? "Charlotte";
+  const opponentName = liveOpponent ?? opponent ?? "Ada";
 
   const apply = (fn: (current: State) => State) => {
     const next = fn(stateRef.current);
@@ -280,7 +280,7 @@ function BackgammonTable() {
     return () => clearTimeout(timer);
   }, [isMulti, isHost, state.phase, state.rolloff.human, state.rolloff.cpu]);
 
-  // Charlotte's turn: roll, then play her moves one at a time (solo play only).
+  // Ada's turn: roll, then play her moves one at a time (solo play only).
   useEffect(() => {
     if (isMulti) return;
     if (state.turn !== "cpu" || state.winner) return;
@@ -408,7 +408,7 @@ function BackgammonTable() {
         <div className="flex items-center justify-between gap-4 rounded-2xl border border-gold/15 bg-brand/50 p-4">
           <div className="flex items-center gap-3">
             <img
-              src={CHARLOTTE_AVATAR}
+              src={ADA_AVATAR}
               alt={opponentName}
               width={64}
               height={64}
@@ -475,33 +475,18 @@ function BackgammonTable() {
                 Play again
               </Button>
             ) : state.phase === "rolloff" ? (
-              <div className="relative">
-                <svg
-                  className="absolute -inset-3 pointer-events-none"
-                  viewBox="0 0 200 80"
-                  preserveAspectRatio="none"
-                >
-                  <path
-                    d="M 10 40 Q 15 20, 30 15 T 60 10 T 90 12 T 120 15 T 150 20 Q 165 25, 175 40 Q 180 50, 175 60 Q 165 70, 150 75 T 120 80 T 90 82 T 60 80 T 30 75 Q 15 70, 10 60 Q 5 50, 10 40"
-                    fill="none"
-                    stroke="url(#swirlGrad)"
-                    strokeWidth="2"
-                  />
-                  <defs>
-                    <linearGradient id="swirlGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" stopColor="rgb(212, 175, 55)" stopOpacity="0.6" />
-                      <stop offset="100%" stopColor="rgb(212, 175, 55)" stopOpacity="0.3" />
-                    </linearGradient>
-                  </defs>
-                </svg>
-                <Button variant="parlor" onClick={rollForFirst} disabled={!canRollOff}>
-                  {state.rolloff.human === null
-                    ? "Roll for first turn"
-                    : state.rolloff.cpu === null
-                      ? "Rolling…"
-                      : "Roll again"}
-                </Button>
-              </div>
+              <Button
+                variant="parlor"
+                onClick={rollForFirst}
+                disabled={!canRollOff}
+                className="animate-gentle-flash"
+              >
+                {state.rolloff.human === null
+                  ? "Roll for first turn"
+                  : state.rolloff.cpu === null
+                    ? "Rolling…"
+                    : "Roll again"}
+              </Button>
             ) : (
               <Button
                 variant="parlor"
@@ -716,7 +701,7 @@ function Board({
           pointRefs.current[index] = el;
         }}
         onClick={() => (isDestination ? onMoveTo(index) : isSelectable ? onSelect(index) : undefined)}
-        className={`flex min-h-32 flex-col ${top ? "justify-start" : "justify-end"} gap-1 rounded-md border p-1.5 transition-colors ${
+        className={`flex min-h-32 flex-col ${top ? "justify-start" : "justify-end"} gap-0.5 sm:gap-1 rounded-md border p-0.5 sm:p-1.5 transition-colors ${
           isDestination
             ? "border-gold bg-gold/20"
             : isSelected
@@ -729,7 +714,7 @@ function Board({
         {Array.from({ length: Math.min(Math.abs(count), 5) }, (_, i) => (
           <span
             key={i}
-            className={`mx-auto size-5 rounded-full border ${
+            className={`mx-auto size-4 sm:size-5 rounded-full border ${
               count > 0 ? "border-black/20 bg-cream" : "border-gold/40 bg-surface"
             }`}
           />
@@ -757,7 +742,7 @@ function Board({
                 type="button"
                 title="Your piece — click to re-enter"
                 onClick={() => (selectable.includes("bar") ? onSelect("bar") : undefined)}
-                className={`relative size-5 rounded-full border p-0 transition-colors ${
+                className={`relative size-4 sm:size-5 rounded-full border p-0 transition-colors ${
                   selected === "bar" ? "border-gold bg-gold/30" : "border-black/20 bg-cream"
                 } shadow-sm shadow-black/30 ${
                   selectable.includes("bar") ? "cursor-pointer" : "cursor-default"
@@ -775,7 +760,7 @@ function Board({
               <span
                 key={`bar-opp-${i}`}
                 title="Opponent piece"
-                className="size-5 rounded-full border border-gold/40 bg-surface shadow-sm shadow-black/30"
+                className="size-4 sm:size-5 rounded-full border border-gold/40 bg-surface shadow-sm shadow-black/30"
               />
             ))}
             {board.bar.human === 0 && board.bar.cpu === 0 && (
@@ -798,12 +783,12 @@ function Board({
           {flies.map((f) => (
             <span
               key={f.key}
-              className={`absolute size-5 rounded-full border shadow-md shadow-black/40 transition-all duration-700 ease-out ${
+              className={`absolute size-4 sm:size-5 -translate-x-1/2 -translate-y-1/2 rounded-full border shadow-md shadow-black/40 transition-all duration-700 ease-out ${
                 f.side === "human" ? "border-black/20 bg-cream" : "border-gold/40 bg-surface"
               } ${f.arrived && (f.fadeOut || f.settled) ? "scale-50 opacity-0" : "opacity-100"}`}
               style={{
-                left: (f.arrived ? f.tx : f.x) - 10,
-                top: (f.arrived ? f.ty : f.y) - 10,
+                left: f.arrived ? f.tx : f.x,
+                top: f.arrived ? f.ty : f.y,
               }}
             />
           ))}

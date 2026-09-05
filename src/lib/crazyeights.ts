@@ -31,7 +31,7 @@ export const handPenalty = (hand: Card[]) =>
     return sum + card.rank;
   }, 0);
 
-/** Charlotte's choice: follow suit or rank where she can, saving eights for last. */
+/** Ada's choice: follow suit or rank where she can, saving eights for last. */
 export function chooseCard(hand: Card[], top: Card, wildSuit: Suit | null): Card | null {
   const legal = hand.filter((card) => canFollow(card, top, wildSuit));
   if (!legal.length) return null;

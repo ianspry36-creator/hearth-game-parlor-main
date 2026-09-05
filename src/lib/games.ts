@@ -73,16 +73,16 @@ export const GAMES: GameMeta[] = [
     id: "battleship",
     name: "Battleship",
     initial: "S",
-    tagline: "Five hidden ships, ten by ten of open water, and a duel of guesswork.",
+    tagline: "Eight hidden ships, ten by ten of open water, and a duel of guesswork.",
     path: "/battleship",
     rules: [
       {
         heading: "The object",
-        body: "Find and sink your opponent's entire fleet of five ships before they sink yours.",
+        body: "Find and sink your opponent's entire fleet of eight ships before they sink yours.",
       },
       {
         heading: "The fleet",
-        body: "Each admiral hides a Carrier of five squares, a Battleship of four, a Cruiser and a Submarine of three each, and a Destroyer of two. Ships sit horizontally or vertically and may not overlap.",
+        body: "Each admiral hides a Carrier of five squares, a Battleship of four, a Cruiser and a Submarine of three each, a Destroyer of two, and a Patrol Boat, Gunboat and Scout of one square each. Ships sit horizontally or vertically and may not overlap.",
       },
       {
         heading: "Taking aim",
@@ -94,7 +94,7 @@ export const GAMES: GameMeta[] = [
       },
       {
         heading: "Victory",
-        body: "The first admiral to sink all five of the enemy ships wins the engagement.",
+        body: "The first admiral to sink all eight of the enemy ships wins the engagement.",
       },
     ],
   },
@@ -289,7 +289,7 @@ export const GAMES: GameMeta[] = [
     rules: [
       {
         heading: "The object",
-        body: "Own more discs than your opponent when the board is full. You play the dark discs and Charlotte plays the light ones.",
+        body: "Own more discs than your opponent when the board is full. You play the dark discs and Ada plays the light ones.",
       },
       {
         heading: "The setup",
