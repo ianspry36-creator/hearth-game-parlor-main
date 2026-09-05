@@ -12,7 +12,6 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as BackgammonRouteImport } from './routes/backgammon'
-import { Route as BattleshipRouteImport } from './routes/battleship'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as CrazyEightsRouteImport } from './routes/crazy-eights'
 import { Route as CribbageRouteImport } from './routes/cribbage'
@@ -23,6 +22,7 @@ import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ReversiRouteImport } from './routes/reversi'
 import { Route as SolitaireRouteImport } from './routes/solitaire'
 import { Route as TrianglesRouteImport } from './routes/triangles'
+import { Route as WarshipRouteImport } from './routes/warship'
 import { Route as YahtzeeRouteImport } from './routes/yahtzee'
 
 const IndexRoute = IndexRouteImport.update({
@@ -38,11 +38,6 @@ const AboutRoute = AboutRouteImport.update({
 const BackgammonRoute = BackgammonRouteImport.update({
   id: '/backgammon',
   path: '/backgammon',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const BattleshipRoute = BattleshipRouteImport.update({
-  id: '/battleship',
-  path: '/battleship',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ContactRoute = ContactRouteImport.update({
@@ -95,6 +90,11 @@ const TrianglesRoute = TrianglesRouteImport.update({
   path: '/triangles',
   getParentRoute: () => rootRouteImport,
 } as any)
+const WarshipRoute = WarshipRouteImport.update({
+  id: '/warship',
+  path: '/warship',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const YahtzeeRoute = YahtzeeRouteImport.update({
   id: '/yahtzee',
   path: '/yahtzee',
@@ -105,7 +105,6 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/backgammon': typeof BackgammonRoute
-  '/battleship': typeof BattleshipRoute
   '/contact': typeof ContactRoute
   '/crazy-eights': typeof CrazyEightsRoute
   '/cribbage': typeof CribbageRoute
@@ -116,13 +115,13 @@ export interface FileRoutesByFullPath {
   '/reversi': typeof ReversiRoute
   '/solitaire': typeof SolitaireRoute
   '/triangles': typeof TrianglesRoute
+  '/warship': typeof WarshipRoute
   '/yahtzee': typeof YahtzeeRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/backgammon': typeof BackgammonRoute
-  '/battleship': typeof BattleshipRoute
   '/contact': typeof ContactRoute
   '/crazy-eights': typeof CrazyEightsRoute
   '/cribbage': typeof CribbageRoute
@@ -133,6 +132,7 @@ export interface FileRoutesByTo {
   '/reversi': typeof ReversiRoute
   '/solitaire': typeof SolitaireRoute
   '/triangles': typeof TrianglesRoute
+  '/warship': typeof WarshipRoute
   '/yahtzee': typeof YahtzeeRoute
 }
 export interface FileRoutesById {
@@ -140,7 +140,6 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/backgammon': typeof BackgammonRoute
-  '/battleship': typeof BattleshipRoute
   '/contact': typeof ContactRoute
   '/crazy-eights': typeof CrazyEightsRoute
   '/cribbage': typeof CribbageRoute
@@ -151,6 +150,7 @@ export interface FileRoutesById {
   '/reversi': typeof ReversiRoute
   '/solitaire': typeof SolitaireRoute
   '/triangles': typeof TrianglesRoute
+  '/warship': typeof WarshipRoute
   '/yahtzee': typeof YahtzeeRoute
 }
 export interface FileRouteTypes {
@@ -159,7 +159,6 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/backgammon'
-    | '/battleship'
     | '/contact'
     | '/crazy-eights'
     | '/cribbage'
@@ -170,13 +169,13 @@ export interface FileRouteTypes {
     | '/reversi'
     | '/solitaire'
     | '/triangles'
+    | '/warship'
     | '/yahtzee'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/about'
     | '/backgammon'
-    | '/battleship'
     | '/contact'
     | '/crazy-eights'
     | '/cribbage'
@@ -187,13 +186,13 @@ export interface FileRouteTypes {
     | '/reversi'
     | '/solitaire'
     | '/triangles'
+    | '/warship'
     | '/yahtzee'
   id:
     | '__root__'
     | '/'
     | '/about'
     | '/backgammon'
-    | '/battleship'
     | '/contact'
     | '/crazy-eights'
     | '/cribbage'
@@ -204,6 +203,7 @@ export interface FileRouteTypes {
     | '/reversi'
     | '/solitaire'
     | '/triangles'
+    | '/warship'
     | '/yahtzee'
   fileRoutesById: FileRoutesById
 }
@@ -211,7 +211,6 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
   BackgammonRoute: typeof BackgammonRoute
-  BattleshipRoute: typeof BattleshipRoute
   ContactRoute: typeof ContactRoute
   CrazyEightsRoute: typeof CrazyEightsRoute
   CribbageRoute: typeof CribbageRoute
@@ -222,6 +221,7 @@ export interface RootRouteChildren {
   ReversiRoute: typeof ReversiRoute
   SolitaireRoute: typeof SolitaireRoute
   TrianglesRoute: typeof TrianglesRoute
+  WarshipRoute: typeof WarshipRoute
   YahtzeeRoute: typeof YahtzeeRoute
 }
 
@@ -246,13 +246,6 @@ declare module '@tanstack/react-router' {
       path: '/backgammon'
       fullPath: '/backgammon'
       preLoaderRoute: typeof BackgammonRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/battleship': {
-      id: '/battleship'
-      path: '/battleship'
-      fullPath: '/battleship'
-      preLoaderRoute: typeof BattleshipRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/contact': {
@@ -325,6 +318,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TrianglesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/warship': {
+      id: '/warship'
+      path: '/warship'
+      fullPath: '/warship'
+      preLoaderRoute: typeof WarshipRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/yahtzee': {
       id: '/yahtzee'
       path: '/yahtzee'
@@ -339,7 +339,6 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
   BackgammonRoute: BackgammonRoute,
-  BattleshipRoute: BattleshipRoute,
   ContactRoute: ContactRoute,
   CrazyEightsRoute: CrazyEightsRoute,
   CribbageRoute: CribbageRoute,
@@ -350,6 +349,7 @@ const rootRouteChildren: RootRouteChildren = {
   ReversiRoute: ReversiRoute,
   SolitaireRoute: SolitaireRoute,
   TrianglesRoute: TrianglesRoute,
+  WarshipRoute: WarshipRoute,
   YahtzeeRoute: YahtzeeRoute,
 }
 export const routeTree = rootRouteImport

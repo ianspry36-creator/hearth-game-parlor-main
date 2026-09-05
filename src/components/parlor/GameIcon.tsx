@@ -37,7 +37,7 @@ export function GameIcon({ id, className = "" }: { id: GameId; className?: strin
           ))}
         </svg>
       );
-    case "battleship":
+    case "warship":
       return (
         <svg {...common}>
           <path d="M6 28h36l-5 9H11z" className="fill-ivory/90" />

@@ -13,6 +13,13 @@ import skunk from "@/assets/skunk.png";
 
 export type GameOverResult = "win" | "loss" | "draw";
 
+export type GameOverSeat = {
+  name: string;
+  score: number | string;
+  avatar: string;
+  won: boolean;
+};
+
 /**
  * Shared end-of-game summary: winner congratulated, loser commiserated,
  * with an optional skunk overlay for a thrashing.
@@ -29,6 +36,7 @@ export function GameOverDialog({
   headline,
   detail,
   onPlayAgain,
+  results,
 }: {
   open: boolean;
   result: GameOverResult;
@@ -41,9 +49,11 @@ export function GameOverDialog({
   headline?: string;
   detail?: string;
   onPlayAgain: () => void;
+  results?: GameOverSeat[];
 }) {
   const title =
-    headline ?? (result === "draw" ? "An even game" : result === "win" ? "You won!" : `${opponentName} won!`);
+    headline ??
+    (result === "draw" ? "An even game" : result === "win" ? "You won!" : `${opponentName} won!`);
   const description =
     detail ??
     (result === "draw"
@@ -67,7 +77,11 @@ export function GameOverDialog({
     lost: result === "win",
   };
 
-  const seats = result === "loss" ? [them, you] : [you, them];
+  const seats = results
+    ? results.map((seat) => ({ ...seat, lost: !seat.won }))
+    : result === "loss"
+      ? [them, you]
+      : [you, them];
 
   return (
     <AlertDialog open={open}>
@@ -82,7 +96,9 @@ export function GameOverDialog({
         <div className="flex items-center justify-center gap-6 py-4">
           {seats.map((seat, index) => (
             <div key={seat.name + index} className="flex items-center gap-6">
-              {index > 0 && <span className="font-display text-2xl text-ivory/40">vs</span>}
+              {index > 0 && seats.length === 2 && (
+                <span className="font-display text-2xl text-ivory/40">vs</span>
+              )}
               <div className="relative flex flex-col items-center gap-2">
                 {seat.lost && isSkunk ? (
                   <img

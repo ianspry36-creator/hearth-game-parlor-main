@@ -32,6 +32,9 @@ export function TableShell({
   opponentDisconnected = false,
   disconnectSecondsLeft = 10,
   disconnectExpired = false,
+  waitingRoomLabel = "Human",
+  onPlayerCount,
+  lobby,
 }: {
   game: GameMeta;
   opponentName: string;
@@ -45,8 +48,11 @@ export function TableShell({
   opponentDisconnected?: boolean;
   disconnectSecondsLeft?: number;
   disconnectExpired?: boolean;
+  waitingRoomLabel?: string;
+  onPlayerCount?: (count: 2 | 3 | 4) => void;
+  lobby?: (props: { open: boolean; onOpenChange: (open: boolean) => void }) => ReactNode;
 }) {
-  const [confirming, setConfirming] = useState<"new" | "human" | null>(null);
+  const [confirming, setConfirming] = useState<"new" | "human" | "3" | "4" | null>(null);
   const [humanOpen, setHumanOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [chatMessage, setChatMessage] = useState<string | null>(null);
@@ -63,10 +69,12 @@ export function TableShell({
     () => () => {
       if (chatTimer.current) clearTimeout(chatTimer.current);
     },
-    []
+    [],
   );
   const startNewGame = () => (gameInProgress ? setConfirming("new") : onNewGame());
   const openWaitingRoom = () => (gameInProgress ? setConfirming("human") : setHumanOpen(true));
+  const startPlayerCount = (count: 2 | 3 | 4) =>
+    gameInProgress ? setConfirming(count === 3 ? "3" : "4") : onPlayerCount?.(count);
   return (
     <div className="min-h-screen bg-brand text-cream">
       <DisconnectDialog
@@ -93,7 +101,10 @@ export function TableShell({
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <Link to="/" className="text-xs uppercase tracking-[0.2em] text-ivory/50 hover:text-gold">
+            <Link
+              to="/"
+              className="text-xs uppercase tracking-[0.2em] text-ivory/50 hover:text-gold"
+            >
               ← Back to the game room
             </Link>
           </div>
@@ -113,15 +124,37 @@ export function TableShell({
                 <Button variant="parlor" className="w-full" onClick={startNewGame}>
                   New game
                 </Button>
+                {onPlayerCount ? (
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <Button
+                      variant="parlorOutline"
+                      className="w-full"
+                      onClick={() => startPlayerCount(3)}
+                    >
+                      3 Player
+                    </Button>
+                    <Button
+                      variant="parlorOutline"
+                      className="w-full"
+                      onClick={() => startPlayerCount(4)}
+                    >
+                      4 Player
+                    </Button>
+                  </div>
+                ) : null}
                 <Button variant="parlorOutline" className="w-full" onClick={openWaitingRoom}>
-                  Human
+                  {waitingRoomLabel}
                 </Button>
-                <WaitingRoom
-                  game={game}
-                  onMatched={onMatched}
-                  open={humanOpen}
-                  onOpenChange={setHumanOpen}
-                />
+                {lobby ? (
+                  lobby({ open: humanOpen, onOpenChange: setHumanOpen })
+                ) : (
+                  <WaitingRoom
+                    game={game}
+                    onMatched={onMatched}
+                    open={humanOpen}
+                    onOpenChange={setHumanOpen}
+                  />
+                )}
                 <RulesDialog
                   game={game}
                   trigger={
@@ -130,20 +163,11 @@ export function TableShell({
                     </Button>
                   }
                 />
-                <Button
-                  variant="parlorGhost"
-                  className="w-full"
-                  onClick={() => setChatOpen(true)}
-                >
+                <Button variant="parlorGhost" className="w-full" onClick={() => setChatOpen(true)}>
                   Chat
                 </Button>
-                <ChatDialog
-                  open={chatOpen}
-                  onOpenChange={setChatOpen}
-                  onSend={sendChat}
-                />
+                <ChatDialog open={chatOpen} onOpenChange={setChatOpen} onSend={sendChat} />
               </div>
-
 
               <AlertDialog
                 open={confirming !== null}
@@ -157,7 +181,9 @@ export function TableShell({
                     <AlertDialogDescription className="text-ivory/65">
                       {confirming === "human"
                         ? "Leaving for the waiting room will abandon the hand you're playing."
-                        : "Starting a new game will abandon the hand you're playing."}
+                        : confirming === "new"
+                          ? "Starting a new game will abandon the hand you're playing."
+                          : `Starting a ${confirming}-player game will abandon the hand you're playing.`}
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
@@ -165,7 +191,9 @@ export function TableShell({
                     <AlertDialogAction
                       onClick={() => {
                         if (confirming === "human") setHumanOpen(true);
-                        else onNewGame();
+                        else if (confirming === "new") onNewGame();
+                        else if (confirming === "3") onPlayerCount?.(3);
+                        else if (confirming === "4") onPlayerCount?.(4);
                         setConfirming(null);
                       }}
                     >
@@ -178,7 +206,9 @@ export function TableShell({
 
             {!hideOpponent && (
               <div className="rounded-xl border border-gold/15 bg-brand/50 p-5">
-                <p className="mb-2 text-[11px] uppercase tracking-[0.22em] text-ivory/60">Opponent</p>
+                <p className="mb-2 text-[11px] uppercase tracking-[0.22em] text-ivory/60">
+                  Opponent
+                </p>
                 <p className="font-display text-xl">{opponentName}</p>
                 <p className="mt-1 text-sm text-ivory/60">{opponentStatus}</p>
               </div>

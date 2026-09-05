@@ -1,11 +1,11 @@
-export type GameId = "cribbage" | "backgammon" | "battleship" | "farkle" | "yahtzee" | "crazy-eights" | "triangles" | "solitaire" | "freecell" | "reversi";
+export type GameId = "cribbage" | "backgammon" | "warship" | "farkle" | "yahtzee" | "crazy-eights" | "triangles" | "solitaire" | "freecell" | "reversi";
 
 export type GameMeta = {
   id: GameId;
   name: string;
   initial: string;
   tagline: string;
-  path: "/cribbage" | "/backgammon" | "/battleship" | "/farkle" | "/yahtzee" | "/crazy-eights" | "/triangles" | "/solitaire" | "/freecell" | "/reversi";
+  path: "/cribbage" | "/backgammon" | "/warship" | "/farkle" | "/yahtzee" | "/crazy-eights" | "/triangles" | "/solitaire" | "/freecell" | "/reversi";
   rules: { heading: string; body: string }[];
   beta?: boolean;
 };
@@ -70,11 +70,11 @@ export const GAMES: GameMeta[] = [
     ],
   },
   {
-    id: "battleship",
-    name: "Battleship",
-    initial: "S",
+    id: "warship",
+    name: "Warship",
+    initial: "W",
     tagline: "Eight hidden ships, ten by ten of open water, and a duel of guesswork.",
-    path: "/battleship",
+    path: "/warship",
     rules: [
       {
         heading: "The object",

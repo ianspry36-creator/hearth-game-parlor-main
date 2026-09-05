@@ -46,7 +46,7 @@ function AboutPage() {
           <div>
             <h2 className="font-display text-2xl font-semibold text-gold">What we do</h2>
             <p className="mt-2">
-              We bring together timeless games — Cribbage, Backgammon, Battleship, Farkle, Yahtzee, Crazy Eights and Triangles — into one simple, no-fuss place. You can play against Ada, our patient computer opponent, or challenge a real person from the waiting room.
+              We bring together timeless games — Cribbage, Backgammon, Warship, Farkle, Yahtzee, Crazy Eights and Triangles — into one simple, no-fuss place. You can play against Ada, our patient computer opponent, or challenge a real person from the waiting room.
             </p>
           </div>
 

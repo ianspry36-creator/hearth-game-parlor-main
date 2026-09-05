@@ -1,4 +1,4 @@
-/** Tiny WebAudio sound effects for the Battleship table (no asset downloads). */
+/** Tiny WebAudio sound effects for the Warship table (no asset downloads). */
 
 let ctx: AudioContext | null = null;
 let master: DynamicsCompressorNode | null = null;

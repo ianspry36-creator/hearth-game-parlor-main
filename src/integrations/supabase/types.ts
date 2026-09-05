@@ -100,6 +100,89 @@ export type Database = {
         }
         Relationships: []
       }
+      game_rooms: {
+        Row: {
+          created_at: string
+          game: string
+          host_nickname: string
+          host_session: string
+          id: string
+          is_public: boolean
+          max_seats: number
+          password: string | null
+          state: Json | null
+          status: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          game?: string
+          host_nickname: string
+          host_session: string
+          id?: string
+          is_public?: boolean
+          max_seats?: number
+          password?: string | null
+          state?: Json | null
+          status?: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          created_at?: string
+          game?: string
+          host_nickname?: string
+          host_session?: string
+          id?: string
+          is_public?: boolean
+          max_seats?: number
+          password?: string | null
+          state?: Json | null
+          status?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: []
+      }
+      game_room_players: {
+        Row: {
+          id: string
+          joined_at: string
+          last_seen_at: string
+          nickname: string
+          room_id: string
+          seat: number
+          session_id: string
+        }
+        Insert: {
+          id?: string
+          joined_at?: string
+          last_seen_at?: string
+          nickname: string
+          room_id: string
+          seat: number
+          session_id: string
+        }
+        Update: {
+          id?: string
+          joined_at?: string
+          last_seen_at?: string
+          nickname?: string
+          room_id?: string
+          seat?: number
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_room_players_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "game_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       site_visits: {
         Row: {
           id: number

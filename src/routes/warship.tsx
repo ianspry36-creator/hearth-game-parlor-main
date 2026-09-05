@@ -7,7 +7,7 @@ import { PlayerAvatar } from "@/components/parlor/PlayerAvatar";
 import { getGame } from "@/lib/games";
 import { ADA_AVATAR, readAvatar } from "@/lib/avatars";
 import { useMatch } from "@/lib/multiplayer";
-import { playExplosion, playSinking, playSplash } from "@/lib/battleship-sounds";
+import { playExplosion, playSinking, playSplash } from "@/lib/warship-sounds";
 import {
   FLEET,
   SIZE,
@@ -25,33 +25,33 @@ import {
   shipCells,
   rowOf,
   type Ship,
-} from "@/lib/battleship";
+} from "@/lib/warship";
 import { mulberry32 } from "@/lib/random";
 
 
-export const Route = createFileRoute("/battleship")({
+export const Route = createFileRoute("/warship")({
   validateSearch: (search: Record<string, unknown>) => ({
     opponent: typeof search["opponent"] === "string" ? (search["opponent"] as string) : undefined,
     match: typeof search["match"] === "string" ? (search["match"] as string) : undefined,
   }),
   head: () => ({
     meta: [
-      { title: "Play Battleship — Cards and Games" },
+      { title: "Play Warship — Cards and Games" },
       {
         name: "description",
         content:
           "Hide your fleet, call your shots and sink Ada's ships — or take on a live human opponent from the waiting room.",
       },
-      { property: "og:title", content: "Play Battleship — Cards and Games" },
+      { property: "og:title", content: "Play Warship — Cards and Games" },
       {
         property: "og:description",
-        content: "Battleship in the parlor: place your fleet, fire square by square, sink the enemy.",
+        content: "Warship in the parlor: place your fleet, fire square by square, sink the enemy.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  component: BattleshipTable,
+  component: WarshipTable,
 });
 
 type Seat = "human" | "cpu";
@@ -116,8 +116,8 @@ function soundFor(hit: boolean, sank: boolean) {
 }
 
 
-function BattleshipTable() {
-  const game = getGame("battleship");
+function WarshipTable() {
+  const game = getGame("warship");
   const navigate = useNavigate();
   const { opponent, match: matchId } = Route.useSearch();
   const {
@@ -370,7 +370,7 @@ function BattleshipTable() {
       disconnectExpired={disconnectExpired}
       gameInProgress={state.phase === "play"}
       onMatched={(nickname, newMatchId) => {
-        navigate({ to: "/battleship", search: { opponent: nickname, match: newMatchId } });
+        navigate({ to: "/warship", search: { opponent: nickname, match: newMatchId } });
         setState(freshState());
       }}
       onNewGame={reset}
