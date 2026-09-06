@@ -159,7 +159,9 @@ function remapState(state: State, shift: number, count: PlayerCount): State {
     const index = base.indexOf(seat);
     return base[(((index + shift) % count) + count) % count]!;
   };
-  const hands = {} as Record<Seat, Card[]>;
+  // Seed every seat so `hands.ace`/`hands.leo` are never `undefined` in smaller
+  // games — the render reads `state.hands[seat].length` unconditionally.
+  const hands = { you: [], ada: [], ace: [], leo: [] } as Record<Seat, Card[]>;
   for (const seat of base) hands[map(seat)] = state.hands[seat] ?? [];
   return {
     ...state,
