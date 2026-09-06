@@ -415,15 +415,23 @@ function CribbageTable() {
   const [cutStage, setCutStage] = useState<
     "idle" | "flipMine" | "seatMine" | "flipTheirs" | "seated"
   >("idle");
+  // Which cut cards have finished flying and are now resting at their seats.
+  const [cutSeated, setCutSeated] = useState<{ player: boolean; cpu: boolean }>({
+    player: false,
+    cpu: false,
+  });
 
   // Which seat laid the newest card on the pile, so it animates from that side.
   const [laidBy, setLaidBy] = useState<Side | null>(null);
   const pendingLay = useRef<Side | null>(null);
   const pileLength = useRef(state.pile.length);
   const [flying, setFlying] = useState<FlyingCard[]>([]);
+  /** Card currently in flight from the hand to the pile (hidden in hand until it lands). */
+  const [layingId, setLayingId] = useState<string | null>(null);
   const pileRef = useRef<HTMLDivElement>(null);
   const cribRef = useRef<HTMLDivElement>(null);
   const handEls = useRef(new Map<string, HTMLButtonElement>());
+  const cpuHandEls = useRef(new Map<string, HTMLElement>());
   const fanEls = useRef(new Map<string, HTMLButtonElement>());
   const playerSeatRef = useRef<HTMLDivElement>(null);
   const cpuSeatRef = useRef<HTMLDivElement>(null);
@@ -450,28 +458,42 @@ function CribbageTable() {
     setState(fresh);
     setSelected([]);
     setBack({ player: 0, cpu: 0 });
+    setCutSeated({ player: false, cpu: false });
     if (isMulti) void publish(isHost ? fresh : mirror(fresh));
   };
 
   /** Lay a card from the player's hand, animating it to the pegging pile. */
   const layPlayerCard = (card: Card) => {
+    if (layingId) return;
     pendingLay.current = "player";
     const pileRect = pileRef.current?.getBoundingClientRect();
     const el = handEls.current.get(card.id);
-    if (pileRect && el) {
-      const rect = el.getBoundingClientRect();
+    const rect = el?.getBoundingClientRect();
+    setLayingId(card.id);
+    if (pileRect && rect) {
       const flight: FlyingCard = {
         key: Date.now(),
         card,
         from: { x: rect.left, y: rect.top },
-        to: { x: pileRect.left, y: pileRect.top },
+        // The pile grows left-to-right, so the next card lands on its right
+        // side (not the left edge).
+        to: { x: pileRect.left + pileRect.width - 22, y: pileRect.top },
+        toScale: 11 / 16, // full-size hand card -> small pile card
       };
       setFlying((current) => [...current, flight]);
       window.setTimeout(() => {
         setFlying((current) => current.filter((f) => f.key !== flight.key));
       }, 600);
+      // Commit the card to the pile only once the flight has landed, so it
+      // doesn't show up at the pile before the animation completes.
+      window.setTimeout(() => {
+        apply((current) => playCard(current, "player", card));
+        setLayingId(null);
+      }, 500);
+      return;
     }
     apply((current) => playCard(current, "player", card));
+    setLayingId(null);
   };
 
   /** Fly a cut card from the spread deck to its seat during the cut for deal. */
@@ -549,13 +571,26 @@ function CribbageTable() {
     const nextStage =
       cutStage === "flipMine" ? "seatMine" : cutStage === "seatMine" ? "flipTheirs" : "seated";
     const delay = cutStage === "flipMine" ? 800 : cutStage === "seatMine" ? 1200 : 800;
+    const flySide: Side | null =
+      nextStage === "seatMine" ? "player" : nextStage === "seated" ? "cpu" : null;
     const timer = setTimeout(() => {
-      if (nextStage === "seatMine" && stateRef.current.playerCut) {
+      if (flySide === "player" && stateRef.current.playerCut) {
         flyCutCard(stateRef.current.playerCut, "player");
-      } else if (nextStage === "seated" && stateRef.current.cpuCut) {
+      } else if (flySide === "cpu" && stateRef.current.cpuCut) {
         flyCutCard(stateRef.current.cpuCut, "cpu");
       }
+      // Hide the card in the fan right away (gone), then reveal it at its seat
+      // only once the flight has landed, so no copy lingers in the deck.
       setCutStage(nextStage);
+      if (flySide) {
+        window.setTimeout(
+          () =>
+            setCutSeated((s) =>
+              flySide === "player" ? { ...s, player: true } : { ...s, cpu: true },
+            ),
+          500,
+        );
+      }
     }, delay);
     return () => clearTimeout(timer);
   }, [cutStage]);
@@ -578,7 +613,7 @@ function CribbageTable() {
       const dealt = dealHand(dealer, state.scores, state.log);
       dealt.log = note(dealt.log, { side: first, text: "cut high and play first." });
       reset(dealt);
-    }, 1400);
+    }, 2400);
     return () => clearTimeout(timer);
   }, [state.phase, state.playerCut, state.cpuCut, cutStage]);
 
@@ -706,12 +741,7 @@ function CribbageTable() {
       s.playerDiscards = s.playerHand.filter((c) => selected.includes(c.id));
       s.playerKept = s.playerHand.filter((c) => !selected.includes(c.id));
       s.playerHand = [...s.playerKept];
-      if (!isMulti) {
-        const cpuDiscards = chooseDiscards(s.cpuHand);
-        s.cpuDiscards = cpuDiscards;
-        s.cpuKept = s.cpuHand.filter((c) => !cpuDiscards.some((d) => d.id === c.id));
-        return startPlay(s);
-      }
+      s.crib = [...s.playerDiscards];
       return s;
     });
     if (flights.length) {
@@ -721,6 +751,53 @@ function CribbageTable() {
       }, 600);
     }
     setSelected([]);
+    // Solo: pause before the opponent sends its two cards to the crib.
+    if (!isMulti) {
+      window.setTimeout(cpuDiscardToCrib, 2000);
+    }
+  };
+
+  /** The opponent sends its two cards to the crib, then the starter is cut. */
+  const cpuDiscardToCrib = () => {
+    const current = stateRef.current;
+    if (current.phase !== "discard" || !current.playerDiscards) return;
+    const cpuDiscards = chooseDiscards(current.cpuHand);
+    const cribRect = cribRef.current?.getBoundingClientRect();
+    const flights: FlyingCard[] = [];
+    if (cribRect) {
+      cpuDiscards.forEach((card) => {
+        const el = cpuHandEls.current.get(card.id);
+        if (!el) return;
+        const rect = el.getBoundingClientRect();
+        flights.push({
+          key: Date.now() + flights.length,
+          card,
+          from: { x: rect.left, y: rect.top },
+          to: { x: cribRect.left, y: cribRect.top },
+          fromScale: 11 / 16, // CPU hand shows small face-down cards
+          toScale: 11 / 16,
+          faceDown: true,
+        });
+      });
+    }
+    apply((cur) => {
+      const s: State = { ...cur };
+      s.cpuDiscards = cpuDiscards;
+      s.cpuKept = s.cpuHand.filter((c) => !cpuDiscards.some((d) => d.id === c.id));
+      s.cpuHand = [...s.cpuKept];
+      s.crib = [...(s.playerDiscards ?? []), ...s.cpuDiscards];
+      return s;
+    });
+    if (flights.length) {
+      setFlying((current) => [...current, ...flights]);
+      window.setTimeout(() => {
+        setFlying((current) => current.filter((f) => !flights.some((fl) => fl.key === f.key)));
+      }, 600);
+    }
+    // Once the cards have landed, cut the starter and open the play.
+    window.setTimeout(() => {
+      apply((cur) => (cur.phase === "discard" ? startPlay(cur) : cur));
+    }, 600);
   };
 
   const nextHand = () =>
@@ -885,6 +962,10 @@ function CribbageTable() {
                   ) : (
                     <span
                       key={card.id}
+                      ref={(el) => {
+                        if (el) cpuHandEls.current.set(card.id, el);
+                        else cpuHandEls.current.delete(card.id);
+                      }}
                       className="animate-deal-out block"
                       style={{ animationDelay: `${index * 90}ms` }}
                     >
@@ -903,16 +984,12 @@ function CribbageTable() {
             <div className="flex flex-wrap justify-center gap-6">
               <CutSeat
                 label={opponentName}
-                card={cutStage === "seated" ? state.cpuCut : null}
+                card={cutSeated.cpu ? state.cpuCut : null}
                 seatRef={cpuSeatRef}
               />
               <CutSeat
                 label="You"
-                card={
-                  cutStage === "seatMine" || cutStage === "flipTheirs" || cutStage === "seated"
-                    ? state.playerCut
-                    : null
-                }
+                card={cutSeated.player ? state.playerCut : null}
                 seatRef={playerSeatRef}
               />
             </div>
@@ -938,7 +1015,7 @@ function CribbageTable() {
                     onClick={() => cutDeck(card)}
                     className={`relative transition-transform hover:z-10 hover:-translate-y-2 focus-visible:z-10 focus-visible:-translate-y-2 ${
                       flipping ? "z-20 -translate-y-3" : ""
-                    } ${gone ? "opacity-0" : "disabled:opacity-60"}`}
+                    } ${gone ? "opacity-0" : flipping ? "" : "disabled:opacity-60"}`}
                   >
 
                     {flipping ? (
@@ -1062,6 +1139,13 @@ function CribbageTable() {
                       style={{ animationDelay: `${index * 110}ms` }}
                     >
                       <FaceDownCard />
+                    </span>
+                  );
+                }
+                if (layingId === card.id) {
+                  return (
+                    <span key={card.id} className="invisible block">
+                      <PlayingCard card={card} />
                     </span>
                   );
                 }
