@@ -115,7 +115,7 @@ function Lobby() {
         </section>
 
         <footer className="mt-16 border-t border-gold/12 pt-6 text-center text-[11px] uppercase tracking-[0.28em] text-ivory/30">
-          <p>Cards and Games</p>
+          <p>Cards and Games 3.1</p>
           <VisitorCounter />
           <div className="mt-3 flex justify-center gap-4">
             <Link
