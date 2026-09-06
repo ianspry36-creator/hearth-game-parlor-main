@@ -1,6 +1,16 @@
-import { Link, createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState, type DragEvent } from "react";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { RulesDialog } from "@/components/parlor/RulesDialog";
 import { getGame } from "@/lib/games";
 import { CardMark } from "@/components/parlor/CardMark";
@@ -70,11 +80,13 @@ const FACE_DOWN_VISIBLE = 15;
 const FACE_UP_VISIBLE = 15;
 
 function SolitaireTable() {
+  const navigate = useNavigate();
   const game = getGame("solitaire");
   const [state, setState] = useState<GameState>(() => freshGame(mulberry32(SSR_SEED)));
   const [history, setHistory] = useState<GameState[]>([]);
   const [selection, setSelection] = useState<Selection>(null);
   const [drawMode, setDrawMode] = useState<DrawMode>(3);
+  const [confirming, setConfirming] = useState<"new" | "home" | null>(null);
   const stateRef = useRef(state);
   stateRef.current = state;
 
@@ -98,6 +110,10 @@ function SolitaireTable() {
     setHistory([]);
     setSelection(null);
   };
+
+  const gameInProgress = state.moves > 0;
+  const confirmReset = () => (gameInProgress ? setConfirming("new") : reset());
+  const confirmHome = () => (gameInProgress ? setConfirming("home") : void navigate({ to: "/" }));
 
   const undo = () => {
     if (history.length === 0) return;
@@ -262,9 +278,13 @@ function SolitaireTable() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <Link to="/" className="text-xs uppercase tracking-[0.2em] text-ivory/50 hover:text-gold">
+            <button
+              type="button"
+              onClick={confirmHome}
+              className="cursor-pointer bg-transparent text-xs uppercase tracking-[0.2em] text-ivory/50 transition-colors hover:text-gold"
+            >
               ← Back to the game room
-            </Link>
+            </button>
           </div>
         </header>
 
@@ -315,7 +335,7 @@ function SolitaireTable() {
 
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gold/15 pt-4">
               <div className="flex items-center gap-3">
-                <Button variant="parlorOutline" onClick={reset}>
+                <Button variant="parlorOutline" onClick={confirmReset}>
                   Start again
                 </Button>
                 <RulesDialog
@@ -352,6 +372,33 @@ function SolitaireTable() {
           )}
         </div>
       </div>
+
+      <AlertDialog open={confirming !== null} onOpenChange={(next) => !next && setConfirming(null)}>
+        <AlertDialogContent className="border-gold/25 bg-brand text-cream">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-display text-2xl">
+              Game in progress. Are you sure?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-ivory/65">
+              {confirming === "home"
+                ? "Leaving for the game room will abandon the hand you're playing."
+                : "Starting a new game will abandon the hand you're playing."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep playing</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (confirming === "home") void navigate({ to: "/" });
+                else if (confirming === "new") reset();
+                setConfirming(null);
+              }}
+            >
+              Yes, leave the game
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

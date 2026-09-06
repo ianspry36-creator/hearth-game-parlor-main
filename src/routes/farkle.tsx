@@ -518,7 +518,7 @@ function FarkleTable() {
       opponentDisconnected={opponentDisconnected}
       disconnectSecondsLeft={disconnectSecondsLeft}
       disconnectExpired={disconnectExpired}
-      gameInProgress={state.phase === "play" && (state.turnScore > 0 || state.scores.human > 0)}
+      gameInProgress={state.phase !== "over" && state.rolloff.human !== null}
       onMatched={(nickname, newMatchId) => {
         navigate({ to: "/farkle", search: { opponent: nickname, match: newMatchId } });
         reset();
