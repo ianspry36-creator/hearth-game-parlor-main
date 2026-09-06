@@ -72,6 +72,9 @@ const ORDER_BY_COUNT: Record<PlayerCount, Seat[]> = {
 const ACE_AVATAR = AVATAR_OPTIONS[3]!.url;
 const LEO_AVATAR = AVATAR_OPTIONS[7]!.url;
 
+/** A player may draw up to this many cards on a turn before passing. */
+const MAX_DRAWS = 3;
+
 type State = {
   phase: "play" | "suit" | "over";
   turn: Seat;
@@ -82,8 +85,8 @@ type State = {
   hands: Record<Seat, Card[]>;
   log: LogEntry[];
   winner: Seat | null;
-  /** True once the player has taken their one card this turn. */
-  drew: boolean;
+  /** Cards drawn so far this turn — a player may draw up to MAX_DRAWS. */
+  drew: number;
 };
 
 type FlyingCard = {
@@ -123,7 +126,7 @@ function freshState(count: PlayerCount = 2, random: () => number = Math.random):
       },
     ],
     winner: null,
-    drew: false,
+    drew: 0,
   };
 }
 
@@ -394,7 +397,7 @@ function CrazyEightsTable() {
       hands,
       pile: [...current.pile, ...cards],
       wildSuit: null,
-      drew: false,
+      drew: 0,
       log: note(current.log, {
         side,
         text: `lay ${cards.map(cardLabel).join(", ")}.`,
@@ -428,7 +431,7 @@ function CrazyEightsTable() {
       return {
         ...current,
         turn: nextTurn(side, current.order),
-        drew: false,
+        drew: 0,
         log: note(current.log, { side, text: "cannot draw — the stock is gone. Pass." }),
       };
     }
@@ -438,7 +441,7 @@ function CrazyEightsTable() {
       deck,
       pile,
       hands,
-      drew: true,
+      drew: current.drew + 1,
       log: note(current.log, { side, text: "draw a card." }),
     };
   };
@@ -497,15 +500,15 @@ function CrazyEightsTable() {
   };
 
   const draw = () => {
-    if (!myTurn || state.drew) return;
+    if (!myTurn || state.drew >= MAX_DRAWS) return;
     setSelectedIds([]);
     apply((current) => takeCard(current, "you"));
   };
 
   const pass = () => {
-    if (!myTurn || !state.drew) return;
+    if (!myTurn || state.drew === 0) return;
     setSelectedIds([]);
-    apply((current) => ({ ...current, turn: nextTurn("you", current.order), drew: false }));
+    apply((current) => ({ ...current, turn: nextTurn("you", current.order), drew: 0 }));
   };
 
   // Each computer opponent plays one deliberate step at a time (solo play only).
@@ -535,13 +538,13 @@ function CrazyEightsTable() {
             .sort((a, b) => (counts.get(a.suit) ?? 0) - (counts.get(b.suit) ?? 0));
           played = [card, ...extras];
           next = playCards(current, seat, played);
-        } else if (!current.drew) {
+        } else if (current.drew < MAX_DRAWS) {
           next = takeCard(current, seat);
         } else {
           next = {
             ...current,
             turn: nextTurn(seat, current.order),
-            drew: false,
+            drew: 0,
             log: note(current.log, { side: seat, text: "pass." }),
           };
         }
@@ -609,7 +612,7 @@ function CrazyEightsTable() {
               : myTurn
                 ? canPlayNow
                   ? "Your lay"
-                  : state.drew
+                  : state.drew >= MAX_DRAWS
                     ? "Nothing to lay — pass the turn"
                     : "Nothing follows — draw a card"
                 : isLive
@@ -753,7 +756,7 @@ function CrazyEightsTable() {
                 <button
                   type="button"
                   onClick={draw}
-                  disabled={!myTurn || state.drew || !state.deck.length}
+                  disabled={!myTurn || state.drew >= MAX_DRAWS || !state.deck.length}
                   aria-label="Draw a card"
                   className="block transition-transform enabled:hover:-translate-y-1 disabled:opacity-60"
                 >
@@ -832,7 +835,7 @@ function CrazyEightsTable() {
           <div className="mb-2 flex items-center gap-3">
             <PlayerAvatar avatar={playerAvatar} onSelect={setPlayerAvatar} />
             <p className="text-[10px] uppercase tracking-[0.22em] text-ivory/45">
-              Your hand — {myHand.length} cards
+              Your hand
             </p>
           </div>
           <div className="flex flex-wrap items-end gap-2">
@@ -868,12 +871,12 @@ function CrazyEightsTable() {
                 Play {selectedCards.map(cardLabel).join(", ")}
               </Button>
             )}
-            {myTurn && !canPlayNow && !state.drew && state.deck.length > 0 && (
+            {myTurn && !canPlayNow && state.drew < MAX_DRAWS && state.deck.length > 0 && (
               <Button variant="parlor" onClick={draw}>
                 Draw a card
               </Button>
             )}
-            {myTurn && state.drew && !canPlayNow && (
+            {myTurn && state.drew > 0 && !canPlayNow && (
               <Button variant="parlorOutline" onClick={pass}>
                 Pass the turn
               </Button>
