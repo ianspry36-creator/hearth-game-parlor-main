@@ -26,6 +26,7 @@ import {
   joinRoom,
   leaveRoom,
   normalizePassword,
+  isStalePlayingRoom,
   touchRoom,
   useCrazyEightsLobby,
 } from "@/lib/crazyEightsLobby";
@@ -82,11 +83,13 @@ export function CrazyEightsLobby({
   // When the game actually starts (host pressed Play or the table filled),
   // every seated player is routed to the live table.
   useEffect(() => {
-    if (!myRoom || !myRoomId) return;
-    if (myRoom.status === "playing") {
-      playingRef.current = true;
-      onPlay(myRoomId);
-    }
+    if (!myRoom || !myRoomId || playingRef.current) return;
+    if (myRoom.status !== "playing") return;
+    // Don't route into a table the host abandoned before dealing; the lobby
+    // refresh already leaves it, but guard here too as a safety net.
+    if (isStalePlayingRoom(myRoom)) return;
+    playingRef.current = true;
+    onPlay(myRoomId);
   }, [myRoom, myRoomId, onPlay]);
 
   const startPlay = useCallback(
