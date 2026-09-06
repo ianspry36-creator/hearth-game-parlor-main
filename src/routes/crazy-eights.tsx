@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { TableShell } from "@/components/parlor/TableShell";
 import { GameOverDialog } from "@/components/parlor/GameOverDialog";
@@ -7,7 +7,7 @@ import { PlayerAvatar } from "@/components/parlor/PlayerAvatar";
 import { ADA_AVATAR, AVATAR_OPTIONS, readAvatar } from "@/lib/avatars";
 import { getGame } from "@/lib/games";
 import { useMatch } from "@/lib/multiplayer";
-import { useCrazyEightsRoom } from "@/lib/crazyEightsLobby";
+import { isStalePlayingRoom, leaveRoom, useCrazyEightsRoom } from "@/lib/crazyEightsLobby";
 import { CrazyEightsLobby } from "@/components/parlor/CrazyEightsLobby";
 import { RANK_LABEL, SUIT_SYMBOL, cardLabel, type Card, type Suit } from "@/lib/cribbage";
 import cardBackAsset from "@/assets/card-back.png";
@@ -171,9 +171,35 @@ function remapState(state: State, shift: number, count: PlayerCount): State {
   };
 }
 
+/**
+ * The room's `state` column is written over the wire and can be `null`, a stale
+ * partial write, or a shape from an older build. Guard every seat remap behind
+ * this check so a malformed value can never crash the table.
+ */
+function isValidState(value: unknown): value is State {
+  if (!value || typeof value !== "object") return false;
+  const s = value as Partial<State>;
+  return (
+    Array.isArray(s.order) &&
+    s.order.length >= 2 &&
+    Array.isArray(s.deck) &&
+    Array.isArray(s.pile) &&
+    s.pile.length > 0 &&
+    Array.isArray(s.log) &&
+    typeof s.turn === "string" &&
+    !!s.hands &&
+    typeof s.hands === "object"
+  );
+}
+
 function CrazyEightsTable() {
   const game = getGame("crazy-eights");
   const navigate = useNavigate();
+  const handlePlay = useCallback(
+    (id: string) =>
+      navigate({ to: "/crazy-eights", search: { room: id, opponent: undefined, match: undefined } }),
+    [navigate],
+  );
   const { opponent, match: matchId, room: roomId } = Route.useSearch();
   const {
     match,
@@ -301,9 +327,12 @@ function CrazyEightsTable() {
 
   // The lobby host deals the opening hand once the room is playing.
   useEffect(() => {
-    if (!isRoom || !roomIsHost || roomRemoteState || roomLoading) return;
+    if (!isRoom || !roomIsHost || roomLoading) return;
+    if (isValidState(roomRemoteState)) return;
     if (liveRoom?.status !== "playing") return;
     if (roomPlayerCount < 2) return;
+    // Abandoned room: don't resurrect a deal nobody is around to receive.
+    if (isStalePlayingRoom(liveRoom)) return;
     const fresh = freshState(activeCount);
     stateRef.current = fresh;
     setState(fresh);
@@ -312,11 +341,21 @@ function CrazyEightsTable() {
 
   // Read the live room's canonical state into our own seat's view.
   useEffect(() => {
-    if (!isRoom || !roomRemoteState) return;
+    if (!isRoom || !roomRemoteState || !isValidState(roomRemoteState)) return;
     const view = remapState(roomRemoteState as State, -mySeat, activeCount);
     stateRef.current = view;
     setState(view);
   }, [isRoom, roomRemoteState, mySeat, activeCount]);
+
+  // If we land on a table whose host vanished before dealing, leave it and
+  // return to the lobby so the player isn't stranded on a dead table.
+  useEffect(() => {
+    if (!isRoom || !roomId || roomLoading || !liveRoom) return;
+    if (!isStalePlayingRoom(liveRoom)) return;
+    void leaveRoom(roomId).then(() =>
+      navigate({ to: "/crazy-eights", search: { room: undefined, opponent: undefined, match: undefined } }),
+    );
+  }, [isRoom, roomId, roomLoading, liveRoom, navigate]);
 
   const top = state.pile[state.pile.length - 1]!;
   const myHand = state.hands.you ?? [];
@@ -599,9 +638,7 @@ function CrazyEightsTable() {
           game={game}
           open={open}
           onOpenChange={onOpenChange}
-          onPlay={(id) =>
-            navigate({ to: "/crazy-eights", search: { room: id, opponent: undefined, match: undefined } })
-          }
+          onPlay={handlePlay}
         />
       )}
       onPlayerCount={startGame}

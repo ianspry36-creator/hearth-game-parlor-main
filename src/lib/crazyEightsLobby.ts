@@ -41,6 +41,27 @@ const PLAYER_COLUMNS = "id, room_id, session_id, nickname, seat, joined_at, last
 export const ROOM_STALE_MS = 90_000;
 
 /**
+ * A room that has flipped to "playing" but still has no deal on file is
+ * abandoned if it has not been touched in this long. The host normally deals
+ * within a second or two of pressing Play, so this is a very safe threshold.
+ */
+export const PLAYING_STALE_MS = 30_000;
+
+/**
+ * True when a room is stuck in the "playing" state without ever receiving a
+ * deal. This happens when the host presses Play and then vanishes before the
+ * opening hand is published, which used to strand (and crash) every guest who
+ * re-joined the room.
+ */
+export function isStalePlayingRoom(room: GameRoom | null | undefined): boolean {
+  if (!room || room.status !== "playing") return false;
+  if (room.state != null) return false;
+  const updated = Date.parse(room.updated_at);
+  if (Number.isNaN(updated)) return false;
+  return Date.now() - updated > PLAYING_STALE_MS;
+}
+
+/**
  * Common, inoffensive four-letter words used as private-room passcodes. They
  * are easy to read aloud and share without confusion.
  */
@@ -313,7 +334,13 @@ export function useCrazyEightsLobby(game: GameId) {
       })(),
     ]);
 
-    const currentRoom = myRow ? await getRoom(myRow.room_id) : null;
+    let currentRoom = myRow ? await getRoom(myRow.room_id) : null;
+    // Recovering from a host that vanished mid-start: drop an abandoned
+    // "playing" room so the caller is not auto-joined into a table with no deal.
+    if (isStalePlayingRoom(currentRoom)) {
+      await leaveRoom(currentRoom.id);
+      currentRoom = null;
+    }
     const visibleRoomIds = [
       ...publicRooms.map((r) => r.id),
       ...(currentRoom && currentRoom.status === "lobby" ? [currentRoom.id] : []),
