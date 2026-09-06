@@ -34,6 +34,7 @@ export function TableShell({
   disconnectExpired = false,
   waitingRoomLabel = "Human",
   onPlayerCount,
+  playerCount,
   lobby,
 }: {
   game: GameMeta;
