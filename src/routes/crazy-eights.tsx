@@ -665,6 +665,7 @@ function CrazyEightsTable() {
         />
       )}
       onPlayerCount={startGame}
+      playerCount={activeCount}
       onMatched={(nickname, newMatchId) => {
         navigate({
           to: "/crazy-eights",

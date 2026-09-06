@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -50,9 +50,11 @@ export function TableShell({
   disconnectExpired?: boolean;
   waitingRoomLabel?: string;
   onPlayerCount?: (count: 2 | 3 | 4) => void;
+  playerCount?: 2 | 3 | 4;
   lobby?: (props: { open: boolean; onOpenChange: (open: boolean) => void }) => ReactNode;
 }) {
-  const [confirming, setConfirming] = useState<"new" | "human" | "3" | "4" | null>(null);
+  const navigate = useNavigate();
+  const [confirming, setConfirming] = useState<"new" | "human" | "home" | "2" | "3" | "4" | null>(null);
   const [humanOpen, setHumanOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [chatMessage, setChatMessage] = useState<string | null>(null);
@@ -73,8 +75,11 @@ export function TableShell({
   );
   const startNewGame = () => (gameInProgress ? setConfirming("new") : onNewGame());
   const openWaitingRoom = () => (gameInProgress ? setConfirming("human") : setHumanOpen(true));
+  const goHome = () => (gameInProgress ? setConfirming("home") : void navigate({ to: "/" }));
   const startPlayerCount = (count: 2 | 3 | 4) =>
-    gameInProgress ? setConfirming(count === 3 ? "3" : "4") : onPlayerCount?.(count);
+    gameInProgress
+      ? setConfirming(count === 3 ? "3" : count === 4 ? "4" : "2")
+      : onPlayerCount?.(count);
   return (
     <div className="min-h-screen bg-brand text-cream">
       <DisconnectDialog
@@ -101,12 +106,13 @@ export function TableShell({
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <Link
-              to="/"
+            <button
+              type="button"
+              onClick={goHome}
               className="text-xs uppercase tracking-[0.2em] text-ivory/50 hover:text-gold"
             >
               ← Back to the game room
-            </Link>
+            </button>
           </div>
         </header>
 
@@ -125,17 +131,27 @@ export function TableShell({
                   New game
                 </Button>
                 {onPlayerCount ? (
-                  <div className="grid grid-cols-2 gap-2.5">
+                  <div className="grid grid-cols-3 gap-2.5">
                     <Button
                       variant="parlorOutline"
-                      className="w-full"
+                      className="w-full px-1"
+                      disabled={playerCount === 2}
+                      onClick={() => startPlayerCount(2)}
+                    >
+                      2 Player
+                    </Button>
+                    <Button
+                      variant="parlorOutline"
+                      className="w-full px-1"
+                      disabled={playerCount === 3}
                       onClick={() => startPlayerCount(3)}
                     >
                       3 Player
                     </Button>
                     <Button
                       variant="parlorOutline"
-                      className="w-full"
+                      className="w-full px-1"
+                      disabled={playerCount === 4}
                       onClick={() => startPlayerCount(4)}
                     >
                       4 Player
@@ -179,19 +195,23 @@ export function TableShell({
                       Game in progress. Are you sure?
                     </AlertDialogTitle>
                     <AlertDialogDescription className="text-ivory/65">
-                      {confirming === "human"
-                        ? "Leaving for the waiting room will abandon the hand you're playing."
-                        : confirming === "new"
-                          ? "Starting a new game will abandon the hand you're playing."
-                          : `Starting a ${confirming}-player game will abandon the hand you're playing.`}
+                      {confirming === "home"
+                        ? "Leaving for the game room will abandon the hand you're playing."
+                        : confirming === "human"
+                          ? "Leaving for the waiting room will abandon the hand you're playing."
+                          : confirming === "new"
+                            ? "Starting a new game will abandon the hand you're playing."
+                            : `Starting a ${confirming}-player game will abandon the hand you're playing.`}
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Keep playing</AlertDialogCancel>
                     <AlertDialogAction
                       onClick={() => {
-                        if (confirming === "human") setHumanOpen(true);
+                        if (confirming === "home") void navigate({ to: "/" });
+                        else if (confirming === "human") setHumanOpen(true);
                         else if (confirming === "new") onNewGame();
+                        else if (confirming === "2") onPlayerCount?.(2);
                         else if (confirming === "3") onPlayerCount?.(3);
                         else if (confirming === "4") onPlayerCount?.(4);
                         setConfirming(null);
