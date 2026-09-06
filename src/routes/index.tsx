@@ -1,4 +1,5 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { GAMES } from "@/lib/games";
 import { GameIcon } from "@/components/parlor/GameIcon";
 import { CardMark } from "@/components/parlor/CardMark";
 import { VisitorCounter } from "@/components/parlor/VisitorCounter";
