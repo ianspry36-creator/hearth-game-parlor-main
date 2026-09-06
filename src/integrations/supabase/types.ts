@@ -147,7 +147,9 @@ export type Database = {
       }
       game_room_players: {
         Row: {
+          avatar: string | null
           id: string
+          is_bot: boolean
           joined_at: string
           last_seen_at: string
           nickname: string
@@ -156,7 +158,9 @@ export type Database = {
           session_id: string
         }
         Insert: {
+          avatar?: string | null
           id?: string
+          is_bot?: boolean
           joined_at?: string
           last_seen_at?: string
           nickname: string
@@ -165,7 +169,9 @@ export type Database = {
           session_id: string
         }
         Update: {
+          avatar?: string | null
           id?: string
+          is_bot?: boolean
           joined_at?: string
           last_seen_at?: string
           nickname?: string

@@ -513,10 +513,18 @@ function CrazyEightsTable() {
 
   // Each computer opponent plays one deliberate step at a time (solo play only).
   useEffect(() => {
-    if (isLive || dealing) return;
+    if (isMulti || dealing) return;
 
     const seat = state.turn;
     if (seat === "you" || (state.phase !== "play" && state.phase !== "suit")) return;
+    // In a live room the host drives any computer opponents; everyone else
+    // waits for the host's published move to arrive over the wire.
+    if (isRoom) {
+      if (!roomIsHost) return;
+      const turnIndex = ORDER_BY_COUNT[activeCount].indexOf(seat);
+      const occupant = roomPlayers.find((p) => p.seat === turnIndex);
+      if (!occupant?.is_bot) return;
+    }
     const timer = setTimeout(() => {
       const current = stateRef.current;
       if (current.turn !== seat) return;
@@ -579,11 +587,17 @@ function CrazyEightsTable() {
 
       stateRef.current = next;
       setState(next);
+      if (isRoom && roomIsHost) void publishRoom(remapState(next, mySeat, activeCount));
     }, 900);
     return () => clearTimeout(timer);
   }, [
+    isRoom,
     isMulti,
     dealing,
+    roomIsHost,
+    roomPlayers,
+    mySeat,
+    activeCount,
     state.phase,
     state.turn,
     state.drew,

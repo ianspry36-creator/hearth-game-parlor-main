@@ -9,6 +9,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { getSessionId } from "@/lib/multiplayer";
+import { ADA_AVATAR, LEO_AVATAR } from "@/lib/avatars";
 import { useNickname } from "@/components/parlor/WaitingRoom";
 import { moderateNickname } from "@/lib/moderation";
 import {
@@ -18,6 +19,7 @@ import {
 } from "@/lib/nickname";
 import type { GameMeta } from "@/lib/games";
 import {
+  addBot,
   beginRoom,
   createRoom,
   findPrivateRoomByPassword,
@@ -27,6 +29,7 @@ import {
   leaveRoom,
   normalizePassword,
   isStalePlayingRoom,
+  removeBot,
   touchRoom,
   useCrazyEightsLobby,
 } from "@/lib/crazyEightsLobby";
@@ -204,6 +207,23 @@ export function CrazyEightsLobby({
   const leave = async () => {
     if (myRoomId) await leaveRoom(myRoomId);
     setStage("list");
+    void refresh();
+  };
+
+  const addSeat = async (seat: number, name: "Ada" | "Leo") => {
+    if (!myRoomId) return;
+    setBusy(true);
+    setError(null);
+    await addBot(myRoomId, seat, name, name === "Ada" ? ADA_AVATAR : LEO_AVATAR);
+    setBusy(false);
+    void refresh();
+  };
+
+  const removeSeat = async (player: { id: string }) => {
+    setBusy(true);
+    setError(null);
+    await removeBot(player.id);
+    setBusy(false);
     void refresh();
   };
 
@@ -422,9 +442,19 @@ export function CrazyEightsLobby({
                     key={seat}
                     className="flex items-center gap-3 rounded-lg border border-gold/20 bg-brand/50 p-3"
                   >
-                    <span className="grid size-9 shrink-0 place-items-center rounded-full border border-gold/30 bg-surface font-display text-sm text-gold">
-                      {player ? player.nickname.charAt(0).toUpperCase() : "·"}
-                    </span>
+                    {player?.avatar ? (
+                      <img
+                        src={player.avatar}
+                        alt={player.nickname}
+                        width={36}
+                        height={36}
+                        className="size-9 shrink-0 rounded-full border border-gold/30 object-cover"
+                      />
+                    ) : (
+                      <span className="grid size-9 shrink-0 place-items-center rounded-full border border-gold/30 bg-surface font-display text-sm text-gold">
+                        {player ? player.nickname.charAt(0).toUpperCase() : "·"}
+                      </span>
+                    )}
                     <div className="min-w-0 flex-1">
                       {player ? (
                         <>
@@ -432,6 +462,7 @@ export function CrazyEightsLobby({
                             {player.nickname}
                             {player.session_id === session ? " (you)" : ""}
                             {player.seat === 0 ? " · host" : ""}
+                            {player.is_bot ? " · computer" : ""}
                           </p>
                           <p className="text-xs text-ivory/55">Seat {seat + 1}</p>
                         </>
@@ -439,6 +470,35 @@ export function CrazyEightsLobby({
                         <p className="text-sm text-ivory/45">Waiting for a player…</p>
                       )}
                     </div>
+                    {!player && amHost ? (
+                      <div className="flex shrink-0 gap-1.5">
+                        <Button
+                          variant="parlorGhost"
+                          size="sm"
+                          disabled={busy}
+                          onClick={() => void addSeat(seat, "Ada")}
+                        >
+                          Add Ada
+                        </Button>
+                        <Button
+                          variant="parlorGhost"
+                          size="sm"
+                          disabled={busy}
+                          onClick={() => void addSeat(seat, "Leo")}
+                        >
+                          Add Leo
+                        </Button>
+                      </div>
+                    ) : player?.is_bot && amHost ? (
+                      <Button
+                        variant="parlorGhost"
+                        size="sm"
+                        disabled={busy}
+                        onClick={() => void removeSeat(player)}
+                      >
+                        Remove
+                      </Button>
+                    ) : null}
                   </div>
                 );
               })}

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getSessionId } from "@/lib/multiplayer";
+import { readAvatar } from "@/lib/avatars";
 import type { GameId } from "@/lib/games";
 
 export const CRAZY_EIGHTS_GAME_ID = "crazy-eights";
@@ -28,6 +29,8 @@ export type GameRoomPlayer = {
   session_id: string;
   nickname: string;
   seat: number;
+  avatar: string | null;
+  is_bot: boolean;
   joined_at: string;
   last_seen_at: string;
 };
@@ -35,7 +38,7 @@ export type GameRoomPlayer = {
 const ROOM_COLUMNS =
   "id, game, host_session, host_nickname, password, is_public, max_seats, status, state, version, created_at, updated_at";
 
-const PLAYER_COLUMNS = "id, room_id, session_id, nickname, seat, joined_at, last_seen_at";
+const PLAYER_COLUMNS = "id, room_id, session_id, nickname, seat, avatar, is_bot, joined_at, last_seen_at";
 
 /** Rooms that have not reported in this long are treated as abandoned. */
 export const ROOM_STALE_MS = 90_000;
@@ -166,10 +169,38 @@ async function seatPlayer(
       session_id: getSessionId(),
       nickname,
       seat,
+      avatar: readAvatar(),
     })
     .select(PLAYER_COLUMNS)
     .single();
   return (data as GameRoomPlayer | null) ?? null;
+}
+
+/** Seat a named computer opponent (Ada or Leo) at an open seat. */
+export async function addBot(
+  roomId: string,
+  seat: number,
+  nickname: string,
+  avatar: string,
+): Promise<GameRoomPlayer | null> {
+  const { data } = await supabase
+    .from("game_room_players")
+    .insert({
+      room_id: roomId,
+      session_id: crypto.randomUUID(),
+      nickname,
+      seat,
+      avatar,
+      is_bot: true,
+    })
+    .select(PLAYER_COLUMNS)
+    .single();
+  return (data as GameRoomPlayer | null) ?? null;
+}
+
+/** Remove a computer opponent from the table. */
+export async function removeBot(playerId: string): Promise<void> {
+  await supabase.from("game_room_players").delete().eq("id", playerId);
 }
 
 export async function createRoom(params: {

@@ -35,6 +35,10 @@ export const AVATAR_OPTIONS: AvatarOption[] = [
   { id: "a24", url: a24, label: "Short locs" },
 ];
 
+/** Fixed computer opponent portraits used for Ace and Leo. */
+export const ACE_AVATAR = AVATAR_OPTIONS[3]!.url;
+export const LEO_AVATAR = AVATAR_OPTIONS[7]!.url;
+
 const KEY = "parlor.avatar";
 
 export function readAvatar(): string {
