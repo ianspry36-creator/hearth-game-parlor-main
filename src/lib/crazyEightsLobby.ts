@@ -337,7 +337,7 @@ export function useCrazyEightsLobby(game: GameId) {
     let currentRoom = myRow ? await getRoom(myRow.room_id) : null;
     // Recovering from a host that vanished mid-start: drop an abandoned
     // "playing" room so the caller is not auto-joined into a table with no deal.
-    if (isStalePlayingRoom(currentRoom)) {
+    if (currentRoom && isStalePlayingRoom(currentRoom)) {
       await leaveRoom(currentRoom.id);
       currentRoom = null;
     }
@@ -429,7 +429,10 @@ export function useCrazyEightsRoom(roomId: string | undefined) {
         "postgres_changes",
         { event: "*", schema: "public", table: "game_rooms", filter: `id=eq.${roomId}` },
         (payload) => {
-          const row = payload.new as GameRoom;
+          const row = payload.new as GameRoom | null;
+          // A DELETE event carries no `new` row; ignore it rather than crash on
+          // `row.version` (the room's absence is handled elsewhere).
+          if (!row) return;
           if (row.version < version.current) return;
           version.current = row.version;
           setRoom(row);

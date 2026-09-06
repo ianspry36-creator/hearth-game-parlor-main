@@ -179,17 +179,35 @@ function remapState(state: State, shift: number, count: PlayerCount): State {
 function isValidState(value: unknown): value is State {
   if (!value || typeof value !== "object") return false;
   const s = value as Partial<State>;
-  return (
-    Array.isArray(s.order) &&
-    s.order.length >= 2 &&
-    Array.isArray(s.deck) &&
-    Array.isArray(s.pile) &&
-    s.pile.length > 0 &&
-    Array.isArray(s.log) &&
-    typeof s.turn === "string" &&
-    !!s.hands &&
-    typeof s.hands === "object"
-  );
+  if (
+    !Array.isArray(s.order) ||
+    s.order.length < 2 ||
+    !Array.isArray(s.deck) ||
+    !Array.isArray(s.pile) ||
+    s.pile.length === 0 ||
+    !Array.isArray(s.log) ||
+    typeof s.turn !== "string" ||
+    !s.hands ||
+    typeof s.hands !== "object"
+  ) {
+    return false;
+  }
+  // The top card is rendered directly; a malformed card (e.g. from a stale or
+  // partially-written room state) must never reach `PlayingCard` and crash the
+  // table. Guard it here, then guard every seat's hand below.
+  if (!isCard(s.pile[s.pile.length - 1])) return false;
+  const hands = s.hands as Record<string, unknown>;
+  for (const seat of ["you", "ada", "ace", "leo"]) {
+    const hand = hands[seat];
+    if (hand !== undefined && !Array.isArray(hand)) return false;
+  }
+  return true;
+}
+
+function isCard(value: unknown): value is Card {
+  if (!value || typeof value !== "object") return false;
+  const c = value as Partial<Card>;
+  return typeof c.id === "string" && typeof c.rank === "number" && typeof c.suit === "string";
 }
 
 function CrazyEightsTable() {
