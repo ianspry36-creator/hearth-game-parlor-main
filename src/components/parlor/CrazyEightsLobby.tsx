@@ -347,7 +347,9 @@ export function CrazyEightsLobby({
                 id="join-code"
                 value={joinCode}
                 maxLength={4}
-                onChange={(event) => setJoinCode(event.target.value)}
+                autoCapitalize="characters"
+                spellCheck={false}
+                onChange={(event) => setJoinCode(event.target.value.toUpperCase())}
                 placeholder="4-letter word"
                 className="border-gold/30 bg-brand/60 text-cream placeholder:text-ivory/40"
               />
