@@ -1,0 +1,72 @@
+﻿CrazyEightsLobby.tsx:60: const session = typeof window === "undefined" ? "" : getSessionId();
+CrazyEightsLobby.tsx:78: const interval = window.setInterval(() => touchRoom(myRoomId), HEARTBEAT_MS);
+CrazyEightsLobby.tsx:79: return () => window.clearInterval(interval);
+CrazyEightsLobby.tsx:385: if (createdPassword) void navigator.clipboard?.writeText(createdPassword);
+DisconnectDialog.tsx:14: * Overlay shown when the live opponent drops. While the reconnect window is open it
+VisitorCounter.tsx:16: if (!window.localStorage.getItem(VISITED_KEY)) {
+VisitorCounter.tsx:18: window.localStorage.setItem(VISITED_KEY, "1");
+WaitingRoom.tsx:47: setNickname(window.localStorage.getItem(NICKNAME_KEY));
+WaitingRoom.tsx:50: window.localStorage.setItem(NICKNAME_KEY, value);
+WaitingRoom.tsx:135: const interval = window.setInterval(() => void refresh(), REFRESH_MS);
+WaitingRoom.tsx:150: window.clearInterval(interval);
+WaitingRoom.tsx:171: const interval = window.setInterval(() => void check(), 2_000);
+WaitingRoom.tsx:172: return () => window.clearInterval(interval);
+WaitingRoom.tsx:178: const interval = window.setInterval(() => {
+WaitingRoom.tsx:186: return () => window.clearInterval(interval);
+WaitingRoom.tsx:263: const mySession = typeof window === "undefined" ? "" : getSessionId();
+sidebar.tsx:86: document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`;
+sidebar.tsx:105: window.addEventListener("keydown", handleKeyDown);
+sidebar.tsx:106: return () => window.removeEventListener("keydown", handleKeyDown);
+use-mobile.tsx:9: const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`);
+use-mobile.tsx:11: setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
+use-mobile.tsx:14: setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
+previewAuthStorage.ts:4: // postMessage so the project's preview surfaces share one login; else localStorage.
+previewAuthStorage.ts:6: if (typeof window === 'undefined') return undefined;
+previewAuthStorage.ts:17: const framed = window.parent && window.parent !== window;
+previewAuthStorage.ts:18: if (!projectId || !framed) return localStorage;
+previewAuthStorage.ts:26: const ancestor = (location.ancestorOrigins && location.ancestorOrigins[0]) || (document.referrer ? new URL(document.referrer).origin : '');
+previewAuthStorage.ts:43: window.removeEventListener('message', onMessage);
+previewAuthStorage.ts:51: window.addEventListener('message', onMessage);
+previewAuthStorage.ts:55: for (const origin of editorOrigins) window.parent.postMessage(msg, origin);
+previewAuthStorage.ts:74: if (res.value === '') { localStorage.removeItem(key); return null; }
+previewAuthStorage.ts:77: return localStorage.getItem(key);
+previewAuthStorage.ts:80: localStorage.setItem(key, value);
+previewAuthStorage.ts:84: localStorage.removeItem(key);
+avatars.ts:41: if (typeof window === "undefined") return AVATAR_OPTIONS[0]!.url;
+avatars.ts:42: const stored = window.localStorage.getItem(KEY);
+avatars.ts:48: if (typeof window !== "undefined") window.localStorage.setItem(KEY, id);
+crazyEightsLobby.ts:354: const poll = window.setInterval(() => void refresh(), 4_000);
+crazyEightsLobby.ts:357: window.clearInterval(poll);
+crazyEightsLobby.ts:423: const poll = window.setInterval(() => {
+crazyEightsLobby.ts:434: window.clearInterval(poll);
+crazyEightsLobby.ts:439: const sessionId = typeof window === "undefined" ? "" : getSessionId();
+lovable-error-reporting.ts:16: interface Window {
+lovable-error-reporting.ts:27: if (typeof window === "undefined") return;
+lovable-error-reporting.ts:28: window.__lovableEvents?.captureException?.(
+lovable-error-reporting.ts:32: route: window.location.pathname,
+lovable-error-reporting.ts:41: // Prod React does not rethrow boundary-caught errors to window.onerror, so the
+lovable-error-reporting.ts:53: window.__lovableReportRuntimeError?.({
+lovable-error-reporting.ts:56: filename: window.location.pathname,
+multiplayer.ts:9: if (typeof window === "undefined") return "";
+multiplayer.ts:10: let id = window.localStorage.getItem(SESSION_KEY);
+multiplayer.ts:13: window.localStorage.setItem(SESSION_KEY, id);
+multiplayer.ts:19: if (typeof window === "undefined") return null;
+multiplayer.ts:20: return window.localStorage.getItem(NICKNAME_KEY);
+multiplayer.ts:182: const poll = window.setInterval(() => {
+multiplayer.ts:195: window.clearInterval(poll);
+multiplayer.ts:220: const sessionId = typeof window === "undefined" ? "" : getSessionId();
+multiplayer.ts:227: // dropped peer can be detected and given a short window to reconnect.
+multiplayer.ts:269: // Count the reconnect window down; when it reaches zero the match is awarded
+warship-sounds.ts:7: if (typeof window === "undefined") return null;
+warship-sounds.ts:8: const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+backgammon.tsx:681: const settleTimer = window.setTimeout(() => {
+backgammon.tsx:684: const clearTimer = window.setTimeout(() => setFlies([]), 1000);
+crazy-eights.tsx:429: window.setTimeout(() => {
+crazy-eights.tsx:510: window.setTimeout(() => {
+cribbage.tsx:470: window.setTimeout(() => {
+cribbage.tsx:493: window.setTimeout(() => {
+cribbage.tsx:719: window.setTimeout(() => {
+freecell.tsx:87: window.setTimeout(tick, 130);
+freecell.tsx:93: window.setTimeout(tick, 130);
+warship.tsx:241: window.addEventListener("pointerup", clear);
+warship.tsx:242: return () => window.removeEventListener("pointerup", clear);
