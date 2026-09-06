@@ -92,16 +92,18 @@ export function CrazyEightsLobby({
     // refresh already leaves it, but guard here too as a safety net.
     if (isStalePlayingRoom(myRoom)) return;
     playingRef.current = true;
+    onOpenChange(false);
     onPlay(myRoomId);
-  }, [myRoom, myRoomId, onPlay]);
+  }, [myRoom, myRoomId, onOpenChange, onPlay]);
 
   const startPlay = useCallback(
     async (roomId: string) => {
       playingRef.current = true;
       await beginRoom(roomId);
+      onOpenChange(false);
       onPlay(roomId);
     },
-    [onPlay],
+    [onOpenChange, onPlay],
   );
 
   // Auto-start the moment the last seat fills.
