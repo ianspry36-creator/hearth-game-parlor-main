@@ -6,6 +6,7 @@ import { PlayerAvatar } from "@/components/parlor/PlayerAvatar";
 import { getGame } from "@/lib/games";
 import { ADA_AVATAR, readAvatar } from "@/lib/avatars";
 import { useMatch } from "@/lib/multiplayer";
+import { useRecordMatchResult } from "@/lib/stats";
 import {
   applyMove,
   chooseMove,
@@ -96,6 +97,7 @@ function ReversiTable() {
   const [state, setState] = useState<State>(() => freshState());
   const stateRef = useRef(state);
   stateRef.current = state;
+  useRecordMatchResult(match, isHost, state.winner);
 
   const isMulti = Boolean(matchId);
   const opponentName = liveOpponent ?? opponent ?? "Ada";

@@ -7,6 +7,7 @@ import { PlayerAvatar } from "@/components/parlor/PlayerAvatar";
 import { getGame } from "@/lib/games";
 import { ADA_AVATAR, readAvatar } from "@/lib/avatars";
 import { useMatch } from "@/lib/multiplayer";
+import { useRecordMatchResult } from "@/lib/stats";
 import { playExplosion, playSinking, playSplash } from "@/lib/warship-sounds";
 import {
   FLEET,
@@ -134,6 +135,7 @@ function WarshipTable() {
   const [grab, setGrab] = useState<{ name: string; cell: number } | null>(null);
   const stateRef = useRef(state);
   stateRef.current = state;
+  useRecordMatchResult(match, isHost, state.winner);
 
 
   const isMulti = Boolean(matchId);

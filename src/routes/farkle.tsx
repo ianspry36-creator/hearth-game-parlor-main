@@ -6,6 +6,7 @@ import { GameOverDialog } from "@/components/parlor/GameOverDialog";
 import { PlayerAvatar } from "@/components/parlor/PlayerAvatar";
 import { getGame } from "@/lib/games";
 import { useMatch } from "@/lib/multiplayer";
+import { useRecordMatchResult } from "@/lib/stats";
 import { ADA_AVATAR, readAvatar } from "@/lib/avatars";
 import {
   DICE_COUNT,
@@ -168,6 +169,7 @@ function FarkleTable() {
   const [playerAvatar, setPlayerAvatar] = useState<string>(readAvatar);
   const stateRef = useRef(state);
   stateRef.current = state;
+  useRecordMatchResult(match, isHost, state.winner);
   const [avatarMessage, setAvatarMessage] = useState<string | null>(null);
   const messageTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const showAvatarMessage = (text: string) => {

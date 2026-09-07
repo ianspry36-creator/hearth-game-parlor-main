@@ -111,6 +111,23 @@ export function GameIcon({ id, className = "" }: { id: GameId; className?: strin
           <rect x="33" y="30" width="14" height="14" rx="2" fill="none" className="stroke-player-teal" strokeWidth="2" strokeDasharray="3 2" opacity="0.6" />
         </svg>
       );
+    case "addiction":
+      return (
+        <svg {...common}>
+          {[12, 21, 30, 39].map((y) => (
+            <g key={y}>
+              <rect x="6" y={y} width="36" height="7" rx="2" fill="none" className="stroke-gold/50" strokeWidth="1.5" />
+              <rect x="6" y={y} width="9" height="7" rx="2" className="fill-player-coral" />
+              <rect x="33" y={y} width="9" height="7" rx="2" fill="none" className="stroke-gold/70" strokeWidth="1.5" strokeDasharray="2 1.5" />
+            </g>
+          ))}
+          {[17.5, 26.5, 35.5, 44.5].map((y) => (
+            <text key={y} x="10.5" y={y} textAnchor="middle" fontSize="6" fontWeight="700" className="fill-cream">
+              2
+            </text>
+          ))}
+        </svg>
+      );
     case "reversi":
       return (
         <svg {...common}>
@@ -119,6 +136,124 @@ export function GameIcon({ id, className = "" }: { id: GameId; className?: strin
           <circle cx="30" cy="30" r="6" className="fill-player-teal" />
           <circle cx="30" cy="18" r="6" fill="none" className="stroke-player-teal" strokeWidth="3" />
           <circle cx="18" cy="30" r="6" fill="none" className="stroke-player-coral" strokeWidth="3" />
+        </svg>
+      );
+    case "checkers":
+      return (
+        <svg {...common}>
+          <rect x="6" y="6" width="36" height="36" rx="3" className="fill-gold/15 stroke-gold" strokeWidth="2" />
+          {[0, 1, 2, 3].map((r) =>
+            [0, 1, 2, 3].map((c) =>
+              (r + c) % 2 === 0 ? (
+                <rect key={`${r}-${c}`} x={6 + c * 9} y={6 + r * 9} width="9" height="9" className="fill-gold/25" />
+              ) : null,
+            ),
+          )}
+          <circle cx="15" cy="15" r="5" className="fill-player-coral stroke-black/30" strokeWidth="1" />
+          <circle cx="33" cy="33" r="5" className="fill-player-teal stroke-black/10" strokeWidth="1" />
+          <circle cx="33" cy="33" r="2.2" fill="none" className="stroke-gold" strokeWidth="1.4" />
+        </svg>
+      );
+    case "kings-in-the-corner":
+      return (
+        <svg {...common}>
+          <rect x="6" y="6" width="36" height="36" rx="3" className="fill-gold/10 stroke-gold" strokeWidth="2" />
+          {[15, 24, 33].map((x) => (
+            <line key={`v${x}`} x1={x} y1="6" x2={x} y2="42" className="stroke-gold/30" strokeWidth="1" />
+          ))}
+          {[15, 24, 33].map((y) => (
+            <line key={`h${y}`} x1="6" y1={y} x2="42" y2={y} className="stroke-gold/30" strokeWidth="1" />
+          ))}
+          {[
+            { x: 10.5, y: 10.5 },
+            { x: 37.5, y: 10.5 },
+            { x: 10.5, y: 37.5 },
+            { x: 37.5, y: 37.5 },
+          ].map(({ x, y }) => (
+            <text key={`${x}-${y}`} x={x} y={y + 3} textAnchor="middle" fontSize="7" fontWeight="700" className="fill-player-coral">
+              K
+            </text>
+          ))}
+        </svg>
+      );
+    case "canfield":
+      return (
+        <svg {...common}>
+          <rect x="6" y="7" width="14" height="20" rx="2" className="fill-player-coral/30 stroke-player-coral" strokeWidth="2" />
+          <rect x="24" y="7" width="18" height="20" rx="2" fill="none" className="stroke-gold/60" strokeWidth="1.5" strokeDasharray="3 2" />
+          <rect x="6" y="31" width="14" height="13" rx="2" className="fill-cream/95 stroke-gold" strokeWidth="2" />
+          <rect x="22" y="33" width="6" height="11" rx="1" className="fill-cream/90 stroke-gold" strokeWidth="1.5" transform="rotate(-8 25 38)" />
+          <rect x="29" y="33" width="6" height="11" rx="1" className="fill-cream/90 stroke-gold" strokeWidth="1.5" />
+          <rect x="36" y="33" width="6" height="11" rx="1" className="fill-cream/90 stroke-gold" strokeWidth="1.5" transform="rotate(8 39 38)" />
+        </svg>
+      );
+    case "clock":
+      return (
+        <svg {...common}>
+          <circle cx="24" cy="24" r="18" fill="currentColor" opacity="0.1" />
+          <circle cx="24" cy="24" r="18" fill="none" stroke="currentColor" strokeWidth="2" />
+          {[0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330].map((a) => {
+            const rad = (a * Math.PI) / 180;
+            const x1 = 24 + 14 * Math.sin(rad);
+            const y1 = 24 - 14 * Math.cos(rad);
+            const x2 = 24 + 17 * Math.sin(rad);
+            const y2 = 24 - 17 * Math.cos(rad);
+            return (
+              <line
+                key={a}
+                x1={x1}
+                y1={y1}
+                x2={x2}
+                y2={y2}
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+            );
+          })}
+          <line x1="24" y1="24" x2="24" y2="15" className="stroke-player-coral" strokeWidth="2.4" strokeLinecap="round" />
+          <line x1="24" y1="24" x2="31" y2="24" className="stroke-player-teal" strokeWidth="2.4" strokeLinecap="round" />
+          <circle cx="24" cy="24" r="2.2" className="fill-gold" />
+        </svg>
+      );
+    case "scorpion":
+      return (
+        <svg {...common}>
+          <path d="M21 26 C15 22 9 23 7 21" fill="none" className="stroke-player-coral" strokeWidth="2.5" strokeLinecap="round" />
+          <path d="M21 32 C15 36 9 35 7 37" fill="none" className="stroke-player-coral" strokeWidth="2.5" strokeLinecap="round" />
+          <ellipse cx="27" cy="29" rx="6" ry="5" className="fill-gold/80" />
+          <path d="M32 28 C38 23 40 17 35 12 C32 9 27 9 24 12" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+          <path d="M24 12 l3 3" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+          <path d="M24 33 L20 40 M28 34 L28 41 M31 33 L35 39" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        </svg>
+      );
+    case "tripeaks":
+      return (
+        <svg {...common}>
+          <path d="M6 38 L14 14 L22 38 Z" fill="none" className="stroke-player-coral" strokeWidth="2" strokeLinejoin="round" />
+          <path d="M18 38 L24 18 L30 38 Z" fill="none" className="stroke-gold" strokeWidth="2" strokeLinejoin="round" />
+          <path d="M26 38 L34 12 L42 38 Z" fill="none" className="stroke-player-teal" strokeWidth="2" strokeLinejoin="round" />
+          <line x1="6" y1="38" x2="42" y2="38" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        </svg>
+      );
+    case "yukon":
+      return (
+        <svg {...common}>
+          {[8, 15, 22, 29, 36].map((x, i) => (
+            <rect
+              key={x}
+              x={x}
+              y={12 + i * 1.5}
+              width="4"
+              height="18"
+              rx="1"
+              fill="none"
+              className={i % 2 ? "stroke-player-coral" : "stroke-player-teal"}
+              strokeWidth="1.5"
+            />
+          ))}
+          <rect x="5" y="33" width="16" height="11" rx="2" className="fill-cream/95 stroke-gold" strokeWidth="2" />
+          <rect x="23" y="33" width="16" height="11" rx="2" className="fill-cream/90 stroke-gold" strokeWidth="2" />
         </svg>
       );
     default:

@@ -7,6 +7,7 @@ import { PlayerAvatar } from "@/components/parlor/PlayerAvatar";
 import { ADA_AVATAR, readAvatar } from "@/lib/avatars";
 import { getGame } from "@/lib/games";
 import { useMatch } from "@/lib/multiplayer";
+import { useRecordMatchResult } from "@/lib/stats";
 import {
   applyMove,
   chooseCpuMove,
@@ -125,6 +126,7 @@ function BackgammonTable() {
   const [selected, setSelected] = useState<number | "bar" | null>(null);
   const stateRef = useRef(state);
   stateRef.current = state;
+  useRecordMatchResult(match, isHost, state.winner);
   const hitRef = useRef(false);
 
   const isMulti = Boolean(matchId);

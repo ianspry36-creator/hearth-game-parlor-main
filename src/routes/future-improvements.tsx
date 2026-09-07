@@ -58,7 +58,6 @@ function FutureImprovementsPage() {
               <li>Bridge</li>
               <li>Chase the Ace</li>
               <li>Whist</li>
-              <li>Checkers</li>
               <li>Develop login facility to allow customisation</li>
               <li>Develop game variations</li>
               <li>Game statistics</li>

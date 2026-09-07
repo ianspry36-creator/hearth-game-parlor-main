@@ -13,6 +13,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { RulesDialog } from "@/components/parlor/RulesDialog";
 import { getGame } from "@/lib/games";
+import { FavouriteSwitch } from "@/components/parlor/FavouriteSwitch";
+import { StatisticsDialog } from "@/components/parlor/StatisticsDialog";
+import { useSolitaireStats } from "@/lib/solitaireStats";
 import { CardMark } from "@/components/parlor/CardMark";
 import { RANK_LABEL, SUIT_SYMBOL, cardLabel, type Card } from "@/lib/cribbage";
 import {
@@ -81,6 +84,12 @@ function FreeCellTable() {
   const [selection, setSelection] = useState<Selection>(null);
   const [autocompleting, setAutocompleting] = useState(false);
   const [confirming, setConfirming] = useState<"new" | "home" | null>(null);
+  const { recordResult } = useSolitaireStats(game.id);
+  const prevWonRef = useRef(false);
+  useEffect(() => {
+    if (state.won && !prevWonRef.current) recordResult("win");
+    prevWonRef.current = state.won;
+  }, [state.won, recordResult]);
 
   useEffect(() => {
     setState(freshGame());
@@ -306,6 +315,18 @@ function FreeCellTable() {
             >
               ← Back to the game room
             </button>
+            <FavouriteSwitch gameId="freecell" />
+            <StatisticsDialog
+              game={game}
+              trigger={
+                <button
+                  type="button"
+                  className="cursor-pointer bg-transparent text-xs uppercase tracking-[0.2em] text-ivory/50 transition-colors hover:text-gold"
+                >
+                  Statistics
+                </button>
+              }
+            />
           </div>
         </header>
 

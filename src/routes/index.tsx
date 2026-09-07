@@ -1,8 +1,12 @@
+import { useEffect, useState } from "react";
+import { Heart } from "lucide-react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { GAMES } from "@/lib/games";
+import { useFavourites } from "@/lib/favourites";
 import { GameIcon } from "@/components/parlor/GameIcon";
 import { CardMark } from "@/components/parlor/CardMark";
 import { VisitorCounter } from "@/components/parlor/VisitorCounter";
+import { Switch } from "@/components/ui/switch";
 
 
 export const Route = createFileRoute("/")({
@@ -12,13 +16,13 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Cards and Games is a warm little parlour of classics. Play cribbage, backgammon, crazy eights, yahtzee, farkle, warship, triangles, solitaire or freecell against Ada, a human opponent, or the deck.",
+          "Cards and Games is a warm little parlour of classics. Play cribbage, backgammon, crazy eights, yahtzee, farkle, warship, triangles, solitaire, freecell, addiction, reversi, checkers, kings in the corner, canfield, clock, scorpion, tri peaks or yukon solitaire against Ada, a human opponent, or the deck.",
       },
       { property: "og:title", content: "Cards and Games — Play Cribbage, Backgammon & More" },
       {
         property: "og:description",
         content:
-          "Ten classic games, played against Ada, a real human from the waiting room, or the deck.",
+          "Eighteen classic games, played against Ada, a real human from the waiting room, or the deck.",
       },
     ],
   }),
@@ -27,6 +31,14 @@ export const Route = createFileRoute("/")({
 
 function Lobby() {
   const navigate = useNavigate();
+  const { favourites, hydrated, isFavourite, toggleFavourite } = useFavourites();
+  const [showFavourites, setShowFavourites] = useState(false);
+  const hasFavourites = favourites.size > 0;
+  const visibleGames = showFavourites ? GAMES.filter((game) => isFavourite(game.id)) : GAMES;
+
+  useEffect(() => {
+    if (hydrated && !hasFavourites) setShowFavourites(false);
+  }, [hydrated, hasFavourites]);
 
   return (
     <div className="min-h-screen bg-brand text-cream">
@@ -57,7 +69,7 @@ function Lobby() {
 
         <section className="mt-14 text-center">
           <p className="text-[11px] uppercase tracking-[0.36em] text-gold">
-            Ten tables, always open
+            Eighteen tables, always open
           </p>
           <h1 className="mx-auto mt-4 max-w-3xl font-display text-5xl font-bold leading-[1.02] tracking-tight md:text-7xl">
             The games you love,
@@ -73,36 +85,72 @@ function Lobby() {
         <section id="tables" className="mt-20">
           <div className="mb-7 flex flex-wrap items-end justify-between gap-3 border-b border-gold/15 pb-4">
             <h2 className="font-display text-3xl font-bold">Choose your table</h2>
-            <p className="text-xs uppercase tracking-[0.22em] text-ivory/45">
-              More games on the way
-            </p>
+            <div className="flex flex-wrap items-center gap-4">
+              <label
+                htmlFor="favourites-filter"
+                className="flex cursor-pointer select-none items-center gap-2.5"
+              >
+                <Switch
+                  id="favourites-filter"
+                  checked={showFavourites}
+                  onCheckedChange={(checked) => setShowFavourites(checked)}
+                  disabled={hydrated && !hasFavourites}
+                />
+                <span className="text-xs uppercase tracking-[0.16em] text-ivory/60">Favourites</span>
+              </label>
+            </div>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {GAMES.map((game) => (
-              <button
-                key={game.id}
-                onClick={() =>
-                  navigate({
-                    to: game.path,
-                    search: { opponent: undefined, match: undefined },
-                  })
-                }
-                className="group flex flex-col items-center rounded-2xl border border-gold/20 bg-surface/45 p-5 text-center transition-all hover:-translate-y-0.5 hover:border-gold/55 hover:bg-surface/65"
-              >
-                <div className="grid size-14 place-items-center rounded-2xl border border-gold/25 bg-gold/12 text-gold transition-colors group-hover:bg-gold/20">
-                  <GameIcon id={game.id} className="size-9" />
+            {visibleGames.map((game) => {
+              const fav = isFavourite(game.id);
+              return (
+                <div
+                  key={game.id}
+                  className="group relative flex flex-col items-center rounded-2xl border border-gold/20 bg-surface/45 p-5 text-center transition-all hover:-translate-y-0.5 hover:border-gold/55 hover:bg-surface/65"
+                >
+                  <button
+                    type="button"
+                    onClick={() => toggleFavourite(game.id)}
+                    aria-pressed={fav}
+                    aria-label={
+                      fav
+                        ? `Remove ${game.name} from favourites`
+                        : `Add ${game.name} to favourites`
+                    }
+                    title={fav ? "Remove from favourites" : "Add to favourites"}
+                    className="absolute right-3 top-3 z-10 grid size-8 place-items-center rounded-full transition-colors hover:bg-gold/15"
+                  >
+                    <Heart
+                      className={fav ? "size-4 text-gold" : "size-4 text-ivory/40"}
+                      fill={fav ? "currentColor" : "none"}
+                    />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      navigate({
+                        to: game.path,
+                        search: { opponent: undefined, match: undefined },
+                      })
+                    }
+                    className="flex w-full flex-col items-center"
+                  >
+                    <div className="grid size-14 place-items-center rounded-2xl border border-gold/25 bg-gold/12 text-gold transition-colors group-hover:bg-gold/20">
+                      <GameIcon id={game.id} className="size-9" />
+                    </div>
+                    <div className="mt-4 flex items-center justify-center gap-2">
+                      <h3 className="font-display text-xl font-bold">{game.name}</h3>
+                      {game.beta && (
+                        <span className="rounded-full border border-gold/40 bg-gold/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-gold">
+                          Beta
+                        </span>
+                      )}
+                    </div>
+                  </button>
                 </div>
-                <div className="mt-4 flex items-center justify-center gap-2">
-                  <h3 className="font-display text-xl font-bold">{game.name}</h3>
-                  {game.beta && (
-                    <span className="rounded-full border border-gold/40 bg-gold/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-gold">
-                      Beta
-                    </span>
-                  )}
-                </div>
-              </button>
-            ))}
+              );
+            })}
 
             <div className="grid place-items-center rounded-2xl border border-dashed border-gold/20 bg-surface/20 p-6 text-center">
               <div>

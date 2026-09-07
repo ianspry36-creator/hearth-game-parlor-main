@@ -376,3 +376,108 @@
     --fc-visible: 11px;
   }
 }
+
+/* Addiction responsive card sizing — thirteen columns scroll on mobile */
+:root {
+  --ad-card-h: 95px;
+  --ad-card-w: 68px;
+}
+
+@media (max-width: 639.98px) {
+  :root {
+    --ad-card-h: 56px;
+    --ad-card-w: 40px;
+  }
+}
+
+/* Kings in the Corner responsive card sizing — a four-by-four board */
+:root {
+  --kic-card-h: 104px;
+  --kic-card-w: 76px;
+}
+
+@media (max-width: 639.98px) {
+  :root {
+    --kic-card-h: 58px;
+    --kic-card-w: 42px;
+  }
+}
+
+/* Canfield responsive card sizing — stock, waste, reserve and four tableau piles */
+:root {
+  --canfield-card-h: 96px;
+  --canfield-card-w: 70px;
+  --canfield-visible: 24px;
+}
+
+@media (max-width: 639.98px) {
+  :root {
+    --canfield-card-h: 56px;
+    --canfield-card-w: 40px;
+    --canfield-visible: 12px;
+  }
+}
+
+/* Clock Solitaire responsive card sizing — thirteen piles around a clock face */
+:root {
+  --clock-card-h: 72px;
+  --clock-card-w: 52px;
+}
+
+@media (max-width: 639.98px) {
+  :root {
+    --clock-card-h: 42px;
+    --clock-card-w: 30px;
+  }
+}
+
+/* Scorpion Solitaire responsive card sizing — seven tableau piles plus a tail */
+:root {
+  --scorpion-card-h: 88px;
+  --scorpion-card-w: 60px;
+  --scorpion-visible: 24px;
+  --scorpion-down: 6px;
+}
+
+@media (max-width: 639.98px) {
+  :root {
+    --scorpion-card-h: 50px;
+    --scorpion-card-w: 34px;
+    --scorpion-visible: 14px;
+    --scorpion-down: 4px;
+  }
+}
+
+/* Tri Peaks Solitaire responsive card sizing — three peaks plus a stock and waste */
+:root {
+  --tripeaks-card-h: 76px;
+  --tripeaks-card-w: 52px;
+  --tripeaks-step-x: 32px;
+  --tripeaks-step-y: 40px;
+}
+
+@media (max-width: 639.98px) {
+  :root {
+    --tripeaks-card-h: 44px;
+    --tripeaks-card-w: 30px;
+    --tripeaks-step-x: 18px;
+    --tripeaks-step-y: 22px;
+  }
+}
+
+/* Yukon Solitaire responsive card sizing — seven tableau piles with face-down stacks */
+:root {
+  --yukon-card-h: 76px;
+  --yukon-card-w: 52px;
+  --yukon-visible: 24px;
+  --yukon-down: 8px;
+}
+
+@media (max-width: 639.98px) {
+  :root {
+    --yukon-card-h: 44px;
+    --yukon-card-w: 30px;
+    --yukon-visible: 14px;
+    --yukon-down: 5px;
+  }
+}

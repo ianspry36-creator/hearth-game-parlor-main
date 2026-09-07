@@ -7,6 +7,7 @@ import { PlayerAvatar } from "@/components/parlor/PlayerAvatar";
 import { ADA_AVATAR, AVATAR_OPTIONS, readAvatar } from "@/lib/avatars";
 import { getGame } from "@/lib/games";
 import { useMatch } from "@/lib/multiplayer";
+import { useRecordMatchResult } from "@/lib/stats";
 import { isStalePlayingRoom, leaveRoom, useCrazyEightsRoom } from "@/lib/crazyEightsLobby";
 import { CrazyEightsLobby } from "@/components/parlor/CrazyEightsLobby";
 import { RANK_LABEL, SUIT_SYMBOL, cardLabel, type Card, type Suit } from "@/lib/cribbage";
@@ -255,6 +256,7 @@ function CrazyEightsTable() {
   const seatHandEls = useRef(new Map<string, HTMLElement>());
   const stateRef = useRef(state);
   stateRef.current = state;
+  useRecordMatchResult(match, isHost, state.winner);
 
   const isMulti = Boolean(matchId);
   const isRoom = Boolean(roomId);

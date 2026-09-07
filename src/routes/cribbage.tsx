@@ -13,6 +13,7 @@ import { TableShell } from "@/components/parlor/TableShell";
 import { CribBoard } from "@/components/parlor/CribBoard";
 import { getGame } from "@/lib/games";
 import { useMatch } from "@/lib/multiplayer";
+import { useRecordMatchResult } from "@/lib/stats";
 import {
   cardLabel,
   RANK_LABEL,
@@ -442,6 +443,7 @@ function CribbageTable() {
   const prevScores = useRef(state.scores);
   const stateRef = useRef(state);
   stateRef.current = state;
+  useRecordMatchResult(match, isHost, state.winner);
 
   const opponentName = liveOpponent ?? opponent ?? "Ada";
 
@@ -952,7 +954,7 @@ function CribbageTable() {
                 </span>
               }
             />
-            <div className="flex [&>*:not(:first-child)]:-ml-6">
+            <div className="flex justify-center [&>*:not(:first-child)]:-ml-6">
               {(revealed ? state.cpuKept : state.cpuHand).length === 0 ? (
                 <p className="text-xs text-ivory/40">No cards in hand.</p>
               ) : (
@@ -1322,7 +1324,7 @@ function Seat({
   avatar?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center justify-center gap-2">
       {avatar ?? (
         <span className="grid size-8 place-items-center rounded-full bg-gold/20 font-display text-sm text-gold ring-1 ring-gold/40">
           {name.charAt(0).toUpperCase()}

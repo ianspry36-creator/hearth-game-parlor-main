@@ -7,6 +7,7 @@ import { PlayerAvatar } from "@/components/parlor/PlayerAvatar";
 import { getGame } from "@/lib/games";
 import { ADA_AVATAR, readAvatar } from "@/lib/avatars";
 import { useMatch } from "@/lib/multiplayer";
+import { useRecordMatchResult } from "@/lib/stats";
 import {
   BOARD_HEIGHT,
   BOARD_WIDTH,
@@ -117,6 +118,7 @@ function TrianglesTable() {
   const [state, setState] = useState<State>(() => freshState(SSR_SEED));
   const stateRef = useRef(state);
   stateRef.current = state;
+  useRecordMatchResult(match, isHost, state.winner);
 
   const board = useMemo(() => makeBoard(state.seed), [state.seed]);
 

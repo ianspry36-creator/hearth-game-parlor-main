@@ -73,16 +73,20 @@ const PASSWORD_WORDS = [
   "rain", "snow", "fire", "wind", "wave", "sand", "clay", "iron", "seed",
   "leaf", "fern", "moss", "hill", "peak", "cave", "dawn", "dusk", "mist",
   "haze", "beam", "glow", "pear", "plum", "lime", "mint", "cove", "reef",
-  "tide", "dune", "oak", "elm", "ash", "fir", "fox", "owl", "elk", "hawk",
+  "tide", "dune", "bark", "twig", "root", "vine", "wolf", "dove", "deer", "hawk",
   "lynx", "orca", "seal", "pike", "kite", "drum", "harp", "bell", "song",
   "tale", "lore", "myth", "saga", "omen", "rune", "sign", "mark", "coin",
-  "gem", "pearl", "jade", "ruby", "opal", "coal", "flint", "amber", "coral",
-  "crown", "helm", "clan", "bard", "knot", "wool", "lamp", "frog",
+  "onyx", "ring", "jade", "ruby", "opal", "coal", "rock", "sage", "surf",
+  "cape", "helm", "clan", "bard", "knot", "wool", "lamp", "frog",
 ];
 
+// Passcodes must be exactly four lowercase letters (see isValidPassword), so
+// guard against any stray word that is not four letters long.
+const FOUR_LETTER_WORDS = PASSWORD_WORDS.filter((word) => word.length === 4);
+
 export function generatePassword(existing: Set<string>): string {
-  const available = PASSWORD_WORDS.filter((word) => !existing.has(word));
-  const pool = available.length ? available : PASSWORD_WORDS;
+  const available = FOUR_LETTER_WORDS.filter((word) => !existing.has(word));
+  const pool = available.length ? available : FOUR_LETTER_WORDS;
   return pool[Math.floor(Math.random() * pool.length)]!;
 }
 

@@ -12,11 +12,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { RulesDialog } from "@/components/parlor/RulesDialog";
+import { StatisticsDialog } from "@/components/parlor/StatisticsDialog";
 import { WaitingRoom } from "@/components/parlor/WaitingRoom";
 import { ChatDialog } from "@/components/parlor/ChatDialog";
 import { ChatContext } from "@/components/parlor/ChatContext";
 import { CardMark } from "@/components/parlor/CardMark";
 import { DisconnectDialog } from "@/components/parlor/DisconnectDialog";
+import { FavouriteSwitch } from "@/components/parlor/FavouriteSwitch";
 import type { GameMeta } from "@/lib/games";
 
 export function TableShell({
@@ -114,6 +116,7 @@ export function TableShell({
             >
               ← Back to the game room
             </button>
+            <FavouriteSwitch gameId={game.id} />
           </div>
         </header>
 
@@ -177,6 +180,14 @@ export function TableShell({
                   trigger={
                     <Button variant="parlorGhost" className="w-full">
                       How to Play
+                    </Button>
+                  }
+                />
+                <StatisticsDialog
+                  game={game}
+                  trigger={
+                    <Button variant="parlorGhost" className="w-full">
+                      Statistics
                     </Button>
                   }
                 />

@@ -71,6 +71,7 @@ export type Database = {
           status: string
           updated_at: string
           version: number
+          winner_session: string | null
         }
         Insert: {
           created_at?: string
@@ -84,6 +85,7 @@ export type Database = {
           status?: string
           updated_at?: string
           version?: number
+          winner_session?: string | null
         }
         Update: {
           created_at?: string
@@ -97,6 +99,7 @@ export type Database = {
           status?: string
           updated_at?: string
           version?: number
+          winner_session?: string | null
         }
         Relationships: []
       }
@@ -206,6 +209,7 @@ export type Database = {
       }
       waiting_players: {
         Row: {
+          avatar: string | null
           created_at: string
           game: string
           id: string
@@ -214,6 +218,7 @@ export type Database = {
           session_id: string
         }
         Insert: {
+          avatar?: string | null
           created_at?: string
           game: string
           id?: string
@@ -222,6 +227,7 @@ export type Database = {
           session_id: string
         }
         Update: {
+          avatar?: string | null
           created_at?: string
           game?: string
           id?: string

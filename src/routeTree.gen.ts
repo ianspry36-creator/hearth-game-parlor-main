@@ -11,19 +11,27 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AboutRouteImport } from './routes/about'
+import { Route as AddictionRouteImport } from './routes/addiction'
 import { Route as BackgammonRouteImport } from './routes/backgammon'
+import { Route as CanfieldRouteImport } from './routes/canfield'
+import { Route as CheckersRouteImport } from './routes/checkers'
+import { Route as ClockRouteImport } from './routes/clock'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as CrazyEightsRouteImport } from './routes/crazy-eights'
 import { Route as CribbageRouteImport } from './routes/cribbage'
 import { Route as FarkleRouteImport } from './routes/farkle'
 import { Route as FreecellRouteImport } from './routes/freecell'
 import { Route as FutureImprovementsRouteImport } from './routes/future-improvements'
+import { Route as KingsInTheCornerRouteImport } from './routes/kings-in-the-corner'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ReversiRouteImport } from './routes/reversi'
+import { Route as ScorpionRouteImport } from './routes/scorpion'
 import { Route as SolitaireRouteImport } from './routes/solitaire'
 import { Route as TrianglesRouteImport } from './routes/triangles'
+import { Route as TripeaksRouteImport } from './routes/tripeaks'
 import { Route as WarshipRouteImport } from './routes/warship'
 import { Route as YahtzeeRouteImport } from './routes/yahtzee'
+import { Route as YukonRouteImport } from './routes/yukon'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -35,9 +43,29 @@ const AboutRoute = AboutRouteImport.update({
   path: '/about',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AddictionRoute = AddictionRouteImport.update({
+  id: '/addiction',
+  path: '/addiction',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const BackgammonRoute = BackgammonRouteImport.update({
   id: '/backgammon',
   path: '/backgammon',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CanfieldRoute = CanfieldRouteImport.update({
+  id: '/canfield',
+  path: '/canfield',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CheckersRoute = CheckersRouteImport.update({
+  id: '/checkers',
+  path: '/checkers',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ClockRoute = ClockRouteImport.update({
+  id: '/clock',
+  path: '/clock',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ContactRoute = ContactRouteImport.update({
@@ -70,6 +98,11 @@ const FutureImprovementsRoute = FutureImprovementsRouteImport.update({
   path: '/future-improvements',
   getParentRoute: () => rootRouteImport,
 } as any)
+const KingsInTheCornerRoute = KingsInTheCornerRouteImport.update({
+  id: '/kings-in-the-corner',
+  path: '/kings-in-the-corner',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PrivacyRoute = PrivacyRouteImport.update({
   id: '/privacy',
   path: '/privacy',
@@ -78,6 +111,11 @@ const PrivacyRoute = PrivacyRouteImport.update({
 const ReversiRoute = ReversiRouteImport.update({
   id: '/reversi',
   path: '/reversi',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ScorpionRoute = ScorpionRouteImport.update({
+  id: '/scorpion',
+  path: '/scorpion',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SolitaireRoute = SolitaireRouteImport.update({
@@ -90,6 +128,11 @@ const TrianglesRoute = TrianglesRouteImport.update({
   path: '/triangles',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TripeaksRoute = TripeaksRouteImport.update({
+  id: '/tripeaks',
+  path: '/tripeaks',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const WarshipRoute = WarshipRouteImport.update({
   id: '/warship',
   path: '/warship',
@@ -100,129 +143,190 @@ const YahtzeeRoute = YahtzeeRouteImport.update({
   path: '/yahtzee',
   getParentRoute: () => rootRouteImport,
 } as any)
+const YukonRoute = YukonRouteImport.update({
+  id: '/yukon',
+  path: '/yukon',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/addiction': typeof AddictionRoute
   '/backgammon': typeof BackgammonRoute
+  '/canfield': typeof CanfieldRoute
+  '/checkers': typeof CheckersRoute
+  '/clock': typeof ClockRoute
   '/contact': typeof ContactRoute
   '/crazy-eights': typeof CrazyEightsRoute
   '/cribbage': typeof CribbageRoute
   '/farkle': typeof FarkleRoute
   '/freecell': typeof FreecellRoute
   '/future-improvements': typeof FutureImprovementsRoute
+  '/kings-in-the-corner': typeof KingsInTheCornerRoute
   '/privacy': typeof PrivacyRoute
   '/reversi': typeof ReversiRoute
+  '/scorpion': typeof ScorpionRoute
   '/solitaire': typeof SolitaireRoute
   '/triangles': typeof TrianglesRoute
+  '/tripeaks': typeof TripeaksRoute
   '/warship': typeof WarshipRoute
   '/yahtzee': typeof YahtzeeRoute
+  '/yukon': typeof YukonRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/addiction': typeof AddictionRoute
   '/backgammon': typeof BackgammonRoute
+  '/canfield': typeof CanfieldRoute
+  '/checkers': typeof CheckersRoute
+  '/clock': typeof ClockRoute
   '/contact': typeof ContactRoute
   '/crazy-eights': typeof CrazyEightsRoute
   '/cribbage': typeof CribbageRoute
   '/farkle': typeof FarkleRoute
   '/freecell': typeof FreecellRoute
   '/future-improvements': typeof FutureImprovementsRoute
+  '/kings-in-the-corner': typeof KingsInTheCornerRoute
   '/privacy': typeof PrivacyRoute
   '/reversi': typeof ReversiRoute
+  '/scorpion': typeof ScorpionRoute
   '/solitaire': typeof SolitaireRoute
   '/triangles': typeof TrianglesRoute
+  '/tripeaks': typeof TripeaksRoute
   '/warship': typeof WarshipRoute
   '/yahtzee': typeof YahtzeeRoute
+  '/yukon': typeof YukonRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/addiction': typeof AddictionRoute
   '/backgammon': typeof BackgammonRoute
+  '/canfield': typeof CanfieldRoute
+  '/checkers': typeof CheckersRoute
+  '/clock': typeof ClockRoute
   '/contact': typeof ContactRoute
   '/crazy-eights': typeof CrazyEightsRoute
   '/cribbage': typeof CribbageRoute
   '/farkle': typeof FarkleRoute
   '/freecell': typeof FreecellRoute
   '/future-improvements': typeof FutureImprovementsRoute
+  '/kings-in-the-corner': typeof KingsInTheCornerRoute
   '/privacy': typeof PrivacyRoute
   '/reversi': typeof ReversiRoute
+  '/scorpion': typeof ScorpionRoute
   '/solitaire': typeof SolitaireRoute
   '/triangles': typeof TrianglesRoute
+  '/tripeaks': typeof TripeaksRoute
   '/warship': typeof WarshipRoute
   '/yahtzee': typeof YahtzeeRoute
+  '/yukon': typeof YukonRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/about'
+    | '/addiction'
     | '/backgammon'
+    | '/canfield'
+    | '/checkers'
+    | '/clock'
     | '/contact'
     | '/crazy-eights'
     | '/cribbage'
     | '/farkle'
     | '/freecell'
     | '/future-improvements'
+    | '/kings-in-the-corner'
     | '/privacy'
     | '/reversi'
+    | '/scorpion'
     | '/solitaire'
     | '/triangles'
+    | '/tripeaks'
     | '/warship'
     | '/yahtzee'
+    | '/yukon'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/about'
+    | '/addiction'
     | '/backgammon'
+    | '/canfield'
+    | '/checkers'
+    | '/clock'
     | '/contact'
     | '/crazy-eights'
     | '/cribbage'
     | '/farkle'
     | '/freecell'
     | '/future-improvements'
+    | '/kings-in-the-corner'
     | '/privacy'
     | '/reversi'
+    | '/scorpion'
     | '/solitaire'
     | '/triangles'
+    | '/tripeaks'
     | '/warship'
     | '/yahtzee'
+    | '/yukon'
   id:
     | '__root__'
     | '/'
     | '/about'
+    | '/addiction'
     | '/backgammon'
+    | '/canfield'
+    | '/checkers'
+    | '/clock'
     | '/contact'
     | '/crazy-eights'
     | '/cribbage'
     | '/farkle'
     | '/freecell'
     | '/future-improvements'
+    | '/kings-in-the-corner'
     | '/privacy'
     | '/reversi'
+    | '/scorpion'
     | '/solitaire'
     | '/triangles'
+    | '/tripeaks'
     | '/warship'
     | '/yahtzee'
+    | '/yukon'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
+  AddictionRoute: typeof AddictionRoute
   BackgammonRoute: typeof BackgammonRoute
+  CanfieldRoute: typeof CanfieldRoute
+  CheckersRoute: typeof CheckersRoute
+  ClockRoute: typeof ClockRoute
   ContactRoute: typeof ContactRoute
   CrazyEightsRoute: typeof CrazyEightsRoute
   CribbageRoute: typeof CribbageRoute
   FarkleRoute: typeof FarkleRoute
   FreecellRoute: typeof FreecellRoute
   FutureImprovementsRoute: typeof FutureImprovementsRoute
+  KingsInTheCornerRoute: typeof KingsInTheCornerRoute
   PrivacyRoute: typeof PrivacyRoute
   ReversiRoute: typeof ReversiRoute
+  ScorpionRoute: typeof ScorpionRoute
   SolitaireRoute: typeof SolitaireRoute
   TrianglesRoute: typeof TrianglesRoute
+  TripeaksRoute: typeof TripeaksRoute
   WarshipRoute: typeof WarshipRoute
   YahtzeeRoute: typeof YahtzeeRoute
+  YukonRoute: typeof YukonRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -241,11 +345,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AboutRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/addiction': {
+      id: '/addiction'
+      path: '/addiction'
+      fullPath: '/addiction'
+      preLoaderRoute: typeof AddictionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/backgammon': {
       id: '/backgammon'
       path: '/backgammon'
       fullPath: '/backgammon'
       preLoaderRoute: typeof BackgammonRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/canfield': {
+      id: '/canfield'
+      path: '/canfield'
+      fullPath: '/canfield'
+      preLoaderRoute: typeof CanfieldRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/checkers': {
+      id: '/checkers'
+      path: '/checkers'
+      fullPath: '/checkers'
+      preLoaderRoute: typeof CheckersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/clock': {
+      id: '/clock'
+      path: '/clock'
+      fullPath: '/clock'
+      preLoaderRoute: typeof ClockRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/contact': {
@@ -290,6 +422,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FutureImprovementsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/kings-in-the-corner': {
+      id: '/kings-in-the-corner'
+      path: '/kings-in-the-corner'
+      fullPath: '/kings-in-the-corner'
+      preLoaderRoute: typeof KingsInTheCornerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/privacy': {
       id: '/privacy'
       path: '/privacy'
@@ -302,6 +441,13 @@ declare module '@tanstack/react-router' {
       path: '/reversi'
       fullPath: '/reversi'
       preLoaderRoute: typeof ReversiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/scorpion': {
+      id: '/scorpion'
+      path: '/scorpion'
+      fullPath: '/scorpion'
+      preLoaderRoute: typeof ScorpionRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/solitaire': {
@@ -318,6 +464,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TrianglesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/tripeaks': {
+      id: '/tripeaks'
+      path: '/tripeaks'
+      fullPath: '/tripeaks'
+      preLoaderRoute: typeof TripeaksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/warship': {
       id: '/warship'
       path: '/warship'
@@ -332,25 +485,40 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof YahtzeeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/yukon': {
+      id: '/yukon'
+      path: '/yukon'
+      fullPath: '/yukon'
+      preLoaderRoute: typeof YukonRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
+  AddictionRoute: AddictionRoute,
   BackgammonRoute: BackgammonRoute,
+  CanfieldRoute: CanfieldRoute,
+  CheckersRoute: CheckersRoute,
+  ClockRoute: ClockRoute,
   ContactRoute: ContactRoute,
   CrazyEightsRoute: CrazyEightsRoute,
   CribbageRoute: CribbageRoute,
   FarkleRoute: FarkleRoute,
   FreecellRoute: FreecellRoute,
   FutureImprovementsRoute: FutureImprovementsRoute,
+  KingsInTheCornerRoute: KingsInTheCornerRoute,
   PrivacyRoute: PrivacyRoute,
   ReversiRoute: ReversiRoute,
+  ScorpionRoute: ScorpionRoute,
   SolitaireRoute: SolitaireRoute,
   TrianglesRoute: TrianglesRoute,
+  TripeaksRoute: TripeaksRoute,
   WarshipRoute: WarshipRoute,
   YahtzeeRoute: YahtzeeRoute,
+  YukonRoute: YukonRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

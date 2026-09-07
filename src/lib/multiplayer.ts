@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { GameId } from "@/lib/games";
+import { recordMatchResult } from "@/lib/stats";
 
 export const NICKNAME_KEY = "green-cardroom-nickname";
 export const SESSION_KEY = "green-cardroom-session";
@@ -279,6 +280,13 @@ export function useMatch<T>(matchId: string | undefined) {
     const timer = setTimeout(() => setDisconnectSecondsLeft((s) => s - 1), 1_000);
     return () => clearTimeout(timer);
   }, [opponentDisconnected, disconnectSecondsLeft]);
+
+  // Record a forfeit when the opponent fails to reconnect: the player who
+  // stayed connected wins and the leaver is counted as a loss.
+  useEffect(() => {
+    if (!disconnectExpired || !matchId || !sessionId) return;
+    void recordMatchResult(matchId, sessionId);
+  }, [disconnectExpired, matchId, sessionId]);
 
   return {
     match,

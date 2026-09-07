@@ -28,6 +28,7 @@ import {
   NICKNAME_TOO_LONG_MESSAGE,
 } from "@/lib/nickname";
 import { moderateNickname } from "@/lib/moderation";
+import { readAvatar } from "@/lib/avatars";
 
 /** Players not seen for this long are treated as having left the room. */
 const STALE_MS = 45_000;
@@ -38,6 +39,7 @@ type WaitingPlayer = {
   id: string;
   session_id: string;
   nickname: string;
+  avatar: string | null;
   last_seen_at: string;
 };
 
@@ -97,7 +99,7 @@ export function WaitingRoom({
     const cutoff = new Date(Date.now() - STALE_MS).toISOString();
     const { data, error: queryError } = await supabase
       .from("waiting_players")
-      .select("id, session_id, nickname, last_seen_at, created_at")
+      .select("id, session_id, nickname, avatar, last_seen_at, created_at")
       .eq("game", game.id)
       .gte("last_seen_at", cutoff)
       .order("created_at", { ascending: true });
@@ -196,6 +198,7 @@ export function WaitingRoom({
           session_id: getSessionId(),
           game: game.id,
           nickname: value,
+          avatar: readAvatar(),
           last_seen_at: new Date().toISOString(),
         },
         { onConflict: "session_id,game" },
@@ -392,9 +395,19 @@ export function WaitingRoom({
                   key={player.id}
                   className="flex items-center gap-3 rounded-lg border border-gold/20 bg-brand/50 p-3"
                 >
-                  <span className="grid size-9 shrink-0 place-items-center rounded-full border border-gold/30 bg-surface font-display text-sm text-gold">
-                    {player.nickname.charAt(0).toUpperCase()}
-                  </span>
+                  {player.avatar ? (
+                    <img
+                      src={player.avatar}
+                      alt={player.nickname}
+                      width={36}
+                      height={36}
+                      className="size-9 shrink-0 rounded-full border border-gold/30 object-cover"
+                    />
+                  ) : (
+                    <span className="grid size-9 shrink-0 place-items-center rounded-full border border-gold/30 bg-surface font-display text-sm text-gold">
+                      {player.nickname.charAt(0).toUpperCase()}
+                    </span>
+                  )}
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium">{player.nickname}</p>
                     <p className="text-xs text-ivory/55">
