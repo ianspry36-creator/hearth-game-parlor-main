@@ -163,9 +163,9 @@ function Lobby() {
         </section>
 
         <footer className="mt-16 border-t border-gold/12 pt-6 text-center text-[11px] uppercase tracking-[0.28em] text-ivory/30">
-          <p>Cards and Games 3.2</p>
+          <p>Cards and Games 3.3</p>
           <VisitorCounter />
-          <div className="mt-3 flex justify-center gap-4">
+          <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
             <Link
               to="/about"
               className="text-ivory/50 transition-colors hover:text-gold"
@@ -186,10 +186,10 @@ function Lobby() {
             >
               Contact
             </Link>
-            <span className="text-ivory/25">·</span>
+            <span className="hidden text-ivory/25 sm:inline">·</span>
             <Link
               to="/future-improvements"
-              className="text-ivory/50 transition-colors hover:text-gold"
+              className="w-full text-center text-ivory/50 transition-colors hover:text-gold sm:w-auto"
             >
               Future improvements
             </Link>
