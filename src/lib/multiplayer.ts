@@ -173,7 +173,7 @@ export function useMatch<T>(matchId: string | undefined) {
         { event: "UPDATE", schema: "public", table: "matches", filter: `id=eq.${matchId}` },
         (payload) => {
           const row = payload.new as MatchRow;
-          if (row.version < version.current) return;
+          if (row.version <= version.current) return;
           version.current = row.version;
           setMatch(row);
         },
@@ -185,7 +185,7 @@ export function useMatch<T>(matchId: string | undefined) {
         const { data } = await supabase.from("matches").select("*").eq("id", matchId).maybeSingle();
         if (!data) return;
         const row = data as MatchRow;
-        if (row.version < version.current) return;
+        if (row.version <= version.current) return;
         version.current = row.version;
         setMatch(row);
       })();
