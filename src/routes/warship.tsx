@@ -370,7 +370,7 @@ function WarshipTable() {
       opponentDisconnected={opponentDisconnected}
       disconnectSecondsLeft={disconnectSecondsLeft}
       disconnectExpired={disconnectExpired}
-      gameInProgress={state.phase === "play"}
+      gameInProgress={state.phase === "play" && (state.shots.human.length > 0 || state.shots.cpu.length > 0)}
       onMatched={(nickname, newMatchId) => {
         navigate({ to: "/warship", search: { opponent: nickname, match: newMatchId } });
         setState(freshState());

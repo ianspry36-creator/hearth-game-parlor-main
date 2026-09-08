@@ -120,6 +120,24 @@ function Die({ value }: { value: number }) {
   );
 }
 
+// Deterministic scatter for dice so each die lands at a stable spot and angle
+// (rather than a tidy row) in the middle band of the board.
+function diceSpot(index: number, value: number): { x: number; y: number; angle: number } {
+  const seed = (value * 2654435761 + index * 40503) >>> 0;
+  const rand = (n: number) => {
+    let x = (seed + Math.imul(n + 1, 0x9e3779b9)) >>> 0;
+    x = Math.imul(x ^ (x >>> 16), 2246822507);
+    x = Math.imul(x ^ (x >>> 13), 3266489909);
+    x ^= x >>> 16;
+    return (x >>> 0) / 4294967296;
+  };
+  return {
+    x: 14 + rand(0) * 72, // 14%..86% across the board
+    y: 42 + rand(1) * 16, // 42%..58% vertically (between the triangles)
+    angle: Math.round(rand(2) * 120 - 60), // -60..60 degrees
+  };
+}
+
 /** A speech bubble rendered just below its anchor (used for the opponent's "PASS"). */
 function CloudChat({ text }: { text: string }) {
   return (
@@ -233,6 +251,13 @@ function BackgammonTable() {
   const barNeedsMove =
     state.board.bar.human > 0 && state.turn === "human" && state.rolled;
 
+  // Dice shown scattered across the middle of the board: the rolloff dice while
+  // deciding who starts, then the active turn's dice during play.
+  const boardDice =
+    state.phase === "rolloff"
+      ? [state.rolloff.human, state.rolloff.cpu].filter((d): d is number => d !== null)
+      : state.dice;
+
   // Hand the dice over when we have no legal moves left, pausing for a
   // moment so the player can watch the board settle before the CPU rolls.
   useEffect(() => {
@@ -262,86 +287,84 @@ function BackgammonTable() {
         : "cpu"
       : null;
 
-  const rolloffHeading =
-    state.rolloff.human === null
-      ? "Who starts"
-      : state.rolloff.cpu === null
-        ? "Rolling…"
-        : rolloffWinner === null
-          ? "Tie — roll again"
-          : rolloffWinner === "human"
-            ? "You go first"
-            : `${opponentName} goes first`;
-
   const canRollOff =
     state.phase === "rolloff" &&
-    (!isMulti || isHost) &&
-    (state.rolloff.human === null ||
-      (state.rolloff.cpu !== null && state.rolloff.human === state.rolloff.cpu));
+    state.rolloff.human === null &&
+    (!isMulti || isHost || state.rolloff.cpu !== null);
   const rollForFirst = () => {
     if (!canRollOff) return;
     apply((current) => {
       const human = rollDie();
       return {
         ...current,
-        rolloff: { human, cpu: null },
+        rolloff: { ...current.rolloff, human },
         log: note(current.log, { side: "human", text: `roll a ${human} for the first turn.` }),
       };
     });
   };
 
-  // After you roll for the first turn, wait a beat before the opponent's die lands.
+  // Label for the rolloff button: prompt the active player to roll, and show a
+  // waiting state for whoever rolls second (or while the opponent rolls).
+  const rolloffLabel =
+    state.rolloff.human === null
+      ? canRollOff
+        ? "Roll for first turn"
+        : "Waiting…"
+      : state.rolloff.cpu === null
+        ? "Rolling…"
+        : "Roll again";
+
+  // Ada's rolloff die (solo play) lands a beat after the player rolls their own.
   useEffect(() => {
-    if (isMulti && !isHost) return;
+    if (isMulti) return;
     if (state.phase !== "rolloff") return;
     if (state.rolloff.human === null || state.rolloff.cpu !== null) return;
     const timer = setTimeout(() => {
       apply((current) => {
         if (current.phase !== "rolloff") return current;
         if (current.rolloff.human === null || current.rolloff.cpu !== null) return current;
-        const cpu = rollDie();
-        const human = current.rolloff.human;
-        if (human === cpu) {
-          return {
-            ...current,
-            rolloff: { ...current.rolloff, cpu },
-            log: note(current.log, { side: null, text: `Tie at ${human} — roll again.` }),
-          };
-        }
-        const first: Seat = human > cpu ? "human" : "cpu";
         return {
           ...current,
-          rolloff: { ...current.rolloff, cpu },
-          log: note(current.log, {
-            side: first,
-            text: `win the rolloff ${human}-${cpu} and open with those dice.`,
-          }),
+          rolloff: { ...current.rolloff, cpu: rollDie() },
         };
       });
     }, 2000);
     return () => clearTimeout(timer);
-  }, [isMulti, isHost, state.phase, state.rolloff.human, state.rolloff.cpu]);
+  }, [isMulti, state.phase, state.rolloff.human, state.rolloff.cpu]);
 
-  // Once both dice have landed, pause briefly before the winner takes the first turn.
+  // Once both dice have landed, resolve the rolloff: a tie re-rolls, otherwise
+  // the higher roller takes the first turn and opens with those dice.
   useEffect(() => {
     if (isMulti && !isHost) return;
     if (state.phase !== "rolloff") return;
     const h = state.rolloff.human;
     const c = state.rolloff.cpu;
-    if (h === null || c === null || h === c) return;
+    if (h === null || c === null) return;
     const timer = setTimeout(() => {
       apply((current) => {
         if (current.phase !== "rolloff") return current;
-        if (current.rolloff.human === null || current.rolloff.cpu === null) return current;
-        if (current.rolloff.human === current.rolloff.cpu) return current;
-        const first: Seat = current.rolloff.human > current.rolloff.cpu ? "human" : "cpu";
+        const hh = current.rolloff.human;
+        const cc = current.rolloff.cpu;
+        if (hh === null || cc === null) return current;
+        if (hh === cc) {
+          return {
+            ...current,
+            rolloff: { human: null, cpu: null },
+            log: note(current.log, { side: null, text: `Tie at ${hh} — roll again.` }),
+          };
+        }
+        const first: Seat = hh > cc ? "human" : "cpu";
         // The winner plays the two rolloff dice as their opening roll.
         return {
           ...current,
           turn: first,
           phase: "play",
           rolled: true,
-          dice: [current.rolloff.human, current.rolloff.cpu],
+          dice: [hh, cc],
+          log: note(current.log, {
+            side: first,
+            text: `win the rolloff ${hh}-${cc} and open with those dice.`,
+          }),
         };
       });
     }, 1500);
@@ -491,7 +514,9 @@ function BackgammonTable() {
       opponentDisconnected={opponentDisconnected}
       disconnectSecondsLeft={disconnectSecondsLeft}
       disconnectExpired={disconnectExpired}
-      gameInProgress={!state.winner}
+      gameInProgress={
+        !state.winner && (state.phase === "play" || state.rolloff.human !== null || state.rolloff.cpu !== null)
+      }
       onMatched={(nickname, newMatchId) => {
         navigate({ to: "/backgammon", search: { opponent: nickname, match: newMatchId } });
         setState(freshState());
@@ -551,40 +576,37 @@ function BackgammonTable() {
           </div>
         </div>
 
-        <div className="flex min-h-24 flex-wrap items-center justify-between gap-4 rounded-xl border border-gold/15 bg-brand/50 p-4">
-          {state.phase === "rolloff" ? (
-            <div className="flex flex-col gap-2">
-              <p className="text-[11px] uppercase tracking-[0.22em] text-gold">{rolloffHeading}</p>
-              <div className="flex items-center gap-3">
-                <span className="text-sm text-ivory/50">You</span>
-                {state.rolloff.human !== null ? (
-                  <Die value={state.rolloff.human} />
-                ) : (
-                  <span className="grid size-10 place-items-center rounded-lg border border-dashed border-gold/30 text-ivory/40">?</span>
-                )}
-                <span className="text-sm text-ivory/50">{opponentName}</span>
-                {state.rolloff.cpu !== null ? (
-                  <Die value={state.rolloff.cpu} />
-                ) : (
-                  <span className="grid size-10 place-items-center rounded-lg border border-dashed border-gold/30 text-ivory/40">?</span>
-                )}
-              </div>
+        <Board
+          board={state.board}
+          selected={selected}
+          destinations={destinations}
+          selectable={moves.map((m) => m.from)}
+          barNeedsMove={barNeedsMove}
+          dice={boardDice}
+          onSelect={(index) => setSelected(index)}
+          onMoveTo={(to) => {
+            const move = moves.find((m) => m.from === selected && m.to === to);
+            if (move) play(move);
+          }}
+          tableGraphic={tableGraphic}
+        />
+
+        {/* Player — bottom of the table */}
+        <div className="flex items-center gap-4 rounded-2xl border border-gold/15 bg-brand/50 p-4">
+          <div className="flex shrink-0 items-center gap-3">
+            <PlayerAvatar
+              avatar={playerAvatar}
+              onSelect={setPlayerAvatar}
+              {...(passBubble === "human" ? { message: "PASS" } : {})}
+            />
+            <div>
+              <p className="font-display text-lg font-bold">You</p>
+              <p className="text-xs text-ivory/60">
+                {state.turn === "human" && !state.winner ? "Your turn" : "Waiting"}
+              </p>
             </div>
-          ) : (
-            <div className="flex items-center gap-3">
-              <p className="text-[11px] uppercase tracking-[0.22em] text-gold">Dice</p>
-              <div className="flex min-w-[196px] items-center gap-3">
-                {state.dice.length ? (
-                  state.dice.map((die, index) => (
-                    <Die key={`${die}-${index}`} value={die} />
-                  ))
-                ) : (
-                  <span className="text-sm text-ivory/50">Not rolled</span>
-                )}
-              </div>
-            </div>
-          )}
-          <div className="flex items-center gap-2">
+          </div>
+          <div className="flex flex-1 items-center justify-center">
             {state.winner ? (
               <Button variant="parlor" onClick={reset}>
                 Play again
@@ -596,11 +618,7 @@ function BackgammonTable() {
                 disabled={!canRollOff}
                 className="animate-gentle-flash"
               >
-                {state.rolloff.human === null
-                  ? "Roll for first turn"
-                  : state.rolloff.cpu === null
-                    ? "Rolling…"
-                    : "Roll again"}
+                {rolloffLabel}
               </Button>
             ) : (
               <Button
@@ -625,38 +643,7 @@ function BackgammonTable() {
               </Button>
             )}
           </div>
-        </div>
-
-        <Board
-          board={state.board}
-          selected={selected}
-          destinations={destinations}
-          selectable={moves.map((m) => m.from)}
-          barNeedsMove={barNeedsMove}
-          onSelect={(index) => setSelected(index)}
-          onMoveTo={(to) => {
-            const move = moves.find((m) => m.from === selected && m.to === to);
-            if (move) play(move);
-          }}
-          tableGraphic={tableGraphic}
-        />
-
-        {/* Player — bottom of the table */}
-        <div className="flex items-center justify-between gap-4 rounded-2xl border border-gold/15 bg-brand/50 p-4">
-          <div className="flex items-center gap-3">
-            <PlayerAvatar
-              avatar={playerAvatar}
-              onSelect={setPlayerAvatar}
-              {...(passBubble === "human" ? { message: "PASS" } : {})}
-            />
-            <div>
-              <p className="font-display text-lg font-bold">You</p>
-              <p className="text-xs text-ivory/60">
-                {state.turn === "human" && !state.winner ? "Your turn" : "Waiting"}
-              </p>
-            </div>
-          </div>
-          <div className="rounded-lg border border-gold/20 bg-surface/60 px-4 py-2 text-center">
+          <div className="shrink-0 rounded-lg border border-gold/20 bg-surface/60 px-4 py-2 text-center">
             <p className="text-[10px] uppercase tracking-[0.2em] text-ivory/50">Borne off</p>
             <div className="mx-auto mt-1 flex max-w-36 flex-wrap items-center justify-center gap-1">
               {Array.from({ length: state.board.off.human }, (_, i) => (
@@ -740,6 +727,7 @@ function Board({
   destinations,
   selectable,
   barNeedsMove,
+  dice,
   onSelect,
   onMoveTo,
   tableGraphic,
@@ -749,6 +737,7 @@ function Board({
   destinations: (number | "off")[];
   selectable: (number | "bar")[];
   barNeedsMove: boolean;
+  dice: number[];
   onSelect: (index: number | "bar") => void;
   onMoveTo: (to: number | "off") => void;
   tableGraphic: TablePalette | null;
@@ -1047,6 +1036,26 @@ function Board({
       <div className="grid grid-cols-12 gap-1">
         {bottomRow.map((index) => renderPoint(index, false))}
       </div>
+      {dice.length > 0 && (
+        <div className="pointer-events-none absolute inset-0 z-20">
+          {dice.map((value, index) => {
+            const spot = diceSpot(index, value);
+            return (
+              <span
+                key={`${index}-${value}`}
+                className="absolute rounded-lg shadow-md shadow-black/40"
+                style={{
+                  left: `${spot.x}%`,
+                  top: `${spot.y}%`,
+                  transform: `translate(-50%, -50%) rotate(${spot.angle}deg)`,
+                }}
+              >
+                <Die value={value} />
+              </span>
+            );
+          })}
+        </div>
+      )}
       {flies.length > 0 && (
         <div className="pointer-events-none absolute inset-0 z-10">
           {flies.map((f) => (

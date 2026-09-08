@@ -899,7 +899,11 @@ function CribbageTable() {
       opponentDisconnected={opponentDisconnected}
       disconnectSecondsLeft={disconnectSecondsLeft}
       disconnectExpired={disconnectExpired}
-      gameInProgress={state.phase !== "cut" && state.phase !== "over"}
+      gameInProgress={
+        state.phase !== "over" &&
+        state.phase !== "cut" &&
+        (state.phase !== "discard" || state.playerDiscards !== null || state.cpuDiscards !== null)
+      }
       onMatched={(nickname, newMatchId) => {
         navigate({ to: "/cribbage", search: { opponent: nickname, match: newMatchId } });
         reset(dealtGame());
