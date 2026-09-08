@@ -334,9 +334,13 @@ export function WaitingRoom({
           <div className="space-y-2">
             <div className="flex items-center justify-between rounded-lg border border-gold/30 bg-brand/60 p-3">
               <div className="flex items-center gap-3">
-                <span className="grid size-9 shrink-0 place-items-center rounded-full border border-gold/40 bg-surface font-display text-sm text-gold">
-                  {(nickname ?? "?").charAt(0).toUpperCase()}
-                </span>
+                <img
+                  src={readAvatar()}
+                  alt={nickname ?? "You"}
+                  width={36}
+                  height={36}
+                  className="size-9 shrink-0 rounded-full border border-gold/40 object-cover"
+                />
                 <div>
                   <p className="text-sm font-medium">{nickname} (you)</p>
                   <p className="text-xs text-ivory/55">Seated in the room</p>
