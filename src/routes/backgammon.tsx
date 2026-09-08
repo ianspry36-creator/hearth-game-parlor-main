@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { Button } from "@/components/ui/button";
 import { TableShell } from "@/components/parlor/TableShell";
 import { GameOverDialog } from "@/components/parlor/GameOverDialog";
@@ -13,7 +13,6 @@ import { useRecordMatchResult } from "@/lib/stats";
 import {
   applyMove,
   chooseCpuMove,
-  consumeDice,
   initialBoard,
   legalMoves,
   rollDice,
@@ -53,6 +52,7 @@ type LogEntry = { side: Seat | null; text: string };
 type State = {
   board: BoardState;
   dice: number[];
+  diceSlots: number[]; // stable left/right offsets (in gap units) for each die
   turn: Seat;
   rolled: boolean;
   log: LogEntry[];
@@ -64,6 +64,7 @@ type State = {
 const freshState = (): State => ({
   board: initialBoard(),
   dice: [],
+  diceSlots: [],
   turn: "human",
   rolled: false,
   log: [{ side: null, text: "Highest roll goes first. Roll to see who starts." }],
@@ -120,10 +121,12 @@ function Die({ value }: { value: number }) {
   );
 }
 
-// Deterministic scatter for dice so each die lands at a stable spot and angle
-// (rather than a tidy row) in the middle band of the board.
-function diceSpot(index: number, value: number): { x: number; y: number; angle: number } {
-  const seed = (value * 2654435761 + index * 40503) >>> 0;
+// Deterministic layout for dice so they always land side by side (never on top
+// of each other) in the middle band of the board. `offset` is a die's stable
+// left/right position within its roll (in gap units, 0 = the bar's centre), so
+// a die keeps its spot while its siblings are consumed during a move.
+function diceSpot(offset: number, value: number): { x: number; y: number; angle: number } {
+  const seed = (value * 2654435761 + offset * 40503) >>> 0;
   const rand = (n: number) => {
     let x = (seed + Math.imul(n + 1, 0x9e3779b9)) >>> 0;
     x = Math.imul(x ^ (x >>> 16), 2246822507);
@@ -131,11 +134,33 @@ function diceSpot(index: number, value: number): { x: number; y: number; angle: 
     x ^= x >>> 16;
     return (x >>> 0) / 4294967296;
   };
+  // A die is ~40px; a 14% gap keeps neighbouring dice from touching on any
+  // board width while the whole row stays within ~3 triangles of the centre.
+  const gap = 14;
   return {
-    x: 14 + rand(0) * 72, // 14%..86% across the board
-    y: 42 + rand(1) * 16, // 42%..58% vertically (between the triangles)
-    angle: Math.round(rand(2) * 120 - 60), // -60..60 degrees
+    x: 50 + offset * gap,
+    y: 48 + rand(1) * 4, // 48%..52% vertically (between the triangles)
+    angle: Math.round(rand(2) * 40 - 20), // -20..20 degrees
   };
+}
+
+// Remove the used dice (and their stable offsets) from a roll so each die keeps
+// its spot while the others are consumed one at a time during a move.
+function consumeRoll(
+  dice: number[],
+  slots: number[],
+  used: number[],
+): { dice: number[]; slots: number[] } {
+  const rest = [...dice];
+  const restSlots = [...slots];
+  for (const d of used) {
+    const idx = rest.indexOf(d);
+    if (idx !== -1) {
+      rest.splice(idx, 1);
+      restSlots.splice(idx, 1);
+    }
+  }
+  return { dice: rest, slots: restSlots };
 }
 
 /** A speech bubble rendered just below its anchor (used for the opponent's "PASS"). */
@@ -257,6 +282,10 @@ function BackgammonTable() {
     state.phase === "rolloff"
       ? [state.rolloff.human, state.rolloff.cpu].filter((d): d is number => d !== null)
       : state.dice;
+  const boardDiceSlots =
+    state.phase === "rolloff"
+      ? boardDice.map((_, i) => i - 0.5) // human left, cpu right
+      : (state.diceSlots ?? boardDice.map((_, i) => i - (boardDice.length - 1) / 2));
 
   // Hand the dice over when we have no legal moves left, pausing for a
   // moment so the player can watch the board settle before the CPU rolls.
@@ -270,6 +299,7 @@ function BackgammonTable() {
         ...current,
         turn: "cpu",
         dice: [],
+        diceSlots: [],
         rolled: false,
         log: note(current.log, { side: "human", text: "turn ends." }),
       }));
@@ -361,6 +391,7 @@ function BackgammonTable() {
           phase: "play",
           rolled: true,
           dice: [hh, cc],
+          diceSlots: [-0.5, 0.5],
           log: note(current.log, {
             side: first,
             text: `win the rolloff ${hh}-${cc} and open with those dice.`,
@@ -392,11 +423,12 @@ function BackgammonTable() {
         const leg = cpuLegsRef.current[0]!;
         cpuLegsRef.current = cpuLegsRef.current.slice(1);
         const { board, hit } = applyMove(current.board, leg, "cpu");
-        const dice = consumeDice(current.dice, leg.dice);
+        const { dice, slots: diceSlots } = consumeRoll(current.dice, current.diceSlots, leg.dice);
         next = {
           ...current,
           board,
           dice,
+          diceSlots,
           winner: findWinner(board),
           log: note(current.log, {
             side: "cpu",
@@ -408,6 +440,7 @@ function BackgammonTable() {
         next = {
           ...current,
           dice,
+          diceSlots: dice.length === 4 ? [-1.5, -0.5, 0.5, 1.5] : [-0.5, 0.5],
           rolled: true,
           log: note(current.log, {
             side: "cpu",
@@ -421,6 +454,7 @@ function BackgammonTable() {
             ...current,
             turn: "human",
             dice: [],
+            diceSlots: [],
             rolled: false,
             log: note(current.log, { side: "cpu", text: "is done." }),
           };
@@ -429,11 +463,12 @@ function BackgammonTable() {
           const leg = legs[0]!;
           cpuLegsRef.current = legs.slice(1);
           const { board, hit } = applyMove(current.board, leg, "cpu");
-          const dice = consumeDice(current.dice, leg.dice);
+          const { dice, slots: diceSlots } = consumeRoll(current.dice, current.diceSlots, leg.dice);
           next = {
             ...current,
             board,
             dice,
+            diceSlots,
             winner: findWinner(board),
             log: note(current.log, {
               side: "cpu",
@@ -451,11 +486,12 @@ function BackgammonTable() {
   const applyHumanLeg = (leg: Move) => {
     apply((current) => {
       const { board, hit } = applyMove(current.board, leg, "human");
-      const dice = consumeDice(current.dice, leg.dice);
+      const { dice, slots: diceSlots } = consumeRoll(current.dice, current.diceSlots, leg.dice);
       return {
         ...current,
         board,
         dice,
+        diceSlots,
         winner: findWinner(board),
         log: note(current.log, {
           side: "human",
@@ -583,6 +619,7 @@ function BackgammonTable() {
           selectable={moves.map((m) => m.from)}
           barNeedsMove={barNeedsMove}
           dice={boardDice}
+          slots={boardDiceSlots}
           onSelect={(index) => setSelected(index)}
           onMoveTo={(to) => {
             const move = moves.find((m) => m.from === selected && m.to === to);
@@ -602,11 +639,11 @@ function BackgammonTable() {
             <div>
               <p className="font-display text-lg font-bold">You</p>
               <p className="text-xs text-ivory/60">
-                {state.turn === "human" && !state.winner ? "Your turn" : "Waiting"}
+                {state.turn === "human" && !state.winner ? "Your turn to roll dice" : "Waiting"}
               </p>
             </div>
           </div>
-          <div className="flex flex-1 items-center justify-center">
+          <div className="flex flex-1 items-center justify-end sm:justify-center">
             {state.winner ? (
               <Button variant="parlor" onClick={reset}>
                 Play again
@@ -630,6 +667,7 @@ function BackgammonTable() {
                     return {
                       ...current,
                       dice,
+                      diceSlots: dice.length === 4 ? [-1.5, -0.5, 0.5, 1.5] : [-0.5, 0.5],
                       rolled: true,
                       log: note(current.log, {
                         side: "human",
@@ -728,6 +766,7 @@ function Board({
   selectable,
   barNeedsMove,
   dice,
+  slots,
   onSelect,
   onMoveTo,
   tableGraphic,
@@ -738,6 +777,7 @@ function Board({
   selectable: (number | "bar")[];
   barNeedsMove: boolean;
   dice: number[];
+  slots: number[];
   onSelect: (index: number | "bar") => void;
   onMoveTo: (to: number | "off") => void;
   tableGraphic: TablePalette | null;
@@ -757,7 +797,7 @@ function Board({
   const prevBoardRef = useRef(board);
   const [flies, setFlies] = useState<FlyPiece[]>([]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const prev = prevBoardRef.current;
     prevBoardRef.current = board;
     const moved = detectMoves(prev, board);
@@ -1039,7 +1079,10 @@ function Board({
       {dice.length > 0 && (
         <div className="pointer-events-none absolute inset-0 z-20">
           {dice.map((value, index) => {
-            const spot = diceSpot(index, value);
+            // Each die has a stable left/right offset so it keeps its spot
+            // while its siblings are consumed one at a time during a move.
+            const offset = slots[index] ?? 0;
+            const spot = diceSpot(offset, value);
             return (
               <span
                 key={`${index}-${value}`}
