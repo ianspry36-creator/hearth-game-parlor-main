@@ -13,7 +13,13 @@ export type BoardState = {
   off: { human: number; cpu: number };
 };
 
-export type Move = { from: number | "bar"; to: number | "off"; dice: number[] };
+export type Move = {
+  from: number | "bar";
+  to: number | "off";
+  dice: number[];
+  /** Intermediate landing point for a combined (two-dice) move on one checker. */
+  via?: number;
+};
 
 export function initialBoard(): BoardState {
   const points = new Array(24).fill(0);
@@ -112,10 +118,14 @@ export function legalMoves(board: BoardState, dice: number[], p: Player): Move[]
       if (to < 0 || to > 23) continue;
       if (!canLand(board, to, p)) continue;
       // At least one intermediate point must be open for a die ordering to work.
+      // Record the playable ordering (first die → `via`) so the combined move
+      // can be animated as two separate single-die steps.
       const viaA = destination(from, a, p);
       const viaB = destination(from, b, p);
-      if (canLand(board, viaA, p) || canLand(board, viaB, p)) {
-        moves.push({ from, to, dice: [a, b] });
+      if (canLand(board, viaA, p)) {
+        moves.push({ from, to, dice: [a, b], via: viaA });
+      } else if (canLand(board, viaB, p)) {
+        moves.push({ from, to, dice: [b, a], via: viaB });
       }
     }
   }
@@ -160,6 +170,19 @@ export function consumeDice(dice: number[], used: number[]): number[] {
     if (idx !== -1) rest.splice(idx, 1);
   }
   return rest;
+}
+
+/**
+ * Break a move into its single-die legs so each can be animated separately.
+ * A combined (two-dice) move becomes two legs: `from → via` then `via → to`.
+ * Single-die, bar, and off moves are returned as-is.
+ */
+export function splitMove(move: Move): Move[] {
+  if (move.via === undefined) return [move];
+  return [
+    { from: move.from, to: move.via, dice: [move.dice[0]!] },
+    { from: move.via, to: move.to, dice: [move.dice[1]!] },
+  ];
 }
 
 export const winner = (board: BoardState): Player | null =>

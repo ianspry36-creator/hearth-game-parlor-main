@@ -202,18 +202,6 @@ function ClockTable() {
             >
               ← BACK TO THE GAME ROOM
             </button>
-            <FavouriteSwitch gameId="clock" />
-            <StatisticsDialog
-              game={game}
-              trigger={
-                <button
-                  type="button"
-                  className="cursor-pointer bg-transparent text-xs uppercase tracking-[0.2em] text-ivory/50 transition-colors hover:text-gold"
-                >
-                  Statistics
-                </button>
-              }
-            />
           </div>
         </header>
 
@@ -224,59 +212,82 @@ function ClockTable() {
           <Stat label="Best time" value={bestTime > 0 ? formatElapsed(bestTime) : "—"} />
         </div>
 
-        <div className="relative mt-8 rounded-2xl border border-gold/15 bg-surface/40 p-4 sm:p-6">
-          <ClockFace state={state} onFlip={doFlip} />
+        <div className="mt-8 grid items-start gap-6 lg:grid-cols-[1fr_260px]">
+          <div className="relative rounded-2xl border border-gold/15 bg-surface/40 p-4 sm:p-6">
+            <ClockFace state={state} onFlip={doFlip} />
 
-          <p className="mt-6 text-center text-xs text-ivory/50">
-            Turn the {slotLabel(state.active >= 0 ? state.active : 12)} pile next — lay each card at
-            its own hour. The fourth King ends the hand.
-          </p>
+            <p className="mt-6 text-center text-xs text-ivory/50">
+              Turn the {slotLabel(state.active >= 0 ? state.active : 12)} pile next — lay each card
+              at its own hour. The fourth King ends the hand.
+            </p>
 
-          {state.won && (
-            <div className="absolute inset-0 z-10 grid place-items-center rounded-2xl bg-brand/80 p-6 backdrop-blur-sm">
-              <div className="space-y-4 text-center">
-                <div className="text-5xl">🎉</div>
-                <h2 className="font-display text-3xl font-bold text-gold">The clock is set!</h2>
-                <p className="mx-auto max-w-sm text-ivory/70">
-                  All fifty-two cards found their hour before the fourth King struck.
-                </p>
-                <Button variant="parlor" onClick={reset}>
-                  Deal again
+            {state.won && (
+              <div className="absolute inset-0 z-10 grid place-items-center rounded-2xl bg-brand/80 p-6 backdrop-blur-sm">
+                <div className="space-y-4 text-center">
+                  <div className="text-5xl">🎉</div>
+                  <h2 className="font-display text-3xl font-bold text-gold">The clock is set!</h2>
+                  <p className="mx-auto max-w-sm text-ivory/70">
+                    All fifty-two cards found their hour before the fourth King struck.
+                  </p>
+                  <Button variant="parlor" onClick={reset}>
+                    Deal again
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {state.lost && (
+              <div className="absolute inset-0 z-10 grid place-items-center rounded-2xl bg-brand/80 p-6 backdrop-blur-sm">
+                <div className="space-y-4 text-center">
+                  <div className="text-5xl">⏰</div>
+                  <h2 className="font-display text-3xl font-bold text-gold">
+                    The fourth King struck!
+                  </h2>
+                  <p className="mx-auto max-w-sm text-ivory/70">
+                    You laid {state.revealed} cards before the clock tolled. Only about one hand in
+                    thirteen is won.
+                  </p>
+                  <Button variant="parlor" onClick={reset}>
+                    Deal again
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <aside className="space-y-4">
+            <div className="rounded-xl border border-gold/20 bg-surface/60 p-5">
+              <p className="mb-4 text-[11px] uppercase tracking-[0.22em] text-ivory/60">
+                Table actions
+              </p>
+              <div className="space-y-2.5">
+                <Button variant="parlor" className="w-full" onClick={confirmReset}>
+                  New game
                 </Button>
+                <RulesDialog
+                  game={game}
+                  trigger={
+                    <Button variant="parlorGhost" className="w-full">
+                      How to Play
+                    </Button>
+                  }
+                />
+                <StatisticsDialog
+                  game={game}
+                  trigger={
+                    <Button variant="parlorGhost" className="w-full">
+                      Statistics
+                    </Button>
+                  }
+                />
+                <FavouriteSwitch gameId="clock" />
               </div>
             </div>
-          )}
-
-          {state.lost && (
-            <div className="absolute inset-0 z-10 grid place-items-center rounded-2xl bg-brand/80 p-6 backdrop-blur-sm">
-              <div className="space-y-4 text-center">
-                <div className="text-5xl">⏰</div>
-                <h2 className="font-display text-3xl font-bold text-gold">The fourth King struck!</h2>
-                <p className="mx-auto max-w-sm text-ivory/70">
-                  You laid {state.revealed} cards before the clock tolled. Only about one hand in
-                  thirteen is won.
-                </p>
-                <Button variant="parlor" onClick={reset}>
-                  Deal again
-                </Button>
-              </div>
-            </div>
-          )}
+          </aside>
         </div>
 
         <div className="mt-6 flex flex-col items-center justify-center gap-3 border-t border-gold/15 pt-4 text-center">
           <div className="flex flex-wrap items-center justify-center gap-3">
-            <Button variant="parlor" onClick={confirmReset} className="scale-75 sm:scale-100">
-              New game
-            </Button>
-            <RulesDialog
-              game={game}
-              trigger={
-                <Button variant="parlorOutline" className="scale-75 sm:scale-100">
-                  How to Play
-                </Button>
-              }
-            />
             <Button
               variant="parlor"
               onClick={doFlip}
@@ -349,12 +360,7 @@ function ClockFace({ state, onFlip }: { state: GameState; onFlip: () => void }) 
           className="absolute -translate-x-1/2 -translate-y-1/2"
           style={SLOT_POSITIONS[slot]}
         >
-          <ClockSlot
-            slot={slot}
-            pile={pile}
-            isActive={state.active === slot}
-            onFlip={onFlip}
-          />
+          <ClockSlot slot={slot} pile={pile} isActive={state.active === slot} onFlip={onFlip} />
         </div>
       ))}
       <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
@@ -398,9 +404,7 @@ function ClockSlot({
             <ClockCardBack />
           </div>
         )}
-        <div className="relative z-10">
-          {top ? <ClockCardFace card={top} /> : <EmptySlot />}
-        </div>
+        <div className="relative z-10">{top ? <ClockCardFace card={top} /> : <EmptySlot />}</div>
         {isActive && (
           <span className="absolute -inset-1 z-20 rounded-md ring-2 ring-gold animate-gentle-flash" />
         )}
@@ -434,7 +438,9 @@ function ClockCardFace({ card }: { card: Card }) {
         <span>{RANK_LABEL[card.rank]}</span>
         <span className="mt-0.5 text-[7px]">{SUIT_SYMBOL[card.suit]}</span>
       </span>
-      <span className="absolute inset-0 grid place-items-center text-sm">{SUIT_SYMBOL[card.suit]}</span>
+      <span className="absolute inset-0 grid place-items-center text-sm">
+        {SUIT_SYMBOL[card.suit]}
+      </span>
     </div>
   );
 }
@@ -455,6 +461,3 @@ function EmptySlot() {
     <div className="grid h-[var(--clock-card-h)] w-[var(--clock-card-w)] place-items-center rounded-md border border-dashed border-gold/30 text-gold/30" />
   );
 }
-
-
-

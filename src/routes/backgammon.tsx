@@ -1,11 +1,13 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Button } from "@/components/ui/button";
 import { TableShell } from "@/components/parlor/TableShell";
 import { GameOverDialog } from "@/components/parlor/GameOverDialog";
 import { PlayerAvatar } from "@/components/parlor/PlayerAvatar";
+import { TableOptionsDialog } from "@/components/parlor/TableOptionsDialog";
 import { ADA_AVATAR, readAvatar } from "@/lib/avatars";
 import { getGame } from "@/lib/games";
+import { CLASSIC_PALETTE, readTableGraphic, type TablePalette } from "@/lib/backgammonTables";
 import { useMatch } from "@/lib/multiplayer";
 import { useRecordMatchResult } from "@/lib/stats";
 import {
@@ -16,6 +18,7 @@ import {
   legalMoves,
   rollDice,
   rollDie,
+  splitMove,
   winner as findWinner,
   type BoardState,
   type Move,
@@ -110,10 +113,25 @@ function Die({ value }: { value: number }) {
       {Array.from({ length: 9 }, (_, i) => (
         <span
           key={i}
-          className={`size-2 rounded-full ${pips.includes(i) ? "bg-brand" : ""}`}
+          className={`size-2 rounded-full ${pips.includes(i) ? "bg-[#2a2a2a]" : ""}`}
         />
       ))}
     </span>
+  );
+}
+
+/** A speech bubble rendered just below its anchor (used for the opponent's "PASS"). */
+function CloudChat({ text }: { text: string }) {
+  return (
+    <div className="absolute left-1/2 top-full z-10 mt-2 w-max -translate-x-1/2">
+      <div className="relative rounded-2xl border border-gold/30 bg-cream px-3 py-1.5 text-sm font-bold text-brand shadow-lg">
+        <span
+          aria-hidden
+          className="absolute -top-2 left-1/2 size-3 -translate-x-1/2 rotate-45 border-l border-t border-gold/30 bg-cream"
+        />
+        {text}
+      </div>
+    </div>
   );
 }
 
@@ -127,7 +145,38 @@ function BackgammonTable() {
   const stateRef = useRef(state);
   stateRef.current = state;
   useRecordMatchResult(match, isHost, state.winner);
-  const hitRef = useRef(false);
+  // Which player is currently showing a "PASS" bubble (no legal move available).
+  const [passBubble, setPassBubble] = useState<Seat | null>(null);
+  const passTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showPass = (side: Seat) => {
+    setPassBubble(side);
+    if (passTimerRef.current) clearTimeout(passTimerRef.current);
+    passTimerRef.current = setTimeout(() => {
+      setPassBubble(null);
+      passTimerRef.current = null;
+    }, 2000);
+  };
+  useEffect(
+    () => () => {
+      if (passTimerRef.current) clearTimeout(passTimerRef.current);
+    },
+    [],
+  );
+
+  // True while the two legs of a combined (two-dice) human move are still
+  // animating, so the player can't interrupt the sequence mid-flight.
+  const [moving, setMoving] = useState(false);
+  // Timers for the remaining legs of an in-progress combined human move.
+  const moveTimersRef = useRef<number[]>([]);
+  // Remaining legs of Ada's in-progress combined move (solo play only).
+  const cpuLegsRef = useRef<Move[]>([]);
+  useEffect(
+    () => () => {
+      moveTimersRef.current.forEach((t) => clearTimeout(t));
+      moveTimersRef.current = [];
+    },
+    [],
+  );
 
   const isMulti = Boolean(matchId);
   const opponentName = liveOpponent ?? opponent ?? "Ada";
@@ -140,13 +189,18 @@ function BackgammonTable() {
   };
 
   const [playerAvatar, setPlayerAvatar] = useState<string>(readAvatar);
+  const [tableGraphic, setTableGraphic] = useState<TablePalette | null>(readTableGraphic);
 
   const reset = () => {
     const fresh = freshState();
     stateRef.current = fresh;
     setState(fresh);
     setSelected(null);
-    hitRef.current = false;
+    setPassBubble(null);
+    setMoving(false);
+    moveTimersRef.current.forEach((t) => clearTimeout(t));
+    moveTimersRef.current = [];
+    cpuLegsRef.current = [];
     if (isMulti) void publish(isHost ? fresh : mirror(fresh));
   };
 
@@ -169,7 +223,9 @@ function BackgammonTable() {
   }, [isMulti, isHost, match?.version, remoteState]);
 
   const moves =
-    state.rolled && state.turn === "human" ? legalMoves(state.board, state.dice, "human") : [];
+    !moving && state.rolled && state.turn === "human"
+      ? legalMoves(state.board, state.dice, "human")
+      : [];
   const destinations =
     selected === null ? [] : moves.filter((m) => m.from === selected).map((m) => m.to);
 
@@ -177,10 +233,13 @@ function BackgammonTable() {
   const barNeedsMove =
     state.board.bar.human > 0 && state.turn === "human" && state.rolled;
 
-  // Hand the dice over when we have no legal moves left.
+  // Hand the dice over when we have no legal moves left, pausing for a
+  // moment so the player can watch the board settle before the CPU rolls.
   useEffect(() => {
     if (state.turn !== "human" || !state.rolled || state.winner) return;
     if (state.dice.length && legalMoves(state.board, state.dice, "human").length) return;
+    // Rolled with dice still in hand but no legal move → the player passes.
+    if (state.dice.length > 0) showPass("human");
     const timer = setTimeout(() => {
       apply((current) => ({
         ...current,
@@ -190,7 +249,7 @@ function BackgammonTable() {
         log: note(current.log, { side: "human", text: "turn ends." }),
       }));
       setSelected(null);
-    }, 500);
+    }, 2000);
     return () => clearTimeout(timer);
   }, [state.turn, state.rolled, state.dice, state.board, state.winner]);
 
@@ -255,7 +314,7 @@ function BackgammonTable() {
           rolloff: { ...current.rolloff, cpu },
           log: note(current.log, {
             side: first,
-            text: `win the rolloff ${human}-${cpu} and take the first turn.`,
+            text: `win the rolloff ${human}-${cpu} and open with those dice.`,
           }),
         };
       });
@@ -270,13 +329,20 @@ function BackgammonTable() {
     const h = state.rolloff.human;
     const c = state.rolloff.cpu;
     if (h === null || c === null || h === c) return;
-    const first: Seat = h > c ? "human" : "cpu";
     const timer = setTimeout(() => {
       apply((current) => {
         if (current.phase !== "rolloff") return current;
         if (current.rolloff.human === null || current.rolloff.cpu === null) return current;
         if (current.rolloff.human === current.rolloff.cpu) return current;
-        return { ...current, turn: first, phase: "play", rolled: false, dice: [] };
+        const first: Seat = current.rolloff.human > current.rolloff.cpu ? "human" : "cpu";
+        // The winner plays the two rolloff dice as their opening roll.
+        return {
+          ...current,
+          turn: first,
+          phase: "play",
+          rolled: true,
+          dice: [current.rolloff.human, current.rolloff.cpu],
+        };
       });
     }, 1500);
     return () => clearTimeout(timer);
@@ -286,60 +352,83 @@ function BackgammonTable() {
   useEffect(() => {
     if (isMulti) return;
     if (state.turn !== "cpu" || state.winner) return;
-    const wasHit = hitRef.current;
-    hitRef.current = false;
+    // Rolled with dice still in hand but no legal move → Ada passes.
+    if (state.rolled && state.dice.length > 0 && !chooseCpuMove(state.board, state.dice)) {
+      showPass("cpu");
+    }
+    // When a combined move is split into two die-steps, the second leg plays
+    // right after the first flight lands (plus a short pause); otherwise pause
+    // 3 seconds between rolls/moves so each flight is readable.
+    const playingLeg = cpuLegsRef.current.length > 0;
     const timer = setTimeout(() => {
-      setState((current) => {
-        if (current.turn !== "cpu" || current.winner) return current;
-        let next: State;
-        if (!current.rolled) {
-          const dice = rollDice();
+      const current = stateRef.current;
+      if (current.turn !== "cpu" || current.winner) return;
+      let next: State;
+
+      if (playingLeg) {
+        const leg = cpuLegsRef.current[0]!;
+        cpuLegsRef.current = cpuLegsRef.current.slice(1);
+        const { board, hit } = applyMove(current.board, leg, "cpu");
+        const dice = consumeDice(current.dice, leg.dice);
+        next = {
+          ...current,
+          board,
+          dice,
+          winner: findWinner(board),
+          log: note(current.log, {
+            side: "cpu",
+            text: `plays ${describeMove(leg, "cpu")}${hit ? " and hits a blot" : ""}.`,
+          }),
+        };
+      } else if (!current.rolled) {
+        const dice = rollDice();
+        next = {
+          ...current,
+          dice,
+          rolled: true,
+          log: note(current.log, {
+            side: "cpu",
+            text: `rolls ${dice[0]} and ${dice[1]}${dice.length === 4 ? " (doubles)" : ""}.`,
+          }),
+        };
+      } else {
+        const move = current.dice.length ? chooseCpuMove(current.board, current.dice) : null;
+        if (!move) {
           next = {
             ...current,
-            dice,
-            rolled: true,
-            log: note(current.log, {
-              side: "cpu",
-              text: `rolls ${dice[0]} and ${dice[1]}${dice.length === 4 ? " (doubles)" : ""}.`,
-            }),
+            turn: "human",
+            dice: [],
+            rolled: false,
+            log: note(current.log, { side: "cpu", text: "is done." }),
           };
         } else {
-          const move = current.dice.length ? chooseCpuMove(current.board, current.dice) : null;
-          if (!move) {
-            next = {
-              ...current,
-              turn: "human",
-              dice: [],
-              rolled: false,
-              log: note(current.log, { side: "cpu", text: "is done." }),
-            };
-          } else {
-            const { board, hit } = applyMove(current.board, move, "cpu");
-            if (hit) hitRef.current = true;
-            const dice = consumeDice(current.dice, move.dice);
-            next = {
-              ...current,
-              board,
-              dice,
-              winner: findWinner(board),
-              log: note(current.log, {
-                side: "cpu",
-                text: `plays ${describeMove(move, "cpu")}${hit ? " and hits a blot" : ""}.`,
-              }),
-            };
-          }
+          const legs = splitMove(move);
+          const leg = legs[0]!;
+          cpuLegsRef.current = legs.slice(1);
+          const { board, hit } = applyMove(current.board, leg, "cpu");
+          const dice = consumeDice(current.dice, leg.dice);
+          next = {
+            ...current,
+            board,
+            dice,
+            winner: findWinner(board),
+            log: note(current.log, {
+              side: "cpu",
+              text: `plays ${describeMove(leg, "cpu")}${hit ? " and hits a blot" : ""}.`,
+            }),
+          };
         }
-        stateRef.current = next;
-        return next;
-      });
-    }, wasHit ? 2000 : 800);
+      }
+      stateRef.current = next;
+      setState(next);
+    }, playingLeg ? FLIGHT_MS + LEG_PAUSE_MS : 3000);
     return () => clearTimeout(timer);
   }, [isMulti, state.turn, state.rolled, state.dice, state.board, state.winner]);
 
-  const play = (move: Move) => {
+  const applyHumanLeg = (leg: Move) => {
     apply((current) => {
-      const { board, hit } = applyMove(current.board, move, "human");
-      const dice = consumeDice(current.dice, move.dice);
+      const { board, hit } = applyMove(current.board, leg, "human");
+      const dice = consumeDice(current.dice, leg.dice);
       return {
         ...current,
         board,
@@ -347,11 +436,27 @@ function BackgammonTable() {
         winner: findWinner(board),
         log: note(current.log, {
           side: "human",
-          text: `play ${describeMove(move, "human")}${hit ? " and hit a blot" : ""}.`,
+          text: `play ${describeMove(leg, "human")}${hit ? " and hit a blot" : ""}.`,
         }),
       };
     });
+  };
+
+  // Play a move, splitting combined (two-dice) moves into separate legs so each
+  // die is animated as its own flight with a short pause in between.
+  const play = (move: Move) => {
     setSelected(null);
+    const legs = splitMove(move);
+    applyHumanLeg(legs[0]!);
+    if (legs.length > 1) setMoving(true);
+    for (let i = 1; i < legs.length; i++) {
+      const leg = legs[i]!;
+      const timer = window.setTimeout(() => {
+        applyHumanLeg(leg);
+        if (i === legs.length - 1) setMoving(false);
+      }, i * (FLIGHT_MS + LEG_PAUSE_MS));
+      moveTimersRef.current.push(timer);
+    }
   };
 
   const status = isMulti && !match
@@ -394,6 +499,9 @@ function BackgammonTable() {
       }}
       onNewGame={reset}
       rail={null}
+      menuExtra={
+        <TableOptionsDialog tableGraphic={tableGraphic} onSelect={setTableGraphic} />
+      }
     >
       <GameOverDialog
         open={Boolean(state.winner)}
@@ -409,13 +517,16 @@ function BackgammonTable() {
         {/* Opponent — top of the table */}
         <div className="flex items-center justify-between gap-4 rounded-2xl border border-gold/15 bg-brand/50 p-4">
           <div className="flex items-center gap-3">
-            <img
-              src={ADA_AVATAR}
-              alt={opponentName}
-              width={64}
-              height={64}
-              className="size-14 rounded-full border-2 border-gold/40 bg-surface object-cover"
-            />
+            <div className="relative inline-block">
+              <img
+                src={ADA_AVATAR}
+                alt={opponentName}
+                width={64}
+                height={64}
+                className="size-14 rounded-full border-2 border-gold/40 bg-surface object-cover"
+              />
+              {passBubble === "cpu" && <CloudChat text="PASS" />}
+            </div>
             <div>
               <p className="font-display text-lg font-bold">{opponentName}</p>
               <p className="text-xs text-ivory/60">
@@ -440,7 +551,7 @@ function BackgammonTable() {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-gold/15 bg-brand/50 p-4">
+        <div className="flex min-h-24 flex-wrap items-center justify-between gap-4 rounded-xl border border-gold/15 bg-brand/50 p-4">
           {state.phase === "rolloff" ? (
             <div className="flex flex-col gap-2">
               <p className="text-[11px] uppercase tracking-[0.22em] text-gold">{rolloffHeading}</p>
@@ -462,13 +573,15 @@ function BackgammonTable() {
           ) : (
             <div className="flex items-center gap-3">
               <p className="text-[11px] uppercase tracking-[0.22em] text-gold">Dice</p>
-              {state.dice.length ? (
-                state.dice.map((die, index) => (
-                  <Die key={`${die}-${index}`} value={die} />
-                ))
-              ) : (
-                <span className="text-sm text-ivory/50">Not rolled</span>
-              )}
+              <div className="flex min-w-[196px] items-center gap-3">
+                {state.dice.length ? (
+                  state.dice.map((die, index) => (
+                    <Die key={`${die}-${index}`} value={die} />
+                  ))
+                ) : (
+                  <span className="text-sm text-ivory/50">Not rolled</span>
+                )}
+              </div>
             </div>
           )}
           <div className="flex items-center gap-2">
@@ -525,12 +638,17 @@ function BackgammonTable() {
             const move = moves.find((m) => m.from === selected && m.to === to);
             if (move) play(move);
           }}
+          tableGraphic={tableGraphic}
         />
 
         {/* Player — bottom of the table */}
         <div className="flex items-center justify-between gap-4 rounded-2xl border border-gold/15 bg-brand/50 p-4">
           <div className="flex items-center gap-3">
-            <PlayerAvatar avatar={playerAvatar} onSelect={setPlayerAvatar} />
+            <PlayerAvatar
+              avatar={playerAvatar}
+              onSelect={setPlayerAvatar}
+              {...(passBubble === "human" ? { message: "PASS" } : {})}
+            />
             <div>
               <p className="font-display text-lg font-bold">You</p>
               <p className="text-xs text-ivory/60">
@@ -568,9 +686,18 @@ function describeMove(move: Move, player: Seat) {
 
 type PieceLoc = number | "bar" | "off";
 
+// Duration of a single checker flight (mirrors the `duration-1000` class).
+const FLIGHT_MS = 1000;
+
+// Pause between the two legs of a combined (two-dice) move so each die's
+// flight reads as a separate step.
+const LEG_PAUSE_MS = 500;
+
 type FlyPiece = {
   key: number;
   side: "human" | "cpu";
+  from: PieceLoc;
+  to: PieceLoc;
   x: number;
   y: number;
   tx: number;
@@ -578,6 +705,7 @@ type FlyPiece = {
   arrived: boolean;
   fadeOut: boolean;
   settled: boolean;
+  delay: number;
 };
 
 // Detect the single checker movements between two consecutive board states.
@@ -595,6 +723,7 @@ function detectMoves(
     let from: PieceLoc | null = null;
     let to: PieceLoc | null = null;
     if (bar(next) < bar(prev)) from = "bar";
+    if (bar(next) > bar(prev)) to = "bar";
     if (off(next) > off(prev)) to = "off";
     for (let i = 0; i < 24; i++) {
       if (at(next, i) < at(prev, i)) from = i;
@@ -613,6 +742,7 @@ function Board({
   barNeedsMove,
   onSelect,
   onMoveTo,
+  tableGraphic,
 }: {
   board: BoardState;
   selected: number | "bar" | null;
@@ -621,13 +751,20 @@ function Board({
   barNeedsMove: boolean;
   onSelect: (index: number | "bar") => void;
   onMoveTo: (to: number | "off") => void;
+  tableGraphic: TablePalette | null;
 }) {
   const topRow = Array.from({ length: 12 }, (_, i) => 12 + i);
   const bottomRow = Array.from({ length: 12 }, (_, i) => 11 - i);
+  const p = tableGraphic ?? CLASSIC_PALETTE;
+  // Opponent pieces default to a dark grey, but schemes with dark bars (e.g.
+  // sapphire and violet) supply a contrasting red so they stay visible.
+  const oppFill = p.opponentPiece ?? "#2a2a2a";
+  const oppBorder = p.opponentPieceBorder ?? "#0b0b0b";
 
   const boardRef = useRef<HTMLDivElement>(null);
   const pointRefs = useRef<Record<number, HTMLButtonElement | null>>({});
   const barRef = useRef<HTMLDivElement>(null);
+  const barCheckersRef = useRef<HTMLDivElement>(null);
   const prevBoardRef = useRef(board);
   const [flies, setFlies] = useState<FlyPiece[]>([]);
 
@@ -640,28 +777,94 @@ function Board({
     const boardEl = boardRef.current;
     if (!boardEl) return;
     const boardRect = boardEl.getBoundingClientRect();
-    const centerOf = (el: Element | null) => {
+    // Responsive checker metrics (mirrors the Tailwind classes on the checkers
+    // and points: size-4/sm:size-5, gap-0.5/sm:gap-1, p-0.5/sm:p-1.5).
+    const isSm = window.matchMedia("(min-width: 640px)").matches;
+    const size = isSm ? 20 : 16;
+    const gap = isSm ? 4 : 2;
+    const pad = isSm ? 6 : 2;
+
+    // The fly container is `absolute inset-0` inside the board, so its (0,0)
+    // sits at the board's *padding box* (inside the `border-4`), not the
+    // border box that getBoundingClientRect reports. Account for that offset
+    // so the piece lands pixel-exactly on the checker.
+    const boardStyle = window.getComputedStyle(boardEl);
+    const borderLeft = parseFloat(boardStyle.borderLeftWidth) || 0;
+    const borderTop = parseFloat(boardStyle.borderTopWidth) || 0;
+
+    // Centre of the checker being moved, measured from the bar edge outward so
+    // the piece starts and lands exactly where the checkers sit (not the empty
+    // middle of the triangle, which is what the point's bounding box centre is).
+    const pointCheckerCenter = (index: number, count: number): { x: number; y: number } => {
+      const el = pointRefs.current[index];
       if (!el) return { x: 0, y: 0 };
       const r = el.getBoundingClientRect();
+      const x = r.left + r.width / 2 - boardRect.left - borderLeft;
+      const top = index >= 12;
+      // The moving checker sits on top of the stack. Top points pack down from
+      // the top (justify-start), so the newest checker lands `count-1` steps
+      // down from the top. Bottom points pack up from the bottom (justify-end),
+      // so the newest checker lands `count-1` steps above the base — i.e. above
+      // the highest piece already sitting on the triangle.
+      const stackIndex = Math.max(0, Math.min(count - 1, 4));
+      const y = top
+        ? r.top + pad + stackIndex * (size + gap) + size / 2 - boardRect.top - borderTop
+        : r.bottom - pad - size / 2 - stackIndex * (size + gap) - boardRect.top - borderTop;
+      return { x, y };
+    };
+
+    // Position of a bar checker at a given index within the checker row.
+    const barCheckerCenter = (containerIndex: number): { x: number; y: number } => {
+      const container = barCheckersRef.current;
+      const barEl = barRef.current;
+      if (!container || !barEl) return { x: 0, y: 0 };
+      const cr = container.getBoundingClientRect();
+      const br = barEl.getBoundingClientRect();
+      const step = size + 4; // checker size + the bar container's gap-1 (4px)
       return {
-        x: r.left + r.width / 2 - boardRect.left,
-        y: r.top + r.height / 2 - boardRect.top,
+        x: cr.left + Math.max(0, containerIndex) * step + size / 2 - boardRect.left - borderLeft,
+        y: br.top + br.height / 2 - boardRect.top - borderTop,
       };
     };
-    const elFor = (loc: PieceLoc): Element | null =>
-      loc === "bar"
-        ? barRef.current
-        : typeof loc === "number"
-          ? (pointRefs.current[loc] ?? null)
-          : null;
+
+    // Bar checkers sit in a single flex row (human first on the left, cpu after).
+    // A piece leaving the bar (re-entry) sits at the last slot of its side in the
+    // *previous* board, while a piece arriving on the bar (after a hit) slots in
+    // at the last slot of its side in the *next* board. Using the next board for
+    // arrivals matters when the other side re-enters in the same leg: a re-entry
+    // removes a checker from the row and shifts the landing slot left by one.
+    const barIndex = (side: "human" | "cpu", arriving: boolean): number => {
+      const b = arriving ? board : prev;
+      const human = b.bar.human;
+      const cpu = b.bar.cpu;
+      return side === "human" ? human - 1 : human + cpu - 1;
+    };
+
+    // Signed checker count for a side at a location in a given board state.
+    const countAt = (b: BoardState, loc: PieceLoc, side: "human" | "cpu"): number =>
+      typeof loc === "number"
+        ? Math.max(0, side === "human" ? b.points[loc]! : -b.points[loc]!)
+        : 0;
 
     const started: FlyPiece[] = moved.map((m, idx) => {
-      const from = centerOf(elFor(m.from));
+      const from =
+        m.from === "bar"
+          ? barCheckerCenter(barIndex(m.side, false))
+          : pointCheckerCenter(m.from as number, countAt(prev, m.from, m.side));
       const fadeOut = m.to === "off";
-      const to = fadeOut ? from : centerOf(elFor(m.to));
+      const to =
+        m.to === "bar"
+          ? barCheckerCenter(barIndex(m.side, true))
+          : fadeOut
+            ? from
+            : pointCheckerCenter(m.to as number, countAt(board, m.to, m.side));
+      // A piece knocked to the bar waits for the hitter to land before flying.
+      const delay = m.to === "bar" ? FLIGHT_MS : 0;
       return {
         key: idx,
         side: m.side,
+        from: m.from,
+        to: m.to,
         x: from.x,
         y: from.y,
         tx: to.x,
@@ -669,30 +872,62 @@ function Board({
         arrived: false,
         fadeOut,
         settled: false,
+        delay,
       };
     });
     setFlies(started);
 
+    // Start the immediate flights right away, then the delayed (hit-to-bar)
+    // flights once the hitter has landed.
     const raf = requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        setFlies(started.map((f) => ({ ...f, arrived: true })));
+        setFlies((current) => current.map((f) => (f.delay > 0 ? f : { ...f, arrived: true })));
       });
     });
-    // After the flight lands, fade the ghost out so it doesn't stack on top of
-    // the checker that is now already rendered in the destination point.
+    const arriveDelayedTimer = started.some((f) => f.delay > 0)
+      ? window.setTimeout(() => {
+          setFlies((current) =>
+            current.map((f) => (f.delay > 0 && !f.arrived ? { ...f, arrived: true } : f)),
+          );
+        }, FLIGHT_MS)
+      : undefined;
+
+    // After a flight lands, fade the ghost out so it doesn't stack on top of the
+    // checker that is now already rendered in the destination. Delayed pieces
+    // settle a full flight later.
     const settleTimer = window.setTimeout(() => {
-      setFlies((current) => current.map((f) => ({ ...f, settled: true })));
-    }, 750);
-    const clearTimer = window.setTimeout(() => setFlies([]), 1000);
+      setFlies((current) => current.map((f) => (f.delay > 0 ? f : { ...f, settled: true })));
+    }, FLIGHT_MS + 50);
+    const settleDelayedTimer = started.some((f) => f.delay > 0)
+      ? window.setTimeout(() => {
+          setFlies((current) => current.map((f) => (f.delay > 0 ? { ...f, settled: true } : f)));
+        }, 2 * FLIGHT_MS + 50)
+      : undefined;
+    const clearTimer = window.setTimeout(
+      () => setFlies([]),
+      Math.max(0, ...started.map((f) => f.delay)) + 2 * FLIGHT_MS + 100,
+    );
     return () => {
       cancelAnimationFrame(raf);
+      if (arriveDelayedTimer) clearTimeout(arriveDelayedTimer);
       clearTimeout(settleTimer);
+      if (settleDelayedTimer) clearTimeout(settleDelayedTimer);
       clearTimeout(clearTimer);
     };
   }, [board]);
 
+  // Checkers flying onto the bar (after a hit) are hidden here until the fly
+  // ghost settles, mirroring how destination points hide their incoming checker.
+  const barIncoming = (side: "human" | "cpu") =>
+    flies.filter((f) => f.to === "bar" && f.side === side && !f.settled).length;
+
   const renderPoint = (index: number, top: boolean) => {
     const count = board.points[index]!;
+    // Hide the checker that is currently "in flight" to this point so the
+    // animated piece lands as the new checker instead of doubling up on top
+    // of the one already rendered here.
+    const incoming = flies.filter((f) => f.to === index && !f.fadeOut && !f.settled).length;
+    const shown = count > 0 ? Math.max(0, count - incoming) : Math.min(0, count + incoming);
     const isDestination = destinations.includes(index);
     const isSelectable = selectable.includes(index);
     const isSelected = selected === index;
@@ -703,49 +938,81 @@ function Board({
           pointRefs.current[index] = el;
         }}
         onClick={() => (isDestination ? onMoveTo(index) : isSelectable ? onSelect(index) : undefined)}
-        className={`flex min-h-32 flex-col ${top ? "justify-start" : "justify-end"} gap-0.5 sm:gap-1 rounded-md border p-0.5 sm:p-1.5 transition-colors ${
+        className={`relative flex min-h-32 flex-col ${top ? "justify-start" : "justify-end"} gap-0.5 p-0.5 sm:gap-1 sm:p-1.5 transition-shadow ${
           isDestination
-            ? "border-gold bg-gold/20"
+            ? "ring-2 ring-gold ring-offset-1 ring-offset-[var(--board-surface)]"
             : isSelected
-              ? "border-gold bg-gold/10"
-              : index % 2 === 0
-                ? "border-gold/10 bg-brand/70"
-                : "border-gold/10 bg-surface/70"
+              ? "ring-2 ring-gold/60 ring-offset-1 ring-offset-[var(--board-surface)]"
+              : ""
         } ${isSelectable || isDestination ? "cursor-pointer" : "cursor-default"}`}
       >
-        {Array.from({ length: Math.min(Math.abs(count), 5) }, (_, i) => (
-          <span
-            key={i}
-            className={`mx-auto size-4 sm:size-5 rounded-full border ${
-              count > 0 ? "border-black/20 bg-cream" : "border-gold/40 bg-surface"
-            }`}
-          />
-        ))}
-        {Math.abs(count) > 5 && (
-          <span className="text-center text-[10px] text-ivory/70">+{Math.abs(count) - 5}</span>
-        )}
-        <span className="mt-auto text-center text-[9px] uppercase tracking-widest text-ivory/35">
-          {index + 1}
-        </span>
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-0"
+          style={{
+            background: index % 2 === 0 ? "var(--board-point-light)" : "var(--board-point-dark)",
+            clipPath: top
+              ? "polygon(0 0, 100% 0, 50% 100%)"
+              : "polygon(50% 0, 100% 100%, 0 100%)",
+          }}
+        />
+        {Array.from({ length: Math.min(Math.abs(shown), 5) }, (_, i) => {
+          const overflow = Math.abs(shown) - 5;
+          const isLast = i === Math.min(Math.abs(shown), 5) - 1;
+          return (
+            <span
+              key={i}
+              className={`relative z-10 mx-auto flex size-4 items-center justify-center sm:size-5 rounded-full border shadow-sm shadow-black/30 ${
+                count > 0 ? "border-[#6b5233] bg-cream" : "border-[var(--opp-piece-border)] bg-[var(--opp-piece)]"
+              }`}
+            >
+              {isLast && overflow > 0 && (
+                <span className={`text-[9px] font-bold leading-none ${count > 0 ? "text-[#4a3520]" : "text-cream"}`}>
+                  +{overflow}
+                </span>
+              )}
+            </span>
+          );
+        })}
       </button>
     );
   };
 
   return (
-    <div ref={boardRef} className="relative space-y-3 rounded-2xl border border-gold/25 bg-brand/70 p-3 shadow-2xl shadow-black/40">
+    <div
+      ref={boardRef}
+      className="relative flex flex-col gap-3 rounded-2xl border-4 border-[var(--board-border)] bg-[var(--board-surface)] p-3 shadow-2xl shadow-black/40"
+      style={
+        {
+          "--board-surface": p.surface,
+          "--board-border": p.border,
+          "--board-point-light": p.pointLight,
+          "--board-point-dark": p.pointDark,
+          "--board-bar": p.bar,
+          "--board-bar-text": p.barText,
+          "--board-divider": p.divider,
+          "--opp-piece": oppFill,
+          "--opp-piece-border": oppBorder,
+        } as CSSProperties
+      }
+    >
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-y-3 left-1/2 z-10 w-px -translate-x-1/2 bg-[var(--board-divider)] opacity-40"
+      />
       <div className="grid grid-cols-12 gap-1">{topRow.map((index) => renderPoint(index, true))}</div>
-      <div ref={barRef} className="flex min-h-10 items-center justify-between gap-3 rounded-md border border-gold/15 bg-surface/50 px-3 py-2">
+      <div ref={barRef} className="flex min-h-10 items-center justify-between gap-3 rounded-md border border-[var(--board-divider)] bg-[var(--board-bar)] px-3 py-2">
         <div className="flex items-center gap-2">
-          <span className="text-[10px] uppercase tracking-[0.2em] text-ivory/55">Bar</span>
-          <div className="flex flex-wrap items-center gap-1">
-            {Array.from({ length: board.bar.human }, (_, i) => (
+          <span className="text-[10px] uppercase tracking-[0.2em] text-[var(--board-bar-text)]">Bar</span>
+          <div ref={barCheckersRef} className="flex flex-wrap items-center gap-1">
+            {Array.from({ length: Math.max(0, board.bar.human - barIncoming("human")) }, (_, i) => (
               <button
                 key={`bar-you-${i}`}
                 type="button"
                 title="Your piece — click to re-enter"
                 onClick={() => (selectable.includes("bar") ? onSelect("bar") : undefined)}
                 className={`relative size-4 sm:size-5 rounded-full border p-0 transition-colors ${
-                  selected === "bar" ? "border-gold bg-gold/30" : "border-black/20 bg-cream"
+                  selected === "bar" ? "border-gold bg-gold/30" : "border-[#6b5233] bg-cream"
                 } shadow-sm shadow-black/30 ${
                   selectable.includes("bar") ? "cursor-pointer" : "cursor-default"
                 }`}
@@ -758,20 +1025,20 @@ function Board({
                 )}
               </button>
             ))}
-            {Array.from({ length: board.bar.cpu }, (_, i) => (
+            {Array.from({ length: Math.max(0, board.bar.cpu - barIncoming("cpu")) }, (_, i) => (
               <span
                 key={`bar-opp-${i}`}
                 title="Opponent piece"
-                className="size-4 sm:size-5 rounded-full border border-gold/40 bg-surface shadow-sm shadow-black/30"
+                className="size-4 sm:size-5 rounded-full border border-[var(--opp-piece-border)] bg-[var(--opp-piece)] shadow-sm shadow-black/30"
               />
             ))}
             {board.bar.human === 0 && board.bar.cpu === 0 && (
-              <span className="text-[10px] uppercase tracking-[0.2em] text-ivory/35">empty</span>
+              <span className="text-[10px] uppercase tracking-[0.2em] text-[var(--board-bar-text)] opacity-50">empty</span>
             )}
           </div>
         </div>
         <button
-          className={`rounded px-2 py-1 ${destinations.includes("off") ? "bg-gold text-brand" : "text-ivory/40"}`}
+          className={`rounded px-2 py-1 ${destinations.includes("off") ? "bg-gold text-[#2c2012]" : "text-[var(--board-bar-text)] opacity-60"}`}
           onClick={() => destinations.includes("off") && onMoveTo("off")}
         >
           Bear off
@@ -785,8 +1052,8 @@ function Board({
           {flies.map((f) => (
             <span
               key={f.key}
-              className={`absolute size-4 sm:size-5 -translate-x-1/2 -translate-y-1/2 rounded-full border shadow-md shadow-black/40 transition-all duration-700 ease-out ${
-                f.side === "human" ? "border-black/20 bg-cream" : "border-gold/40 bg-surface"
+              className={`absolute size-4 sm:size-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 shadow-md shadow-black/60 transition-all duration-1000 ease-in-out ${
+                f.side === "human" ? "border-[#6b5233] bg-cream" : "border-[var(--opp-piece-border)] bg-[var(--opp-piece)]"
               } ${f.arrived && (f.fadeOut || f.settled) ? "scale-50 opacity-0" : "opacity-100"}`}
               style={{
                 left: f.arrived ? f.tx : f.x,

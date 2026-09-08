@@ -232,18 +232,6 @@ function ScorpionTable() {
             >
               ← BACK TO THE GAME ROOM
             </button>
-            <FavouriteSwitch gameId="scorpion" />
-            <StatisticsDialog
-              game={game}
-              trigger={
-                <button
-                  type="button"
-                  className="cursor-pointer bg-transparent text-xs uppercase tracking-[0.2em] text-ivory/50 transition-colors hover:text-gold"
-                >
-                  Statistics
-                </button>
-              }
-            />
           </div>
         </header>
 
@@ -255,73 +243,96 @@ function ScorpionTable() {
           <Stat label="Best time" value={best.time > 0 ? formatElapsed(best.time) : "—"} />
         </div>
 
-        <div className="relative mt-8 rounded-2xl border border-gold/15 bg-surface/40 p-4 sm:p-6">
-          <div className="mb-6 flex flex-wrap items-start justify-between gap-6">
-            <div className="flex flex-col items-center gap-1">
-              <TailPile count={state.tail.length} disabled={!canDealTail} onClick={clickTail} />
-            </div>
-            <div className="flex gap-2">
-              {state.foundations.map((pile, index) => (
-                <FoundationSlot key={index} pile={pile} />
-              ))}
-            </div>
-          </div>
-
-          <div className="flex items-start justify-center gap-1 sm:gap-3">
-            {state.tableau.map((pile, index) => (
-              <TableauPile
-                key={index}
-                pile={pile}
-                selection={selection}
-                index={index}
-                onCardClick={clickTableau}
-                onEmptyClick={clickEmpty}
-              />
-            ))}
-          </div>
-
-          <p className="mt-6 text-center text-xs text-ivory/50">
-            Build four descending runs, King to Ace, one per suit. Select a card, then click
-            where its run should go. Only a King fills an empty pile.
-          </p>
-
-          {state.won && (
-            <div className="absolute inset-0 z-10 grid place-items-center rounded-2xl bg-brand/80 p-6 backdrop-blur-sm">
-              <div className="space-y-4 text-center">
-                <div className="text-5xl">🎉</div>
-                <h2 className="font-display text-3xl font-bold text-gold">You cleared the table!</h2>
-                <p className="mx-auto max-w-sm text-ivory/70">
-                  All four runs made it home in {state.moves} moves.
-                </p>
-                <Button variant="parlor" onClick={reset}>
-                  Deal again
-                </Button>
+        <div className="mt-8 grid items-start gap-6 lg:grid-cols-[1fr_260px]">
+          <div className="relative rounded-2xl border border-gold/15 bg-surface/40 p-4 sm:p-6">
+            <div className="mb-6 flex flex-wrap items-start justify-between gap-6">
+              <div className="flex flex-col items-center gap-1">
+                <TailPile count={state.tail.length} disabled={!canDealTail} onClick={clickTail} />
+              </div>
+              <div className="flex gap-2">
+                {state.foundations.map((pile, index) => (
+                  <FoundationSlot key={index} pile={pile} />
+                ))}
               </div>
             </div>
-          )}
+
+            <div className="flex items-start justify-center gap-1 sm:gap-3">
+              {state.tableau.map((pile, index) => (
+                <TableauPile
+                  key={index}
+                  pile={pile}
+                  selection={selection}
+                  index={index}
+                  onCardClick={clickTableau}
+                  onEmptyClick={clickEmpty}
+                />
+              ))}
+            </div>
+
+            <p className="mt-6 text-center text-xs text-ivory/50">
+              Build four descending runs, King to Ace, one per suit. Select a card, then click where
+              its run should go. Only a King fills an empty pile.
+            </p>
+
+            {state.won && (
+              <div className="absolute inset-0 z-10 grid place-items-center rounded-2xl bg-brand/80 p-6 backdrop-blur-sm">
+                <div className="space-y-4 text-center">
+                  <div className="text-5xl">🎉</div>
+                  <h2 className="font-display text-3xl font-bold text-gold">
+                    You cleared the table!
+                  </h2>
+                  <p className="mx-auto max-w-sm text-ivory/70">
+                    All four runs made it home in {state.moves} moves.
+                  </p>
+                  <Button variant="parlor" onClick={reset}>
+                    Deal again
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <aside className="space-y-4">
+            <div className="rounded-xl border border-gold/20 bg-surface/60 p-5">
+              <p className="mb-4 text-[11px] uppercase tracking-[0.22em] text-ivory/60">
+                Table actions
+              </p>
+              <div className="space-y-2.5">
+                <Button variant="parlor" className="w-full" onClick={confirmReset}>
+                  New game
+                </Button>
+                <RulesDialog
+                  game={game}
+                  trigger={
+                    <Button variant="parlorGhost" className="w-full">
+                      How to Play
+                    </Button>
+                  }
+                />
+                <Button
+                  variant="parlorGhost"
+                  className="w-full"
+                  onClick={undo}
+                  disabled={history.length === 0 || state.won}
+                >
+                  Undo
+                </Button>
+                <StatisticsDialog
+                  game={game}
+                  trigger={
+                    <Button variant="parlorGhost" className="w-full">
+                      Statistics
+                    </Button>
+                  }
+                />
+                <FavouriteSwitch gameId="scorpion" />
+              </div>
+            </div>
+          </aside>
         </div>
 
         <div className="mt-6 flex flex-col items-center justify-center gap-3 border-t border-gold/15 pt-4 text-center">
           <div className="flex flex-wrap items-center justify-center gap-3">
-            <Button variant="parlor" onClick={confirmReset} className="scale-75 sm:scale-100">
-              New game
-            </Button>
-            <RulesDialog
-              game={game}
-              trigger={
-                <Button variant="parlorOutline" className="scale-75 sm:scale-100">
-                  How to Play
-                </Button>
-              }
-            />
-            <Button
-              variant="parlorOutline"
-              onClick={undo}
-              disabled={history.length === 0 || state.won}
-              className="scale-75 sm:scale-100"
-            >
-              Undo
-            </Button>
             <button
               type="button"
               onClick={toggleClearRuns}
@@ -432,7 +443,15 @@ function EmptySlot({ onClick }: { onClick?: () => void }) {
   );
 }
 
-function TailPile({ count, disabled, onClick }: { count: number; disabled: boolean; onClick: () => void }) {
+function TailPile({
+  count,
+  disabled,
+  onClick,
+}: {
+  count: number;
+  disabled: boolean;
+  onClick: () => void;
+}) {
   return (
     <div className="flex flex-col items-center gap-1">
       <div className="relative">
@@ -532,5 +551,3 @@ function TableauPile({
     </div>
   );
 }
-
-

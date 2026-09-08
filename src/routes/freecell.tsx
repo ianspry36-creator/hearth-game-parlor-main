@@ -148,7 +148,8 @@ function FreeCellTable() {
   const clickCell = (index: number) => {
     if (selection) {
       if (selection.type === "tableau") apply(moveTableauToCell(state, selection.index, index));
-      else if (selection.type === "foundation") apply(moveFoundationToCell(state, selection.index, index));
+      else if (selection.type === "foundation")
+        apply(moveFoundationToCell(state, selection.index, index));
       else if (selection.type === "cell") {
         if (selection.index === index) {
           setSelection(null);
@@ -197,13 +198,18 @@ function FreeCellTable() {
   };
 
   const clickTableau = (index: number, cardIndex: number) => {
-    if (selection?.type === "tableau" && selection.index === index && selection.cardIndex === cardIndex) {
+    if (
+      selection?.type === "tableau" &&
+      selection.index === index &&
+      selection.cardIndex === cardIndex
+    ) {
       setSelection(null);
       return;
     }
     if (selection) {
       if (selection.type === "cell") apply(moveCellToTableau(state, selection.index, index));
-      else if (selection.type === "foundation") apply(moveFoundationToTableau(state, selection.index, index));
+      else if (selection.type === "foundation")
+        apply(moveFoundationToTableau(state, selection.index, index));
       else if (selection.type === "tableau") {
         const count = state.tableau[selection.index]!.length - selection.cardIndex;
         apply(moveTableauToTableau(state, selection.index, count, index));
@@ -228,7 +234,6 @@ function FreeCellTable() {
     const emptyCell = state.cells.findIndex((c) => c === null);
     if (emptyCell !== -1) apply(moveTableauToCell(state, index, emptyCell));
   };
-
 
   const dragRef = useRef<DragSource | null>(null);
 
@@ -282,13 +287,13 @@ function FreeCellTable() {
     if (!source) return;
     dragRef.current = null;
     if (source.type === "cell") apply(moveCellToTableau(state, source.index, index));
-    else if (source.type === "foundation") apply(moveFoundationToTableau(state, source.index, index));
+    else if (source.type === "foundation")
+      apply(moveFoundationToTableau(state, source.index, index));
     else if (source.type === "tableau") {
       const count = state.tableau[source.index]!.length - source.cardIndex;
       apply(moveTableauToTableau(state, source.index, count, index));
     }
   };
-
 
   return (
     <div className="min-h-screen bg-brand text-cream">
@@ -315,115 +320,126 @@ function FreeCellTable() {
             >
               ← Back to the game room
             </button>
-            <FavouriteSwitch gameId="freecell" />
-            <StatisticsDialog
-              game={game}
-              trigger={
-                <button
-                  type="button"
-                  className="cursor-pointer bg-transparent text-xs uppercase tracking-[0.2em] text-ivory/50 transition-colors hover:text-gold"
-                >
-                  Statistics
-                </button>
-              }
-            />
           </div>
         </header>
 
-        <div className="relative rounded-2xl border border-gold/20 bg-surface/40 p-5 sm:p-8">
-          <div className="space-y-8">
-            <div className="flex items-start gap-1 sm:gap-2">
-              <div className="flex gap-1 sm:gap-2">
-                {state.cells.map((card, index) => (
-                  <CellSlot
-                    key={index}
-                    card={card}
-                    selected={selection?.type === "cell" && selection.index === index}
-                    onClick={() => clickCell(index)}
-                    onDoubleClick={() => doubleClickCell(index)}
-                    onDragOver={onDragOver}
-                    onDrop={dropOnCell(index)}
-                    onDragStart={startDrag({ type: "cell", index })}
-                  />
-                ))}
+        <div className="grid items-start gap-6 lg:grid-cols-[1fr_260px]">
+          <div className="relative rounded-2xl border border-gold/20 bg-surface/40 p-5 sm:p-8">
+            <div className="space-y-8">
+              <div className="flex items-start gap-1 sm:gap-2">
+                <div className="flex gap-1 sm:gap-2">
+                  {state.cells.map((card, index) => (
+                    <CellSlot
+                      key={index}
+                      card={card}
+                      selected={selection?.type === "cell" && selection.index === index}
+                      onClick={() => clickCell(index)}
+                      onDoubleClick={() => doubleClickCell(index)}
+                      onDragOver={onDragOver}
+                      onDrop={dropOnCell(index)}
+                      onDragStart={startDrag({ type: "cell", index })}
+                    />
+                  ))}
+                </div>
+                <div className="flex gap-1 sm:gap-2">
+                  {state.foundations.map((pile, index) => (
+                    <FoundationSlot
+                      key={index}
+                      pile={pile}
+                      suitIndex={index}
+                      selected={selection?.type === "foundation" && selection.index === index}
+                      onClick={() => clickFoundation(index)}
+                      onDragOver={onDragOver}
+                      onDrop={dropOnFoundation(index)}
+                      onDragStart={startDrag({ type: "foundation", index })}
+                    />
+                  ))}
+                </div>
               </div>
-              <div className="flex gap-1 sm:gap-2">
-                {state.foundations.map((pile, index) => (
-                  <FoundationSlot
+
+              <div className="grid grid-cols-8 gap-1 sm:gap-2">
+                {state.tableau.map((pile, index) => (
+                  <TableauPile
                     key={index}
                     pile={pile}
-                    suitIndex={index}
-                    selected={selection?.type === "foundation" && selection.index === index}
-                    onClick={() => clickFoundation(index)}
+                    index={index}
+                    selection={selection}
+                    onCardClick={clickTableau}
+                    onDoubleClick={doubleClickTableau}
                     onDragOver={onDragOver}
-                    onDrop={dropOnFoundation(index)}
-                    onDragStart={startDrag({ type: "foundation", index })}
+                    onDrop={dropOnTableau(index)}
+                    onDragStartCard={(cardIndex) =>
+                      startDrag({ type: "tableau", index, cardIndex })
+                    }
                   />
                 ))}
               </div>
+
+              <div className="flex flex-col items-center justify-center gap-3 border-t border-gold/15 pt-4 text-center">
+                <span className="text-sm text-ivory/60">
+                  {state.moves} {state.moves === 1 ? "move" : "moves"}
+                </span>
+                <span className="text-xs uppercase tracking-[0.2em] text-ivory/40">
+                  Free cells · Foundations · Eight piles
+                </span>
+              </div>
             </div>
 
-            <div className="grid grid-cols-8 gap-1 sm:gap-2">
-              {state.tableau.map((pile, index) => (
-                <TableauPile
-                  key={index}
-                  pile={pile}
-                  index={index}
-                  selection={selection}
-                  onCardClick={clickTableau}
-                  onDoubleClick={doubleClickTableau}
-                  onDragOver={onDragOver}
-                  onDrop={dropOnTableau(index)}
-                  onDragStartCard={(cardIndex) => startDrag({ type: "tableau", index, cardIndex })}
-                />
-              ))}
-            </div>
+            {state.won && (
+              <div className="absolute inset-0 z-10 grid place-items-center rounded-2xl bg-brand/80 p-6 backdrop-blur-sm">
+                <div className="space-y-4 text-center">
+                  <div className="text-5xl">🎉</div>
+                  <h2 className="font-display text-3xl font-bold text-gold">
+                    You cleared the table!
+                  </h2>
+                  <p className="mx-auto max-w-sm text-ivory/70">
+                    All fifty-two cards made it home to the foundations in {state.moves} moves.
+                  </p>
+                  <Button variant="parlor" onClick={reset}>
+                    Deal again
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
 
-            <div className="flex flex-col items-center justify-center gap-3 border-t border-gold/15 pt-4 text-center">
-              <div className="flex flex-wrap items-center justify-center gap-3">
-                <Button variant="parlorOutline" onClick={confirmReset} className="scale-75 sm:scale-100">
+          <aside className="space-y-4">
+            <div className="rounded-xl border border-gold/20 bg-surface/60 p-5">
+              <p className="mb-4 text-[11px] uppercase tracking-[0.22em] text-ivory/60">
+                Table actions
+              </p>
+              <div className="space-y-2.5">
+                <Button variant="parlor" className="w-full" onClick={confirmReset}>
                   New game
                 </Button>
                 <RulesDialog
                   game={game}
                   trigger={
-                    <Button variant="parlorOutline" className="scale-75 sm:scale-100">
+                    <Button variant="parlorGhost" className="w-full">
                       How to Play
                     </Button>
                   }
                 />
                 <Button
-                  variant="parlorOutline"
+                  variant="parlorGhost"
+                  className="w-full"
                   onClick={undo}
                   disabled={history.length === 0 || autocompleting}
-                  className="scale-75 sm:scale-100"
                 >
                   Undo
                 </Button>
-                <span className="text-sm text-ivory/60">
-                  {state.moves} {state.moves === 1 ? "move" : "moves"}
-                </span>
-              </div>
-              <span className="text-xs uppercase tracking-[0.2em] text-ivory/40">
-                Free cells · Foundations · Eight piles
-              </span>
-            </div>
-          </div>
-
-          {state.won && (
-            <div className="absolute inset-0 z-10 grid place-items-center rounded-2xl bg-brand/80 p-6 backdrop-blur-sm">
-              <div className="space-y-4 text-center">
-                <div className="text-5xl">🎉</div>
-                <h2 className="font-display text-3xl font-bold text-gold">You cleared the table!</h2>
-                <p className="mx-auto max-w-sm text-ivory/70">
-                  All fifty-two cards made it home to the foundations in {state.moves} moves.
-                </p>
-                <Button variant="parlor" onClick={reset}>
-                  Deal again
-                </Button>
+                <StatisticsDialog
+                  game={game}
+                  trigger={
+                    <Button variant="parlorGhost" className="w-full">
+                      Statistics
+                    </Button>
+                  }
+                />
+                <FavouriteSwitch gameId="freecell" />
               </div>
             </div>
-          )}
+          </aside>
         </div>
       </div>
 
@@ -456,7 +472,6 @@ function FreeCellTable() {
     </div>
   );
 }
-
 
 function CardFace({
   card,
@@ -600,7 +615,10 @@ function TableauPile({
           const isSelected =
             selection?.type === "tableau" && selection.index === index && selection.cardIndex === i;
           return (
-            <div key={card.id} style={{ marginTop: i === 0 ? 0 : "calc(var(--fc-visible) - var(--fc-card-h))" }}>
+            <div
+              key={card.id}
+              style={{ marginTop: i === 0 ? 0 : "calc(var(--fc-visible) - var(--fc-card-h))" }}
+            >
               <CardFace
                 card={card}
                 selected={isSelected}
@@ -616,4 +634,3 @@ function TableauPile({
     </div>
   );
 }
-

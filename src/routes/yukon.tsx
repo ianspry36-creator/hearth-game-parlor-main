@@ -276,18 +276,6 @@ function YukonTable() {
             >
               ← BACK TO THE GAME ROOM
             </button>
-            <FavouriteSwitch gameId="yukon" />
-            <StatisticsDialog
-              game={game}
-              trigger={
-                <button
-                  type="button"
-                  className="cursor-pointer bg-transparent text-xs uppercase tracking-[0.2em] text-ivory/50 transition-colors hover:text-gold"
-                >
-                  Statistics
-                </button>
-              }
-            />
           </div>
         </header>
 
@@ -299,77 +287,95 @@ function YukonTable() {
           <Stat label="Best time" value={best.time > 0 ? formatElapsed(best.time) : "—"} />
         </div>
 
-        <div className="relative mt-8 rounded-2xl border border-gold/15 bg-surface/40 p-4 sm:p-6">
-          <div className="mb-6 flex justify-end gap-2">
-            {state.foundations.map((pile, index) => (
-              <FoundationSlot
-                key={index}
-                pile={pile}
-                selected={selection?.type === "foundation" && selection.index === index}
-                onClick={() => clickFoundation(index)}
-              />
-            ))}
+        <div className="mt-8 grid items-start gap-6 lg:grid-cols-[1fr_260px]">
+          <div className="relative rounded-2xl border border-gold/15 bg-surface/40 p-4 sm:p-6">
+            <div className="mb-6 flex justify-end gap-2">
+              {state.foundations.map((pile, index) => (
+                <FoundationSlot
+                  key={index}
+                  pile={pile}
+                  selected={selection?.type === "foundation" && selection.index === index}
+                  onClick={() => clickFoundation(index)}
+                />
+              ))}
+            </div>
+
+            <div className="flex items-start justify-center gap-1 sm:gap-3">
+              {state.tableau.map((pile, index) => (
+                <TableauPile
+                  key={index}
+                  pile={pile}
+                  selection={selection}
+                  index={index}
+                  onCardClick={clickTableau}
+                  onDoubleClick={doubleClickTableau}
+                  onFaceDownClick={clickFaceDown}
+                  onEmptyClick={clickEmpty}
+                />
+              ))}
+            </div>
+
+            <p className="mt-6 text-center text-xs text-ivory/50">
+              Build four suits up from the Ace. Lift any face-up card — and everything above it,
+              ordered or not — onto an opposite-coloured card one rank higher. Double-click a card
+              to send it home.
+            </p>
+
+            {state.won && (
+              <div className="absolute inset-0 z-10 grid place-items-center rounded-2xl bg-brand/80 p-6 backdrop-blur-sm">
+                <div className="space-y-4 text-center">
+                  <div className="text-5xl">🎉</div>
+                  <h2 className="font-display text-3xl font-bold text-gold">
+                    You cleared the table!
+                  </h2>
+                  <p className="mx-auto max-w-sm text-ivory/70">
+                    All fifty-two cards made it home in {state.moves} moves.
+                  </p>
+                  <Button variant="parlor" onClick={reset}>
+                    Deal again
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
 
-          <div className="flex items-start justify-center gap-1 sm:gap-3">
-            {state.tableau.map((pile, index) => (
-              <TableauPile
-                key={index}
-                pile={pile}
-                selection={selection}
-                index={index}
-                onCardClick={clickTableau}
-                onDoubleClick={doubleClickTableau}
-                onFaceDownClick={clickFaceDown}
-                onEmptyClick={clickEmpty}
-              />
-            ))}
-          </div>
-
-          <p className="mt-6 text-center text-xs text-ivory/50">
-            Build four suits up from the Ace. Lift any face-up card — and everything above it,
-            ordered or not — onto an opposite-coloured card one rank higher. Double-click a card to
-            send it home.
-          </p>
-
-          {state.won && (
-            <div className="absolute inset-0 z-10 grid place-items-center rounded-2xl bg-brand/80 p-6 backdrop-blur-sm">
-              <div className="space-y-4 text-center">
-                <div className="text-5xl">🎉</div>
-                <h2 className="font-display text-3xl font-bold text-gold">You cleared the table!</h2>
-                <p className="mx-auto max-w-sm text-ivory/70">
-                  All fifty-two cards made it home in {state.moves} moves.
-                </p>
-                <Button variant="parlor" onClick={reset}>
-                  Deal again
+          <aside className="space-y-4">
+            <div className="rounded-xl border border-gold/20 bg-surface/60 p-5">
+              <p className="mb-4 text-[11px] uppercase tracking-[0.22em] text-ivory/60">
+                Table actions
+              </p>
+              <div className="space-y-2.5">
+                <Button variant="parlor" className="w-full" onClick={confirmReset}>
+                  New game
                 </Button>
+                <RulesDialog
+                  game={game}
+                  trigger={
+                    <Button variant="parlorGhost" className="w-full">
+                      How to Play
+                    </Button>
+                  }
+                />
+                <Button
+                  variant="parlorGhost"
+                  className="w-full"
+                  onClick={undo}
+                  disabled={history.length === 0 || state.won}
+                >
+                  Undo
+                </Button>
+                <StatisticsDialog
+                  game={game}
+                  trigger={
+                    <Button variant="parlorGhost" className="w-full">
+                      Statistics
+                    </Button>
+                  }
+                />
+                <FavouriteSwitch gameId="yukon" />
               </div>
             </div>
-          )}
-        </div>
-
-        <div className="mt-6 flex flex-col items-center justify-center gap-3 border-t border-gold/15 pt-4 text-center">
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            <Button variant="parlor" onClick={confirmReset} className="scale-75 sm:scale-100">
-              New game
-            </Button>
-            <RulesDialog
-              game={game}
-              trigger={
-                <Button variant="parlorOutline" className="scale-75 sm:scale-100">
-                  How to Play
-                </Button>
-              }
-            />
-            <Button
-              variant="parlorOutline"
-              onClick={undo}
-              disabled={history.length === 0 || state.won}
-              className="scale-75 sm:scale-100"
-            >
-              Undo
-            </Button>
-          </div>
+          </aside>
         </div>
       </div>
 
@@ -562,4 +568,3 @@ function TableauPile({
     </div>
   );
 }
-

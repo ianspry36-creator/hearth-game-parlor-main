@@ -168,7 +168,8 @@ function SolitaireTable() {
           const card = pile.faceUp[selection.cardIndex];
           if (card) {
             const target = foundationTarget(card, currentState.foundations);
-            if (target !== null) apply(moveTableauToFoundation(currentState, selection.index, target));
+            if (target !== null)
+              apply(moveTableauToFoundation(currentState, selection.index, target));
           }
         } else {
           setSelection(null);
@@ -182,13 +183,18 @@ function SolitaireTable() {
   };
 
   const clickTableau = (index: number, cardIndex: number) => {
-    if (selection?.type === "tableau" && selection.index === index && selection.cardIndex === cardIndex) {
+    if (
+      selection?.type === "tableau" &&
+      selection.index === index &&
+      selection.cardIndex === cardIndex
+    ) {
       setSelection(null);
       return;
     }
     if (selection) {
       if (selection.type === "waste") apply(moveWasteToTableau(state, index));
-      else if (selection.type === "foundation") apply(moveFoundationToTableau(state, selection.index, index));
+      else if (selection.type === "foundation")
+        apply(moveFoundationToTableau(state, selection.index, index));
       else if (selection.type === "tableau") {
         const count = state.tableau[selection.index]!.faceUp.length - selection.cardIndex;
         apply(moveTableauToTableau(state, selection.index, count, index));
@@ -237,7 +243,8 @@ function SolitaireTable() {
     if (!source) return;
     dragRef.current = null;
     if (source.type === "waste") apply(moveWasteToTableau(state, index));
-    else if (source.type === "foundation") apply(moveFoundationToTableau(state, source.index, index));
+    else if (source.type === "foundation")
+      apply(moveFoundationToTableau(state, source.index, index));
     else if (source.type === "tableau") {
       const count = state.tableau[source.index]!.faceUp.length - source.cardIndex;
       apply(moveTableauToTableau(state, source.index, count, index));
@@ -250,7 +257,7 @@ function SolitaireTable() {
     if (!source) return;
     dragRef.current = null;
     const currentState = stateRef.current;
-    
+
     if (source.type === "waste") {
       const card = currentState.waste[currentState.waste.length - 1];
       if (card) {
@@ -294,103 +301,119 @@ function SolitaireTable() {
             >
               ← Back to the game room
             </button>
-            <FavouriteSwitch gameId="solitaire" />
-            <StatisticsDialog
-              game={game}
-              trigger={
-                <button
-                  type="button"
-                  className="cursor-pointer bg-transparent text-xs uppercase tracking-[0.2em] text-ivory/50 transition-colors hover:text-gold"
-                >
-                  Statistics
-                </button>
-              }
-            />
           </div>
         </header>
 
-        <div className="relative rounded-2xl border border-gold/20 bg-surface/40 p-5 sm:p-8">
-          <div className="space-y-8">
-            <div className="flex flex-wrap items-start justify-between gap-6">
-              <div className="flex items-start gap-4">
-                <StockPile count={state.stock.length} onClick={clickStock} />
-                <WastePile
-                  cards={state.waste}
-                  selected={selection?.type === "waste"}
-                  onClick={clickWaste}
-                  onDoubleClick={doubleClickWaste}
-                  onDragStart={startDrag({ type: "waste" })}
-                />
+        <div className="grid items-start gap-6 lg:grid-cols-[1fr_260px]">
+          <div className="relative rounded-2xl border border-gold/20 bg-surface/40 p-5 sm:p-8">
+            <div className="space-y-8">
+              <div className="flex flex-wrap items-start justify-between gap-6">
+                <div className="flex items-start gap-4">
+                  <StockPile count={state.stock.length} onClick={clickStock} />
+                  <WastePile
+                    cards={state.waste}
+                    selected={selection?.type === "waste"}
+                    onClick={clickWaste}
+                    onDoubleClick={doubleClickWaste}
+                    onDragStart={startDrag({ type: "waste" })}
+                  />
+                </div>
+                <div className="flex gap-2">
+                  {state.foundations.map((pile, index) => (
+                    <FoundationSlot
+                      key={index}
+                      pile={pile}
+                      suitIndex={index}
+                      selected={selection?.type === "foundation" && selection.index === index}
+                      onClick={() => clickFoundation(index)}
+                      onDragOver={onDragOver}
+                      onDrop={dropOnFoundation(index)}
+                      onDragStart={startDrag({ type: "foundation", index })}
+                    />
+                  ))}
+                </div>
               </div>
-              <div className="flex gap-2">
-                {state.foundations.map((pile, index) => (
-                  <FoundationSlot
+
+              <div className="grid grid-cols-7 gap-2">
+                {state.tableau.map((pile, index) => (
+                  <TableauPile
                     key={index}
                     pile={pile}
-                    suitIndex={index}
-                    selected={selection?.type === "foundation" && selection.index === index}
-                    onClick={() => clickFoundation(index)}
+                    index={index}
+                    selection={selection}
+                    onCardClick={clickTableau}
+                    onDoubleClick={doubleClickTableau}
                     onDragOver={onDragOver}
-                    onDrop={dropOnFoundation(index)}
-                    onDragStart={startDrag({ type: "foundation", index })}
+                    onDrop={dropOnTableau(index)}
+                    onDragStartCard={(cardIndex) =>
+                      startDrag({ type: "tableau", index, cardIndex })
+                    }
                   />
                 ))}
               </div>
-            </div>
 
-            <div className="grid grid-cols-7 gap-2">
-              {state.tableau.map((pile, index) => (
-                <TableauPile
-                  key={index}
-                  pile={pile}
-                  index={index}
-                  selection={selection}
-                  onCardClick={clickTableau}
-                  onDoubleClick={doubleClickTableau}
-                  onDragOver={onDragOver}
-                  onDrop={dropOnTableau(index)}
-                  onDragStartCard={(cardIndex) => startDrag({ type: "tableau", index, cardIndex })}
-                />
-              ))}
-            </div>
-
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gold/15 pt-4">
-              <div className="flex items-center gap-3">
-                <Button variant="parlorOutline" onClick={confirmReset}>
-                  Start again
-                </Button>
-                <RulesDialog
-                  game={game}
-                  trigger={
-                    <Button variant="parlorOutline">
-                      How to Play
-                    </Button>
-                  }
-                />
-                <Button variant="parlorOutline" onClick={undo} disabled={history.length === 0}>
-                  Undo
-                </Button>
+              <div className="border-t border-gold/15 pt-4 text-center">
                 <span className="text-sm text-ivory/60">
                   {state.moves} {state.moves === 1 ? "move" : "moves"}
                 </span>
               </div>
             </div>
+
+            {state.won && (
+              <div className="absolute inset-0 z-10 grid place-items-center rounded-2xl bg-brand/80 p-6 backdrop-blur-sm">
+                <div className="space-y-4 text-center">
+                  <div className="text-5xl">🎉</div>
+                  <h2 className="font-display text-3xl font-bold text-gold">
+                    You cleared the table!
+                  </h2>
+                  <p className="mx-auto max-w-sm text-ivory/70">
+                    All fifty-two cards made it home to the foundations in {state.moves} moves.
+                  </p>
+                  <Button variant="parlor" onClick={reset}>
+                    Deal again
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
 
-          {state.won && (
-            <div className="absolute inset-0 z-10 grid place-items-center rounded-2xl bg-brand/80 p-6 backdrop-blur-sm">
-              <div className="space-y-4 text-center">
-                <div className="text-5xl">🎉</div>
-                <h2 className="font-display text-3xl font-bold text-gold">You cleared the table!</h2>
-                <p className="mx-auto max-w-sm text-ivory/70">
-                  All fifty-two cards made it home to the foundations in {state.moves} moves.
-                </p>
-                <Button variant="parlor" onClick={reset}>
-                  Deal again
+          <aside className="space-y-4">
+            <div className="rounded-xl border border-gold/20 bg-surface/60 p-5">
+              <p className="mb-4 text-[11px] uppercase tracking-[0.22em] text-ivory/60">
+                Table actions
+              </p>
+              <div className="space-y-2.5">
+                <Button variant="parlor" className="w-full" onClick={confirmReset}>
+                  New game
                 </Button>
+                <RulesDialog
+                  game={game}
+                  trigger={
+                    <Button variant="parlorGhost" className="w-full">
+                      How to Play
+                    </Button>
+                  }
+                />
+                <Button
+                  variant="parlorGhost"
+                  className="w-full"
+                  onClick={undo}
+                  disabled={history.length === 0}
+                >
+                  Undo
+                </Button>
+                <StatisticsDialog
+                  game={game}
+                  trigger={
+                    <Button variant="parlorGhost" className="w-full">
+                      Statistics
+                    </Button>
+                  }
+                />
+                <FavouriteSwitch gameId="solitaire" />
               </div>
             </div>
-          )}
+          </aside>
         </div>
       </div>
 
@@ -607,11 +630,7 @@ function TableauPile({
           const isTop = i === pile.faceDown.length - 1;
           return (
             <div key={card.id} style={{ marginTop: i === 0 ? 0 : -(CARD_H - FACE_DOWN_VISIBLE) }}>
-              {canFlip && isTop ? (
-                <CardBack onClick={() => onCardClick(index, 0)} />
-              ) : (
-                <CardBack />
-              )}
+              {canFlip && isTop ? <CardBack onClick={() => onCardClick(index, 0)} /> : <CardBack />}
             </div>
           );
         })}
@@ -619,7 +638,12 @@ function TableauPile({
           const isSelected =
             selection?.type === "tableau" && selection.index === index && selection.cardIndex === i;
           return (
-            <div key={card.id} style={{ marginTop: pile.faceDown.length === 0 && i === 0 ? 0 : -(CARD_H - FACE_UP_VISIBLE) }}>
+            <div
+              key={card.id}
+              style={{
+                marginTop: pile.faceDown.length === 0 && i === 0 ? 0 : -(CARD_H - FACE_UP_VISIBLE),
+              }}
+            >
               <CardFace
                 card={card}
                 selected={isSelected}
@@ -635,6 +659,3 @@ function TableauPile({
     </div>
   );
 }
-
-
-

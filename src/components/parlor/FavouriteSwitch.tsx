@@ -9,8 +9,8 @@ export function FavouriteSwitch({ gameId }: { gameId: GameId }) {
 
   return (
     <label htmlFor={id} className="flex cursor-pointer select-none items-center gap-2.5">
-      <Switch id={id} checked={isFavourite(gameId)} onCheckedChange={() => toggleFavourite(gameId)} />
       <span className="text-xs uppercase tracking-[0.2em] text-ivory/50">Favourite</span>
+      <Switch id={id} checked={isFavourite(gameId)} onCheckedChange={() => toggleFavourite(gameId)} />
     </label>
   );
 }

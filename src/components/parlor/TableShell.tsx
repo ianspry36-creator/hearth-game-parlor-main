@@ -38,6 +38,7 @@ export function TableShell({
   onPlayerCount,
   playerCount,
   lobby,
+  menuExtra,
 }: {
   game: GameMeta;
   opponentName: string;
@@ -55,6 +56,7 @@ export function TableShell({
   onPlayerCount?: (count: 2 | 3 | 4) => void;
   playerCount?: 2 | 3 | 4;
   lobby?: (props: { open: boolean; onOpenChange: (open: boolean) => void }) => ReactNode;
+  menuExtra?: ReactNode;
 }) {
   const navigate = useNavigate();
   const [confirming, setConfirming] = useState<"new" | "human" | "home" | "2" | "3" | "4" | null>(null);
@@ -116,7 +118,6 @@ export function TableShell({
             >
               ← Back to the game room
             </button>
-            <FavouriteSwitch gameId={game.id} />
           </div>
         </header>
 
@@ -191,9 +192,11 @@ export function TableShell({
                     </Button>
                   }
                 />
+                {menuExtra}
                 <Button variant="parlorGhost" className="w-full" onClick={() => setChatOpen(true)}>
                   Chat
                 </Button>
+                <FavouriteSwitch gameId={game.id} />
                 <ChatDialog open={chatOpen} onOpenChange={setChatOpen} onSend={sendChat} />
               </div>
 
@@ -235,16 +238,6 @@ export function TableShell({
                 </AlertDialogContent>
               </AlertDialog>
             </div>
-
-            {!hideOpponent && (
-              <div className="rounded-xl border border-gold/15 bg-brand/50 p-5">
-                <p className="mb-2 text-[11px] uppercase tracking-[0.22em] text-ivory/60">
-                  Opponent
-                </p>
-                <p className="font-display text-xl">{opponentName}</p>
-                <p className="mt-1 text-sm text-ivory/60">{opponentStatus}</p>
-              </div>
-            )}
 
             {rail}
           </aside>

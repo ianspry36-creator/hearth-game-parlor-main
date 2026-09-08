@@ -246,21 +246,6 @@ function KingsInTheCornerTable() {
             >
               ← BACK TO THE GAME ROOM
             </button>
-            <FavouriteSwitch gameId="kings-in-the-corner" />
-            <StatisticsDialog
-              game={game}
-              trigger={
-                <button
-                  type="button"
-                  className="cursor-pointer bg-transparent text-xs uppercase tracking-[0.2em] text-ivory/50 transition-colors hover:text-gold"
-                >
-                  Statistics
-                </button>
-              }
-            />
-            <Button variant="parlor" onClick={confirmReset} className="scale-90 sm:scale-100">
-              New game
-            </Button>
           </div>
         </header>
 
@@ -272,97 +257,123 @@ function KingsInTheCornerTable() {
           <Stat label="Stock" value={String(state.stock.length)} />
         </div>
 
-        <div className="relative mt-8 rounded-2xl border border-gold/15 bg-surface/40 p-5 sm:p-8">
-          <div className="mb-6 flex items-center justify-center gap-5">
-            <div className="relative">
-              {state.stock.length > 0 ? <CardBack /> : <EmptySlot />}
-              <span className="absolute -bottom-4 left-1/2 -translate-x-1/2 text-[10px] text-ivory/50">
-                {state.stock.length}
-              </span>
+        <div className="mt-8 grid items-start gap-6 lg:grid-cols-[1fr_260px]">
+          <div className="relative rounded-2xl border border-gold/15 bg-surface/40 p-5 sm:p-8">
+            <div className="mb-6 flex items-center justify-center gap-5">
+              <div className="relative">
+                {state.stock.length > 0 ? <CardBack /> : <EmptySlot />}
+                <span className="absolute -bottom-4 left-1/2 -translate-x-1/2 text-[10px] text-ivory/50">
+                  {state.stock.length}
+                </span>
+              </div>
+              <div className="flex flex-col items-center gap-1">
+                {state.draw ? <CardFace card={state.draw} /> : <EmptySlot />}
+                <span className="text-[10px] uppercase tracking-[0.18em] text-ivory/45">Draw</span>
+              </div>
             </div>
-            <div className="flex flex-col items-center gap-1">
-              {state.draw ? <CardFace card={state.draw} /> : <EmptySlot />}
-              <span className="text-[10px] uppercase tracking-[0.18em] text-ivory/45">Draw</span>
-            </div>
-          </div>
 
-          <div className="mx-auto grid w-fit grid-cols-4 gap-1 sm:gap-2">
-            {Array.from({ length: ROWS }, (_, row) =>
-              Array.from({ length: COLS }, (_, col) => {
-                const pos = { row, col };
-                const kind = slotKind(pos);
-                const card = state.board[row]![col] ?? null;
-                const key = `${row}:${col}`;
-                return (
-                  <SlotCell
-                    key={key}
-                    card={card}
-                    kind={kind}
-                    selected={selection !== null && selection.row === row && selection.col === col}
-                    isLegal={legalSet.has(key)}
-                    onClick={() => clickSlot(pos)}
-                  />
-                );
-              }),
+            <div className="mx-auto grid w-fit grid-cols-4 gap-1 sm:gap-2">
+              {Array.from({ length: ROWS }, (_, row) =>
+                Array.from({ length: COLS }, (_, col) => {
+                  const pos = { row, col };
+                  const kind = slotKind(pos);
+                  const card = state.board[row]![col] ?? null;
+                  const key = `${row}:${col}`;
+                  return (
+                    <SlotCell
+                      key={key}
+                      card={card}
+                      kind={kind}
+                      selected={
+                        selection !== null && selection.row === row && selection.col === col
+                      }
+                      isLegal={legalSet.has(key)}
+                      onClick={() => clickSlot(pos)}
+                    />
+                  );
+                }),
+              )}
+            </div>
+
+            <p className="mt-6 text-center text-xs text-ivory/50">
+              Place the drawn card, then pair off cards whose ranks add up to ten. Click a ten to
+              clear it alone.
+            </p>
+
+            {state.won && (
+              <div className="absolute inset-0 z-10 grid place-items-center rounded-2xl bg-brand/80 p-6 backdrop-blur-sm">
+                <div className="space-y-4 text-center">
+                  <div className="text-5xl">🎉</div>
+                  <h2 className="font-display text-3xl font-bold text-gold">
+                    You cleared the table!
+                  </h2>
+                  <p className="mx-auto max-w-sm text-ivory/70">
+                    All twelve face cards are home and every numbered card is paired off in{" "}
+                    {state.moves} moves.
+                  </p>
+                  <Button variant="parlor" onClick={reset}>
+                    Deal again
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {state.lost && (
+              <div className="absolute inset-0 z-10 grid place-items-center rounded-2xl bg-brand/80 p-6 backdrop-blur-sm">
+                <div className="space-y-4 text-center">
+                  <div className="text-5xl">🃏</div>
+                  <h2 className="font-display text-3xl font-bold text-gold">You're stuck</h2>
+                  <p className="mx-auto max-w-sm text-ivory/70">
+                    {state.lostReason ?? "There is no legal move left."}
+                  </p>
+                  <Button variant="parlor" onClick={reset}>
+                    Deal again
+                  </Button>
+                </div>
+              </div>
             )}
           </div>
 
-          <p className="mt-6 text-center text-xs text-ivory/50">
-            Place the drawn card, then pair off cards whose ranks add up to ten. Click a ten to
-            clear it alone.
-          </p>
-
-          {state.won && (
-            <div className="absolute inset-0 z-10 grid place-items-center rounded-2xl bg-brand/80 p-6 backdrop-blur-sm">
-              <div className="space-y-4 text-center">
-                <div className="text-5xl">🎉</div>
-                <h2 className="font-display text-3xl font-bold text-gold">You cleared the table!</h2>
-                <p className="mx-auto max-w-sm text-ivory/70">
-                  All twelve face cards are home and every numbered card is paired off in{" "}
-                  {state.moves} moves.
-                </p>
-                <Button variant="parlor" onClick={reset}>
-                  Deal again
+          <aside className="space-y-4">
+            <div className="rounded-xl border border-gold/20 bg-surface/60 p-5">
+              <p className="mb-4 text-[11px] uppercase tracking-[0.22em] text-ivory/60">
+                Table actions
+              </p>
+              <div className="space-y-2.5">
+                <Button variant="parlor" className="w-full" onClick={confirmReset}>
+                  New game
                 </Button>
+                <RulesDialog
+                  game={game}
+                  trigger={
+                    <Button variant="parlorGhost" className="w-full">
+                      How to Play
+                    </Button>
+                  }
+                />
+                <Button
+                  variant="parlorGhost"
+                  className="w-full"
+                  onClick={undo}
+                  disabled={history.length === 0 || state.won || state.lost}
+                >
+                  Undo
+                </Button>
+                <StatisticsDialog
+                  game={game}
+                  trigger={
+                    <Button variant="parlorGhost" className="w-full">
+                      Statistics
+                    </Button>
+                  }
+                />
+                <FavouriteSwitch gameId="kings-in-the-corner" />
               </div>
             </div>
-          )}
-
-          {state.lost && (
-            <div className="absolute inset-0 z-10 grid place-items-center rounded-2xl bg-brand/80 p-6 backdrop-blur-sm">
-              <div className="space-y-4 text-center">
-                <div className="text-5xl">🃏</div>
-                <h2 className="font-display text-3xl font-bold text-gold">You're stuck</h2>
-                <p className="mx-auto max-w-sm text-ivory/70">
-                  {state.lostReason ?? "There is no legal move left."}
-                </p>
-                <Button variant="parlor" onClick={reset}>
-                  Deal again
-                </Button>
-              </div>
-            </div>
-          )}
+          </aside>
         </div>
 
-        <div className="mt-6 flex flex-col items-center justify-center gap-3 border-t border-gold/15 pt-4 text-center">
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            <RulesDialog
-              game={game}
-              trigger={
-                <Button variant="parlorOutline" className="scale-75 sm:scale-100">
-                  How to Play
-                </Button>
-              }
-            />
-            <Button
-              variant="parlorOutline"
-              onClick={undo}
-              disabled={history.length === 0 || state.won || state.lost}
-              className="scale-75 sm:scale-100"
-            >
-              Undo
-            </Button>
-          </div>
+        <div className="mt-6 border-t border-gold/15 pt-4 text-center">
           <span className="text-xs uppercase tracking-[0.2em] text-ivory/40">
             Kings in the corners · Queens and jacks along the edges · Pairs of ten
           </span>
@@ -505,7 +516,3 @@ function EmptySlot() {
     <div className="grid h-[var(--kic-card-h)] w-[var(--kic-card-w)] place-items-center rounded-lg border border-dashed border-gold/30 text-gold/30" />
   );
 }
-
-
-
-
