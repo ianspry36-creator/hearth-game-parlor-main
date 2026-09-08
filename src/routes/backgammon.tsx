@@ -338,7 +338,7 @@ function BackgammonTable() {
   const rolloffLabel =
     state.rolloff.human === null
       ? canRollOff
-        ? "Roll for first turn"
+        ? "Roll the dice"
         : "Waiting…"
       : state.rolloff.cpu === null
         ? "Rolling…"
@@ -628,6 +628,19 @@ function BackgammonTable() {
           tableGraphic={tableGraphic}
         />
 
+        {/* Player borne off — slim full-width strip above the player box (mobile only) */}
+        <div className="rounded-lg border border-gold/20 bg-surface/60 px-4 py-2 sm:hidden">
+          <div className="flex min-h-5 flex-wrap items-center justify-center gap-1">
+            {Array.from({ length: state.board.off.human }, (_, i) => (
+              <span
+                key={`off-human-mobile-${i}`}
+                title="Your piece"
+                className="size-4 rounded-full border border-black/20 bg-cream shadow-sm shadow-black/30"
+              />
+            ))}
+          </div>
+        </div>
+
         {/* Player — bottom of the table */}
         <div className="flex items-center gap-4 rounded-2xl border border-gold/15 bg-brand/50 p-4">
           <div className="flex shrink-0 items-center gap-3">
@@ -681,7 +694,7 @@ function BackgammonTable() {
               </Button>
             )}
           </div>
-          <div className="shrink-0 rounded-lg border border-gold/20 bg-surface/60 px-4 py-2 text-center">
+          <div className="hidden shrink-0 rounded-lg border border-gold/20 bg-surface/60 px-4 py-2 text-center sm:block">
             <p className="text-[10px] uppercase tracking-[0.2em] text-ivory/50">Borne off</p>
             <div className="mx-auto mt-1 flex max-w-36 flex-wrap items-center justify-center gap-1">
               {Array.from({ length: state.board.off.human }, (_, i) => (
