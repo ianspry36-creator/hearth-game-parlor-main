@@ -1,9 +1,10 @@
 import { freshDeck, type Card } from "./cribbage";
 
 export const ROWS = 4;
-// Row 0 is the bottom (the widest, dealt face up); row 3 is the top of the peaks.
-export const ROW_LENGTHS = [10, 9, 8, 7];
-export const PEAK_CARDS = ROW_LENGTHS.reduce((sum, n) => sum + n, 0); // 34
+// Row 0 is the bottom (the widest, dealt face up); row 3 caps the three peaks.
+// Rows 1–3 are dealt face down and are turned up as they are uncovered.
+export const ROW_LENGTHS = [10, 9, 6, 3];
+export const PEAK_CARDS = ROW_LENGTHS.reduce((sum, n) => sum + n, 0); // 28
 
 export type Slot = { card: Card; faceUp: boolean } | null;
 
@@ -17,11 +18,13 @@ export type GameState = {
 };
 
 /**
- * Tri Peaks is dealt into three overlapping pyramids that share the bottom
- * row: ten cards face up on the bottom, then nine, eight and seven face down
- * above them. The remaining eighteen cards form the stock. The object is to
- * clear every peak onto the waste by playing cards one rank above or below
- * the waste's top card.
+ * Tri Peaks is dealt into three separate pyramids: ten cards face up on the
+ * bottom row, then nine face down above them, six more face down above those
+ * (with a one-card gap after the second and fourth to split the three
+ * pyramids), and finally three face-down cards capping each peak. The
+ * remaining twenty-four cards form the stock. The object is to clear every
+ * peak onto the waste by playing cards one rank above or below the waste's
+ * top card.
  */
 export function freshGame(random: () => number = Math.random): GameState {
   const deck = freshDeck(random);
@@ -33,6 +36,9 @@ export function freshGame(random: () => number = Math.random): GameState {
     }
     peaks.push(rowSlots);
   }
+  // Only the bottom row is dealt face up. Lower rows render in front, so the
+  // bottom tier is never covered and is immediately playable; rows 1–3 are
+  // dealt face down and turn face up as the card in front of them is played.
   return { peaks, stock: deck, waste: [], moves: 0, won: false, lost: false };
 }
 
@@ -42,11 +48,37 @@ export function isAdjacentRank(a: number, b: number): boolean {
   return diff === 1 || diff === 12;
 }
 
+/**
+ * Horizontal position of a card in the tableau, measured in column steps
+ * (each step is `--tripeaks-step-x`, sized so neighbouring cards do not
+ * overlap). Every row is offset half a step to the right of the row below it.
+ * Row 2 leaves a one-card gap after its second and fourth cards so it forms
+ * the bases of three separate pyramids, and row 3 places one card on top of
+ * each of those three pyramids.
+ */
+export function slotX(row: number, col: number): number {
+  switch (row) {
+    case 0: return col; // 0 … 9
+    case 1: return col + 0.5; // 0.5 … 8.5
+    case 2: return col + 1 + Math.floor(col / 2); // 1, 2, 4, 5, 7, 8
+    case 3: return col * 3 + 1.5; // 1.5, 4.5, 7.5
+    default: return col;
+  }
+}
+
+/**
+ * A card is covered when a card directly below it still sits in front of it.
+ * Lower rows render at a higher z-index (`ROWS - row`), so the bottom tier
+ * hides the cards behind it and is itself always exposed.
+ */
 function isCovered(peaks: Slot[][], row: number, col: number): boolean {
-  if (row + 1 >= ROWS) return false;
-  const above = peaks[row + 1]!;
-  if (col < above.length && above[col]) return true;
-  if (col - 1 >= 0 && above[col - 1]) return true;
+  if (row <= 0) return false;
+  const x = slotX(row, col);
+  const below = peaks[row - 1]!;
+  for (let c = 0; c < below.length; c += 1) {
+    if (!below[c]) continue;
+    if (Math.abs(slotX(row - 1, c) - x) < 0.75) return true;
+  }
   return false;
 }
 

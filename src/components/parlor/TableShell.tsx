@@ -29,6 +29,7 @@ export function TableShell({
   onNewGame,
   gameInProgress = false,
   rail,
+  middle,
   children,
   hideOpponent = false,
   opponentDisconnected = false,
@@ -46,7 +47,8 @@ export function TableShell({
   onMatched: (opponent: string, matchId: string) => void;
   onNewGame: () => void;
   gameInProgress?: boolean;
-  rail: ReactNode;
+  rail?: ReactNode;
+  middle?: ReactNode;
   children: ReactNode;
   hideOpponent?: boolean;
   opponentDisconnected?: boolean;
@@ -121,25 +123,28 @@ export function TableShell({
           </div>
         </header>
 
-        <div className="grid gap-6 lg:grid-cols-[1fr_260px]">
+        <div className={`grid gap-6 ${middle ? "lg:grid-cols-[1fr_230px_260px]" : "lg:grid-cols-[1fr_260px]"}`}>
           <div className="rounded-2xl border border-gold/20 bg-surface/40 p-5 sm:p-8">
             <ChatContext.Provider value={chatMessage}>{children}</ChatContext.Provider>
           </div>
 
+          {middle ? <div className="self-start">{middle}</div> : null}
+
           <aside className="space-y-4">
-            <div className="rounded-xl border border-gold/20 bg-surface/60 p-5">
-              <p className="mb-4 text-[11px] uppercase tracking-[0.22em] text-ivory/60">
+            <div className="rounded-xl border border-gold/20 bg-surface/60 p-3">
+              <p className="mb-2 text-[10px] uppercase tracking-[0.22em] text-ivory/60">
                 Table actions
               </p>
-              <div className="space-y-2.5">
-                <Button variant="parlor" className="w-full" onClick={startNewGame}>
+              <div className="space-y-2">
+                <Button variant="parlor" size="sm" className="w-full h-6" onClick={startNewGame}>
                   New game
                 </Button>
                 {onPlayerCount ? (
-                  <div className="grid grid-cols-3 gap-2.5">
+                  <div className="grid grid-cols-3 gap-2">
                     <Button
                       variant="parlorOutline"
-                      className="w-full px-1"
+                      size="sm"
+                      className="w-full px-1 h-6"
                       disabled={playerCount === 2}
                       onClick={() => startPlayerCount(2)}
                     >
@@ -147,7 +152,8 @@ export function TableShell({
                     </Button>
                     <Button
                       variant="parlorOutline"
-                      className="w-full px-1"
+                      size="sm"
+                      className="w-full px-1 h-6"
                       disabled={playerCount === 3}
                       onClick={() => startPlayerCount(3)}
                     >
@@ -155,7 +161,8 @@ export function TableShell({
                     </Button>
                     <Button
                       variant="parlorOutline"
-                      className="w-full px-1"
+                      size="sm"
+                      className="w-full px-1 h-6"
                       disabled={playerCount === 4}
                       onClick={() => startPlayerCount(4)}
                     >
@@ -163,7 +170,7 @@ export function TableShell({
                     </Button>
                   </div>
                 ) : null}
-                <Button variant="parlorOutline" className="w-full" onClick={openWaitingRoom}>
+                <Button variant="parlorOutline" size="sm" className="w-full h-6" onClick={openWaitingRoom}>
                   {waitingRoomLabel}
                 </Button>
                 {lobby ? (
@@ -179,7 +186,7 @@ export function TableShell({
                 <RulesDialog
                   game={game}
                   trigger={
-                    <Button variant="parlorGhost" className="w-full">
+                    <Button variant="parlorGhost" size="sm" className="w-full h-6">
                       How to Play
                     </Button>
                   }
@@ -187,13 +194,13 @@ export function TableShell({
                 <StatisticsDialog
                   game={game}
                   trigger={
-                    <Button variant="parlorGhost" className="w-full">
+                    <Button variant="parlorGhost" size="sm" className="w-full h-6">
                       Statistics
                     </Button>
                   }
                 />
                 {menuExtra}
-                <Button variant="parlorGhost" className="w-full" onClick={() => setChatOpen(true)}>
+                <Button variant="parlorGhost" size="sm" className="w-full h-6" onClick={() => setChatOpen(true)}>
                   Chat
                 </Button>
                 <FavouriteSwitch gameId={game.id} />

@@ -6,11 +6,13 @@ import {
   AlertDialogAction,
   AlertDialogContent,
   AlertDialogDescription,
+  AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { TableShell } from "@/components/parlor/TableShell";
 import { CribBoard } from "@/components/parlor/CribBoard";
+import { CribBoardOptionsDialog } from "@/components/parlor/CribBoardOptionsDialog";
 import { getGame } from "@/lib/games";
 import { useMatch } from "@/lib/multiplayer";
 import { useRecordMatchResult } from "@/lib/stats";
@@ -33,6 +35,7 @@ import cardBackAsset from "@/assets/card-back.png";
 import skunk from "@/assets/skunk.png";
 import { PlayerAvatar } from "@/components/parlor/PlayerAvatar";
 import { AVATAR_OPTIONS, ADA_AVATAR, ADA_HAPPY, ADA_SAD, readAvatar } from "@/lib/avatars";
+import { readCribBoardGraphic } from "@/lib/cribbageBoards";
 
 
 export const Route = createFileRoute("/cribbage")({
@@ -408,6 +411,7 @@ function CribbageTable() {
   const [selected, setSelected] = useState<string[]>([]);
   const [back, setBack] = useState<Record<Side, number>>({ player: 0, cpu: 0 });
   const [avatar, setAvatar] = useState<string>(AVATAR_OPTIONS[0]!.url);
+  const [boardGraphic, setBoardGraphic] = useState<string>(readCribBoardGraphic);
   useEffect(() => setAvatar(readAvatar()), []);
   // Cards land face down, then turn over one at a time.
   const [faceUpCount, setFaceUpCount] = useState(6);
@@ -429,6 +433,8 @@ function CribbageTable() {
   const [flying, setFlying] = useState<FlyingCard[]>([]);
   /** Card currently in flight from the hand to the pile (hidden in hand until it lands). */
   const [layingId, setLayingId] = useState<string | null>(null);
+  /** Cards in flight from a hand to the crib (hidden in hand until they land). */
+  const [discardingIds, setDiscardingIds] = useState<string[]>([]);
   const pileRef = useRef<HTMLDivElement>(null);
   const cribRef = useRef<HTMLDivElement>(null);
   const handEls = useRef(new Map<string, HTMLButtonElement>());
@@ -477,10 +483,15 @@ function CribbageTable() {
         key: Date.now(),
         card,
         from: { x: rect.left, y: rect.top },
-        // The pile grows left-to-right, so the next card lands on its right
-        // side (not the left edge).
-        to: { x: pileRect.left + pileRect.width - 22, y: pileRect.top },
-        toScale: 11 / 16, // full-size hand card -> small pile card
+        // The pile grows left-to-right inside a fixed-width slot, each card
+        // advancing 20px (44px card minus the 24px overlap). Land with the
+        // card's left edge exactly on the next empty slot.
+        to: {
+          x: pileRect.left + state.pile.length * 20,
+          y: pileRect.top,
+        },
+        fromScale: 11 / 16, // small hand card (flying card base is full-size)
+        toScale: 11 / 16, // small pile card
       };
       setFlying((current) => [...current, flight]);
       window.setTimeout(() => {
@@ -511,7 +522,7 @@ function CribbageTable() {
       from: { x: fanRect.left, y: fanRect.top },
       to: { x: seatRect.left, y: seatRect.top },
       fromScale: 11 / 16, // w-11 (small) over w-16 (full)
-      toScale: 1,
+      toScale: 11 / 16, // land at the small size so it matches the seat card
     };
     setFlying((current) => [...current, flight]);
     window.setTimeout(() => {
@@ -721,42 +732,53 @@ function CribbageTable() {
     if (selected.length !== 2) return;
     // Capture the hand positions before the chosen cards leave the hand.
     const cards = state.playerHand.filter((c) => selected.includes(c.id));
+    const discardIds = cards.map((c) => c.id);
     const cribRect = cribRef.current?.getBoundingClientRect();
     const flights: FlyingCard[] = [];
     if (cribRect) {
-      cards.forEach((card) => {
+      cards.forEach((card, index) => {
         const el = handEls.current.get(card.id);
         if (!el) return;
         const rect = el.getBoundingClientRect();
         flights.push({
-          key: Date.now() + flights.length,
+          key: Date.now() + index,
           card,
           from: { x: rect.left, y: rect.top },
-          to: { x: cribRect.left, y: cribRect.top },
-          toScale: 11 / 16, // full-size hand card -> small crib card
+          // Each crib card advances 16px (32px card less the 16px overlap), so
+          // the pair lands side by side instead of stacked on the first slot.
+          to: { x: cribRect.left + index * 16, y: cribRect.top },
+          fromScale: 11 / 16, // small hand card (flying card base is full-size)
+          toScale: 1 / 2, // tiny crib card
           faceDown: true,
         });
       });
     }
-    apply((current) => {
-      const s: State = { ...current };
-      s.playerDiscards = s.playerHand.filter((c) => selected.includes(c.id));
-      s.playerKept = s.playerHand.filter((c) => !selected.includes(c.id));
-      s.playerHand = [...s.playerKept];
-      s.crib = [...s.playerDiscards];
-      return s;
-    });
+    // Hide the chosen cards in the hand while they fly to the crib.
+    setDiscardingIds(discardIds);
+    setSelected([]);
     if (flights.length) {
       setFlying((current) => [...current, ...flights]);
       window.setTimeout(() => {
         setFlying((current) => current.filter((f) => !flights.some((fl) => fl.key === f.key)));
       }, 600);
     }
-    setSelected([]);
-    // Solo: pause before the opponent sends its two cards to the crib.
-    if (!isMulti) {
-      window.setTimeout(cpuDiscardToCrib, 2000);
-    }
+    // Commit only once the flight has landed, so the cards don't show up in
+    // the crib before the animation completes.
+    window.setTimeout(() => {
+      apply((current) => {
+        const s: State = { ...current };
+        s.playerDiscards = s.playerHand.filter((c) => discardIds.includes(c.id));
+        s.playerKept = s.playerHand.filter((c) => !discardIds.includes(c.id));
+        s.playerHand = [...s.playerKept];
+        s.crib = [...s.playerDiscards];
+        return s;
+      });
+      setDiscardingIds([]);
+      // Solo: pause before the opponent sends its two cards to the crib.
+      if (!isMulti) {
+        window.setTimeout(cpuDiscardToCrib, 2000);
+      }
+    }, 500);
   };
 
   /** The opponent sends its two cards to the crib, then the starter is cut. */
@@ -767,39 +789,45 @@ function CribbageTable() {
     const cribRect = cribRef.current?.getBoundingClientRect();
     const flights: FlyingCard[] = [];
     if (cribRect) {
-      cpuDiscards.forEach((card) => {
+      const offset = current.playerDiscards.length;
+      cpuDiscards.forEach((card, index) => {
         const el = cpuHandEls.current.get(card.id);
         if (!el) return;
         const rect = el.getBoundingClientRect();
         flights.push({
-          key: Date.now() + flights.length,
+          key: Date.now() + index,
           card,
           from: { x: rect.left, y: rect.top },
-          to: { x: cribRect.left, y: cribRect.top },
+          to: { x: cribRect.left + (offset + index) * 16, y: cribRect.top },
           fromScale: 11 / 16, // CPU hand shows small face-down cards
-          toScale: 11 / 16,
+          toScale: 1 / 2,
           faceDown: true,
         });
       });
     }
-    apply((cur) => {
-      const s: State = { ...cur };
-      s.cpuDiscards = cpuDiscards;
-      s.cpuKept = s.cpuHand.filter((c) => !cpuDiscards.some((d) => d.id === c.id));
-      s.cpuHand = [...s.cpuKept];
-      s.crib = [...(s.playerDiscards ?? []), ...s.cpuDiscards];
-      return s;
-    });
+    // Hide the chosen cards in the CPU hand while they fly to the crib.
+    setDiscardingIds(cpuDiscards.map((c) => c.id));
     if (flights.length) {
       setFlying((current) => [...current, ...flights]);
       window.setTimeout(() => {
         setFlying((current) => current.filter((f) => !flights.some((fl) => fl.key === f.key)));
       }, 600);
     }
-    // Once the cards have landed, cut the starter and open the play.
+    // Commit only once the flight has landed, then cut the starter.
     window.setTimeout(() => {
+      apply((cur) => {
+        if (cur.phase !== "discard") return cur;
+        const s: State = { ...cur };
+        s.cpuDiscards = cpuDiscards;
+        s.cpuKept = s.cpuHand.filter((c) => !cpuDiscards.some((d) => d.id === c.id));
+        s.cpuHand = [...s.cpuKept];
+        s.crib = [...(s.playerDiscards ?? []), ...s.cpuDiscards];
+        return s;
+      });
+      setDiscardingIds([]);
+      // Once the cards have landed, cut the starter and open the play.
       apply((cur) => (cur.phase === "discard" ? startPlay(cur) : cur));
-    }, 600);
+    }, 500);
   };
 
   const nextHand = () =>
@@ -817,11 +845,6 @@ function CribbageTable() {
       : block.side === "player"
         ? "Your hand"
         : `${opponentName}'s hand`;
-  const logLine = (entry: LogEntry) =>
-    entry.side === null
-      ? entry.text
-      : `${entry.side === "player" ? "You" : opponentName} ${entry.text}`;
-
   const who = (side: Side) => (side === "player" ? "You" : opponentName);
   const turnLabel = state.winner
     ? `${who(state.winner)} won the game`
@@ -877,15 +900,15 @@ function CribbageTable() {
       <p className="mb-2 text-[10px] uppercase tracking-[0.2em] text-gold">
         {state.dealer === "player" ? "Your crib" : `${opponentName}'s crib`}
       </p>
-      <div ref={cribRef} className="flex [&>*:not(:first-child)]:-ml-6">
+      <div ref={cribRef} className="flex w-[80px] justify-start [&>*:not(:first-child)]:-ml-4">
         {state.crib.length === 0 ? (
-          <div className="grid h-16 w-11 place-items-center rounded-lg border border-dashed border-gold/30 text-[10px] text-ivory/40">
+          <div className="grid h-12 w-8 place-items-center rounded-lg border border-dashed border-gold/30 text-[10px] text-ivory/40">
             empty
           </div>
         ) : revealed ? (
-          state.crib.map((card) => <PlayingCard key={card.id} card={card} small />)
+          state.crib.map((card) => <PlayingCard key={card.id} card={card} tiny />)
         ) : (
-          state.crib.map((card) => <FaceDownCard key={card.id} small />)
+          state.crib.map((card) => <FaceDownCard key={card.id} tiny />)
         )}
       </div>
     </div>
@@ -909,24 +932,16 @@ function CribbageTable() {
         reset(dealtGame());
       }}
       onNewGame={() => reset(freshGame())}
-      rail={
-        <>
-          <CribBoard
-            playerScore={state.scores.player}
-            cpuScore={state.scores.cpu}
-            playerBack={back.player}
-            cpuBack={back.cpu}
-            opponentName={opponentName}
-          />
-          <div className="rounded-xl border border-gold/15 bg-brand/40 p-5">
-            <p className="mb-3 text-[11px] uppercase tracking-[0.22em] text-ivory/60">Table talk</p>
-            <ul className="space-y-1.5 text-xs leading-relaxed text-ivory/65">
-              {state.log.slice(0, 7).map((entry, index) => (
-                <li key={`${entry.text}-${index}`}>{logLine(entry)}</li>
-              ))}
-            </ul>
-          </div>
-        </>
+      menuExtra={<CribBoardOptionsDialog boardGraphic={boardGraphic} onSelect={setBoardGraphic} />}
+      middle={
+        <CribBoard
+          graphic={boardGraphic}
+          playerScore={state.scores.player}
+          cpuScore={state.scores.cpu}
+          playerBack={back.player}
+          cpuBack={back.cpu}
+          opponentName={opponentName}
+        />
       }
     >
       <GameOverDialog
@@ -962,8 +977,15 @@ function CribbageTable() {
               {(revealed ? state.cpuKept : state.cpuHand).length === 0 ? (
                 <p className="text-xs text-ivory/40">No cards in hand.</p>
               ) : (
-                (revealed ? state.cpuKept : state.cpuHand).map((card, index) =>
-                  revealed ? (
+                (revealed ? state.cpuKept : state.cpuHand).map((card, index) => {
+                  if (!revealed && discardingIds.includes(card.id)) {
+                    return (
+                      <span key={card.id} className="invisible block">
+                        <FaceDownCard small />
+                      </span>
+                    );
+                  }
+                  return revealed ? (
                     <PlayingCard key={card.id} card={card} small />
                   ) : (
                     <span
@@ -977,8 +999,8 @@ function CribbageTable() {
                     >
                       <FaceDownCard small />
                     </span>
-                  ),
-                )
+                  );
+                })
               )}
             </div>
           </div>
@@ -1037,38 +1059,41 @@ function CribbageTable() {
             </div>
           </div>
         ) : (
-          <div className="flex flex-wrap items-center justify-center gap-5">
+          <div className="flex flex-wrap items-center justify-center gap-8">
             <DeckStack remaining={state.deck.length} starter={state.starter} />
             <div
               ref={pileRef}
-              className="relative flex min-h-[44px] items-center justify-center [&>*:not(:first-child)]:-ml-6"
+              className="relative flex h-16 w-52 items-center justify-start [&>*:not(:first-child)]:-ml-6"
             >
-              {state.pile.map((card, index) => (
-                <span
-                  key={card.id}
-                  className={
-                    index === state.pile.length - 1 && laidBy
-                      ? laidBy === "player"
-                        ? "block"
-                        : "animate-lay-cpu block"
-                      : "block"
-                  }
-                >
-                  <PlayingCard card={card} small />
-                </span>
-              ))}
-              {state.lastPeg ? (
-                <span
-                  className="animate-scale-in pointer-events-none absolute -top-3 right-0 z-20 -translate-y-full select-none"
-                  title={`${state.lastPeg.label} — ${state.lastPeg.points} to ${
-                    state.lastPeg.side === "player" ? "you" : opponentName
-                  }`}
-                >
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full border border-brand bg-cream font-display text-xs leading-none text-brand shadow-lg shadow-black/40">
-                    {state.lastPeg.points}
+              {state.pile.map((card, index) => {
+                const isLast = index === state.pile.length - 1;
+                return (
+                  <span
+                    key={card.id}
+                    className={`relative ${
+                      isLast && laidBy
+                        ? laidBy === "player"
+                          ? "block"
+                          : "animate-lay-cpu block"
+                        : "block"
+                    }`}
+                  >
+                    <PlayingCard card={card} small />
+                    {isLast && state.lastPeg ? (
+                      <span
+                        className="animate-scale-in pointer-events-none absolute -top-3 right-0 z-20 -translate-y-full select-none"
+                        title={`${state.lastPeg.label} — ${state.lastPeg.points} to ${
+                          state.lastPeg.side === "player" ? "you" : opponentName
+                        }`}
+                      >
+                        <span className="flex h-6 w-6 items-center justify-center rounded-full border border-brand bg-cream font-display text-xs leading-none text-brand shadow-lg shadow-black/40">
+                          {state.lastPeg.points}
+                        </span>
+                      </span>
+                    ) : null}
                   </span>
-                </span>
-              ) : null}
+                );
+              })}
             </div>
             <div className="flex flex-col items-center justify-center">
               <p className="font-display text-xl text-cream">{count}</p>
@@ -1083,9 +1108,18 @@ function CribbageTable() {
           {message}
         </p>
 
-        {revealed ? (
-          <div className="space-y-3">
-            <h2 className="text-center font-display text-xl font-bold">The show</h2>
+        <AlertDialog open={revealed}>
+          <AlertDialogContent className="border-gold/30 bg-brand text-cream sm:max-w-3xl">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-center font-display text-2xl text-gold">
+                The show
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-center text-ivory/70">
+                {state.phase === "over"
+                  ? "Final tally for the game."
+                  : "Points in each hand and the crib."}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
             <div className="grid gap-3 sm:grid-cols-3">
               {state.show.map((block, index) => (
                 <div
@@ -1093,12 +1127,28 @@ function CribbageTable() {
                   className="rounded-xl border border-gold/20 bg-brand/50 p-4 text-sm"
                 >
                   <p className="mb-2 font-display text-lg text-gold">{blockLabel(block)}</p>
-                  <p className="mb-2 text-2xl font-semibold">{block.total}</p>
-                  <ul className="space-y-1 text-xs text-ivory/65">
+                  <p className="mb-3 text-2xl font-semibold">{block.total}</p>
+                  <ul className="space-y-2 text-xs text-ivory/65">
                     {block.lines.length ? (
                       block.lines.map((line) => (
-                        <li key={line.label}>
-                          {line.label} — {line.points}
+                        <li key={line.label} className="space-y-1.5">
+                          <div className="flex items-baseline justify-between gap-2">
+                            <span className="font-medium text-ivory/85">{line.label}</span>
+                            <span className="font-semibold text-ivory">{line.points}</span>
+                          </div>
+                          {line.cards?.map((group, gi) => {
+                            const points = line.cards!.length ? line.points / line.cards!.length : line.points;
+                            return (
+                              <div key={gi} className="flex items-center justify-between gap-2">
+                                <span className="flex flex-wrap gap-1">
+                                  {group.map((c) => (
+                                    <CardChip key={c.id} card={c} />
+                                  ))}
+                                </span>
+                                <span className="whitespace-nowrap font-semibold text-gold">+{points}</span>
+                              </div>
+                            );
+                          })}
                         </li>
                       ))
                     ) : (
@@ -1108,26 +1158,30 @@ function CribbageTable() {
                 </div>
               ))}
             </div>
-            <div className="text-center">
+            <AlertDialogFooter className="sm:justify-center">
               {state.phase === "over" ? (
-                <Button variant="parlor" onClick={() => reset(freshGame())}>
-                  Play again
-                </Button>
+                <AlertDialogAction asChild>
+                  <Button variant="parlor" onClick={() => reset(freshGame())}>
+                    Play again
+                  </Button>
+                </AlertDialogAction>
               ) : (
-                <Button variant="parlor" onClick={nextHand}>
-                  Deal the next hand
-                </Button>
+                <AlertDialogAction asChild>
+                  <Button variant="parlor" onClick={nextHand}>
+                    Deal the next hand
+                  </Button>
+                </AlertDialogAction>
               )}
-            </div>
-          </div>
-        ) : null}
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {/* Player seat row: crib on the left when you deal, hand centre */}
         <div className="flex flex-wrap items-end justify-center gap-8">
           {state.dealer === "player" ? <CribPile /> : null}
 
           <div className="text-center">
-            <div className="flex justify-center [&>*:not(:first-child)]:-ml-8">
+            <div className="flex justify-center [&>*:not(:first-child)]:-ml-6">
               {state.playerHand.map((card, index) => {
                 const isSelected = selected.includes(card.id);
                 const faceDown = isFreshDeal && index >= faceUpCount;
@@ -1144,14 +1198,21 @@ function CribbageTable() {
                       className="animate-deal-in-player relative block"
                       style={{ animationDelay: `${index * 110}ms` }}
                     >
-                      <FaceDownCard />
+                      <FaceDownCard small />
                     </span>
                   );
                 }
                 if (layingId === card.id) {
                   return (
                     <span key={card.id} className="invisible block">
-                      <PlayingCard card={card} />
+                      <PlayingCard card={card} small />
+                    </span>
+                  );
+                }
+                if (discardingIds.includes(card.id)) {
+                  return (
+                    <span key={card.id} className="invisible block">
+                      <PlayingCard card={card} small />
                     </span>
                   );
                 }
@@ -1182,7 +1243,7 @@ function CribbageTable() {
 
                     }}
                   >
-                    <PlayingCard card={card} selected={isSelected} />
+                    <PlayingCard card={card} small selected={isSelected} />
                   </button>
                 );
               })}
@@ -1266,14 +1327,14 @@ function DeckStack({ remaining, starter }: { remaining: number; starter: Card | 
       <p className="mb-1 text-[10px] uppercase tracking-[0.2em] text-ivory/50">
         {starter ? "Deck & cut" : "Deck"}
       </p>
-      <div className="relative h-24 w-16">
+      <div className="relative h-16 w-11">
         {Array.from({ length: layers }).map((_, index) => (
           <span
             key={index}
             className="absolute inset-0"
             style={{ transform: `translate(${index * 2}px, ${-index * 2}px)` }}
           >
-            <FaceDownCard />
+            <FaceDownCard small />
           </span>
         ))}
         {starter ? (
@@ -1281,7 +1342,7 @@ function DeckStack({ remaining, starter }: { remaining: number; starter: Card | 
             className="animate-turn-over absolute inset-0"
             style={{ transform: "translate(8px, -8px)" }}
           >
-            <PlayingCard card={starter} />
+            <PlayingCard card={starter} small />
           </span>
         ) : null}
       </div>
@@ -1303,10 +1364,10 @@ function CutSeat({
   return (
     <div className="text-center">
       <p className="mb-1 text-[10px] uppercase tracking-[0.2em] text-gold">{label}</p>
-      <div ref={seatRef} className="grid h-24 w-16 place-items-center">
+      <div ref={seatRef} className="grid h-16 w-11 place-items-center">
         {card ? (
           <span className="block">
-            <PlayingCard card={card} />
+            <PlayingCard card={card} small />
           </span>
         ) : (
           <div className="grid size-full place-items-center rounded-lg border border-dashed border-gold/30 text-[10px] text-ivory/40">
@@ -1344,7 +1405,7 @@ function Seat({
   );
 }
 
-function FaceDownCard({ small = false }: { small?: boolean }) {
+function FaceDownCard({ small = false, tiny = false }: { small?: boolean; tiny?: boolean }) {
   return (
     <img
       src={cardBackAsset}
@@ -1352,20 +1413,34 @@ function FaceDownCard({ small = false }: { small?: boolean }) {
       aria-hidden="true"
       loading="lazy"
       className={`block rounded-lg object-cover shadow-md shadow-black/30 ${
-        small ? "h-16 w-11" : "h-24 w-16"
+        tiny ? "h-12 w-8" : small ? "h-16 w-11" : "h-24 w-16"
       }`}
     />
   );
 }
 
 
+function CardChip({ card }: { card: Card }) {
+  const red = card.suit === "H" || card.suit === "D";
+  return (
+    <span className="inline-flex items-center rounded border border-black/10 bg-cream px-1.5 py-0.5 font-display text-xs font-bold leading-none shadow-sm">
+      <span className={red ? "text-destructive" : "text-brand"}>
+        {RANK_LABEL[card.rank]}
+        {SUIT_SYMBOL[card.suit]}
+      </span>
+    </span>
+  );
+}
+
 function PlayingCard({
   card,
   small = false,
+  tiny = false,
   selected = false,
 }: {
   card: Card;
   small?: boolean;
+  tiny?: boolean;
   selected?: boolean;
 }) {
   const red = card.suit === "H" || card.suit === "D";
@@ -1375,7 +1450,7 @@ function PlayingCard({
   return (
     <span
       className={`relative block overflow-hidden rounded-lg border bg-cream shadow-md shadow-black/30 transition-transform ${
-        small ? "h-16 w-11" : "h-24 w-16 hover:-translate-y-1"
+        tiny ? "h-12 w-8" : small ? "h-16 w-11" : "h-24 w-16 hover:-translate-y-1"
       } ${selected ? "animate-float-selected border-gold ring-2 ring-gold" : "border-black/10"} ${
         red ? "text-destructive" : "text-brand"
       }`}
@@ -1383,24 +1458,24 @@ function PlayingCard({
       {/* corner index */}
       <span
         className={`absolute left-1 top-0.5 flex flex-col items-center leading-none font-display font-bold ${
-          small ? "text-[10px]" : "text-xs"
+          tiny ? "text-[8px]" : small ? "text-[10px]" : "text-xs"
         }`}
       >
         <span>{rank}</span>
-        <span className={small ? "text-[9px]" : "text-[11px]"}>{suit}</span>
+        <span className={tiny ? "text-[7px]" : small ? "text-[9px]" : "text-[11px]"}>{suit}</span>
       </span>
 
       {/* graphic */}
       <span
         aria-hidden
         className={`absolute inset-0 grid place-items-center font-display ${
-          small ? "text-2xl" : "text-4xl"
+          tiny ? "text-lg" : small ? "text-2xl" : "text-4xl"
         } ${isFace ? "opacity-90" : "opacity-80"}`}
       >
         {isFace ? (
           <span className="flex flex-col items-center leading-none">
-            <span className={small ? "text-base" : "text-xl"}>{rank}</span>
-            <span className={small ? "text-lg" : "text-2xl"}>{suit}</span>
+            <span className={tiny ? "text-xs" : small ? "text-base" : "text-xl"}>{rank}</span>
+            <span className={tiny ? "text-sm" : small ? "text-lg" : "text-2xl"}>{suit}</span>
           </span>
         ) : (
           suit
@@ -1410,11 +1485,11 @@ function PlayingCard({
       {/* mirrored bottom-right index */}
       <span
         className={`absolute bottom-0.5 right-1 flex rotate-180 flex-col items-center leading-none font-display font-bold ${
-          small ? "text-[10px]" : "text-xs"
+          tiny ? "text-[8px]" : small ? "text-[10px]" : "text-xs"
         }`}
       >
         <span>{rank}</span>
-        <span className={small ? "text-[9px]" : "text-[11px]"}>{suit}</span>
+        <span className={tiny ? "text-[7px]" : small ? "text-[9px]" : "text-[11px]"}>{suit}</span>
       </span>
       <span className="sr-only">{cardLabel(card)}</span>
     </span>

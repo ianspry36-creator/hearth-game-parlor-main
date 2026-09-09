@@ -226,7 +226,7 @@ function AddictionTable() {
           </div>
         </header>
 
-        <div className="grid items-start gap-6 lg:grid-cols-[1fr_260px]">
+        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_260px]">
           <div className="relative rounded-2xl border border-gold/20 bg-surface/40 p-4 sm:p-8">
             <div className="space-y-8">
               <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-center">
@@ -425,7 +425,7 @@ function CardCell({
         <span>{RANK_LABEL[card.rank]}</span>
         <span className="mt-0.5 text-[8px] sm:text-xs">{SUIT_SYMBOL[card.suit]}</span>
       </span>
-      <span className="absolute inset-0 grid place-items-center text-sm sm:text-3xl">
+      <span className="absolute inset-0 grid place-items-center text-sm sm:text-xl">
         {isFace ? RANK_LABEL[card.rank] : SUIT_SYMBOL[card.suit]}
       </span>
       {correct && (

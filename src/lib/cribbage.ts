@@ -39,30 +39,52 @@ function combinations<T>(items: T[], size: number): T[][] {
   return [...combinations(rest, size - 1).map((c) => [head, ...c]), ...combinations(rest, size)];
 }
 
-export type ScoreLine = { label: string; points: number };
+export type ScoreLine = {
+  label: string;
+  points: number;
+  /** Card groups that each score `points / cards.length`; shown graphically in the show. */
+  cards?: Card[][];
+};
+
+/** Every distinct run: one card chosen from each rank group (cartesian product). */
+function runCombos(groups: Card[][]): Card[][] {
+  let out: Card[][] = [[]];
+  for (const group of groups) {
+    const next: Card[][] = [];
+    for (const prefix of out) for (const card of group) next.push([...prefix, card]);
+    out = next;
+  }
+  return out;
+}
 
 /** Score a 4-card hand with the starter card. Cribs require a 5-card flush. */
 export function scoreHand(hand: Card[], starter: Card | null, isCrib = false): ScoreLine[] {
   const lines: ScoreLine[] = [];
   const all = starter ? [...hand, starter] : [...hand];
 
-  // Fifteens
-  let fifteens = 0;
+  // Fifteens — every combination of cards summing to 15 scores 2.
+  const fifteens: Card[][] = [];
   for (let size = 2; size <= all.length; size++) {
     for (const combo of combinations(all, size)) {
-      if (combo.reduce((s, c) => s + cardValue(c), 0) === 15) fifteens++;
+      if (combo.reduce((s, c) => s + cardValue(c), 0) === 15) fifteens.push(combo);
     }
   }
-  if (fifteens) lines.push({ label: `Fifteens (${fifteens})`, points: fifteens * 2 });
+  if (fifteens.length) {
+    lines.push({ label: `Fifteens (${fifteens.length})`, points: fifteens.length * 2, cards: fifteens });
+  }
 
-  // Pairs
-  let pairs = 0;
-  for (const combo of combinations(all, 2)) if (combo[0]!.rank === combo[1]!.rank) pairs++;
-  if (pairs) lines.push({ label: `Pairs (${pairs})`, points: pairs * 2 });
+  // Pairs — every matching pair scores 2.
+  const pairs: Card[][] = [];
+  for (const combo of combinations(all, 2)) if (combo[0]!.rank === combo[1]!.rank) pairs.push(combo);
+  if (pairs.length) lines.push({ label: `Pairs (${pairs.length})`, points: pairs.length * 2, cards: pairs });
 
   // Runs
-  const byRank = new Map<number, number>();
-  for (const c of all) byRank.set(c.rank, (byRank.get(c.rank) ?? 0) + 1);
+  const byRank = new Map<number, Card[]>();
+  for (const c of all) {
+    const arr = byRank.get(c.rank);
+    if (arr) arr.push(c);
+    else byRank.set(c.rank, [c]);
+  }
   const ranks = [...byRank.keys()].sort((a, b) => a - b);
   let i = 0;
   while (i < ranks.length) {
@@ -70,11 +92,16 @@ export function scoreHand(hand: Card[], starter: Card | null, isCrib = false): S
     while (j + 1 < ranks.length && ranks[j + 1] === ranks[j]! + 1) j++;
     const length = j - i + 1;
     if (length >= 3) {
+      // One card per rank; expand to every distinct run when a rank repeats.
+      const groups = ranks
+        .slice(i, j + 1)
+        .map((r) => [...byRank.get(r)!].sort((a, b) => (a.suit < b.suit ? -1 : 1)));
       let multiplier = 1;
-      for (let k = i; k <= j; k++) multiplier *= byRank.get(ranks[k]!)!;
+      for (const g of groups) multiplier *= g.length;
       lines.push({
         label: `Run${multiplier > 1 ? `s (${multiplier}×${length})` : ` of ${length}`}`,
         points: length * multiplier,
+        cards: runCombos(groups),
       });
     }
     i = j + 1;
@@ -82,13 +109,17 @@ export function scoreHand(hand: Card[], starter: Card | null, isCrib = false): S
 
   // Flush
   if (hand.length === 4 && hand.every((c) => c.suit === hand[0]!.suit)) {
-    if (starter && starter.suit === hand[0]!.suit) lines.push({ label: "Flush (5)", points: 5 });
-    else if (!isCrib) lines.push({ label: "Flush (4)", points: 4 });
+    if (starter && starter.suit === hand[0]!.suit) {
+      lines.push({ label: "Flush (5)", points: 5, cards: [all] });
+    } else if (!isCrib) {
+      lines.push({ label: "Flush (4)", points: 4, cards: [hand] });
+    }
   }
 
   // His nobs
   if (starter && hand.some((c) => c.rank === 11 && c.suit === starter.suit)) {
-    lines.push({ label: "His nobs", points: 1 });
+    const jack = hand.find((c) => c.rank === 11 && c.suit === starter.suit)!;
+    lines.push({ label: "His nobs", points: 1, cards: [[jack, starter]] });
   }
 
   return lines;

@@ -135,6 +135,25 @@
   }
 }
 
+/* Thin gold scrollbar for tall pickers (e.g. the avatar gallery). */
+.avatar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--gold) 65%, transparent) transparent;
+}
+
+.avatar-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.avatar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.avatar-scroll::-webkit-scrollbar-thumb {
+  background: color-mix(in oklab, var(--gold) 65%, transparent);
+  border-radius: 9999px;
+}
+
 @keyframes deal-in {
   from {
     opacity: 0;
@@ -379,8 +398,8 @@
 
 /* Addiction responsive card sizing — thirteen columns scroll on mobile */
 :root {
-  --ad-card-h: 95px;
-  --ad-card-w: 68px;
+  --ad-card-h: 70px;
+  --ad-card-w: 50px;
 }
 
 @media (max-width: 639.98px) {
@@ -452,16 +471,17 @@
 :root {
   --tripeaks-card-h: 76px;
   --tripeaks-card-w: 52px;
-  --tripeaks-step-x: 32px;
-  --tripeaks-step-y: 40px;
+  /* Cards sit side by side with no horizontal overlap, a few pixels apart. */
+  --tripeaks-step-x: 56px;
+  /* Every tier overlaps the one below it by half a card's height. */
+  --tripeaks-step-y: calc(var(--tripeaks-card-h) / 2);
 }
 
 @media (max-width: 639.98px) {
   :root {
     --tripeaks-card-h: 44px;
     --tripeaks-card-w: 30px;
-    --tripeaks-step-x: 18px;
-    --tripeaks-step-y: 22px;
+    --tripeaks-step-x: 33px;
   }
 }
 

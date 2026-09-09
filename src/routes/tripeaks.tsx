@@ -20,13 +20,14 @@ import { useSolitaireStats } from "@/lib/solitaireStats";
 import { RANK_LABEL, SUIT_SYMBOL, cardLabel, type Card } from "@/lib/cribbage";
 import {
   PEAK_CARDS,
-  ROW_LENGTHS,
+  ROWS,
   cardsRemaining,
   drawFromStock,
   freshGame,
   hasAvailableMove,
   isOpen,
   moveToWaste,
+  slotX,
   type GameState,
 } from "@/lib/tripeaks";
 import { mulberry32 } from "@/lib/random";
@@ -94,10 +95,12 @@ const PEAK_WIDTH = "calc(9 * var(--tripeaks-step-x) + var(--tripeaks-card-w))";
 const PEAK_HEIGHT = "calc(3 * var(--tripeaks-step-y) + var(--tripeaks-card-h))";
 
 function slotStyle(row: number, col: number): CSSProperties {
-  const offset = (ROW_LENGTHS[0]! - ROW_LENGTHS[row]!) / 2;
   return {
-    left: `calc(${col + offset} * var(--tripeaks-step-x))`,
+    left: `calc(${slotX(row, col)} * var(--tripeaks-step-x))`,
     bottom: `calc(${row} * var(--tripeaks-step-y))`,
+    // Lower rows sit in front: the face-up bottom tier covers the face-down
+    // cards behind it, so it stays readable as cards are played away.
+    zIndex: ROWS - row,
   };
 }
 function TriPeaksTable() {
@@ -110,6 +113,7 @@ function TriPeaksTable() {
   const [records, setRecords] = useState<Records>({});
   const [recordMessage, setRecordMessage] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<"new" | "home" | null>(null);
+  const [resultOpen, setResultOpen] = useState(false);
   const { recordResult } = useSolitaireStats(game.id);
   const prevWonRef = useRef(false);
   useEffect(() => {
@@ -210,7 +214,10 @@ function TriPeaksTable() {
     if (candidate === state) return;
     setHistory((h) => [...h, state]);
     setState(candidate);
-    if (candidate.won || candidate.lost) setRecordMessage(evaluateResult(candidate));
+    if (candidate.won || candidate.lost) {
+      setRecordMessage(evaluateResult(candidate));
+      setResultOpen(true);
+    }
   };
 
   const undo = () => {
@@ -352,7 +359,12 @@ function TriPeaksTable() {
                           <CardFace
                             card={slot.card}
                             dimmed={!open}
-                            {...(open ? { onClick: () => clickPeak(row, col) } : {})}
+                            {...(open
+                              ? {
+                                  onClick: () => clickPeak(row, col),
+                                  onDoubleClick: () => clickPeak(row, col),
+                                }
+                              : {})}
                           />
                         ) : (
                           <CardBack />
@@ -363,34 +375,6 @@ function TriPeaksTable() {
                 )}
               </div>
             </div>
-            {state.lost && (
-              <div className="mt-6 rounded-xl border border-gold/40 bg-surface/70 p-4 text-center">
-                <p className="font-display text-lg font-bold text-gold">No more moves</p>
-                <p className="mt-1 text-sm text-ivory/80">
-                  {recordMessage ?? "No open card fits and the stock is empty."}
-                </p>
-                <p className="mt-1 text-xs text-ivory/50">
-                  Undo to try another path, or deal a new game.
-                </p>
-              </div>
-            )}
-
-            {state.won && (
-              <div className="absolute inset-0 z-10 grid place-items-center rounded-2xl bg-brand/80 p-6 backdrop-blur-sm">
-                <div className="space-y-4 text-center">
-                  <div className="text-5xl">🎉</div>
-                  <h2 className="font-display text-3xl font-bold text-gold">
-                    You cleared the peaks!
-                  </h2>
-                  <p className="mx-auto max-w-sm text-ivory/70">
-                    {recordMessage ?? `Game #${gameNumber} won in ${state.moves} moves.`}
-                  </p>
-                  <Button variant="parlor" onClick={newRandomGame}>
-                    Deal again
-                  </Button>
-                </div>
-              </div>
-            )}
           </div>
 
           <aside className="space-y-4">
@@ -463,6 +447,37 @@ function TriPeaksTable() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={resultOpen} onOpenChange={setResultOpen}>
+        <AlertDialogContent className="border-gold/25 bg-brand text-cream">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-display text-2xl">
+              {state.won ? "You cleared the peaks!" : "No more moves"}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-ivory/65">
+              {recordMessage ??
+                (state.won
+                  ? `Game #${gameNumber} won in ${state.moves} moves.`
+                  : "No open card fits and the stock is empty.")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            {state.lost ? (
+              <AlertDialogCancel onClick={undo}>Undo</AlertDialogCancel>
+            ) : (
+              <AlertDialogCancel>View table</AlertDialogCancel>
+            )}
+            <AlertDialogAction
+              onClick={() => {
+                setResultOpen(false);
+                newRandomGame();
+              }}
+            >
+              Deal again
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -478,10 +493,12 @@ function Stat({ label, value }: { label: string; value: string }) {
 function CardFace({
   card,
   onClick,
+  onDoubleClick,
   dimmed = false,
 }: {
   card: Card;
   onClick?: () => void;
+  onDoubleClick?: () => void;
   dimmed?: boolean;
 }) {
   const red = isRed(card.suit);
@@ -490,12 +507,13 @@ function CardFace({
     <button
       type="button"
       onClick={onClick}
+      onDoubleClick={onDoubleClick}
       disabled={!onClick}
       aria-label={cardLabel(card)}
       className={`relative block h-[var(--tripeaks-card-h)] w-[var(--tripeaks-card-w)] select-none rounded-md border border-black/10 bg-white text-left shadow-md shadow-black/30 transition-transform ${
         red ? "text-[#c0392b]" : "text-brand"
       } ${onClick ? "cursor-pointer hover:-translate-y-0.5 hover:ring-1 hover:ring-gold" : "cursor-default"} ${
-        dimmed ? "opacity-75" : ""
+        dimmed ? "saturate-50" : ""
       }`}
     >
       <span className="absolute left-0.5 top-0.5 flex flex-col items-center font-display text-[8px] font-bold leading-none sm:left-1 sm:top-1 sm:text-xs">

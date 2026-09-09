@@ -53,14 +53,20 @@ export function DisconnectDialog({
           </div>
         )}
 
-        <AlertDialogFooter className="sm:justify-center">
+        <AlertDialogFooter className="flex-col gap-2 sm:flex-row sm:justify-center">
           {expired ? (
             <AlertDialogAction asChild>
               <Button variant="parlor" onClick={() => void navigate({ to: "/" })}>
                 Return to the game room
               </Button>
             </AlertDialogAction>
-          ) : null}
+          ) : (
+            <AlertDialogAction asChild>
+              <Button variant="parlorOutline" onClick={() => void navigate({ to: "/" })}>
+                Exit
+              </Button>
+            </AlertDialogAction>
+          )}
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

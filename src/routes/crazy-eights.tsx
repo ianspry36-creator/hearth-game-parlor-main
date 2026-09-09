@@ -468,9 +468,8 @@ function CrazyEightsTable() {
     );
   };
 
-  const playSelected = () => {
-    if (!canPlaySelected) return;
-    const cards = selectedCards;
+  /** Animate the given cards from the hand to the pile and commit the move. */
+  const playCardsNow = (cards: Card[]) => {
     const pileRect = pileRef.current?.getBoundingClientRect();
     const flights: FlyingCard[] = [];
     if (pileRect) {
@@ -494,6 +493,17 @@ function CrazyEightsTable() {
         setFlying((current) => current.filter((f) => !flights.some((x) => x.key === f.key)));
       }, 600);
     }
+  };
+
+  const playSelected = () => {
+    if (!canPlaySelected) return;
+    playCardsNow(selectedCards);
+  };
+
+  /** Double-click a card to play it right away. */
+  const playCard = (card: Card) => {
+    if (!myTurn || !canFollow(card, top, state.wildSuit)) return;
+    playCardsNow([card]);
   };
 
   const pickSuit = (suit: Suit) => {
@@ -734,20 +744,22 @@ function CrazyEightsTable() {
           )}
         </section>
 
-        {/* Opponents: Ada up top, Ace on the left, Leo on the right */}
-        <OpponentSeat
-          name={seatName("ada")}
-          avatar={ADA_AVATAR}
-          cards={state.hands.ada ?? []}
-          handEls={seatHandEls.current}
-          active={state.turn === "ada"}
-          dealing={dealing}
-          dealt={dealt}
-          playerCount={activeCount}
-          seatIndex={seatPos("ada")}
-        />
+        {/* Opponents: Ada up top (centered), Ace on the left, Leo on the right */}
+        <div className="flex justify-center">
+          <OpponentSeat
+            name={seatName("ada")}
+            avatar={ADA_AVATAR}
+            cards={state.hands.ada ?? []}
+            handEls={seatHandEls.current}
+            active={state.turn === "ada"}
+            dealing={dealing}
+            dealt={dealt}
+            playerCount={activeCount}
+            seatIndex={seatPos("ada")}
+          />
+        </div>
 
-        <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-6">
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center justify-items-center gap-6">
           <div className="flex items-center">
             {hasAce ? (
               <OpponentSeat
@@ -767,8 +779,8 @@ function CrazyEightsTable() {
           </div>
 
           {/* Stock and discard */}
-          <section className="rounded-2xl border border-gold/25 bg-brand/70 p-6 shadow-2xl shadow-black/40">
-            <div className="flex flex-wrap items-center gap-8">
+          <section className="justify-self-center rounded-2xl border border-gold/25 bg-brand/70 p-4 shadow-2xl shadow-black/40">
+            <div className="flex flex-wrap items-center justify-center gap-6">
               <div className="text-center">
                 <button
                   type="button"
@@ -837,6 +849,7 @@ function CrazyEightsTable() {
                 handEls={seatHandEls.current}
                 vertical
                 rotation="rotate-90"
+                avatarSide="right"
                 active={state.turn === "leo"}
                 dealing={dealing}
                 dealt={dealt}
@@ -849,13 +862,13 @@ function CrazyEightsTable() {
 
         {/* Your hand */}
         <section>
-          <div className="mb-2 flex items-center gap-3">
+          <div className="mb-2 flex items-center justify-center gap-3">
             <PlayerAvatar avatar={playerAvatar} onSelect={setPlayerAvatar} />
             <p className="text-[10px] uppercase tracking-[0.22em] text-ivory/45">
               Your hand
             </p>
           </div>
-          <div className="flex flex-wrap items-end gap-2">
+          <div className="flex flex-wrap items-end justify-center gap-2">
             {myHand.map((card, index) => {
               const arrived = !dealing || dealt > index * playerCount;
               if (!arrived) return null;
@@ -870,6 +883,7 @@ function CrazyEightsTable() {
                     else handEls.current.delete(card.id);
                   }}
                   onClick={() => select(card)}
+                  onDoubleClick={() => playCard(card)}
                   disabled={!legal}
                   aria-pressed={chosen}
                   aria-label={`Select ${cardLabel(card)}`}
@@ -920,6 +934,7 @@ function OpponentSeat({
   dealt = 0,
   playerCount = 2,
   seatIndex = 1,
+  avatarSide = "left",
 }: {
   name: string;
   avatar: string;
@@ -932,10 +947,11 @@ function OpponentSeat({
   dealt?: number;
   playerCount?: number;
   seatIndex?: number;
+  avatarSide?: "left" | "right";
 }) {
   return (
-    <div className={vertical ? "flex flex-col items-center" : ""}>
-      <div className={`mb-2 flex items-center gap-3 ${vertical ? "flex-col gap-1" : ""}`}>
+    <div className={vertical ? `flex items-center gap-8 ${avatarSide === "right" ? "flex-row-reverse" : ""}` : ""}>
+      <div className={`flex items-center gap-3 ${vertical ? "flex-col gap-1" : "mb-2 justify-center"}`}>
         <img
           src={avatar}
           alt=""

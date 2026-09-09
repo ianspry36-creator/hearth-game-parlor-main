@@ -47,12 +47,18 @@ export function canPlaceOnFoundation(card: Card, pile: Card[]): boolean {
   return top.suit === card.suit && card.rank === top.rank + 1;
 }
 
-/** The first foundation `card` may currently be placed on, if any. */
+/**
+ * The four foundations are each reserved for a fixed suit, shown left to right
+ * as spades, hearts, diamonds, clubs. A card only ever lands on its own suit's
+ * column, so it snaps to the matching predefined box.
+ */
+export const FOUNDATION_SUITS: Suit[] = ["S", "H", "D", "C"];
+
+/** The foundation index reserved for `card`'s suit, if it can be placed there. */
 export function foundationTarget(card: Card, foundations: Card[][]): number | null {
-  for (let i = 0; i < foundations.length; i += 1) {
-    if (canPlaceOnFoundation(card, foundations[i]!)) return i;
-  }
-  return null;
+  const index = FOUNDATION_SUITS.indexOf(card.suit);
+  if (index === -1 || !canPlaceOnFoundation(card, foundations[index]!)) return null;
+  return index;
 }
 
 /**

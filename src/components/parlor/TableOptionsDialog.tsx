@@ -76,7 +76,7 @@ export function TableOptionsDialog({ tableGraphic, onSelect }: Props) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="parlorGhost" className="w-full">
+        <Button variant="parlorGhost" size="sm" className="w-full h-6">
           Options
         </Button>
       </DialogTrigger>

@@ -23,6 +23,7 @@ import {
   canAutoComplete,
   cardsHome,
   flipTableau,
+  FOUNDATION_SUITS,
   foundationTarget,
   freshGame,
   isRed,
@@ -294,6 +295,7 @@ function YukonTable() {
                 <FoundationSlot
                   key={index}
                   pile={pile}
+                  suitIndex={index}
                   selected={selection?.type === "foundation" && selection.index === index}
                   onClick={() => clickFoundation(index)}
                 />
@@ -468,7 +470,7 @@ function CardBack({ onClick }: { onClick?: () => void }) {
   );
 }
 
-function EmptySlot({ onClick }: { onClick?: () => void }) {
+function EmptySlot({ onClick, symbol }: { onClick?: () => void; symbol?: string }) {
   return (
     <button
       type="button"
@@ -476,25 +478,29 @@ function EmptySlot({ onClick }: { onClick?: () => void }) {
       aria-label="Empty pile"
       className="grid h-[var(--yukon-card-h)] w-[var(--yukon-card-w)] place-items-center rounded-md border border-dashed border-gold/30 text-lg text-gold/30"
     >
-      ♚
+      {symbol ?? "♚"}
     </button>
   );
 }
 
 function FoundationSlot({
   pile,
+  suitIndex,
   selected,
   onClick,
 }: {
   pile: Card[];
+  suitIndex: number;
   selected: boolean;
   onClick: () => void;
 }) {
   const top = pile[pile.length - 1];
+  const suit = FOUNDATION_SUITS[suitIndex];
+  const suitSymbol = suit ? SUIT_SYMBOL[suit] : "";
   return (
     <div className="relative">
       {!top ? (
-        <EmptySlot onClick={onClick} />
+        <EmptySlot onClick={onClick} symbol={suitSymbol} />
       ) : (
         <>
           {pile.length > 1 && (
