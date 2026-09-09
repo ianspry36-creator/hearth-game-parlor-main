@@ -40,6 +40,8 @@ export function TableShell({
   playerCount,
   lobby,
   menuExtra,
+  containerClassName = "px-6",
+  boxClassName = "",
 }: {
   game: GameMeta;
   opponentName: string;
@@ -59,6 +61,8 @@ export function TableShell({
   playerCount?: 2 | 3 | 4;
   lobby?: (props: { open: boolean; onOpenChange: (open: boolean) => void }) => ReactNode;
   menuExtra?: ReactNode;
+  containerClassName?: string;
+  boxClassName?: string;
 }) {
   const navigate = useNavigate();
   const [confirming, setConfirming] = useState<"new" | "human" | "home" | "2" | "3" | "4" | null>(null);
@@ -95,7 +99,7 @@ export function TableShell({
         expired={disconnectExpired}
         opponentName={opponentName}
       />
-      <div className="mx-auto max-w-6xl px-6 py-8">
+      <div className={`mx-auto max-w-6xl py-8 ${containerClassName}`}>
         <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <Link
@@ -124,11 +128,11 @@ export function TableShell({
         </header>
 
         <div className={`grid gap-6 ${middle ? "lg:grid-cols-[1fr_230px_260px]" : "lg:grid-cols-[1fr_260px]"}`}>
-          <div className="rounded-2xl border border-gold/20 bg-surface/40 p-5 sm:p-8">
+          <div className={`rounded-2xl border border-gold/20 bg-surface/40 p-5 sm:p-8 ${boxClassName}`}>
             <ChatContext.Provider value={chatMessage}>{children}</ChatContext.Provider>
           </div>
 
-          {middle ? <div className="self-start">{middle}</div> : null}
+          {middle ? <div className="hidden self-start lg:block">{middle}</div> : null}
 
           <aside className="space-y-4">
             <div className="rounded-xl border border-gold/20 bg-surface/60 p-3">

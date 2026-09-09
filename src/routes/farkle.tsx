@@ -102,22 +102,10 @@ const flip = (side: Seat): Seat => (side === "human" ? "cpu" : "human");
 
 function rollOff(current: State): State {
   const human = rollFace();
-  const cpu = rollFace();
-  if (human === cpu) {
-    return {
-      ...current,
-      rolloff: { human, cpu },
-      log: note(current.log, { side: null, text: `Tie at ${human} — throw again.` }),
-    };
-  }
-  const first: Seat = human > cpu ? "human" : "cpu";
   return {
     ...current,
-    rolloff: { human, cpu },
-    log: note(current.log, {
-      side: first,
-      text: `win the rolloff ${human}-${cpu} and take the first turn.`,
-    }),
+    rolloff: { ...current.rolloff, human },
+    log: note(current.log, { side: "human", text: `throw a ${human} for the first turn.` }),
   };
 }
 
@@ -248,12 +236,6 @@ function FarkleTable() {
     setSelected([]);
   }, [isMulti, isHost, match?.version, remoteState]);
 
-  const rolloffResolving =
-    state.phase === "rolloff" &&
-    state.rolloff.human !== null &&
-    state.rolloff.cpu !== null &&
-    state.rolloff.human !== state.rolloff.cpu;
-
   const rolloffWinner: Seat | null =
     state.rolloff.human !== null && state.rolloff.cpu !== null && state.rolloff.human !== state.rolloff.cpu
       ? state.rolloff.human > state.rolloff.cpu
@@ -261,26 +243,74 @@ function FarkleTable() {
         : "cpu"
       : null;
 
-  const canRollOff = state.phase === "rolloff" && (!isMulti || isHost) && !rolloffResolving;
+  const canRollOff =
+    state.phase === "rolloff" &&
+    state.rolloff.human === null &&
+    (!isMulti || isHost || state.rolloff.cpu !== null);
+  // Label for the rolloff button: prompt the active player, and show a waiting
+  // state for whoever rolls second (or while the opponent rolls).
+  const rolloffLabel =
+    state.rolloff.human === null
+      ? canRollOff
+        ? "Roll for first turn"
+        : "Waiting…"
+      : state.rolloff.cpu === null
+        ? "Rolling…"
+        : "Roll again";
   const rollForFirst = () => {
     if (!canRollOff) return;
     apply(rollOff);
   };
 
-  // Once both dice have landed, pause two seconds before the winner takes the first turn.
+  // Ada's rolloff die (solo play) lands a beat after the player rolls their own.
+  useEffect(() => {
+    if (isMulti) return;
+    if (state.phase !== "rolloff") return;
+    if (state.rolloff.human === null || state.rolloff.cpu !== null) return;
+    const timer = setTimeout(() => {
+      apply((current) => {
+        if (current.phase !== "rolloff") return current;
+        if (current.rolloff.human === null || current.rolloff.cpu !== null) return current;
+        return {
+          ...current,
+          rolloff: { ...current.rolloff, cpu: rollFace() },
+        };
+      });
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [isMulti, state.phase, state.rolloff.human, state.rolloff.cpu]);
+
+  // Once both dice have landed, resolve the rolloff: a tie re-rolls, otherwise
+  // the higher roller takes the first turn.
   useEffect(() => {
     if (isMulti && !isHost) return;
     if (state.phase !== "rolloff") return;
     const h = state.rolloff.human;
     const c = state.rolloff.cpu;
-    if (h === null || c === null || h === c) return;
-    const first: Seat = h > c ? "human" : "cpu";
+    if (h === null || c === null) return;
     const timer = setTimeout(() => {
       apply((current) => {
         if (current.phase !== "rolloff") return current;
-        if (current.rolloff.human === null || current.rolloff.cpu === null) return current;
-        if (current.rolloff.human === current.rolloff.cpu) return current;
-        return { ...current, turn: first, phase: "play" };
+        const hh = current.rolloff.human;
+        const cc = current.rolloff.cpu;
+        if (hh === null || cc === null) return current;
+        if (hh === cc) {
+          return {
+            ...current,
+            rolloff: { human: null, cpu: null },
+            log: note(current.log, { side: null, text: `Tie at ${hh} — throw again.` }),
+          };
+        }
+        const first: Seat = hh > cc ? "human" : "cpu";
+        return {
+          ...current,
+          turn: first,
+          phase: "play",
+          log: note(current.log, {
+            side: first,
+            text: `win the rolloff ${hh}-${cc} and take the first turn.`,
+          }),
+        };
       });
     }, 2000);
     return () => clearTimeout(timer);
@@ -627,7 +657,7 @@ function FarkleTable() {
                   )}
                 </div>
               </div>
-              {state.rolloff.human !== null &&
+              {state.rolloff.human !== null && state.rolloff.cpu !== null &&
                 (rolloffWinner === null ? (
                   <p className="mt-4 text-sm text-ivory/55">Tie at {state.rolloff.human} — throw again.</p>
                 ) : (
@@ -635,13 +665,11 @@ function FarkleTable() {
                     {rolloffWinner === "human" ? "You go first!" : `${opponentName} goes first!`}
                   </p>
                 ))}
-              {!rolloffResolving && (
-                <div className="mt-6">
-                  <Button variant="parlor" onClick={rollForFirst} disabled={!canRollOff}>
-                    {state.rolloff.human === null ? "Roll for first turn" : "Roll again"}
-                  </Button>
-                </div>
-              )}
+              <div className="mt-6">
+                <Button variant="parlor" onClick={rollForFirst} disabled={!canRollOff}>
+                  {rolloffLabel}
+                </Button>
+              </div>
             </div>
           ) : (
             <div className="rounded-2xl border border-gold/25 bg-surface/60 p-6 shadow-2xl shadow-black/40">

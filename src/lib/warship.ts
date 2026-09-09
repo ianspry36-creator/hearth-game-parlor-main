@@ -157,15 +157,49 @@ const neighbours = (cell: number) => {
   return list;
 };
 
-/** Ada hunts around unresolved hits, otherwise fires on a parity pattern. */
+/** Ada hunts around unresolved hits, staying in-line once a hull's orientation is known, otherwise fires on a parity pattern. */
 export function chooseCpuShot(targetShips: Ship[], fired: number[]): number {
-  const openHits = targetShips
-    .filter((ship) => !isSunk(ship, fired))
-    .flatMap((ship) => ship.cells.filter((cell) => fired.includes(cell)));
+  const unresolved = targetShips.filter((ship) => !isSunk(ship, fired));
 
-  const followUps = openHits
-    .flatMap(neighbours)
-    .filter((cell) => !fired.includes(cell));
+  // Squares that finish off a ship whose orientation is already known (2+ hits).
+  const inline: number[] = [];
+  // Squares around a lone hit, where the orientation is still unknown.
+  const aroundHit: number[] = [];
+
+  for (const ship of unresolved) {
+    const hits = ship.cells.filter((cell) => fired.includes(cell));
+    if (hits.length === 0) continue;
+
+    let candidates: number[] = [];
+    let known = false;
+    if (hits.length >= 2) {
+      // Two or more hits reveal the hull's orientation, so only the squares
+      // extending that line can still hold the rest of the ship.
+      known = true;
+      const horizontal = rowOf(hits[0]!) === rowOf(hits[1]!);
+      if (horizontal) {
+        const row = rowOf(hits[0]!);
+        const cols = hits.map(colOf);
+        if (Math.min(...cols) > 0) candidates.push(row * SIZE + (Math.min(...cols) - 1));
+        if (Math.max(...cols) < SIZE - 1) candidates.push(row * SIZE + (Math.max(...cols) + 1));
+      } else {
+        const col = colOf(hits[0]!);
+        const rows = hits.map(rowOf);
+        if (Math.min(...rows) > 0) candidates.push((Math.min(...rows) - 1) * SIZE + col);
+        if (Math.max(...rows) < SIZE - 1) candidates.push((Math.max(...rows) + 1) * SIZE + col);
+      }
+    } else {
+      candidates = neighbours(hits[0]!);
+    }
+
+    for (const cell of candidates) {
+      if (fired.includes(cell)) continue;
+      const target = known ? inline : aroundHit;
+      if (!target.includes(cell)) target.push(cell);
+    }
+  }
+
+  const followUps = [...inline, ...aroundHit];
   if (followUps.length) return followUps[Math.floor(Math.random() * followUps.length)]!;
 
   const all = Array.from({ length: SIZE * SIZE }, (_, i) => i).filter((i) => !fired.includes(i));

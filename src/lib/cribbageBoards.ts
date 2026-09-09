@@ -1,9 +1,6 @@
-import board1 from "@/assets/crib-boards/board1.png";
-import board2 from "@/assets/crib-boards/board2.png";
-import board3 from "@/assets/crib-boards/board3.png";
-import board4 from "@/assets/crib-boards/board4.png";
-import board5 from "@/assets/crib-boards/board5.png";
-import board6 from "@/assets/crib-boards/board6.png";
+import crib1 from "@/assets/crib-boards/crib1.png";
+import crib2 from "@/assets/crib-boards/crib2.png";
+import crib3 from "@/assets/crib-boards/crib3.png";
 
 /** A selectable peg-board graphic for the cribbage table. */
 export type CribBoardOption = {
@@ -14,12 +11,9 @@ export type CribBoardOption = {
 
 /** The peg-board graphics the player can choose from. */
 export const CRIB_BOARD_OPTIONS: CribBoardOption[] = [
-  { id: "board-1", label: "Board 1", src: board1 },
-  { id: "board-2", label: "Board 2", src: board2 },
-  { id: "board-3", label: "Board 3", src: board3 },
-  { id: "board-4", label: "Board 4", src: board4 },
-  { id: "board-5", label: "Board 5", src: board5 },
-  { id: "board-6", label: "Board 6", src: board6 },
+  { id: "crib-1", label: "Crib 1", src: crib1 },
+  { id: "crib-2", label: "Crib 2", src: crib2 },
+  { id: "crib-3", label: "Crib 3", src: crib3 },
 ];
 
 const KEY = "parlor.cribbage.board";
