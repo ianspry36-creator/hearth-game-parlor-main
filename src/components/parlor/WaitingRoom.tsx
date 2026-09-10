@@ -90,6 +90,9 @@ export function WaitingRoom({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const entryId = useRef<string | null>(null);
+  // True while we had at least one pending incoming invite; used to put us back
+  // in the room once the invite resolves without a match.
+  const hadInviteRef = useRef(false);
 
   useEffect(() => {
     if (open && nickname) setDraft(nickname);
@@ -112,11 +115,47 @@ export function WaitingRoom({
     setInvites(await fetchIncomingInvites(game.id));
   }, [game.id]);
 
+  // Upsert our own waiting-room entry and return its id (or null on failure).
+  const upsertEntry = useCallback(
+    async (value: string): Promise<string | null> => {
+      const { data, error: upsertError } = await supabase
+        .from("waiting_players")
+        .upsert(
+          {
+            session_id: getSessionId(),
+            game: game.id,
+            nickname: value,
+            avatar: readAvatar(),
+            last_seen_at: new Date().toISOString(),
+          },
+          { onConflict: "session_id,game" },
+        )
+        .select("id")
+        .single();
+      if (upsertError || !data) return null;
+      return data.id as string;
+    },
+    [game.id],
+  );
+
+  // Put our entry back in the room after an invite exchange ends without a match.
+  const rejoin = useCallback(async () => {
+    const id = await upsertEntry(nickname ?? "Guest");
+    if (!id) {
+      setError("Could not rejoin the waiting room. Try again.");
+      return;
+    }
+    entryId.current = id;
+    setJoined(true);
+    void refresh();
+  }, [upsertEntry, nickname, refresh]);
+
   const leave = useCallback(async () => {
     const id = entryId.current;
     entryId.current = null;
     setJoined(false);
     setInvites([]);
+    hadInviteRef.current = false;
     if (id) await supabase.from("waiting_players").delete().eq("id", id);
   }, []);
 
@@ -167,12 +206,13 @@ export function WaitingRoom({
       if (row.status === "declined") {
         setOutgoing(null);
         setError(`${row.to_nickname} declined the invitation.`);
+        void rejoin();
       }
     };
     void check();
     const interval = window.setInterval(() => void check(), 2_000);
     return () => window.clearInterval(interval);
-  }, [outgoing, enterMatch]);
+  }, [outgoing, enterMatch, rejoin]);
 
   // Keep our own entry alive while we sit in the room.
   useEffect(() => {
@@ -191,26 +231,13 @@ export function WaitingRoom({
   const join = async (value: string) => {
     setLoading(true);
     setError(null);
-    const { data, error: upsertError } = await supabase
-      .from("waiting_players")
-      .upsert(
-        {
-          session_id: getSessionId(),
-          game: game.id,
-          nickname: value,
-          avatar: readAvatar(),
-          last_seen_at: new Date().toISOString(),
-        },
-        { onConflict: "session_id,game" },
-      )
-      .select("id")
-      .single();
+    const id = await upsertEntry(value);
     setLoading(false);
-    if (upsertError || !data) {
+    if (!id) {
       setError("Could not join the waiting room. Try again.");
       return;
     }
-    entryId.current = data.id;
+    entryId.current = id;
     setJoined(true);
     void refresh();
   };
@@ -245,6 +272,16 @@ export function WaitingRoom({
       setError("Could not send the invitation. Try again.");
       return;
     }
+    // Remove both players from the room so neither shows up to others while the
+    // invitation is pending; they come back if it is cancelled or declined.
+    const id = entryId.current;
+    entryId.current = null;
+    if (id) await supabase.from("waiting_players").delete().eq("id", id);
+    await supabase
+      .from("waiting_players")
+      .delete()
+      .eq("session_id", player.session_id)
+      .eq("game", game.id);
     setOutgoing(invite);
   };
 
@@ -262,6 +299,20 @@ export function WaitingRoom({
     await setInviteStatus(invite.id, "declined");
     setInvites((current) => current.filter((row) => row.id !== invite.id));
   };
+
+  // When an incoming invite disappears without a match (we declined it, or the
+  // inviter cancelled), put ourselves back in the room so others can see us again.
+  useEffect(() => {
+    if (!joined) return;
+    if (invites.length > 0) {
+      hadInviteRef.current = true;
+      return;
+    }
+    if (hadInviteRef.current) {
+      hadInviteRef.current = false;
+      void rejoin();
+    }
+  }, [invites, joined, rejoin]);
 
   const mySession = typeof window === "undefined" ? "" : getSessionId();
   const others = players.filter((player) => player.session_id !== mySession);
@@ -381,6 +432,7 @@ export function WaitingRoom({
                   onClick={() => {
                     void setInviteStatus(outgoing.id, "cancelled");
                     setOutgoing(null);
+                    void rejoin();
                   }}
                 >
                   Cancel invitation
