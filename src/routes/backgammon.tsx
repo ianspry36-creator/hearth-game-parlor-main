@@ -213,6 +213,9 @@ function BackgammonTable() {
   const moveTimersRef = useRef<number[]>([]);
   // Remaining legs of Ada's in-progress combined move (solo play only).
   const cpuLegsRef = useRef<Move[]>([]);
+  // Whether Ada's first leg knocked a checker to the bar, so the second leg
+  // waits for that piece to finish flying before moving on.
+  const cpuLegHitRef = useRef(false);
   useEffect(
     () => () => {
       moveTimersRef.current.forEach((t) => clearTimeout(t));
@@ -412,8 +415,10 @@ function BackgammonTable() {
       showPass("cpu");
     }
     // When a combined move is split into two die-steps, the second leg plays
-    // right after the first flight lands (plus a short pause); otherwise pause
-    // 3 seconds between rolls/moves so each flight is readable.
+    // right after the first flight lands (plus a short pause); if the first leg
+    // knocked a checker to the bar, wait for that piece to finish flying so its
+    // flight isn't cancelled mid-air. Otherwise pause 3 seconds between
+    // rolls/moves so each flight is readable.
     const playingLeg = cpuLegsRef.current.length > 0;
     const timer = setTimeout(() => {
       const current = stateRef.current;
@@ -464,6 +469,7 @@ function BackgammonTable() {
           const leg = legs[0]!;
           cpuLegsRef.current = legs.slice(1);
           const { board, hit } = applyMove(current.board, leg, "cpu");
+          cpuLegHitRef.current = hit;
           const { dice, slots: diceSlots } = consumeRoll(current.dice, current.diceSlots, leg.dice);
           next = {
             ...current,
@@ -480,13 +486,15 @@ function BackgammonTable() {
       }
       stateRef.current = next;
       setState(next);
-    }, playingLeg ? FLIGHT_MS + LEG_PAUSE_MS : 3000);
+    }, playingLeg ? (cpuLegHitRef.current ? 2 * FLIGHT_MS : FLIGHT_MS) + LEG_PAUSE_MS : 3000);
     return () => clearTimeout(timer);
   }, [isMulti, state.turn, state.rolled, state.dice, state.board, state.winner]);
 
-  const applyHumanLeg = (leg: Move) => {
+  const applyHumanLeg = (leg: Move): boolean => {
+    let hit = false;
     apply((current) => {
-      const { board, hit } = applyMove(current.board, leg, "human");
+      const { board, hit: legHit } = applyMove(current.board, leg, "human");
+      hit = legHit;
       const { dice, slots: diceSlots } = consumeRoll(current.dice, current.diceSlots, leg.dice);
       return {
         ...current,
@@ -496,10 +504,11 @@ function BackgammonTable() {
         winner: findWinner(board),
         log: note(current.log, {
           side: "human",
-          text: `play ${describeMove(leg, "human")}${hit ? " and hit a blot" : ""}.`,
+          text: `play ${describeMove(leg, "human")}${legHit ? " and hit a blot" : ""}.`,
         }),
       };
     });
+    return hit;
   };
 
   // Play a move, splitting combined (two-dice) moves into separate legs so each
@@ -507,14 +516,18 @@ function BackgammonTable() {
   const play = (move: Move) => {
     setSelected(null);
     const legs = splitMove(move);
-    applyHumanLeg(legs[0]!);
+    // If the first leg knocks a checker to the bar, hold the second leg long
+    // enough for that piece's flight (which is itself delayed until the hitter
+    // lands) to finish, so it isn't cancelled and left stranded on the bar.
+    const hitFirst = applyHumanLeg(legs[0]!);
     if (legs.length > 1) setMoving(true);
     for (let i = 1; i < legs.length; i++) {
       const leg = legs[i]!;
+      const gap = (hitFirst ? 2 * FLIGHT_MS : FLIGHT_MS) + LEG_PAUSE_MS;
       const timer = window.setTimeout(() => {
         applyHumanLeg(leg);
         if (i === legs.length - 1) setMoving(false);
-      }, i * (FLIGHT_MS + LEG_PAUSE_MS));
+      }, gap);
       moveTimersRef.current.push(timer);
     }
   };
