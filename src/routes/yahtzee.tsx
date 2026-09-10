@@ -6,7 +6,7 @@ import { GameOverDialog } from "@/components/parlor/GameOverDialog";
 import { PlayerAvatar } from "@/components/parlor/PlayerAvatar";
 import { getGame } from "@/lib/games";
 import { ADA_AVATAR, readAvatar } from "@/lib/avatars";
-import { useMatch } from "@/lib/multiplayer";
+import { getNickname, useMatch } from "@/lib/multiplayer";
 import { useRecordMatchResult } from "@/lib/stats";
 import {
   CATEGORY_LABELS,
@@ -147,6 +147,7 @@ function YahtzeeTable() {
 
   const isMulti = Boolean(matchId);
   const opponentName = liveOpponent ?? opponent ?? "Ada";
+  const playerName = getNickname() ?? "You";
 
   const apply = (fn: (current: State) => State) => {
     const next = fn(stateRef.current);
@@ -691,7 +692,7 @@ function YahtzeeTable() {
         <thead>
           <tr className="text-[10px] uppercase tracking-[0.18em] text-ivory/40">
             <th className="w-[55%] lg:w-auto pb-1 text-left font-normal" />
-            <th className="w-[20%] lg:w-auto pb-1 text-right font-normal">You</th>
+            <th className="w-[20%] lg:w-auto pb-1 text-right font-normal">{shortName(playerName)}</th>
             <th className="w-[25%] lg:w-auto pb-1 pl-3 text-right font-normal">{shortName(opponentName)}</th>
           </tr>
         </thead>
@@ -769,7 +770,7 @@ function YahtzeeTable() {
                   <p className="mt-1 font-display text-xs font-bold">Highest roll starts game</p>
                   <div className="mt-2 flex items-center justify-center gap-8">
                     <div className="flex flex-col items-center gap-2">
-                      <p className="font-display">You</p>
+                      <p className="font-display">{playerName}</p>
                       {state.rolloff.human !== null ? (
                         <DieFace face={state.rolloff.human} />
                       ) : (

@@ -115,7 +115,7 @@ export const GAMES: GameMeta[] = [
       },
       {
         heading: "Scoring",
-        body: "Each one is worth a hundred, each five is worth fifty. Three of a kind pays a hundred times the face — three ones pay a thousand — and each further die of that kind doubles it. A run of one to six pays fifteen hundred, three pairs pay fifteen hundred, and two triplets pay twenty-five hundred.",
+        body: "Each one is worth a hundred, each five is worth fifty. Three of a kind pays a hundred times the face — three ones pay a thousand — four of a kind pays a thousand, five of a kind pays two thousand, and six of a kind pays three thousand. A run of one to six pays fifteen hundred, three pairs pay fifteen hundred, and two triplets pay twenty-five hundred.",
       },
       {
         heading: "Farkle",

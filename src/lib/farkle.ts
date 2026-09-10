@@ -13,6 +13,14 @@ const counts = (faces: number[]) => {
 
 const tripleBase = (face: number) => (face === 1 ? 1000 : face * 100);
 
+// Four/five/six of a kind pay flat values regardless of the face.
+const ofAKind = (face: number, count: number) => {
+  if (count === 3) return tripleBase(face);
+  if (count === 4) return 1000;
+  if (count === 5) return 2000;
+  return 3000; // six of a kind
+};
+
 /**
  * Best score for a selection where EVERY die must take part in a combination.
  * Returns null when the selection is not a legal keep.
@@ -44,7 +52,7 @@ function best(c: number[]): number | null {
         const next = [...c];
         next[face] = n - take;
         const rest = best(next);
-        if (rest !== null) options.push(tripleBase(face) * Math.pow(2, take - 3) + rest);
+        if (rest !== null) options.push(ofAKind(face, take) + rest);
       }
     }
   }

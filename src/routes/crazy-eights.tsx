@@ -6,7 +6,7 @@ import { GameOverDialog } from "@/components/parlor/GameOverDialog";
 import { PlayerAvatar } from "@/components/parlor/PlayerAvatar";
 import { ADA_AVATAR, AVATAR_OPTIONS, readAvatar } from "@/lib/avatars";
 import { getGame } from "@/lib/games";
-import { useMatch } from "@/lib/multiplayer";
+import { getNickname, useMatch } from "@/lib/multiplayer";
 import { useRecordMatchResult } from "@/lib/stats";
 import { isStalePlayingRoom, leaveRoom, useCrazyEightsRoom } from "@/lib/crazyEightsLobby";
 import { CrazyEightsLobby } from "@/components/parlor/CrazyEightsLobby";
@@ -281,7 +281,7 @@ function CrazyEightsTable() {
   const dealing = dealt < HAND_SIZE * activeCount;
 
   const seatName = (seat: Seat): string => {
-    if (!isRoom) return SEAT_NAMES[seat];
+    if (!isRoom) return seat === "you" ? getNickname() ?? SEAT_NAMES[seat] : SEAT_NAMES[seat];
     const base = ORDER_BY_COUNT[activeCount];
     const viewIndex = base.indexOf(seat);
     const canonical = (mySeat + viewIndex) % activeCount;
@@ -654,14 +654,10 @@ function CrazyEightsTable() {
           ? LEO_AVATAR
           : playerAvatar;
 
-  const winnerName = state.winner
-    ? state.winner === "you"
-      ? "You"
-      : seatName(state.winner)
-    : "Ada";
+  const winnerName = state.winner ? seatName(state.winner) : "Ada";
 
   const results = state.order.map((seat) => ({
-    name: seat === "you" ? "You" : seatName(seat),
+    name: seatName(seat),
     score: handPenalty(state.hands[seat] ?? []),
     avatar: seat === "you" ? playerAvatar : seatAvatar(seat),
     won: seat === state.winner,

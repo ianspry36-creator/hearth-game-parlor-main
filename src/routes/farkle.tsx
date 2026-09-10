@@ -5,7 +5,7 @@ import { TableShell } from "@/components/parlor/TableShell";
 import { GameOverDialog } from "@/components/parlor/GameOverDialog";
 import { PlayerAvatar } from "@/components/parlor/PlayerAvatar";
 import { getGame } from "@/lib/games";
-import { useMatch } from "@/lib/multiplayer";
+import { getNickname, useMatch } from "@/lib/multiplayer";
 import { useRecordMatchResult } from "@/lib/stats";
 import { ADA_AVATAR, readAvatar } from "@/lib/avatars";
 import {
@@ -131,9 +131,9 @@ const MELD_VALUES = [
   { meld: "Triple fours", value: "400" },
   { meld: "Triple fives", value: "500" },
   { meld: "Triple sixes", value: "600" },
-  { meld: "Four of a kind", value: "Double the triple" },
-  { meld: "Five of a kind", value: "Quadruple the triple" },
-  { meld: "Six of a kind", value: "Octuple the triple" },
+  { meld: "Four of a kind", value: "1,000" },
+  { meld: "Five of a kind", value: "2,000" },
+  { meld: "Six of a kind", value: "3,000" },
   { meld: "Three pairs", value: "1,500" },
   { meld: "Straight 1–6", value: "1,500" },
 ];
@@ -202,6 +202,7 @@ function FarkleTable() {
 
   const isMulti = Boolean(matchId);
   const opponentName = liveOpponent ?? opponent ?? "Ada";
+  const playerName = getNickname() ?? "You";
 
   const apply = (fn: (current: State) => State) => {
     const next = fn(stateRef.current);
@@ -556,11 +557,8 @@ function FarkleTable() {
         reset();
       }}
       onNewGame={reset}
-      rail={
-        <>
-          {meldBox}
-        </>
-      }
+      middle={meldBox}
+      middleClassName="self-start"
     >
       <GameOverDialog
         open={state.phase === "over" && Boolean(state.winner)}
@@ -572,10 +570,10 @@ function FarkleTable() {
         playerAvatar={playerAvatar}
         onPlayAgain={reset}
       />
-      <div className="flex min-h-[560px] flex-col justify-between gap-6">
+      <div className="flex min-h-[560px] flex-col justify-start gap-6">
         {/* Ada — top of the table */}
         <div className="flex flex-col items-center gap-4 rounded-2xl border border-gold/15 bg-brand/50 p-4 sm:flex-row sm:justify-between">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             <div className="relative inline-block">
               <img
                 src={ADA_AVATAR}
@@ -602,36 +600,40 @@ function FarkleTable() {
                 {state.turn === "cpu" && state.phase === "play" ? "Throwing…" : "Waiting"}
               </p>
             </div>
-          </div>
-
-          {state.turn === "cpu" && state.phase === "play" && setAsideDice.length > 0 && (
-            <div className="flex flex-1 flex-wrap items-center justify-center gap-2">
-              <span className="text-[10px] uppercase tracking-[0.2em] text-ivory/50">
-                Set aside
-              </span>
-              {setAsideDice.map((die) => {
-                const realIndex = state.dice.indexOf(die);
-                return (
-                  <span key={`c${realIndex}`} className="animate-die-to-cpu">
-                    <DieFace face={die.face} small />
-                  </span>
-                );
-              })}
+            <div className="rounded-lg border border-gold/20 bg-surface/60 px-3 py-1.5 text-center sm:px-5 sm:py-2">
+              <p className="text-[10px] uppercase tracking-[0.2em] text-ivory/50">Score</p>
+              <p className="font-display text-xl font-bold text-gold sm:text-2xl">
+                {state.scores.cpu.toLocaleString()}
+              </p>
             </div>
-          )}
-
-          <div className="rounded-lg border border-gold/20 bg-surface/60 px-5 py-2 text-center">
-            <p className="text-[10px] uppercase tracking-[0.2em] text-ivory/50">Score</p>
-            <p className="font-display text-2xl font-bold text-gold">
-              {state.scores.cpu.toLocaleString()}
-            </p>
           </div>
+
+          <div className="flex min-h-9 flex-1 flex-wrap items-center justify-center gap-2">
+            {state.turn === "cpu" && state.phase === "play" && setAsideDice.length > 0 && (
+              <>
+                <span className="text-[10px] uppercase tracking-[0.2em] text-ivory/50">
+                  Set aside
+                </span>
+                {setAsideDice.map((die) => {
+                  const realIndex = state.dice.indexOf(die);
+                  return (
+                    <span key={`c${realIndex}`} className="animate-die-to-cpu">
+                      <DieFace face={die.face} small />
+                    </span>
+                  );
+                })}
+              </>
+            )}
+          </div>
+
         </div>
 
         {/* Middle arena — status and thrown dice */}
-        <div className="flex flex-1 flex-col items-center justify-center gap-5">
+        <div className="flex flex-col items-center justify-start gap-5">
           <div className="w-full max-w-xl rounded-xl border border-gold/20 bg-gold/10 px-5 py-3 text-center">
-            <p className="text-sm font-medium text-cream">{status}</p>
+            <p className="flex min-h-10 items-center justify-center text-sm font-medium text-cream">
+              {status}
+            </p>
           </div>
 
           {state.phase === "rolloff" ? (
@@ -640,7 +642,7 @@ function FarkleTable() {
               <p className="mt-2 font-display text-2xl font-bold">Highest roll starts the game</p>
               <div className="mt-6 flex items-center justify-center gap-8">
                 <div className="flex flex-col items-center gap-2">
-                  <p className="font-display">You</p>
+                  <p className="font-display">{playerName}</p>
                   {state.rolloff.human !== null ? (
                     <DieFace face={state.rolloff.human} />
                   ) : (
@@ -678,8 +680,8 @@ function FarkleTable() {
               </p>
               <div className="flex flex-wrap justify-center gap-3">
                 {state.dice.map((die, i) => {
-                  if (die.set) {
-                    return <div key={i} className="size-16" aria-hidden />;
+                  if (!state.rolled || die.set) {
+                    return <div key={i} className="size-10" aria-hidden />;
                   }
                   const { angle, dx, dy } = scatterFor(i, die.face);
                   return (
@@ -689,7 +691,7 @@ function FarkleTable() {
                     >
                       <DieFace
                         face={die.face}
-                        dim={!state.rolled}
+                        medium
                         selected={selected.includes(i)}
                         interactive={myTurn && state.rolled && !state.farkled}
                         onClick={() => toggle(i)}
@@ -708,7 +710,7 @@ function FarkleTable() {
         {/* Player — bottom of the table */}
         <div className="rounded-2xl border border-gold/15 bg-brand/50 p-4">
           <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-4">
               <PlayerAvatar
                 avatar={playerAvatar}
                 onSelect={setPlayerAvatar}
@@ -716,31 +718,39 @@ function FarkleTable() {
                 {...(playerMessage ? { message: playerMessage } : {})}
               />
               <div>
-                <p className="font-display text-lg font-bold">You</p>
+                <p className="font-display text-lg font-bold">{playerName}</p>
                 <p className="text-xs text-ivory/60">
                   {myTurn && state.phase === "play" ? "Your turn" : "Waiting"}
                 </p>
               </div>
+              <div className="rounded-lg border border-gold/20 bg-surface/60 px-3 py-1.5 text-center sm:px-5 sm:py-2">
+                <p className="text-[10px] uppercase tracking-[0.2em] text-ivory/50">Score</p>
+                <p className="font-display text-xl font-bold text-gold sm:text-2xl">
+                  {state.scores.human.toLocaleString()}
+                </p>
+              </div>
             </div>
 
-            <div className="order-3 flex flex-col items-center gap-3 sm:order-2 sm:flex-1">
-              {state.turn === "human" && state.phase === "play" && setAsideDice.length > 0 && (
-                <div className="flex flex-wrap items-center justify-center gap-2">
-                  <span className="text-[10px] uppercase tracking-[0.2em] text-ivory/50">
-                    Set aside
-                  </span>
-                  {setAsideDice.map((die) => {
-                    const realIndex = state.dice.indexOf(die);
-                    return (
-                      <span key={`s${realIndex}`} className="animate-die-to-player">
-                        <DieFace face={die.face} small />
-                      </span>
-                    );
-                  })}
-                </div>
-              )}
+            <div className="order-3 flex flex-col items-center gap-3 sm:order-2 sm:flex-1 sm:items-end">
+              <div className="flex min-h-9 flex-wrap items-center justify-center gap-2">
+                {state.turn === "human" && state.phase === "play" && setAsideDice.length > 0 && (
+                  <>
+                    <span className="text-[10px] uppercase tracking-[0.2em] text-ivory/50">
+                      Set aside
+                    </span>
+                    {setAsideDice.map((die) => {
+                      const realIndex = state.dice.indexOf(die);
+                      return (
+                        <span key={`s${realIndex}`} className="animate-die-to-player">
+                          <DieFace face={die.face} small />
+                        </span>
+                      );
+                    })}
+                  </>
+                )}
+              </div>
 
-              <div className="flex flex-wrap items-center justify-center gap-3">
+              <div className="flex min-h-9 flex-wrap items-center justify-center gap-3">
                 {state.phase === "play" && myTurn && (
                   <>
                     {state.farkled ? (
@@ -783,13 +793,6 @@ function FarkleTable() {
                 )}
               </div>
             </div>
-
-            <div className="order-2 rounded-lg border border-gold/20 bg-surface/60 px-5 py-2 text-center sm:order-3">
-              <p className="text-[10px] uppercase tracking-[0.2em] text-ivory/50">Score</p>
-              <p className="font-display text-2xl font-bold text-gold">
-                {state.scores.human.toLocaleString()}
-              </p>
-            </div>
           </div>
         </div>
       </div>
@@ -812,6 +815,7 @@ function DieFace({
   interactive = false,
   dim = false,
   small = false,
+  medium = false,
   onClick,
 }: {
   face: number;
@@ -819,6 +823,7 @@ function DieFace({
   interactive?: boolean;
   dim?: boolean;
   small?: boolean;
+  medium?: boolean;
   onClick?: () => void;
 }) {
   const pips = PIPS[face] ?? [];
@@ -830,7 +835,7 @@ function DieFace({
       disabled={!interactive}
       onClick={onClick}
       className={`grid rounded-xl border-2 bg-cream p-1.5 transition-all ${
-        small ? "size-9" : "size-16"
+        medium ? "size-10" : small ? "size-9" : "size-16"
       } ${selected ? "-translate-y-1.5 border-gold shadow-lg shadow-black/40" : "border-cream/40"} ${
         dim ? "opacity-40" : ""
       } ${interactive ? "cursor-pointer hover:-translate-y-1 hover:border-gold" : "cursor-default"}`}
@@ -839,7 +844,7 @@ function DieFace({
         {Array.from({ length: 9 }, (_, cell) => (
           <span
             key={cell}
-            className={`m-auto rounded-full ${small ? "size-1" : "size-2"} ${
+            className={`m-auto rounded-full ${medium ? "size-1.5" : small ? "size-1" : "size-2"} ${
               pips.includes(cell) ? "bg-brand" : ""
             }`}
           />

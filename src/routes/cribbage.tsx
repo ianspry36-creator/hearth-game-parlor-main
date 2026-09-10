@@ -14,7 +14,7 @@ import { TableShell } from "@/components/parlor/TableShell";
 import { CribBoard } from "@/components/parlor/CribBoard";
 import { CribBoardOptionsDialog } from "@/components/parlor/CribBoardOptionsDialog";
 import { getGame } from "@/lib/games";
-import { useMatch } from "@/lib/multiplayer";
+import { getNickname, useMatch } from "@/lib/multiplayer";
 import { useRecordMatchResult } from "@/lib/stats";
 import {
   cardLabel,
@@ -452,6 +452,7 @@ function CribbageTable() {
   useRecordMatchResult(match, isHost, state.winner);
 
   const opponentName = liveOpponent ?? opponent ?? "Ada";
+  const playerName = getNickname() ?? "You";
 
   /** Commit a move: locally always, and to the shared table in a live match. */
   const apply = (fn: (current: State) => State) => {
@@ -941,6 +942,7 @@ function CribbageTable() {
           playerBack={back.player}
           cpuBack={back.cpu}
           opponentName={opponentName}
+          playerName={playerName}
         />
       }
     >
@@ -1016,7 +1018,7 @@ function CribbageTable() {
                 seatRef={cpuSeatRef}
               />
               <CutSeat
-                label="You"
+                label={playerName}
                 card={cutSeated.player ? state.playerCut : null}
                 seatRef={playerSeatRef}
               />
@@ -1275,7 +1277,7 @@ function CribbageTable() {
                   </Button>
                 )}
               <Seat
-                name="You"
+                name={playerName}
                 isDealer={state.dealer === "player"}
                 avatar={<PlayerAvatar avatar={avatar} onSelect={setAvatar} />}
               />

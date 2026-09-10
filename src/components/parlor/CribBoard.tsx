@@ -49,6 +49,7 @@ export function CribBoard({
   playerBack,
   cpuBack,
   opponentName,
+  playerName,
 }: {
   graphic: string;
   playerScore: number;
@@ -56,6 +57,7 @@ export function CribBoard({
   playerBack: number;
   cpuBack: number;
   opponentName: string;
+  playerName: string;
 }) {
   return (
     <div className="rounded-xl border border-gold/20 bg-surface/60 p-4">
@@ -74,7 +76,7 @@ export function CribBoard({
       <div className="mt-4 overflow-hidden rounded-lg border border-gold/20">
         <div className="flex items-center justify-between border-b border-gold/15 bg-brand/60 px-3 py-2">
           <span className="flex items-center gap-2 text-sm">
-            <span className="size-2.5 rounded-full bg-gold" /> You
+            <span className="size-2.5 rounded-full bg-gold" /> {playerName}
           </span>
           <span className="font-display text-lg text-gold">{playerScore}</span>
         </div>

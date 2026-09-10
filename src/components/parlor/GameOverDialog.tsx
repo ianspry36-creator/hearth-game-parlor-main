@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ADA_HAPPY, ADA_SAD, ADA_AVATAR } from "@/lib/avatars";
 import skunk from "@/assets/skunk.png";
+import { getNickname } from "@/lib/multiplayer";
 
 export type GameOverResult = "win" | "loss" | "draw";
 
@@ -63,7 +64,7 @@ export function GameOverDialog({
         : "The game is over — here is how the table finished.");
 
   const you = {
-    name: "You",
+    name: getNickname() ?? "You",
     score: playerScore,
     avatar: playerAvatar,
     won: result === "win",
@@ -117,7 +118,7 @@ export function GameOverDialog({
                     height={96}
                     className={`size-24 rounded-full border-2 object-cover shadow-lg shadow-black/30 ${
                       seat.won ? "border-gold" : "border-ivory/40"
-                    } ${seat.lost && seat.name === "You" ? "grayscale brightness-90" : ""}`}
+                    } ${seat.lost && seat.avatar === playerAvatar ? "grayscale brightness-90" : ""}`}
                   />
                   {seat.won ? (
                     <span className="absolute -right-1 -top-1 grid size-7 place-items-center rounded-full bg-gold text-sm text-brand shadow-md">

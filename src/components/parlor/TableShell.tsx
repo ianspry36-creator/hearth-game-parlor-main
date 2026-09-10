@@ -30,6 +30,7 @@ export function TableShell({
   gameInProgress = false,
   rail,
   middle,
+  middleClassName = "hidden self-start lg:block",
   children,
   hideOpponent = false,
   opponentDisconnected = false,
@@ -51,6 +52,7 @@ export function TableShell({
   gameInProgress?: boolean;
   rail?: ReactNode;
   middle?: ReactNode;
+  middleClassName?: string;
   children: ReactNode;
   hideOpponent?: boolean;
   opponentDisconnected?: boolean;
@@ -132,7 +134,7 @@ export function TableShell({
             <ChatContext.Provider value={chatMessage}>{children}</ChatContext.Provider>
           </div>
 
-          {middle ? <div className="hidden self-start lg:block">{middle}</div> : null}
+          {middle ? <div className={middleClassName}>{middle}</div> : null}
 
           <aside className="space-y-4">
             <div className="rounded-xl border border-gold/20 bg-surface/60 p-3">

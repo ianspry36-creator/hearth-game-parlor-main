@@ -8,7 +8,7 @@ import { TableOptionsDialog } from "@/components/parlor/TableOptionsDialog";
 import { ADA_AVATAR, readAvatar } from "@/lib/avatars";
 import { getGame } from "@/lib/games";
 import { CLASSIC_PALETTE, readTableGraphic, type TablePalette } from "@/lib/backgammonTables";
-import { useMatch } from "@/lib/multiplayer";
+import { getNickname, useMatch } from "@/lib/multiplayer";
 import { useRecordMatchResult } from "@/lib/stats";
 import {
   applyMove,
@@ -223,6 +223,7 @@ function BackgammonTable() {
 
   const isMulti = Boolean(matchId);
   const opponentName = liveOpponent ?? opponent ?? "Ada";
+  const playerName = getNickname() ?? "You";
 
   const apply = (fn: (current: State) => State) => {
     const next = fn(stateRef.current);
@@ -650,7 +651,7 @@ function BackgammonTable() {
               {...(passBubble === "human" ? { message: "PASS" } : {})}
             />
             <div>
-              <p className="font-display text-lg font-bold">You</p>
+              <p className="font-display text-lg font-bold">{playerName}</p>
               <p className="text-xs text-ivory/60">
                 {state.turn === "human" && !state.winner ? "Your turn to roll dice" : "Waiting"}
               </p>

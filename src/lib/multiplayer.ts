@@ -203,9 +203,12 @@ export function useMatch<T>(matchId: string | undefined) {
       if (!matchId) return;
       const next = version.current + 1;
       version.current = next;
-      setMatch((current) =>
-        current ? { ...current, state: state as unknown, version: next } : current,
-      );
+      // Note: we intentionally do NOT optimistically setMatch here. Publishing bumps
+      // the local version ref so our own realtime/poll echoes are ignored, but we
+      // leave `match` untouched so the remote-state receive effect (which depends on
+      // `match.version` / `remoteState`) does not fire for our own move. If it did,
+      // a guest's mirrored state would be re-mirrored into a fresh object and re-render
+      // the board mid-animation, cancelling the piece fly.
       await supabase
         .from("matches")
         .update({

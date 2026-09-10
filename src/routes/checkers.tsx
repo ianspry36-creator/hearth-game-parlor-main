@@ -5,7 +5,7 @@ import { GameOverDialog } from "@/components/parlor/GameOverDialog";
 import { PlayerAvatar } from "@/components/parlor/PlayerAvatar";
 import { getGame } from "@/lib/games";
 import { ADA_AVATAR, readAvatar } from "@/lib/avatars";
-import { useMatch } from "@/lib/multiplayer";
+import { getNickname, useMatch } from "@/lib/multiplayer";
 import { useRecordMatchResult } from "@/lib/stats";
 import {
   applyStep,
@@ -178,6 +178,7 @@ function CheckersTable() {
 
   const isMulti = Boolean(matchId);
   const opponentName = liveOpponent ?? opponent ?? "Ada";
+  const playerName = getNickname() ?? "You";
 
   const apply = (fn: (current: State) => State) => {
     const next = fn(stateRef.current);
@@ -475,7 +476,7 @@ function CheckersTable() {
         <section className="flex items-center gap-3 rounded-2xl border border-gold/15 bg-brand/50 p-4">
           <PlayerAvatar avatar={playerAvatar} onSelect={setPlayerAvatar} />
           <div className="min-w-0 flex-1">
-            <p className="truncate font-display text-lg font-bold">You</p>
+            <p className="truncate font-display text-lg font-bold">{playerName}</p>
             <p className="text-xs text-ivory/60">{myTurn ? "Your turn" : "Waiting"}</p>
           </div>
           <p className="font-display text-2xl font-bold text-player-coral">{human}</p>
