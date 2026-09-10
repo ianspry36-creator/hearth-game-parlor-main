@@ -828,7 +828,15 @@ function Board({
     const prev = prevBoardRef.current;
     prevBoardRef.current = board;
     const moved = detectMoves(prev, board);
-    if (!moved.length) return;
+    if (!moved.length) {
+      // A board object can change without any checker moving: a live opponent's
+      // turn change is published with an unchanged board, then mirrored into a
+      // fresh object on our side. That re-runs this effect and its cleanup,
+      // which cancels the in-flight timers. Clear any stranded ghosts here so a
+      // hit-to-bar flight (or a re-entry flight) doesn't linger forever.
+      setFlies([]);
+      return;
+    }
 
     const boardEl = boardRef.current;
     if (!boardEl) return;
