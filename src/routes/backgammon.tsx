@@ -206,6 +206,17 @@ function BackgammonTable() {
     [],
   );
 
+  // Which player is showing the "I win starter throw. I go first" bubble after
+  // the rolloff decides who starts.
+  const [starterBubble, setStarterBubble] = useState<Seat | null>(null);
+  const starterTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (starterTimerRef.current) clearTimeout(starterTimerRef.current);
+    },
+    [],
+  );
+
   // True while the two legs of a combined (two-dice) human move are still
   // animating, so the player can't interrupt the sequence mid-flight.
   const [moving, setMoving] = useState(false);
@@ -244,6 +255,7 @@ function BackgammonTable() {
     setState(fresh);
     setSelected(null);
     setPassBubble(null);
+    setStarterBubble(null);
     setMoving(false);
     moveTimersRef.current.forEach((t) => clearTimeout(t));
     moveTimersRef.current = [];
@@ -288,7 +300,14 @@ function BackgammonTable() {
       : state.dice;
   const boardDiceSlots =
     state.phase === "rolloff"
-      ? boardDice.map((_, i) => i - 0.5) // human left, cpu right
+      ? // Assign each die's slot by who rolled it (human left, cpu right) so a
+        // die already on the board keeps its spot when the other player rolls.
+        // Mapping by filtered index instead would slide the first die sideways
+        // the moment the second die appears.
+        [
+          state.rolloff.human === null ? null : -0.5,
+          state.rolloff.cpu === null ? null : 0.5,
+        ].filter((s): s is number => s !== null)
       : (state.diceSlots ?? boardDice.map((_, i) => i - (boardDice.length - 1) / 2));
 
   // Hand the dice over when we have no legal moves left, pausing for a
@@ -320,6 +339,18 @@ function BackgammonTable() {
         ? "human"
         : "cpu"
       : null;
+
+  // Pop the winner's "I go first" bubble as soon as the rolloff is decided,
+  // then let it fade once the opening turn begins.
+  useEffect(() => {
+    if (!rolloffWinner) return;
+    setStarterBubble(rolloffWinner);
+    if (starterTimerRef.current) clearTimeout(starterTimerRef.current);
+    starterTimerRef.current = setTimeout(() => {
+      setStarterBubble(null);
+      starterTimerRef.current = null;
+    }, 2600);
+  }, [rolloffWinner]);
 
   const canRollOff =
     state.phase === "rolloff" &&
@@ -601,6 +632,7 @@ function BackgammonTable() {
                 className="size-14 rounded-full border-2 border-gold/40 bg-surface object-cover"
               />
               {passBubble === "cpu" && <CloudChat text="PASS" />}
+              {starterBubble === "cpu" && <CloudChat text="I win starter throw. I go first" />}
             </div>
             <div>
               <p className="font-display text-lg font-bold">{opponentName}</p>
@@ -661,7 +693,11 @@ function BackgammonTable() {
             <PlayerAvatar
               avatar={playerAvatar}
               onSelect={setPlayerAvatar}
-              {...(passBubble === "human" ? { message: "PASS" } : {})}
+              {...(passBubble === "human"
+                ? { message: "PASS" }
+                : starterBubble === "human"
+                  ? { message: "I win starter throw. I go first" }
+                  : {})}
             />
             <div>
               <p className="font-display text-lg font-bold">{playerName}</p>
