@@ -739,14 +739,23 @@ function CrazyEightsTable() {
 
   const canPlayNow = hasPlayable(myHand, top, state.wildSuit);
 
-  const seatAvatar = (seat: Seat): string =>
-    seat === "ada"
+  const seatAvatar = (seat: Seat): string => {
+    if (seat === "you") return playerAvatar;
+    if (isRoom) {
+      const base = ORDER_BY_COUNT[activeCount];
+      const viewIndex = base.indexOf(seat);
+      const canonical = (mySeat + viewIndex) % activeCount;
+      const player = roomPlayers.find((p) => p.seat === canonical);
+      if (player?.avatar) return player.avatar;
+    }
+    return seat === "ada"
       ? ADA_AVATAR
       : seat === "ace"
         ? ACE_AVATAR
         : seat === "leo"
           ? LEO_AVATAR
           : playerAvatar;
+  };
 
   const winnerName = state.winner ? seatName(state.winner) : "Ada";
 
@@ -839,7 +848,7 @@ function CrazyEightsTable() {
         <div className="flex justify-center">
           <OpponentSeat
             name={seatName("ada")}
-            avatar={ADA_AVATAR}
+            avatar={seatAvatar("ada")}
             cards={state.hands.ada ?? []}
             handEls={seatHandEls.current}
             active={state.turn === "ada"}
@@ -856,7 +865,7 @@ function CrazyEightsTable() {
             {hasAce ? (
               <OpponentSeat
                 name={seatName("ace")}
-                avatar={ACE_AVATAR}
+                avatar={seatAvatar("ace")}
                 cards={state.hands.ace ?? []}
                 handEls={seatHandEls.current}
                 vertical
@@ -936,7 +945,7 @@ function CrazyEightsTable() {
             {hasLeo ? (
               <OpponentSeat
                 name={seatName("leo")}
-                avatar={LEO_AVATAR}
+                avatar={seatAvatar("leo")}
                 cards={state.hands.leo ?? []}
                 handEls={seatHandEls.current}
                 vertical
@@ -958,7 +967,7 @@ function CrazyEightsTable() {
           <div className="mb-2 flex items-center justify-center gap-3">
             <PlayerAvatar avatar={playerAvatar} onSelect={setPlayerAvatar} />
             <p className="text-[10px] uppercase tracking-[0.22em] text-ivory/45">
-              {seatName("you")}&apos;s hand
+              {seatName("you")}
             </p>
           </div>
           <div ref={handRef} className="flex items-end justify-center">
