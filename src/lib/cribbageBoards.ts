@@ -1,6 +1,5 @@
-import crib1 from "@/assets/crib-boards/crib1.png";
-import crib2 from "@/assets/crib-boards/crib2.png";
-import crib3 from "@/assets/crib-boards/crib3.png";
+import cribbageOriginal from "@/assets/crib-boards/cribbage-original.png";
+import cribbageYelBlu from "@/assets/crib-boards/cribbage_yel_blu.png";
 
 /** A selectable peg-board graphic for the cribbage table. */
 export type CribBoardOption = {
@@ -11,9 +10,8 @@ export type CribBoardOption = {
 
 /** The peg-board graphics the player can choose from. */
 export const CRIB_BOARD_OPTIONS: CribBoardOption[] = [
-  { id: "crib-1", label: "Crib 1", src: crib1 },
-  { id: "crib-2", label: "Crib 2", src: crib2 },
-  { id: "crib-3", label: "Crib 3", src: crib3 },
+  { id: "cribbage-original", label: "Original", src: cribbageOriginal },
+  { id: "cribbage-yel-blu", label: "Yellow / Blue", src: cribbageYelBlu },
 ];
 
 const KEY = "parlor.cribbage.board";

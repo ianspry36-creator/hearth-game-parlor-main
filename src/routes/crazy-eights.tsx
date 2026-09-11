@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { TableShell } from "@/components/parlor/TableShell";
 import { GameOverDialog } from "@/components/parlor/GameOverDialog";
 import { PlayerAvatar } from "@/components/parlor/PlayerAvatar";
+import { SpeechBubble } from "@/components/parlor/SpeechBubble";
 import { ADA_AVATAR, AVATAR_OPTIONS, readAvatar } from "@/lib/avatars";
 import { getGame } from "@/lib/games";
 import { getNickname, useMatch } from "@/lib/multiplayer";
@@ -76,6 +77,9 @@ const LEO_AVATAR = AVATAR_OPTIONS[7]!.url;
 /** A player may draw up to this many cards on a turn before passing. */
 const MAX_DRAWS = 3;
 
+/** Ordinal labels for each card drawn in a turn, indexed by 1-based draw number. */
+const DRAW_ORDINAL = ["", "first", "second", "third"];
+
 type State = {
   phase: "play" | "suit" | "over";
   turn: Seat;
@@ -86,6 +90,8 @@ type State = {
   hands: Record<Seat, Card[]>;
   log: LogEntry[];
   winner: Seat | null;
+  /** Monotonic id bumped on each fresh deal; keys the dealing animation. */
+  dealId: number;
   /** Cards drawn so far this turn — a player may draw up to MAX_DRAWS. */
   drew: number;
 };
@@ -100,6 +106,11 @@ type FlyingCard = {
 // The opening deal must match the server, so the first render uses a fixed
 // seed and is reshuffled once the client mounts.
 const SSR_SEED = 20260829;
+
+// Monotonic id bumped on every fresh deal. It keys the dealing animation so
+// that recycling the discard pile mid-game (which changes `pile[0]`) never
+// re-runs the whole dealing animation and briefly stalls the table.
+let dealCounter = 0;
 
 function freshState(count: PlayerCount = 2, random: () => number = Math.random): State {
   const deck = newDeck(random);
@@ -127,6 +138,7 @@ function freshState(count: PlayerCount = 2, random: () => number = Math.random):
       },
     ],
     winner: null,
+    dealId: ++dealCounter,
     drew: 0,
   };
 }
@@ -266,7 +278,9 @@ function CrazyEightsTable() {
     : playerCount;
 
   // Deal the hand out one card at a time whenever a new hand is turned up.
-  const handKey = state.pile[0]?.id ?? "";
+  // Key on the deal id rather than `pile[0]` — recycling the discard pile would
+  // otherwise change the key and replay the whole deal mid-game.
+  const handKey = state.dealId ?? state.pile[0]?.id ?? "";
   useEffect(() => {
     setDealt(0);
     let step = 0;
@@ -306,10 +320,10 @@ function CrazyEightsTable() {
   useEffect(() => {
     if (isLive || didDeal.current) return;
     didDeal.current = true;
-    const fresh = freshState(2);
+    const fresh = freshState(playerCount);
     stateRef.current = fresh;
     setState(fresh);
-  }, [isLive]);
+  }, [isLive, playerCount]);
 
   const apply = (fn: (current: State) => State) => {
     const next = fn(stateRef.current);
@@ -523,6 +537,21 @@ function CrazyEightsTable() {
     apply((current) => ({ ...current, turn: nextTurn("you", current.order), drew: 0 }));
   };
 
+  // Speech bubble above the active computer seat while it draws, one per card.
+  const [bubble, setBubble] = useState<{ side: Seat; text: string } | null>(null);
+  const bubbleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showBubble = (side: Seat, text: string, duration = 1000) => {
+    if (bubbleTimer.current) clearTimeout(bubbleTimer.current);
+    setBubble({ side, text });
+    bubbleTimer.current = setTimeout(() => setBubble(null), duration);
+  };
+  useEffect(
+    () => () => {
+      if (bubbleTimer.current) clearTimeout(bubbleTimer.current);
+    },
+    [],
+  );
+
   // Each computer opponent plays one deliberate step at a time (solo play only).
   useEffect(() => {
     if (isMulti || dealing) return;
@@ -559,6 +588,7 @@ function CrazyEightsTable() {
           played = [card, ...extras];
           next = playCards(current, seat, played);
         } else if (current.drew < MAX_DRAWS) {
+          showBubble(seat, `Drawing ${DRAW_ORDINAL[current.drew + 1]} card.`);
           next = takeCard(current, seat);
         } else {
           next = {
@@ -752,6 +782,7 @@ function CrazyEightsTable() {
             dealt={dealt}
             playerCount={activeCount}
             seatIndex={seatPos("ada")}
+            bubble={bubble?.side === "ada" ? bubble.text : null}
           />
         </div>
 
@@ -770,6 +801,7 @@ function CrazyEightsTable() {
                 dealt={dealt}
                 playerCount={activeCount}
                 seatIndex={seatPos("ace")}
+                bubble={bubble?.side === "ace" ? bubble.text : null}
               />
             ) : null}
           </div>
@@ -851,6 +883,7 @@ function CrazyEightsTable() {
                 dealt={dealt}
                 playerCount={activeCount}
                 seatIndex={seatPos("leo")}
+                bubble={bubble?.side === "leo" ? bubble.text : null}
               />
             ) : null}
           </div>
@@ -892,13 +925,13 @@ function CrazyEightsTable() {
               );
             })}
           </div>
-          <div className="mt-5 flex flex-wrap gap-3">
+          <div className="mt-5 flex flex-wrap items-center gap-3">
             {canPlaySelected && (
               <Button variant="parlor" onClick={playSelected}>
                 Play {selectedCards.map(cardLabel).join(", ")}
               </Button>
             )}
-            {myTurn && !canPlayNow && state.drew < MAX_DRAWS && state.deck.length > 0 && (
+            {myTurn && !canPlaySelected && state.drew < MAX_DRAWS && state.deck.length > 0 && (
               <Button variant="parlor" onClick={draw}>
                 Draw a card
               </Button>
@@ -907,6 +940,9 @@ function CrazyEightsTable() {
               <Button variant="parlorOutline" onClick={pass}>
                 Pass the turn
               </Button>
+            )}
+            {myTurn && canPlayNow && !canPlaySelected && (
+              <p className="text-sm text-ivory/60">Tap a highlighted card to play it</p>
             )}
           </div>
         </section>
@@ -931,6 +967,7 @@ function OpponentSeat({
   playerCount = 2,
   seatIndex = 1,
   avatarSide = "left",
+  bubble,
 }: {
   name: string;
   avatar: string;
@@ -944,18 +981,26 @@ function OpponentSeat({
   playerCount?: number;
   seatIndex?: number;
   avatarSide?: "left" | "right";
+  bubble?: string | null;
 }) {
   return (
     <div className={vertical ? `flex items-center gap-8 ${avatarSide === "right" ? "flex-row-reverse" : ""}` : ""}>
       <div className={`flex items-center gap-3 ${vertical ? "flex-col gap-1" : "mb-2 justify-center"}`}>
-        <img
-          src={avatar}
-          alt=""
-          aria-hidden="true"
-          className={`rounded-full border object-cover ${
-            vertical ? "size-12" : "size-10"
-          } ${active ? "border-gold ring-2 ring-gold/40" : "border-gold/40"}`}
-        />
+        <div className="relative">
+          <img
+            src={avatar}
+            alt=""
+            aria-hidden="true"
+            className={`rounded-full border object-cover ${
+              vertical ? "size-12" : "size-10"
+            } ${active ? "border-gold ring-2 ring-gold/40" : "border-gold/40"}`}
+          />
+          {bubble && (
+            <div className="absolute bottom-full left-full z-10 mb-2 ml-2">
+              <SpeechBubble text={bubble} />
+            </div>
+          )}
+        </div>
         <p className="text-[10px] uppercase tracking-[0.22em] text-ivory/45">
           {name}
         </p>

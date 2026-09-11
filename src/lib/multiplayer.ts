@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { GameId } from "@/lib/games";
 import { recordMatchResult } from "@/lib/stats";
+import { readAvatar } from "@/lib/avatars";
 
 export const NICKNAME_KEY = "green-cardroom-nickname";
 export const SESSION_KEY = "green-cardroom-session";
@@ -28,6 +29,7 @@ export type InviteRow = {
   game: string;
   from_session: string;
   from_nickname: string;
+  from_avatar: string | null;
   to_session: string;
   to_nickname: string;
   status: string;
@@ -40,15 +42,17 @@ export type MatchRow = {
   game: string;
   host_session: string;
   host_nickname: string;
+  host_avatar: string | null;
   guest_session: string;
   guest_nickname: string;
+  guest_avatar: string | null;
   state: unknown;
   version: number;
   status: string;
 };
 
 const INVITE_COLUMNS =
-  "id, game, from_session, from_nickname, to_session, to_nickname, status, match_id, created_at";
+  "id, game, from_session, from_nickname, from_avatar, to_session, to_nickname, status, match_id, created_at";
 
 /** Invites older than this are treated as expired. */
 export const INVITE_TTL_MS = 60_000;
@@ -68,6 +72,7 @@ export async function sendInvite(params: {
       game: params.game,
       from_session: getSessionId(),
       from_nickname: params.fromNickname,
+      from_avatar: readAvatar(),
       to_session: params.toSession,
       to_nickname: params.toNickname,
     })
@@ -91,8 +96,10 @@ export async function acceptInvite(
       game: invite.game,
       host_session: invite.from_session,
       host_nickname: invite.from_nickname,
+      host_avatar: invite.from_avatar ?? null,
       guest_session: getSessionId(),
       guest_nickname: myNickname,
+      guest_avatar: readAvatar(),
       state: null,
       version: 0,
     })
@@ -225,6 +232,7 @@ export function useMatch<T>(matchId: string | undefined) {
   const isHost = Boolean(match && match.host_session === sessionId);
   const opponentName = match ? (isHost ? match.guest_nickname : match.host_nickname) : null;
   const opponentSession = match ? (isHost ? match.guest_session : match.host_session) : null;
+  const opponentAvatar = match ? (isHost ? match.guest_avatar : match.host_avatar) : null;
   const remoteState = (match?.state ?? null) as T | null;
 
   // Track the opponent's live connection through a Realtime presence channel so a
@@ -296,6 +304,7 @@ export function useMatch<T>(matchId: string | undefined) {
     loading,
     isHost,
     opponentName,
+    opponentAvatar,
     opponentOnline,
     opponentDisconnected,
     disconnectSecondsLeft,

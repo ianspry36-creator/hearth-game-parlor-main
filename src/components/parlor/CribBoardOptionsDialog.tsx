@@ -33,7 +33,7 @@ export function CribBoardOptionsDialog({ boardGraphic, onSelect }: Props) {
             Choose the peg board used to track the score on your cribbage table.
           </DialogDescription>
         </DialogHeader>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           {CRIB_BOARD_OPTIONS.map((option) => {
             const selected = option.src === boardGraphic;
             return (

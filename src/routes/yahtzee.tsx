@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { TableShell } from "@/components/parlor/TableShell";
 import { GameOverDialog } from "@/components/parlor/GameOverDialog";
 import { PlayerAvatar } from "@/components/parlor/PlayerAvatar";
+import { SpeechBubble } from "@/components/parlor/SpeechBubble";
 import { getGame } from "@/lib/games";
 import { ADA_AVATAR, readAvatar } from "@/lib/avatars";
 import { getNickname, useMatch } from "@/lib/multiplayer";
@@ -134,6 +135,7 @@ function YahtzeeTable() {
     match,
     isHost,
     opponentName: liveOpponent,
+    opponentAvatar,
     remoteState,
     publish,
     opponentDisconnected,
@@ -581,21 +583,15 @@ function YahtzeeTable() {
             ) : (
               <div className="relative inline-block">
                 <img
-                  src={ADA_AVATAR}
+                  src={opponentAvatar ?? ADA_AVATAR}
                   alt={`${opponentName}'s avatar`}
                   width={64}
                   height={64}
                   className="size-10 rounded-full border-2 border-gold/40 object-cover"
                 />
                 {bubble?.side === "cpu" && (
-                  <div className="absolute bottom-full left-full z-10 mb-2 ml-2 w-max max-w-[16rem]">
-                    <div className="relative rounded-2xl border border-gold/30 bg-cream px-3 py-1.5 text-sm font-medium text-brand shadow-lg">
-                      <span
-                        aria-hidden
-                        className="absolute -bottom-2 left-5 size-3 rotate-45 border-b border-r border-gold/30 bg-cream"
-                      />
-                      {bubble.text}
-                    </div>
+                  <div className="absolute bottom-full left-full z-10 mb-2 ml-2">
+                    <SpeechBubble text={bubble.text} />
                   </div>
                 )}
               </div>

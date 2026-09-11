@@ -11,6 +11,9 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { applyTheme, readTheme, THEME_INIT_SCRIPT } from "../lib/theme";
+import { applyEffect, readEffect, EFFECT_INIT_SCRIPT } from "../lib/effects";
+import { applyCountry, readCountry, COUNTRY_INIT_SCRIPT } from "../lib/country";
 
 function NotFoundComponent() {
   return (
@@ -114,9 +117,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: EFFECT_INIT_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: COUNTRY_INIT_SCRIPT }} />
       </head>
       <body>
         {children}
@@ -128,6 +134,12 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+
+  useEffect(() => {
+    applyTheme(readTheme());
+    applyEffect(readEffect());
+    applyCountry(readCountry());
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>

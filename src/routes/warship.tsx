@@ -125,6 +125,7 @@ function WarshipTable() {
     match,
     isHost,
     opponentName: liveOpponent,
+    opponentAvatar,
     remoteState,
     publish,
     opponentDisconnected,
@@ -377,6 +378,7 @@ function WarshipTable() {
       }}
       onNewGame={reset}
       rail={null}
+      boxClassName="min-h-[32rem]"
     >
       <GameOverDialog
         open={Boolean(state.winner)}
@@ -459,7 +461,7 @@ function WarshipTable() {
           >
             <div className="mb-2 flex items-center gap-3">
               <img
-                src={ADA_AVATAR}
+                src={opponentAvatar ?? ADA_AVATAR}
                 alt={`${opponentName}'s avatar`}
                 width={64}
                 height={64}

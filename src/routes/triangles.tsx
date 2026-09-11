@@ -109,6 +109,7 @@ function TrianglesTable() {
     match,
     isHost,
     opponentName: liveOpponent,
+    opponentAvatar,
     remoteState,
     publish,
     opponentDisconnected,
@@ -317,7 +318,7 @@ function TrianglesTable() {
         {/* Opponent — top of the table */}
         <section className="flex items-center gap-3 rounded-2xl border border-gold/15 bg-brand/50 p-4">
           <img
-            src={ADA_AVATAR}
+            src={opponentAvatar ?? ADA_AVATAR}
             alt={opponentName}
             width={64}
             height={64}

@@ -404,7 +404,7 @@ function CribbageTable() {
   const game = getGame("cribbage");
   const navigate = useNavigate();
   const { opponent, match: matchId } = Route.useSearch();
-  const { match, isHost, opponentName: liveOpponent, remoteState, publish, opponentDisconnected, disconnectSecondsLeft, disconnectExpired } = useMatch<State>(matchId);
+  const { match, isHost, opponentName: liveOpponent, opponentAvatar, remoteState, publish, opponentDisconnected, disconnectSecondsLeft, disconnectExpired } = useMatch<State>(matchId);
   const isMulti = Boolean(matchId);
   const freshGame = () => (isMulti ? dealtGame() : cutForDeal());
   const [state, setState] = useState<State>(() => (matchId ? dealtGame() : cutForDeal()));
@@ -467,6 +467,8 @@ function CribbageTable() {
     setState(fresh);
     setSelected([]);
     setBack({ player: 0, cpu: 0 });
+    // Reset the peg trail too, so a fresh game doesn't leave the back peg at the old score.
+    prevScores.current = fresh.scores;
     setCutSeated({ player: false, cpu: false });
     if (isMulti) void publish(isHost ? fresh : mirror(fresh));
   };
@@ -965,7 +967,7 @@ function CribbageTable() {
               avatar={
                 <span className="grid size-8 place-items-center overflow-hidden rounded-full bg-gold/20 ring-1 ring-gold/40">
                   <img
-                    src={ADA_AVATAR}
+                    src={opponentAvatar ?? ADA_AVATAR}
                     alt={`${opponentName}'s avatar`}
                     width={64}
                     height={64}

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { TableShell } from "@/components/parlor/TableShell";
 import { GameOverDialog } from "@/components/parlor/GameOverDialog";
 import { PlayerAvatar } from "@/components/parlor/PlayerAvatar";
+import { SpeechBubble } from "@/components/parlor/SpeechBubble";
 import { TableOptionsDialog } from "@/components/parlor/TableOptionsDialog";
 import { ADA_AVATAR, readAvatar } from "@/lib/avatars";
 import { getGame } from "@/lib/games";
@@ -166,14 +167,8 @@ function consumeRoll(
 /** A speech bubble rendered just below its anchor (used for the opponent's "PASS"). */
 function CloudChat({ text }: { text: string }) {
   return (
-    <div className="absolute left-1/2 top-full z-10 mt-2 w-max -translate-x-1/2">
-      <div className="relative rounded-2xl border border-gold/30 bg-cream px-3 py-1.5 text-sm font-bold text-brand shadow-lg">
-        <span
-          aria-hidden
-          className="absolute -top-2 left-1/2 size-3 -translate-x-1/2 rotate-45 border-l border-t border-gold/30 bg-cream"
-        />
-        {text}
-      </div>
+    <div className="absolute left-1/2 top-full z-10 mt-2 -translate-x-1/2">
+      <SpeechBubble text={text} tail="up-center" textClassName="font-bold" />
     </div>
   );
 }
@@ -182,7 +177,7 @@ function BackgammonTable() {
   const game = getGame("backgammon");
   const navigate = useNavigate();
   const { opponent, match: matchId } = Route.useSearch();
-  const { match, isHost, opponentName: liveOpponent, remoteState, publish, opponentDisconnected, disconnectSecondsLeft, disconnectExpired } = useMatch<State>(matchId);
+  const { match, isHost, opponentName: liveOpponent, opponentAvatar, remoteState, publish, opponentDisconnected, disconnectSecondsLeft, disconnectExpired } = useMatch<State>(matchId);
   const [state, setState] = useState<State>(freshState);
   const [selected, setSelected] = useState<number | "bar" | null>(null);
   const stateRef = useRef(state);
@@ -625,7 +620,7 @@ function BackgammonTable() {
           <div className="flex items-center gap-3">
             <div className="relative inline-block">
               <img
-                src={ADA_AVATAR}
+                src={opponentAvatar ?? ADA_AVATAR}
                 alt={opponentName}
                 width={64}
                 height={64}

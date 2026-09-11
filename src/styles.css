@@ -122,6 +122,226 @@
   --sidebar-ring: var(--ring);
 }
 
+/* =========================================================================
+ * Colour schemes — switchable from the Settings dialog.
+ *
+ * The default :root palette above is "Plum & Coral". Each alternative scheme
+ * overrides the core palette and the few derived tokens that aren't built from
+ * var() references, keeping the whole table cohesive.
+ * ========================================================================= */
+
+:root[data-theme="forest"] {
+  --brand: oklch(0.235 0.05 160);
+  --surface: oklch(0.305 0.06 160);
+  --cream: oklch(0.968 0.014 90);
+  --gold: oklch(0.72 0.15 145);
+  --gold-bright: oklch(0.795 0.12 145);
+  --ivory: oklch(0.912 0.026 90);
+  --sage: oklch(0.655 0.15 145);
+  --popover: oklch(0.275 0.06 160);
+  --primary-foreground: oklch(0.2 0.05 160);
+  --muted: oklch(0.34 0.06 160);
+  --muted-foreground: oklch(0.79 0.03 90);
+  --accent: oklch(0.375 0.075 185);
+  --sidebar-primary-foreground: oklch(0.2 0.05 160);
+}
+
+:root[data-theme="midnight"] {
+  --brand: oklch(0.235 0.055 265);
+  --surface: oklch(0.305 0.065 265);
+  --cream: oklch(0.968 0.014 250);
+  --gold: oklch(0.72 0.14 230);
+  --gold-bright: oklch(0.795 0.11 230);
+  --ivory: oklch(0.912 0.026 250);
+  --sage: oklch(0.655 0.12 230);
+  --popover: oklch(0.275 0.06 265);
+  --primary-foreground: oklch(0.2 0.05 265);
+  --muted: oklch(0.34 0.06 265);
+  --muted-foreground: oklch(0.79 0.03 250);
+  --accent: oklch(0.375 0.075 295);
+  --sidebar-primary-foreground: oklch(0.2 0.05 265);
+}
+
+:root[data-theme="wine"] {
+  --brand: oklch(0.235 0.06 15);
+  --surface: oklch(0.305 0.07 15);
+  --cream: oklch(0.968 0.014 15);
+  --gold: oklch(0.72 0.16 10);
+  --gold-bright: oklch(0.795 0.13 10);
+  --ivory: oklch(0.912 0.026 15);
+  --sage: oklch(0.655 0.14 20);
+  --popover: oklch(0.275 0.06 15);
+  --primary-foreground: oklch(0.2 0.05 15);
+  --muted: oklch(0.34 0.06 15);
+  --muted-foreground: oklch(0.79 0.03 15);
+  --accent: oklch(0.375 0.075 350);
+  --sidebar-primary-foreground: oklch(0.2 0.05 15);
+}
+
+:root[data-theme="teal"] {
+  --brand: oklch(0.235 0.05 200);
+  --surface: oklch(0.305 0.055 200);
+  --cream: oklch(0.968 0.014 180);
+  --gold: oklch(0.72 0.13 190);
+  --gold-bright: oklch(0.795 0.11 190);
+  --ivory: oklch(0.912 0.026 180);
+  --sage: oklch(0.655 0.12 190);
+  --popover: oklch(0.275 0.055 200);
+  --primary-foreground: oklch(0.2 0.05 200);
+  --muted: oklch(0.34 0.055 200);
+  --muted-foreground: oklch(0.79 0.03 180);
+  --accent: oklch(0.375 0.07 165);
+  --sidebar-primary-foreground: oklch(0.2 0.05 200);
+}
+
+:root[data-theme="amber"] {
+  --brand: oklch(0.235 0.05 70);
+  --surface: oklch(0.305 0.055 70);
+  --cream: oklch(0.968 0.014 80);
+  --gold: oklch(0.72 0.14 60);
+  --gold-bright: oklch(0.795 0.12 60);
+  --ivory: oklch(0.912 0.026 80);
+  --sage: oklch(0.655 0.14 55);
+  --popover: oklch(0.275 0.055 70);
+  --primary-foreground: oklch(0.2 0.05 70);
+  --muted: oklch(0.34 0.055 70);
+  --muted-foreground: oklch(0.79 0.03 80);
+  --accent: oklch(0.375 0.075 40);
+  --sidebar-primary-foreground: oklch(0.2 0.05 70);
+}
+
+:root[data-theme="berry"] {
+  --brand: oklch(0.235 0.055 340);
+  --surface: oklch(0.305 0.06 340);
+  --cream: oklch(0.968 0.014 340);
+  --gold: oklch(0.72 0.15 320);
+  --gold-bright: oklch(0.795 0.12 320);
+  --ivory: oklch(0.912 0.026 340);
+  --sage: oklch(0.655 0.14 325);
+  --popover: oklch(0.275 0.06 340);
+  --primary-foreground: oklch(0.2 0.05 340);
+  --muted: oklch(0.34 0.06 340);
+  --muted-foreground: oklch(0.79 0.03 340);
+  --accent: oklch(0.375 0.075 360);
+  --sidebar-primary-foreground: oklch(0.2 0.05 340);
+}
+
+:root[data-theme="slate"] {
+  --brand: oklch(0.235 0.02 250);
+  --surface: oklch(0.305 0.025 250);
+  --cream: oklch(0.968 0.01 250);
+  --gold: oklch(0.72 0.04 210);
+  --gold-bright: oklch(0.795 0.03 210);
+  --ivory: oklch(0.912 0.02 250);
+  --sage: oklch(0.655 0.05 215);
+  --popover: oklch(0.275 0.025 250);
+  --primary-foreground: oklch(0.2 0.02 250);
+  --muted: oklch(0.34 0.025 250);
+  --muted-foreground: oklch(0.79 0.02 250);
+  --accent: oklch(0.375 0.03 250);
+  --sidebar-primary-foreground: oklch(0.2 0.02 250);
+}
+
+/* =========================================================================
+ * Background effects — switchable from Settings > Effects.
+ * Applied to <body> via the data-effect attribute on <html>.
+ * ========================================================================= */
+
+:root {
+  --fx-check:
+    conic-gradient(oklch(0 0 0 / 8%) 25%, transparent 0 50%, oklch(0 0 0 / 8%) 0 75%, transparent 0);
+  --fx-check-size: 44px 44px;
+}
+
+/* Wooden — wooden table surface (cards2.jpg). */
+:root[data-effect="wooden"] body {
+  background-image: url("/cards2.jpg");
+  background-size: cover;
+  background-position: center;
+}
+
+/* Metallic — brushed metal surface (metal.jpg). */
+:root[data-effect="metallic"] body {
+  background-image: url("/metal.jpg");
+  background-size: cover;
+  background-position: center;
+}
+
+/* Space — starfield / nebula (space.avif). */
+:root[data-effect="space"] body {
+  background-image: url("/space.avif");
+  background-size: cover;
+  background-position: center;
+}
+
+:root[data-effect="check"] body {
+  background-image: var(--fx-check);
+  background-size: var(--fx-check-size);
+}
+
+/* Preview swatches inside the Settings > Effects tab. */
+.fx-wooden {
+  background-image: url("/cards2.jpg");
+  background-size: cover;
+  background-position: center;
+}
+
+.fx-metallic {
+  background-image: url("/metal.jpg");
+  background-size: cover;
+  background-position: center;
+}
+
+.fx-space {
+  background-image: url("/space.avif");
+  background-size: cover;
+  background-position: center;
+}
+
+/* =========================================================================
+ * Country backgrounds — switchable from Settings > Country.
+ * Placed after the effect rules so a selected country takes precedence
+ * over the effect background when both are active.
+ * ========================================================================= */
+:root[data-country="uk"] body {
+  background-image: url("/uk.jpg");
+  background-size: cover;
+  background-position: center;
+}
+
+:root[data-country="usa"] body {
+  background-image: url("/usa.avif");
+  background-size: cover;
+  background-position: center;
+}
+
+/* Preview swatches inside the Settings > Country tab. */
+.fx-uk {
+  background-image: url("/uk.jpg");
+  background-size: cover;
+  background-position: center;
+}
+
+.fx-usa {
+  background-image: url("/usa.avif");
+  background-size: cover;
+  background-position: center;
+}
+
+.fx-check {
+  background-image: var(--fx-check);
+  background-size: var(--fx-check-size);
+}
+
+/* Hide the horizontal scrollbar on the colour slider. */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 
 @layer base {
   * {

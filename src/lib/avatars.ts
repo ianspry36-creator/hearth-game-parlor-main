@@ -125,7 +125,7 @@ export const AVATAR_OPTIONS: AvatarOption[] = [
     url: twemoji(codepoint),
     label,
     category: "objects" as const,
-    scale,
+    ...(scale !== undefined ? { scale } : {}),
   })),
   ...ALIENS.map(({ seed, label }, index) => ({
     id: `alien-${index + 1}`,

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { TableShell } from "@/components/parlor/TableShell";
 import { GameOverDialog } from "@/components/parlor/GameOverDialog";
 import { PlayerAvatar } from "@/components/parlor/PlayerAvatar";
+import { SpeechBubble } from "@/components/parlor/SpeechBubble";
 import { getGame } from "@/lib/games";
 import { getNickname, useMatch } from "@/lib/multiplayer";
 import { useRecordMatchResult } from "@/lib/stats";
@@ -146,6 +147,7 @@ function FarkleTable() {
     match,
     isHost,
     opponentName: liveOpponent,
+    opponentAvatar,
     remoteState,
     publish,
     opponentDisconnected,
@@ -576,21 +578,15 @@ function FarkleTable() {
           <div className="flex items-center gap-4">
             <div className="relative inline-block">
               <img
-                src={ADA_AVATAR}
+                src={opponentAvatar ?? ADA_AVATAR}
                 alt={opponentName}
                 width={64}
                 height={64}
                 className="size-14 rounded-full border-2 border-gold/40 bg-surface object-cover"
               />
               {cpuMessage && (
-                <div className="absolute left-0 top-full z-10 mt-2 w-max max-w-[16rem]">
-                  <div className="relative rounded-2xl border border-gold/30 bg-cream px-3 py-1.5 text-sm font-medium text-brand shadow-lg">
-                    <span
-                      aria-hidden
-                      className="absolute -top-2 left-5 size-3 rotate-45 border-l border-t border-gold/30 bg-cream"
-                    />
-                    {cpuMessage}
-                  </div>
+                <div className="absolute left-0 top-full z-10 mt-2">
+                  <SpeechBubble text={cpuMessage} tail="up-left" />
                 </div>
               )}
             </div>

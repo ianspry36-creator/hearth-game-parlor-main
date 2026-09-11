@@ -7,6 +7,7 @@ import { GameIcon } from "@/components/parlor/GameIcon";
 import { CardMark } from "@/components/parlor/CardMark";
 import { VisitorCounter } from "@/components/parlor/VisitorCounter";
 import { Switch } from "@/components/ui/switch";
+import { SettingsDialog } from "@/components/parlor/SettingsDialog";
 
 
 export const Route = createFileRoute("/")({
@@ -41,7 +42,7 @@ function Lobby() {
   }, [hydrated, hasFavourites]);
 
   return (
-    <div className="min-h-screen bg-brand text-cream">
+    <div className="min-h-screen text-cream">
       <div
         className="pointer-events-none absolute inset-x-0 top-0 h-[520px] opacity-70"
         style={{
@@ -65,6 +66,8 @@ function Lobby() {
               </p>
             </div>
           </div>
+
+          <SettingsDialog className="ml-auto" />
         </header>
 
         <section className="mt-14 text-center">
