@@ -723,9 +723,9 @@
 
 @media (max-width: 639.98px) {
   :root {
-    --yukon-card-h: 44px;
-    --yukon-card-w: 30px;
-    --yukon-visible: 14px;
-    --yukon-down: 5px;
+    --yukon-card-h: 64px;
+    --yukon-card-w: 43px;
+    --yukon-visible: 20px;
+    --yukon-down: 7px;
   }
 }

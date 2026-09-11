@@ -1,5 +1,5 @@
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState, type DragEvent } from "react";
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -85,6 +85,8 @@ function FreeCellTable() {
   const [autocompleting, setAutocompleting] = useState(false);
   const [confirming, setConfirming] = useState<"new" | "home" | null>(null);
   const { recordResult } = useSolitaireStats(game.id);
+  const stateRef = useRef(state);
+  stateRef.current = state;
   const prevWonRef = useRef(false);
   useEffect(() => {
     if (state.won && !prevWonRef.current) recordResult("win");
@@ -146,6 +148,10 @@ function FreeCellTable() {
   };
 
   const clickCell = (index: number) => {
+    if (suppressClickRef.current) {
+      suppressClickRef.current = false;
+      return;
+    }
     if (selection) {
       if (selection.type === "tableau") apply(moveTableauToCell(state, selection.index, index));
       else if (selection.type === "foundation")
@@ -171,6 +177,10 @@ function FreeCellTable() {
   };
 
   const clickFoundation = (index: number) => {
+    if (suppressClickRef.current) {
+      suppressClickRef.current = false;
+      return;
+    }
     if (selection) {
       if (selection.type === "cell") {
         const card = state.cells[selection.index];
@@ -198,6 +208,10 @@ function FreeCellTable() {
   };
 
   const clickTableau = (index: number, cardIndex: number) => {
+    if (suppressClickRef.current) {
+      suppressClickRef.current = false;
+      return;
+    }
     if (
       selection?.type === "tableau" &&
       selection.index === index &&
@@ -235,69 +249,134 @@ function FreeCellTable() {
     if (emptyCell !== -1) apply(moveTableauToCell(state, index, emptyCell));
   };
 
-  const dragRef = useRef<DragSource | null>(null);
+  const dragRef = useRef<{
+    source: DragSource;
+    cards: Card[];
+    startX: number;
+    startY: number;
+    moved: boolean;
+    w: number;
+    h: number;
+    visible: number;
+  } | null>(null);
+  const suppressClickRef = useRef(false);
+  const [dragGhost, setDragGhost] = useState<{
+    cards: Card[];
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+    visible: number;
+  } | null>(null);
 
-  const onDragOver = (e: DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
+  const cardsFor = (source: DragSource): Card[] => {
+    const s = stateRef.current;
+    if (source.type === "cell") return s.cells[source.index] ? [s.cells[source.index]!] : [];
+    if (source.type === "foundation") return s.foundations[source.index]!.slice(-1);
+    return s.tableau[source.index]!.slice(source.cardIndex);
   };
 
-  const startDrag = (source: DragSource) => (e: DragEvent) => {
-    dragRef.current = source;
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/plain", "card");
+  const cardDims = () => {
+    const styles = getComputedStyle(document.documentElement);
+    const parse = (name: string, fallback: number) => {
+      const value = parseFloat(styles.getPropertyValue(name));
+      return Number.isFinite(value) ? value : fallback;
+    };
+    return {
+      w: parse("--fc-card-w", 80),
+      h: parse("--fc-card-h", 112),
+      visible: parse("--fc-visible", 24),
+    };
   };
 
-  const dropOnCell = (index: number) => (e: DragEvent) => {
-    e.preventDefault();
-    const source = dragRef.current;
-    if (!source) return;
-    dragRef.current = null;
-    if (source.type === "cell") apply(moveCellToCell(state, source.index, index));
-    else if (source.type === "tableau") apply(moveTableauToCell(state, source.index, index));
-    else if (source.type === "foundation") apply(moveFoundationToCell(state, source.index, index));
+  const beginDrag = (source: DragSource) => (e: ReactPointerEvent) => {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    const cards = cardsFor(source);
+    if (cards.length === 0) return;
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    const dims = cardDims();
+    dragRef.current = { source, cards, startX: e.clientX, startY: e.clientY, moved: false, ...dims };
+    setDragGhost({ cards, x: e.clientX, y: e.clientY, ...dims });
   };
 
-  const dropOnFoundation = (index: number) => (e: DragEvent) => {
-    e.preventDefault();
-    const source = dragRef.current;
-    if (!source) return;
-    dragRef.current = null;
+  const moveDrag = (e: ReactPointerEvent) => {
+    const drag = dragRef.current;
+    if (!drag) return;
+    if (!drag.moved && Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY) > 8)
+      drag.moved = true;
+    setDragGhost({
+      cards: drag.cards,
+      x: e.clientX,
+      y: e.clientY,
+      w: drag.w,
+      h: drag.h,
+      visible: drag.visible,
+    });
+  };
+
+  const dropOntoCell = (source: DragSource, index: number) => {
+    const s = stateRef.current;
+    if (source.type === "cell") apply(moveCellToCell(s, source.index, index));
+    else if (source.type === "tableau") apply(moveTableauToCell(s, source.index, index));
+    else if (source.type === "foundation") apply(moveFoundationToCell(s, source.index, index));
+  };
+
+  const dropOntoFoundation = (source: DragSource) => {
+    const s = stateRef.current;
     if (source.type === "cell") {
-      const card = state.cells[source.index];
+      const card = s.cells[source.index];
       if (card) {
-        const target = foundationTarget(card, state.foundations);
-        if (target !== null) apply(moveCellToFoundation(state, source.index, target));
+        const target = foundationTarget(card, s.foundations);
+        if (target !== null) apply(moveCellToFoundation(s, source.index, target));
       }
     } else if (source.type === "tableau") {
-      const pile = state.tableau[source.index]!;
+      const pile = s.tableau[source.index]!;
       if (source.cardIndex === pile.length - 1) {
         const card = pile[source.cardIndex];
         if (card) {
-          const target = foundationTarget(card, state.foundations);
-          if (target !== null) apply(moveTableauToFoundation(state, source.index, target));
+          const target = foundationTarget(card, s.foundations);
+          if (target !== null) apply(moveTableauToFoundation(s, source.index, target));
         }
       }
     }
   };
 
-  const dropOnTableau = (index: number) => (e: DragEvent) => {
-    e.preventDefault();
-    const source = dragRef.current;
-    if (!source) return;
-    dragRef.current = null;
-    if (source.type === "cell") apply(moveCellToTableau(state, source.index, index));
-    else if (source.type === "foundation")
-      apply(moveFoundationToTableau(state, source.index, index));
+  const dropOntoTableau = (source: DragSource, index: number) => {
+    const s = stateRef.current;
+    if (source.type === "cell") apply(moveCellToTableau(s, source.index, index));
+    else if (source.type === "foundation") apply(moveFoundationToTableau(s, source.index, index));
     else if (source.type === "tableau") {
-      const count = state.tableau[source.index]!.length - source.cardIndex;
-      apply(moveTableauToTableau(state, source.index, count, index));
+      const count = s.tableau[source.index]!.length - source.cardIndex;
+      apply(moveTableauToTableau(s, source.index, count, index));
+    }
+  };
+
+  const endDrag = (e: ReactPointerEvent) => {
+    const drag = dragRef.current;
+    if (!drag) return;
+    dragRef.current = null;
+    setDragGhost(null);
+    if (!drag.moved) return; // it was a tap — let onClick handle selection
+    suppressClickRef.current = true;
+    // If the browser doesn't synthesize a click after this drag, clear the flag
+    // so the next tap isn't swallowed.
+    setTimeout(() => {
+      suppressClickRef.current = false;
+    }, 0);
+    const target = document.elementFromPoint(e.clientX, e.clientY);
+    const drop = target?.closest("[data-drop]");
+    if (drop) {
+      const kind = drop.getAttribute("data-drop");
+      if (kind === "cell") dropOntoCell(drag.source, Number(drop.getAttribute("data-index")));
+      else if (kind === "foundation") dropOntoFoundation(drag.source);
+      else if (kind === "tableau")
+        dropOntoTableau(drag.source, Number(drop.getAttribute("data-index")));
     }
   };
 
   return (
     <div className="min-h-screen bg-brand text-cream">
-      <div className="mx-auto max-w-6xl px-6 py-8">
+      <div className="mx-auto max-w-6xl px-1.5 py-8 sm:px-6">
         <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <Link
@@ -324,20 +403,21 @@ function FreeCellTable() {
         </header>
 
         <div className="grid items-start gap-6 lg:grid-cols-[1fr_260px]">
-          <div className="relative rounded-2xl border border-gold/20 bg-surface/40 p-5 sm:p-8">
+          <div className="relative rounded-2xl border border-gold/20 bg-surface/40 p-1.5 sm:p-8">
             <div className="space-y-8">
               <div className="flex items-start gap-1 sm:gap-2">
                 <div className="flex gap-1 sm:gap-2">
                   {state.cells.map((card, index) => (
                     <CellSlot
                       key={index}
+                      index={index}
                       card={card}
                       selected={selection?.type === "cell" && selection.index === index}
                       onClick={() => clickCell(index)}
                       onDoubleClick={() => doubleClickCell(index)}
-                      onDragOver={onDragOver}
-                      onDrop={dropOnCell(index)}
-                      onDragStart={startDrag({ type: "cell", index })}
+                      onPointerDown={beginDrag({ type: "cell", index })}
+                      onPointerMove={moveDrag}
+                      onPointerUp={endDrag}
                     />
                   ))}
                 </div>
@@ -349,9 +429,9 @@ function FreeCellTable() {
                       suitIndex={index}
                       selected={selection?.type === "foundation" && selection.index === index}
                       onClick={() => clickFoundation(index)}
-                      onDragOver={onDragOver}
-                      onDrop={dropOnFoundation(index)}
-                      onDragStart={startDrag({ type: "foundation", index })}
+                      onPointerDown={beginDrag({ type: "foundation", index })}
+                      onPointerMove={moveDrag}
+                      onPointerUp={endDrag}
                     />
                   ))}
                 </div>
@@ -366,11 +446,9 @@ function FreeCellTable() {
                     selection={selection}
                     onCardClick={clickTableau}
                     onDoubleClick={doubleClickTableau}
-                    onDragOver={onDragOver}
-                    onDrop={dropOnTableau(index)}
-                    onDragStartCard={(cardIndex) =>
-                      startDrag({ type: "tableau", index, cardIndex })
-                    }
+                    onPointerDownCard={(cardIndex) => beginDrag({ type: "tableau", index, cardIndex })}
+                    onPointerMove={moveDrag}
+                    onPointerUp={endDrag}
                   />
                 ))}
               </div>
@@ -469,6 +547,24 @@ function FreeCellTable() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {dragGhost && (
+        <div
+          className="pointer-events-none fixed z-50"
+          style={{ left: dragGhost.x - dragGhost.w / 2, top: dragGhost.y - dragGhost.h / 2 }}
+        >
+          <div className="flex flex-col items-stretch">
+            {dragGhost.cards.map((card, i) => (
+              <div
+                key={card.id}
+                style={{ marginTop: i === 0 ? 0 : -(dragGhost.h - dragGhost.visible) }}
+              >
+                <CardFace card={card} />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -478,13 +574,17 @@ function CardFace({
   selected = false,
   onClick,
   onDoubleClick,
-  onDragStart,
+  onPointerDown,
+  onPointerMove,
+  onPointerUp,
 }: {
   card: Card;
   selected?: boolean;
   onClick?: () => void;
   onDoubleClick?: () => void;
-  onDragStart?: (e: DragEvent) => void;
+  onPointerDown?: (e: ReactPointerEvent) => void;
+  onPointerMove?: (e: ReactPointerEvent) => void;
+  onPointerUp?: (e: ReactPointerEvent) => void;
 }) {
   const red = isRed(card.suit);
   const isFace = card.rank === 1 || card.rank > 10;
@@ -493,10 +593,11 @@ function CardFace({
       type="button"
       onClick={onClick}
       onDoubleClick={onDoubleClick}
-      onDragStart={onDragStart}
-      draggable={!!onDragStart}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
       aria-label={cardLabel(card)}
-      className={`relative block h-[var(--fc-card-h)] w-[var(--fc-card-w)] select-none rounded-lg border border-black/10 bg-white text-left shadow-md shadow-black/30 transition-transform ${
+      className={`relative block h-[var(--fc-card-h)] w-[var(--fc-card-w)] touch-none select-none rounded-lg border border-black/10 bg-white text-left shadow-md shadow-black/30 transition-transform ${
         red ? "text-[#c0392b]" : "text-brand"
       } ${selected ? "-translate-y-1 ring-2 ring-gold" : ""}`}
     >
@@ -526,30 +627,34 @@ function EmptySlot({ onClick, symbol }: { onClick?: () => void; symbol?: string 
 
 function CellSlot({
   card,
+  index,
   selected,
   onClick,
   onDoubleClick,
-  onDrop,
-  onDragOver,
-  onDragStart,
+  onPointerDown,
+  onPointerMove,
+  onPointerUp,
 }: {
   card: Card | null;
+  index: number;
   selected: boolean;
   onClick: () => void;
   onDoubleClick: () => void;
-  onDrop?: (e: DragEvent) => void;
-  onDragOver?: (e: DragEvent) => void;
-  onDragStart: (e: DragEvent) => void;
+  onPointerDown: (e: ReactPointerEvent) => void;
+  onPointerMove: (e: ReactPointerEvent) => void;
+  onPointerUp: (e: ReactPointerEvent) => void;
 }) {
   return (
-    <div className="relative" onDragOver={onDragOver} onDrop={onDrop}>
+    <div className="relative" data-drop="cell" data-index={index}>
       {card ? (
         <CardFace
           card={card}
           selected={selected}
           onClick={onClick}
           onDoubleClick={onDoubleClick}
-          onDragStart={onDragStart}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
         />
       ) : (
         <EmptySlot onClick={onClick} />
@@ -563,25 +668,32 @@ function FoundationSlot({
   suitIndex,
   selected,
   onClick,
-  onDrop,
-  onDragOver,
-  onDragStart,
+  onPointerDown,
+  onPointerMove,
+  onPointerUp,
 }: {
   pile: Card[];
   suitIndex: number;
   selected: boolean;
   onClick: () => void;
-  onDrop?: (e: DragEvent) => void;
-  onDragOver?: (e: DragEvent) => void;
-  onDragStart: (e: DragEvent) => void;
+  onPointerDown: (e: ReactPointerEvent) => void;
+  onPointerMove: (e: ReactPointerEvent) => void;
+  onPointerUp: (e: ReactPointerEvent) => void;
 }) {
   const top = pile[pile.length - 1];
   const suit = FOUNDATION_SUITS[suitIndex];
   const suitSymbol = suit ? SUIT_SYMBOL[suit] : "";
   return (
-    <div className="relative" onDragOver={onDragOver} onDrop={onDrop}>
+    <div className="relative" data-drop="foundation">
       {top ? (
-        <CardFace card={top} selected={selected} onClick={onClick} onDragStart={onDragStart} />
+        <CardFace
+          card={top}
+          selected={selected}
+          onClick={onClick}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+        />
       ) : (
         <EmptySlot onClick={onClick} symbol={suitSymbol} />
       )}
@@ -595,21 +707,21 @@ function TableauPile({
   selection,
   onCardClick,
   onDoubleClick,
-  onDrop,
-  onDragOver,
-  onDragStartCard,
+  onPointerDownCard,
+  onPointerMove,
+  onPointerUp,
 }: {
   pile: Card[];
   index: number;
   selection: Selection;
   onCardClick: (index: number, cardIndex: number) => void;
   onDoubleClick: (index: number) => void;
-  onDrop?: (e: DragEvent) => void;
-  onDragOver?: (e: DragEvent) => void;
-  onDragStartCard: (cardIndex: number) => (e: DragEvent) => void;
+  onPointerDownCard: (cardIndex: number) => (e: ReactPointerEvent) => void;
+  onPointerMove: (e: ReactPointerEvent) => void;
+  onPointerUp: (e: ReactPointerEvent) => void;
 }) {
   return (
-    <div className="flex flex-col items-center" onDragOver={onDragOver} onDrop={onDrop}>
+    <div className="flex flex-col items-center" data-drop="tableau" data-index={index}>
       <div className="flex flex-col items-stretch">
         {pile.map((card, i) => {
           const isSelected =
@@ -624,7 +736,9 @@ function TableauPile({
                 selected={isSelected}
                 onClick={() => onCardClick(index, i)}
                 onDoubleClick={() => onDoubleClick(index)}
-                onDragStart={onDragStartCard(i)}
+                onPointerDown={onPointerDownCard(i)}
+                onPointerMove={onPointerMove}
+                onPointerUp={onPointerUp}
               />
             </div>
           );

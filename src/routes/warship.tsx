@@ -432,7 +432,7 @@ function WarshipTable() {
             className={
               state.phase === "place"
                 ? "flex-1"
-                : "order-2 w-3/4 self-end lg:order-1 lg:w-auto lg:flex-1 lg:self-auto"
+                : "order-2 w-full lg:order-1 lg:w-auto lg:flex-1 lg:self-auto"
             }
           >
             <div className="mb-2 flex items-center gap-3">
