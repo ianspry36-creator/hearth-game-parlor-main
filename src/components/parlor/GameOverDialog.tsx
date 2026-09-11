@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { ADA_HAPPY, ADA_SAD, ADA_AVATAR } from "@/lib/avatars";
 import skunk from "@/assets/skunk.png";
 import { getNickname } from "@/lib/multiplayer";
+import type { ReactNode } from "react";
 
 export type GameOverResult = "win" | "loss" | "draw";
 
@@ -37,6 +38,7 @@ export function GameOverDialog({
   headline,
   detail,
   onPlayAgain,
+  footerExtra,
   results,
 }: {
   open: boolean;
@@ -50,6 +52,7 @@ export function GameOverDialog({
   headline?: string;
   detail?: string;
   onPlayAgain: () => void;
+  footerExtra?: ReactNode;
   results?: GameOverSeat[];
 }) {
   const title =
@@ -84,9 +87,16 @@ export function GameOverDialog({
       ? [them, you]
       : [you, them];
 
+  // With 4 players the row gets crowded, so shrink each seat by ~25%.
+  const compact = seats.length >= 4;
+
   return (
     <AlertDialog open={open}>
-      <AlertDialogContent className="border-gold/30 bg-brand text-cream sm:max-w-md">
+      <AlertDialogContent
+        className={`border-gold/30 bg-brand text-cream ${
+          seats.length >= 4 ? "sm:max-w-xl" : "sm:max-w-md"
+        }`}
+      >
         <AlertDialogHeader>
           <AlertDialogTitle className="text-center font-display text-3xl">{title}</AlertDialogTitle>
           <AlertDialogDescription className="text-center text-ivory/70">
@@ -114,9 +124,9 @@ export function GameOverDialog({
                   <img
                     src={seat.avatar}
                     alt={seat.name}
-                    width={96}
-                    height={96}
-                    className={`size-24 rounded-full border-2 object-cover shadow-lg shadow-black/30 ${
+                    width={compact ? 72 : 96}
+                    height={compact ? 72 : 96}
+                    className={`${compact ? "size-[4.5rem]" : "size-24"} rounded-full border-2 object-cover shadow-lg shadow-black/30 ${
                       seat.won ? "border-gold" : "border-ivory/40"
                     } ${seat.lost && seat.avatar === playerAvatar ? "grayscale brightness-90" : ""}`}
                   />
@@ -126,11 +136,11 @@ export function GameOverDialog({
                     </span>
                   ) : null}
                 </div>
-                <p className={`font-display text-lg ${seat.won ? "text-gold" : "text-ivory/80"}`}>
+                <p className={`font-display ${compact ? "text-sm" : "text-lg"} ${seat.won ? "text-gold" : "text-ivory/80"}`}>
                   {seat.name}
                 </p>
-                <p className="text-2xl font-bold">{seat.score}</p>
-                <p className="text-xs text-ivory/70">
+                <p className={`${compact ? "text-lg" : "text-2xl"} font-bold`}>{seat.score}</p>
+                <p className={`${compact ? "text-[9px]" : "text-xs"} text-ivory/70`}>
                   {result === "draw"
                     ? "Well played."
                     : seat.won
@@ -148,7 +158,8 @@ export function GameOverDialog({
           </p>
         ) : null}
 
-        <AlertDialogFooter className="sm:justify-center">
+        <AlertDialogFooter className="gap-2 sm:justify-center">
+          {footerExtra}
           <AlertDialogAction asChild>
             <Button variant="parlor" onClick={onPlayAgain}>
               Play again

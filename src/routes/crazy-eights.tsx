@@ -27,6 +27,10 @@ import {
   newDeck,
 } from "@/lib/crazyeights";
 import { mulberry32 } from "@/lib/random";
+import { useIsMobile } from "@/hooks/use-mobile";
+
+const FLIGHT_MS = 550;
+const STAGGER_MS = 400;
 
 export const Route = createFileRoute("/crazy-eights")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -263,9 +267,15 @@ function CrazyEightsTable() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [dealt, setDealt] = useState(HAND_SIZE * 2);
   const [flying, setFlying] = useState<FlyingCard[]>([]);
+  const [viewingHand, setViewingHand] = useState(false);
+  const [sortDesc, setSortDesc] = useState(false);
+  const [handWidth, setHandWidth] = useState(0);
+  const isMobile = useIsMobile();
   const pileRef = useRef<HTMLDivElement>(null);
+  const stockRef = useRef<HTMLButtonElement>(null);
   const handEls = useRef(new Map<string, HTMLButtonElement>());
   const seatHandEls = useRef(new Map<string, HTMLElement>());
+  const handRef = useRef<HTMLDivElement>(null);
   const stateRef = useRef(state);
   stateRef.current = state;
   useRecordMatchResult(match, isHost, state.winner);
@@ -293,6 +303,21 @@ function CrazyEightsTable() {
     return () => clearInterval(timer);
   }, [handKey, activeCount]);
   const dealing = dealt < HAND_SIZE * activeCount;
+
+  // Measure the hand row so cards can spread edge-to-edge on small screens.
+  useEffect(() => {
+    const el = handRef.current;
+    if (!el) return;
+    const measure = () => setHandWidth(el.clientWidth);
+    measure();
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", measure);
+      return () => window.removeEventListener("resize", measure);
+    }
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   const seatName = (seat: Seat): string => {
     if (!isRoom) return seat === "you" ? getNickname() ?? SEAT_NAMES[seat] : SEAT_NAMES[seat];
@@ -338,6 +363,7 @@ function CrazyEightsTable() {
     const n = isRoom ? activeCount : count;
     setPlayerCount(n);
     setSelectedIds([]);
+    setViewingHand(false);
     const fresh = freshState(n);
     stateRef.current = fresh;
     setState(fresh);
@@ -482,6 +508,31 @@ function CrazyEightsTable() {
     );
   };
 
+  /** Reorder the player's hand by rank, toggling low-to-high / high-to-low. */
+  const sortHand = () => {
+    const dir = sortDesc ? -1 : 1;
+    apply((current) => {
+      const hand = [...current.hands.you].sort(
+        (a, b) => dir * (a.rank - b.rank) || SUITS.indexOf(a.suit) - SUITS.indexOf(b.suit),
+      );
+      return { ...current, hands: { ...current.hands, you: hand } };
+    });
+    setSortDesc((prev) => !prev);
+  };
+
+  /** Fly cards onto the up card one at a time, then clear them. */
+  const scheduleFlights = (flights: FlyingCard[]) => {
+    if (!flights.length) return;
+    flights.forEach((flight, index) => {
+      window.setTimeout(() => {
+        setFlying((current) => [...current, flight]);
+      }, index * STAGGER_MS);
+    });
+    window.setTimeout(() => {
+      setFlying((current) => current.filter((f) => !flights.some((x) => x.key === f.key)));
+    }, (flights.length - 1) * STAGGER_MS + FLIGHT_MS);
+  };
+
   /** Animate the given cards from the hand to the pile and commit the move. */
   const playCardsNow = (cards: Card[]) => {
     const pileRect = pileRef.current?.getBoundingClientRect();
@@ -501,12 +552,7 @@ function CrazyEightsTable() {
     }
     setSelectedIds([]);
     apply((current) => playCards(current, "you", cards));
-    if (flights.length) {
-      setFlying((current) => [...current, ...flights]);
-      window.setTimeout(() => {
-        setFlying((current) => current.filter((f) => !flights.some((x) => x.key === f.key)));
-      }, 600);
-    }
+    scheduleFlights(flights);
   };
 
   const playSelected = () => {
@@ -527,12 +573,35 @@ function CrazyEightsTable() {
 
   const draw = () => {
     if (!myTurn || state.drew >= MAX_DRAWS) return;
+    if (hasPlayable(myHand, top, state.wildSuit)) return;
     setSelectedIds([]);
+
+    // Fly the drawn card from the stock to its new spot in the hand.
+    const stockRect = stockRef.current?.getBoundingClientRect();
+    const drawn = drawOne(state.deck, state.pile).card;
     apply((current) => takeCard(current, "you"));
+    if (stockRect && drawn) {
+      // Wait a frame for the hand to re-render, then read the card's landing spot.
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          const el = handEls.current.get(drawn.id);
+          if (!el) return;
+          const rect = el.getBoundingClientRect();
+          scheduleFlights([
+            {
+              key: Date.now(),
+              card: drawn,
+              from: { x: stockRect.left, y: stockRect.top },
+              to: { x: rect.left, y: rect.top },
+            },
+          ]);
+        });
+      });
+    }
   };
 
   const pass = () => {
-    if (!myTurn || state.drew === 0) return;
+    if (!myTurn || state.drew < MAX_DRAWS) return;
     setSelectedIds([]);
     apply((current) => ({ ...current, turn: nextTurn("you", current.order), drew: 0 }));
   };
@@ -617,14 +686,7 @@ function CrazyEightsTable() {
             });
           });
         }
-        if (flights.length) {
-          setFlying((currentFlying) => [...currentFlying, ...flights]);
-          window.setTimeout(() => {
-            setFlying((currentFlying) =>
-              currentFlying.filter((f) => !flights.some((x) => x.key === f.key)),
-            );
-          }, 600);
-        }
+        scheduleFlights(flights);
       }
 
       stateRef.current = next;
@@ -651,30 +713,6 @@ function CrazyEightsTable() {
 
   const canPlayNow = hasPlayable(myHand, top, state.wildSuit);
 
-  const status = dealing
-    ? "Dealing…"
-    : isRoom && !roomRemoteState
-      ? "Waiting for the host to deal…"
-      : isMulti && !match
-        ? "Opening the shared table…"
-        : state.winner
-          ? state.winner === "you"
-            ? "You shed your last card — you win"
-            : `${seatName(state.winner)} went out first`
-          : iChooseSuit
-            ? "Name the suit"
-            : state.phase === "suit"
-              ? `${seatName(state.turn)} is naming a suit…`
-              : myTurn
-                ? canPlayNow
-                  ? "Your lay"
-                  : state.drew >= MAX_DRAWS
-                    ? "Nothing to lay — pass the turn"
-                    : "Nothing follows — draw a card"
-                : isLive
-                  ? `Waiting for ${isRoom ? seatName(state.turn) : opponentName}…`
-                  : `${seatName(state.turn)} is thinking…`;
-
   const seatAvatar = (seat: Seat): string =>
     seat === "ada"
       ? ADA_AVATAR
@@ -697,11 +735,23 @@ function CrazyEightsTable() {
   const hasAce = state.order.includes("ace");
   const hasLeo = state.order.includes("leo");
 
+  // Overlap grows as cards are added and shrinks as cards leave. Cards that fit
+  // keep a few pixels between them (never touching); otherwise they overlap to
+  // fill the row. `CARD_W - 1` keeps at least 1px of every card visible.
+  const CARD_W = 48;
+  const MIN_GAP = 4;
+  const handOverlap = (() => {
+    const n = myHand.length;
+    if (n <= 1 || handWidth <= 0) return 0;
+    const fit = CARD_W - (handWidth - CARD_W) / (n - 1);
+    return fit <= 0 ? -MIN_GAP : Math.min(CARD_W - 1, fit);
+  })();
+
   return (
     <TableShell
       game={game}
       opponentName={opponentName}
-      opponentStatus={status}
+      opponentStatus=""
       opponentDisconnected={opponentDisconnected}
       disconnectSecondsLeft={disconnectSecondsLeft}
       disconnectExpired={disconnectExpired}
@@ -727,9 +777,10 @@ function CrazyEightsTable() {
       }}
       onNewGame={() => startGame(2)}
       rail={null}
+      containerClassName="px-1.5 sm:px-3"
     >
       <GameOverDialog
-        open={state.phase === "over"}
+        open={state.phase === "over" && !viewingHand}
         result={state.winner === "you" ? "win" : "loss"}
         playerScore={handPenalty(myHand)}
         opponentScore={handPenalty(state.hands[state.winner ?? "ada"] ?? [])}
@@ -738,31 +789,19 @@ function CrazyEightsTable() {
         playerAvatar={playerAvatar}
         results={results}
         onPlayAgain={reset}
+        footerExtra={
+          <>
+            <Button variant="parlorOutline" onClick={() => setViewingHand(true)}>
+              View hand
+            </Button>
+            <Button variant="parlorOutline" onClick={() => navigate({ to: "/" })}>
+              Back to game room
+            </Button>
+          </>
+        }
       />
-      <div className="space-y-8">
+      <div className="space-y-4 sm:space-y-8">
         <section className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <p className="text-[11px] uppercase tracking-[0.3em] text-gold">
-              {state.winner
-                ? "Hand over"
-                : state.turn === "you"
-                  ? "Your turn"
-                  : `${seatName(state.turn)}'s turn`}
-            </p>
-            <p className="mt-1 font-display text-3xl font-bold">
-              {state.wildSuit ? (
-                <>
-                  Suit called{" "}
-                  <span className={isRed(state.wildSuit) ? "text-destructive" : "text-ivory"}>
-                    {SUIT_SYMBOL[state.wildSuit]}
-                  </span>
-                </>
-              ) : (
-                `Follow ${RANK_LABEL[top.rank]} or ${SUIT_SYMBOL[top.suit]}`
-              )}
-            </p>
-            <p className="mt-1 text-sm text-ivory/55">{status}</p>
-          </div>
           {state.phase === "over" && (
             <Button variant="parlor" onClick={reset}>
               Play again
@@ -770,7 +809,7 @@ function CrazyEightsTable() {
           )}
         </section>
 
-        {/* Opponents: Ada up top (centered), Ace on the left, Leo on the right */}
+        {/* Opponents: Ada up top (centered); Ace and Leo flank the stock */}
         <div className="flex justify-center">
           <OpponentSeat
             name={seatName("ada")}
@@ -786,7 +825,7 @@ function CrazyEightsTable() {
           />
         </div>
 
-        <div className="grid grid-cols-[1fr_auto_1fr] items-center justify-items-center gap-6">
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center justify-items-center gap-3">
           <div className="flex items-center">
             {hasAce ? (
               <OpponentSeat
@@ -795,7 +834,7 @@ function CrazyEightsTable() {
                 cards={state.hands.ace ?? []}
                 handEls={seatHandEls.current}
                 vertical
-                rotation="-rotate-90"
+                rotation={isMobile ? "" : "-rotate-90"}
                 active={state.turn === "ace"}
                 dealing={dealing}
                 dealt={dealt}
@@ -807,32 +846,30 @@ function CrazyEightsTable() {
           </div>
 
           {/* Stock and discard */}
-          <section className="justify-self-center rounded-2xl border border-gold/25 bg-brand/70 p-4 shadow-2xl shadow-black/40">
-            <div className="flex flex-wrap items-center justify-center gap-6">
+          <section className="relative justify-self-center">
+            <div className="flex flex-wrap items-center justify-center gap-1.5">
               <div className="text-center">
                 <button
                   type="button"
                   onClick={draw}
-                  disabled={!myTurn || state.drew >= MAX_DRAWS || !state.deck.length}
+                  disabled={!myTurn || state.drew >= MAX_DRAWS || !state.deck.length || canPlayNow}
                   aria-label="Draw a card"
+                  ref={stockRef}
                   className="block transition-transform enabled:hover:-translate-y-1 disabled:opacity-60"
                 >
-                  <FaceDownCard />
+                  <FaceDownCard small />
                 </button>
-                <p className="mt-2 text-[10px] uppercase tracking-[0.2em] text-ivory/45">
-                  Stock {state.deck.length}
-                </p>
               </div>
               <div className="text-center" ref={pileRef}>
                 <div className="relative">
-                  <PlayingCard card={top} />
+                  <PlayingCard card={top} tiny />
                   {state.wildSuit && (
                     <span
                       aria-hidden
                       className="pointer-events-none absolute inset-0 z-10 grid place-items-center"
                     >
                       <span
-                        className={`grid size-12 place-items-center rounded-full border border-gold/60 bg-cream/95 font-display text-2xl shadow-lg shadow-black/40 ${
+                        className={`grid size-7 place-items-center rounded-full border border-gold/60 bg-cream/95 font-display text-base shadow-lg shadow-black/40 ${
                           isRed(state.wildSuit) ? "text-destructive" : "text-brand"
                         }`}
                       >
@@ -841,31 +878,32 @@ function CrazyEightsTable() {
                     </span>
                   )}
                 </div>
-                <p className="mt-2 text-[10px] uppercase tracking-[0.2em] text-ivory/45">Up card</p>
               </div>
-              {iChooseSuit && (
-                <div>
-                  <p className="mb-2 text-[10px] uppercase tracking-[0.22em] text-ivory/45">
-                    Name a suit
-                  </p>
-                  <div className="flex gap-2">
-                    {SUITS.map((suit) => (
-                      <button
-                        key={suit}
-                        type="button"
-                        onClick={() => pickSuit(suit)}
-                        aria-label={SUIT_NAME[suit]}
-                        className={`grid size-11 place-items-center rounded-lg border border-gold/40 bg-cream font-display text-2xl transition-transform hover:-translate-y-1 hover:border-gold ${
-                          isRed(suit) ? "text-destructive" : "text-brand"
-                        }`}
-                      >
-                        {SUIT_SYMBOL[suit]}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
+            {iChooseSuit && (
+              <div
+                role="dialog"
+                aria-label="Name a suit"
+                className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-1.5 rounded-2xl bg-brand/95 p-3"
+              >
+                <p className="text-[10px] uppercase tracking-[0.2em] text-gold">Name a suit</p>
+                <div className="flex gap-1.5">
+                  {SUITS.map((suit) => (
+                    <button
+                      key={suit}
+                      type="button"
+                      onClick={() => pickSuit(suit)}
+                      aria-label={SUIT_NAME[suit]}
+                      className={`grid size-7 place-items-center rounded-md border border-gold/40 bg-cream font-display text-base transition-transform hover:-translate-y-0.5 hover:border-gold ${
+                        isRed(suit) ? "text-destructive" : "text-brand"
+                      }`}
+                    >
+                      {SUIT_SYMBOL[suit]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </section>
 
           <div className="flex items-center">
@@ -876,7 +914,7 @@ function CrazyEightsTable() {
                 cards={state.hands.leo ?? []}
                 handEls={seatHandEls.current}
                 vertical
-                rotation="rotate-90"
+                rotation={isMobile ? "" : "rotate-90"}
                 avatarSide="right"
                 active={state.turn === "leo"}
                 dealing={dealing}
@@ -897,7 +935,7 @@ function CrazyEightsTable() {
               Your hand
             </p>
           </div>
-          <div className="flex flex-wrap items-end justify-center gap-2">
+          <div ref={handRef} className="flex items-end justify-center">
             {myHand.map((card, index) => {
               const arrived = !dealing || dealt > index * playerCount;
               if (!arrived) return null;
@@ -916,34 +954,41 @@ function CrazyEightsTable() {
                   disabled={!legal}
                   aria-pressed={chosen}
                   aria-label={`Select ${cardLabel(card)}`}
+                  style={index > 0 ? { marginLeft: -handOverlap } : undefined}
                   className={`relative transition-transform focus:z-20 focus:outline-none ${
                     dealing ? "animate-deal-in-player" : ""
-                  } ${chosen ? "z-20 -translate-y-4" : legal ? "z-10 hover:z-20 hover:-translate-y-2" : "opacity-70"}`}
+                  } ${chosen ? "z-20 -translate-y-4" : legal ? "hover:z-20 hover:-translate-y-2" : "opacity-50"}`}
                 >
-                  <PlayingCard card={card} highlighted={chosen} />
+                  <PlayingCard card={card} small highlighted={chosen} />
                 </button>
               );
             })}
           </div>
-          <div className="mt-5 flex flex-wrap items-center gap-3">
+          <div className="mt-5 flex min-h-9 flex-wrap items-center gap-3">
             {canPlaySelected && (
               <Button variant="parlor" onClick={playSelected}>
                 Play {selectedCards.map(cardLabel).join(", ")}
               </Button>
             )}
-            {myTurn && !canPlaySelected && state.drew < MAX_DRAWS && state.deck.length > 0 && (
+            {myTurn && !canPlaySelected && !canPlayNow && state.drew < MAX_DRAWS && state.deck.length > 0 && (
               <Button variant="parlor" onClick={draw}>
                 Draw a card
               </Button>
             )}
-            {myTurn && state.drew > 0 && !canPlayNow && (
+            {myTurn && state.drew >= MAX_DRAWS && !canPlayNow && (
               <Button variant="parlorOutline" onClick={pass}>
                 Pass the turn
               </Button>
             )}
-            {myTurn && canPlayNow && !canPlaySelected && (
-              <p className="text-sm text-ivory/60">Tap a highlighted card to play it</p>
-            )}
+            <Button
+              variant="parlorOutline"
+              onClick={sortHand}
+              disabled={!myHand.length}
+              aria-label="Sort your hand"
+              className="ml-auto"
+            >
+              Sort
+            </Button>
           </div>
         </section>
       </div>
@@ -984,7 +1029,7 @@ function OpponentSeat({
   bubble?: string | null;
 }) {
   return (
-    <div className={vertical ? `flex items-center gap-8 ${avatarSide === "right" ? "flex-row-reverse" : ""}` : ""}>
+    <div className={vertical ? `flex items-center gap-4 ${avatarSide === "right" ? "flex-row-reverse" : ""}` : ""}>
       <div className={`flex items-center gap-3 ${vertical ? "flex-col gap-1" : "mb-2 justify-center"}`}>
         <div className="relative">
           <img
@@ -996,8 +1041,15 @@ function OpponentSeat({
             } ${active ? "border-gold ring-2 ring-gold/40" : "border-gold/40"}`}
           />
           {bubble && (
-            <div className="absolute bottom-full left-full z-10 mb-2 ml-2">
-              <SpeechBubble text={bubble} />
+            <div
+              className={`absolute bottom-full z-10 mb-2 ${
+                avatarSide === "right" ? "right-full mr-2" : "left-full ml-2"
+              }`}
+            >
+              <SpeechBubble
+                text={bubble}
+                tail={avatarSide === "right" ? "down-right" : "down-left"}
+              />
             </div>
           )}
         </div>
@@ -1005,7 +1057,10 @@ function OpponentSeat({
           {name}
         </p>
       </div>
-      <div className={vertical ? "flex flex-col items-center" : "flex"}>
+      {/* Reserve vertical space for up to 10 stacked cards (h-16 minus -mt-11
+          overlap = 20px each, so 64 + 9*20 = 244px) so the side seats don't
+          make the screen grow deeper card-by-card while dealing. */}
+      <div className={vertical ? "flex min-h-[244px] flex-col items-center" : "flex"}>
         {cards.map((card, index) => {
           const arrived = !dealing || dealt > index * playerCount + seatIndex;
           if (!arrived) return null;
@@ -1052,7 +1107,7 @@ function FlyingCardView({ flight }: { flight: FlyingCard }) {
         transform: `translate(${dx}px, ${dy}px)`,
       }}
     >
-      <PlayingCard card={flight.card} />
+      <PlayingCard card={flight.card} small />
     </div>
   );
 }
@@ -1080,10 +1135,12 @@ function FaceDownCard({
 function PlayingCard({
   card,
   small = false,
+  tiny = false,
   highlighted = false,
 }: {
   card: Card;
   small?: boolean;
+  tiny?: boolean;
   highlighted?: boolean;
 }) {
   const red = isRed(card.suit);
@@ -1095,29 +1152,29 @@ function PlayingCard({
     <span
       className={`relative block overflow-hidden rounded-lg bg-white shadow-md shadow-black/30 ${
         highlighted ? "border-2 border-gold" : "border border-black/15"
-      } ${small ? "h-[4.5rem] w-12" : "h-28 w-[4.75rem]"} ${
+      } ${tiny ? "h-16 w-11" : small ? "h-[4.5rem] w-12" : "h-28 w-[4.75rem]"} ${
         red ? "text-destructive" : "text-brand"
       }`}
     >
       {/* Rank and suit, stacked in the top-left corner */}
       <span
         className={`absolute left-1.5 top-1 flex flex-col items-center font-display font-bold leading-none ${
-          small ? "text-base" : "text-2xl"
+          small || tiny ? "text-base" : "text-2xl"
         }`}
       >
         <span>{rank}</span>
-        <span className={small ? "text-sm" : "text-xl"}>{suit}</span>
+        <span className={small || tiny ? "text-sm" : "text-xl"}>{suit}</span>
       </span>
 
       {/* Pip cluster in the lower body of the card */}
       <span
         aria-hidden
         className={`absolute bottom-1.5 right-1.5 flex w-[58%] flex-wrap-reverse justify-end gap-x-[1px] gap-y-[1px] leading-[0.85] ${
-          small ? "text-[7px]" : "text-[10px]"
+          small || tiny ? "text-[7px]" : "text-[10px]"
         }`}
       >
         {isFace ? (
-          <span className={`font-display font-bold ${small ? "text-lg" : "text-2xl"}`}>{rank}</span>
+          <span className={`font-display font-bold ${small || tiny ? "text-lg" : "text-2xl"}`}>{rank}</span>
         ) : (
           Array.from({ length: pips }, (_, index) => <span key={index}>{suit}</span>)
         )}
