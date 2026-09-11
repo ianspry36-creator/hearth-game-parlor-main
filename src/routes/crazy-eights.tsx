@@ -642,6 +642,7 @@ function CrazyEightsTable() {
       const currentTop = current.pile[current.pile.length - 1]!;
       let next: State;
       let played: Card[] = [];
+      let drawnCard: Card | null = null;
       if (current.phase === "suit") {
         next = nominate(current, seat, chooseSuit(hand));
       } else {
@@ -658,6 +659,7 @@ function CrazyEightsTable() {
           next = playCards(current, seat, played);
         } else if (current.drew < MAX_DRAWS) {
           showBubble(seat, `Drawing ${DRAW_ORDINAL[current.drew + 1]} card.`);
+          drawnCard = drawOne(current.deck, current.pile).card;
           next = takeCard(current, seat);
         } else {
           next = {
@@ -691,6 +693,30 @@ function CrazyEightsTable() {
 
       stateRef.current = next;
       setState(next);
+
+      // Fly the opponent's drawn card from the stock to their hand.
+      if (drawnCard) {
+        const stockRect = stockRef.current?.getBoundingClientRect();
+        if (stockRect) {
+          // Wait a frame for the seat to re-render, then read the landing spot.
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              const el = seatHandEls.current.get(drawnCard.id);
+              if (!el) return;
+              const rect = el.getBoundingClientRect();
+              scheduleFlights([
+                {
+                  key: Date.now(),
+                  card: drawnCard,
+                  from: { x: stockRect.left, y: stockRect.top },
+                  to: { x: rect.left, y: rect.top },
+                },
+              ]);
+            });
+          });
+        }
+      }
+
       if (isRoom && roomIsHost) void publishRoom(remapState(next, mySeat, activeCount));
     }, 900);
     return () => clearTimeout(timer);
