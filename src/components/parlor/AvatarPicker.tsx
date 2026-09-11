@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -8,7 +8,16 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { AVATAR_OPTIONS, writeAvatar, type AvatarCategory } from "@/lib/avatars";
+import { getNickname, setNickname } from "@/lib/multiplayer";
+import { moderateNickname } from "@/lib/moderation";
+import {
+  INAPPROPRIATE_NAME_MESSAGE,
+  MAX_NICKNAME_LENGTH,
+  NICKNAME_TOO_LONG_MESSAGE,
+} from "@/lib/nickname";
 
 type Props = {
   avatar: string;
@@ -26,6 +35,40 @@ const CATEGORIES: { value: AvatarCategory; label: string }[] = [
 /** Player avatar badge — click to choose a different portrait. */
 export function AvatarPicker({ avatar, onSelect, sad = false }: Props) {
   const [open, setOpen] = useState(false);
+  const [nickname, setCurrentNickname] = useState(() => getNickname() ?? "");
+  const [draft, setDraft] = useState(() => getNickname() ?? "");
+  const [nickError, setNickError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  // Re-sync the field each time the dialog opens so edits elsewhere are reflected.
+  useEffect(() => {
+    if (!open) return;
+    const current = getNickname() ?? "";
+    setCurrentNickname(current);
+    setDraft(current);
+    setNickError(null);
+  }, [open]);
+
+  const submitNickname = async () => {
+    const value = draft.trim();
+    if (!value) return;
+    if (value.length > MAX_NICKNAME_LENGTH) {
+      setNickError(NICKNAME_TOO_LONG_MESSAGE);
+      return;
+    }
+    setSaving(true);
+    setNickError(null);
+    const result = await moderateNickname(value);
+    setSaving(false);
+    if (!result.allowed) {
+      setNickError(INAPPROPRIATE_NAME_MESSAGE);
+      return;
+    }
+    setNickname(value);
+    setCurrentNickname(value);
+  };
+
+  const unchanged = draft.trim() === nickname;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -52,6 +95,43 @@ export function AvatarPicker({ avatar, onSelect, sad = false }: Props) {
             Pick the portrait that sits at your side of the table.
           </DialogDescription>
         </DialogHeader>
+        <form
+          className="space-y-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void submitNickname();
+          }}
+        >
+          <label
+            htmlFor="avatar-nickname"
+            className="block text-[11px] font-medium uppercase tracking-[0.22em] text-ivory/70"
+          >
+            What&apos;s your nickname?
+          </label>
+          <div className="flex gap-2">
+            <Input
+              id="avatar-nickname"
+              value={draft}
+              maxLength={MAX_NICKNAME_LENGTH}
+              onChange={(event) => {
+                setDraft(event.target.value);
+                setNickError(null);
+              }}
+              placeholder="e.g. Cardboard Jack"
+              className="border-gold/30 bg-brand/60 text-cream placeholder:text-ivory/40"
+            />
+            <Button
+              type="submit"
+              variant="parlor"
+              size="sm"
+              className="shrink-0"
+              disabled={saving || !draft.trim() || unchanged}
+            >
+              {saving ? "Saving…" : "Save"}
+            </Button>
+          </div>
+          {nickError && <p className="text-xs text-red-300">{nickError}</p>}
+        </form>
         <Tabs defaultValue="people">
           <TabsList className="grid w-full grid-cols-4">
             {CATEGORIES.map((category) => (

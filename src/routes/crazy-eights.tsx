@@ -958,7 +958,7 @@ function CrazyEightsTable() {
           <div className="mb-2 flex items-center justify-center gap-3">
             <PlayerAvatar avatar={playerAvatar} onSelect={setPlayerAvatar} />
             <p className="text-[10px] uppercase tracking-[0.22em] text-ivory/45">
-              Your hand
+              {seatName("you")}&apos;s hand
             </p>
           </div>
           <div ref={handRef} className="flex items-end justify-center">

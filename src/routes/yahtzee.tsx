@@ -596,7 +596,7 @@ function YahtzeeTable() {
                 )}
               </div>
             )}
-            <p className="font-display text-base">{mine ? "You" : opponentName}</p>
+            <p className="font-display text-base">{mine ? playerName : opponentName}</p>
           </div>
         </div>
         <div className="mt-4 min-h-[3.2rem] grid place-items-center">

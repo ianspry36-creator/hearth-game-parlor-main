@@ -23,6 +23,11 @@ export function getNickname(): string | null {
   return window.localStorage.getItem(NICKNAME_KEY);
 }
 
+export function setNickname(value: string): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(NICKNAME_KEY, value);
+}
+
 export type InviteStatus = "pending" | "accepted" | "declined" | "cancelled";
 
 export type InviteRow = {

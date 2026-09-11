@@ -6,7 +6,7 @@ import { GameOverDialog } from "@/components/parlor/GameOverDialog";
 import { PlayerAvatar } from "@/components/parlor/PlayerAvatar";
 import { getGame } from "@/lib/games";
 import { ADA_AVATAR, readAvatar } from "@/lib/avatars";
-import { useMatch } from "@/lib/multiplayer";
+import { getNickname, useMatch } from "@/lib/multiplayer";
 import { useRecordMatchResult } from "@/lib/stats";
 import { playExplosion, playSinking, playSplash } from "@/lib/warship-sounds";
 import {
@@ -141,6 +141,7 @@ function WarshipTable() {
 
   const isMulti = Boolean(matchId);
   const opponentName = liveOpponent ?? opponent ?? "Ada";
+  const playerName = getNickname() ?? "You";
 
   // Re-place the opening fleet once we're on the client (avoids an SSR mismatch).
   const didPlace = useRef(false);
@@ -436,7 +437,7 @@ function WarshipTable() {
           >
             <div className="mb-2 flex items-center gap-3">
               <PlayerAvatar avatar={playerAvatar} onSelect={setPlayerAvatar} />
-              <p className="text-[11px] uppercase tracking-[0.3em] text-gold">Your waters</p>
+              <p className="text-[11px] uppercase tracking-[0.3em] text-gold">{playerName}&apos;s waters</p>
             </div>
             <Grid
               ships={state.ships.human}

@@ -309,6 +309,7 @@ function GameOverDialog({
   scores,
   playerAvatar,
   opponentName,
+  playerName,
   onPlayAgain,
 }: {
   open: boolean;
@@ -316,24 +317,25 @@ function GameOverDialog({
   scores: Record<Side, number>;
   playerAvatar: string;
   opponentName: string;
+  playerName: string;
   onPlayAgain: () => void;
 }) {
   const loser = other(winner);
   const margin = scores[winner] - scores[loser];
   const isSkunk = margin > 30;
-  const winnerName = winner === "player" ? "You" : opponentName;
-  const loserName = loser === "player" ? "you" : opponentName;
+  const winnerName = winner === "player" ? playerName : opponentName;
+  const loserName = loser === "player" ? playerName : opponentName;
 
   return (
     <AlertDialog open={open}>
       <AlertDialogContent className="border-gold/30 bg-brand text-cream sm:max-w-md">
         <AlertDialogHeader>
           <AlertDialogTitle className="text-center font-display text-3xl">
-            {winner === "player" ? "You won!" : `${opponentName} won!`}
+            {winner === "player" ? `${playerName} won!` : `${opponentName} won!`}
           </AlertDialogTitle>
           <AlertDialogDescription className="text-center text-ivory/70">
             {isSkunk
-              ? `A skunk! ${loserName === "you" ? "You were" : `${loserName} was`} well and truly beaten.`
+              ? `A skunk! ${loserName === "You" ? "You were" : `${loserName} was`} well and truly beaten.`
               : `The game is over — here is how the table finished.`}
           </AlertDialogDescription>
         </AlertDialogHeader>
@@ -380,9 +382,7 @@ function GameOverDialog({
                 loser === "player" ? "grayscale brightness-90" : ""
               }`}
             />
-            <p className="font-display text-lg text-ivory/80">
-              {loserName.charAt(0).toUpperCase() + loserName.slice(1)}
-            </p>
+            <p className="font-display text-lg text-ivory/80">{loserName}</p>
             <p className="text-2xl font-bold">{scores[loser]}</p>
             <p className="text-xs text-ivory/70">Commiserations.</p>
           </div>
@@ -843,12 +843,12 @@ function CribbageTable() {
   const blockLabel = (block: ShowBlock) =>
     block.kind === "crib"
       ? block.side === "player"
-        ? "Your crib"
+        ? `${playerName}'s crib`
         : `${opponentName}'s crib`
       : block.side === "player"
-        ? "Your hand"
+        ? `${playerName}'s hand`
         : `${opponentName}'s hand`;
-  const who = (side: Side) => (side === "player" ? "You" : opponentName);
+  const who = (side: Side) => (side === "player" ? playerName : opponentName);
   const turnLabel = state.winner
     ? `${who(state.winner)} won the game`
     : state.phase === "cut"
@@ -901,7 +901,7 @@ function CribbageTable() {
   const CribPile = () => (
     <div className="text-center">
       <p className="mb-2 text-[10px] uppercase tracking-[0.2em] text-gold">
-        {state.dealer === "player" ? "Your crib" : `${opponentName}'s crib`}
+        {state.dealer === "player" ? `${playerName}'s crib` : `${opponentName}'s crib`}
       </p>
       <div ref={cribRef} className="flex w-[80px] justify-start [&>*:not(:first-child)]:-ml-4">
         {state.crib.length === 0 ? (
@@ -954,6 +954,7 @@ function CribbageTable() {
         scores={state.scores}
         playerAvatar={avatar}
         opponentName={opponentName}
+        playerName={playerName}
         onPlayAgain={() => reset(freshGame())}
       />
       <div className="space-y-6">

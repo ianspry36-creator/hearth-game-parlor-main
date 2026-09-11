@@ -11,7 +11,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { THEME_OPTIONS, readTheme, writeTheme, type ThemeId } from "@/lib/theme";
 import { EFFECT_OPTIONS, readEffect, writeEffect, type EffectId } from "@/lib/effects";
-import { COUNTRY_OPTIONS, readCountry, writeCountry, type CountryId } from "@/lib/country";
 
 type Props = {
   className?: string;
@@ -24,8 +23,6 @@ export function SettingsDialog({ className }: Props) {
   const [candidate, setCandidate] = useState<ThemeId>(theme);
   const [effect, setEffect] = useState<EffectId>(() => readEffect());
   const [effectCandidate, setEffectCandidate] = useState<EffectId>(effect);
-  const [country, setCountry] = useState<CountryId>(() => readCountry());
-  const [countryCandidate, setCountryCandidate] = useState<CountryId>(country);
 
   const applyThemeOption = (id: ThemeId) => {
     setTheme(id);
@@ -38,13 +35,6 @@ export function SettingsDialog({ className }: Props) {
     setEffect(id);
     setEffectCandidate(id);
     writeEffect(id);
-    setOpen(false);
-  };
-
-  const applyCountryOption = (id: CountryId) => {
-    setCountry(id);
-    setCountryCandidate(id);
-    writeCountry(id);
     setOpen(false);
   };
 
@@ -69,15 +59,12 @@ export function SettingsDialog({ className }: Props) {
         </DialogHeader>
 
         <Tabs defaultValue="colours">
-          <TabsList className="grid w-full grid-cols-3 rounded-xl border border-gold/25 bg-surface p-1">
+          <TabsList className="grid w-full grid-cols-2 rounded-xl border border-gold/25 bg-surface p-1">
             <TabsTrigger value="colours" className="data-[state=active]:bg-gold data-[state=active]:text-brand">
               Colours
             </TabsTrigger>
             <TabsTrigger value="effects" className="data-[state=active]:bg-gold data-[state=active]:text-brand">
               Effects
-            </TabsTrigger>
-            <TabsTrigger value="country" className="data-[state=active]:bg-gold data-[state=active]:text-brand">
-              Country
             </TabsTrigger>
           </TabsList>
 
@@ -170,51 +157,6 @@ export function SettingsDialog({ className }: Props) {
             </div>
           </TabsContent>
 
-          <TabsContent value="country">
-            <div className="grid grid-cols-3 gap-3">
-              {COUNTRY_OPTIONS.map((option) => {
-                const active = option.id === country;
-                const selected = option.id === countryCandidate;
-                return (
-                  <button
-                    key={option.id}
-                    type="button"
-                    onClick={() => setCountryCandidate(option.id)}
-                    onDoubleClick={() => applyCountryOption(option.id)}
-                    aria-pressed={active}
-                    className={cn(
-                      "relative overflow-hidden rounded-2xl border p-2 text-left transition-all",
-                      selected ? "border-gold ring-2 ring-gold" : "border-gold/20 hover:border-gold/50",
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        "block h-24 w-full rounded-xl border border-white/10 bg-surface",
-                        option.id !== "none" && `fx-${option.id}`,
-                      )}
-                    />
-                    <span className="mt-2 block font-display text-base font-semibold">{option.label}</span>
-                    {active && (
-                      <span className="absolute right-2 top-2 grid size-6 place-items-center rounded-full bg-gold text-brand">
-                        <Check className="size-4" />
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="mt-4 flex items-center justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => applyCountryOption(countryCandidate)}
-                disabled={countryCandidate === country}
-                className="rounded-lg bg-gold px-5 py-2 text-sm font-semibold text-brand transition-colors hover:bg-gold-bright disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Select
-              </button>
-            </div>
-          </TabsContent>
         </Tabs>
       </DialogContent>
     </Dialog>

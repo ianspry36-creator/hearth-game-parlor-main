@@ -298,36 +298,6 @@
   background-position: center;
 }
 
-/* =========================================================================
- * Country backgrounds — switchable from Settings > Country.
- * Placed after the effect rules so a selected country takes precedence
- * over the effect background when both are active.
- * ========================================================================= */
-:root[data-country="uk"] body {
-  background-image: url("/uk.jpg");
-  background-size: cover;
-  background-position: center;
-}
-
-:root[data-country="usa"] body {
-  background-image: url("/usa.avif");
-  background-size: cover;
-  background-position: center;
-}
-
-/* Preview swatches inside the Settings > Country tab. */
-.fx-uk {
-  background-image: url("/uk.jpg");
-  background-size: cover;
-  background-position: center;
-}
-
-.fx-usa {
-  background-image: url("/usa.avif");
-  background-size: cover;
-  background-position: center;
-}
-
 .fx-check {
   background-image: var(--fx-check);
   background-size: var(--fx-check-size);

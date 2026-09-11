@@ -299,7 +299,7 @@ function TrianglesTable() {
         <section className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="text-[11px] uppercase tracking-[0.3em] text-gold">
-              {state.turn === "human" ? "Your turn" : `${opponentName}'s turn`}
+              {state.turn === "human" ? `${playerName}'s turn` : `${opponentName}'s turn`}
             </p>
             <p className="mt-1 font-display text-3xl font-bold">
               <span className="text-player-coral">{mine}</span>{" "}

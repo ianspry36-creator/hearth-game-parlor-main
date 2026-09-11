@@ -13,7 +13,6 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { applyTheme, readTheme, THEME_INIT_SCRIPT } from "../lib/theme";
 import { applyEffect, readEffect, EFFECT_INIT_SCRIPT } from "../lib/effects";
-import { applyCountry, readCountry, COUNTRY_INIT_SCRIPT } from "../lib/country";
 
 function NotFoundComponent() {
   return (
@@ -122,7 +121,6 @@ function RootShell({ children }: { children: ReactNode }) {
         <HeadContent />
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         <script dangerouslySetInnerHTML={{ __html: EFFECT_INIT_SCRIPT }} />
-        <script dangerouslySetInnerHTML={{ __html: COUNTRY_INIT_SCRIPT }} />
       </head>
       <body>
         {children}
@@ -138,7 +136,6 @@ function RootComponent() {
   useEffect(() => {
     applyTheme(readTheme());
     applyEffect(readEffect());
-    applyCountry(readCountry());
   }, []);
 
   return (
