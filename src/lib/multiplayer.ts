@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import type { GameId } from "@/lib/games";
 import { recordMatchResult } from "@/lib/stats";
@@ -144,6 +145,7 @@ export function useMatch<T>(matchId: string | undefined) {
   const [match, setMatch] = useState<MatchRow | null>(null);
   const [loading, setLoading] = useState(Boolean(matchId));
   const version = useRef(0);
+  const navigate = useNavigate();
 
   // Opponent presence / disconnection tracking.
   const [opponentOnline, setOpponentOnline] = useState(true);
@@ -233,7 +235,10 @@ export function useMatch<T>(matchId: string | undefined) {
   const opponentName = match ? (isHost ? match.guest_nickname : match.host_nickname) : null;
   const opponentSession = match ? (isHost ? match.guest_session : match.host_session) : null;
   const opponentAvatar = match ? (isHost ? match.guest_avatar : match.host_avatar) : null;
-  const remoteState = (match?.state ?? null) as T | null;
+  // A finished match is never resumable: hide its last state so a returning
+  // URL can't resurrect the final-score screen, and bounce the player home.
+  const completed = match?.status === "completed";
+  const remoteState = completed ? null : ((match?.state ?? null) as T | null);
 
   // Track the opponent's live connection through a Realtime presence channel so a
   // dropped peer can be detected and given a short window to reconnect.
@@ -298,6 +303,15 @@ export function useMatch<T>(matchId: string | undefined) {
     if (!disconnectExpired || !matchId || !sessionId) return;
     void recordMatchResult(matchId, sessionId);
   }, [disconnectExpired, matchId, sessionId]);
+
+  // Once a match has finished there is no way back into it: a returning URL
+  // still pointing at the finished match is redirected home instead of
+  // re-opening the completed table.
+  useEffect(() => {
+    if (matchId && match?.status === "completed") {
+      void navigate({ to: "/" });
+    }
+  }, [matchId, match?.status, navigate]);
 
   return {
     match,
