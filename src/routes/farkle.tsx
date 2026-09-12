@@ -298,6 +298,7 @@ function FarkleTable() {
         const cc = current.rolloff.cpu;
         if (hh === null || cc === null) return current;
         if (hh === cc) {
+          showCpuMessage("Roll again");
           return {
             ...current,
             rolloff: { human: null, cpu: null },
@@ -305,6 +306,11 @@ function FarkleTable() {
           };
         }
         const first: Seat = hh > cc ? "human" : "cpu";
+        if (first === "human") {
+          showAvatarMessage("I won the throw. I will play first.");
+        } else {
+          showCpuMessage("I won the throw. I will play first.");
+        }
         return {
           ...current,
           turn: first,
@@ -639,19 +645,27 @@ function FarkleTable() {
               <div className="mt-6 flex items-center justify-center gap-8">
                 <div className="flex flex-col items-center gap-2">
                   <p className="font-display">{playerName}</p>
-                  {state.rolloff.human !== null ? (
-                    <DieFace face={state.rolloff.human} />
-                  ) : (
-                    <div className="grid size-16 place-items-center rounded-xl border-2 border-dashed border-gold/30" />
+                  {state.rolloff.human !== null && (
+                    <div
+                      style={{
+                        transform: `rotate(${scatterFor(0, state.rolloff.human).angle}deg)`,
+                      }}
+                    >
+                      <DieFace face={state.rolloff.human} />
+                    </div>
                   )}
                 </div>
                 <p className="font-display text-2xl text-gold">vs</p>
                 <div className="flex flex-col items-center gap-2">
                   <p className="font-display">{opponentName}</p>
-                  {state.rolloff.cpu !== null ? (
-                    <DieFace face={state.rolloff.cpu} />
-                  ) : (
-                    <div className="grid size-16 place-items-center rounded-xl border-2 border-dashed border-gold/30" />
+                  {state.rolloff.cpu !== null && (
+                    <div
+                      style={{
+                        transform: `rotate(${scatterFor(1, state.rolloff.cpu).angle}deg)`,
+                      }}
+                    >
+                      <DieFace face={state.rolloff.cpu} />
+                    </div>
                   )}
                 </div>
               </div>

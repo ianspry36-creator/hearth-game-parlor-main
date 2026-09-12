@@ -39,6 +39,7 @@ export function GameOverDialog({
   detail,
   onPlayAgain,
   footerExtra,
+  playAgainClassName,
   results,
 }: {
   open: boolean;
@@ -53,6 +54,7 @@ export function GameOverDialog({
   detail?: string;
   onPlayAgain: () => void;
   footerExtra?: ReactNode;
+  playAgainClassName?: string;
   results?: GameOverSeat[];
 }) {
   const title =
@@ -161,7 +163,7 @@ export function GameOverDialog({
         <AlertDialogFooter className="gap-2 sm:justify-center">
           {footerExtra}
           <AlertDialogAction asChild>
-            <Button variant="parlor" onClick={onPlayAgain}>
+            <Button variant="parlor" className={playAgainClassName} onClick={onPlayAgain}>
               Play again
             </Button>
           </AlertDialogAction>

@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { TableShell } from "@/components/parlor/TableShell";
 import { GameOverDialog } from "@/components/parlor/GameOverDialog";
@@ -106,6 +106,9 @@ const flip = (side: Seat): Seat => (side === "human" ? "cpu" : "human");
 // shows the first four characters followed by three dots.
 const shortName = (name: string) => (name.length > 7 ? `${name.slice(0, 4)}...` : name);
 
+// Ordinal suffix for Ada's throw announcements ("2nd throw", "3rd throw").
+const ordinal = (n: number) => (n === 1 ? "1st" : n === 2 ? "2nd" : "3rd");
+
 function rollOff(current: State): State {
   const human = rollFace();
   return {
@@ -159,11 +162,13 @@ function YahtzeeTable() {
   };
 
   const [playerAvatar, setPlayerAvatar] = useState<string>(readAvatar);
+  const [viewingScorecard, setViewingScorecard] = useState(false);
 
   const reset = () => {
     const fresh = freshState();
     stateRef.current = fresh;
     setState(fresh);
+    setViewingScorecard(false);
     if (isMulti) void publish(isHost ? fresh : mirror(fresh));
   };
 
@@ -408,32 +413,43 @@ function YahtzeeTable() {
     apply((current) => takeBox(current, "human", category));
   };
 
-  // Ada's turn, one step at a time (solo play only).
+  // Ada's turn, one step at a time (solo play only). Once she has kept her
+  // dice she announces the next throw in a speech bubble, then pauses two
+  // seconds before the dice actually roll again.
+  const adaSelectedRef = useRef(false);
   useEffect(() => {
     if (isMulti) return;
     if (state.phase !== "play" || state.turn !== "cpu") return;
     const timer = setTimeout(() => {
-      setState((current) => {
-        if (current.phase !== "play" || current.turn !== "cpu") return current;
-        let next: State;
-        if (current.rolls === 0) {
-          next = throwDice(current, "cpu");
+      const current = stateRef.current;
+      if (current.phase !== "play" || current.turn !== "cpu") return;
+      let next: State;
+      if (current.rolls === 0) {
+        // Opening throw — nothing to "throw again" yet.
+        next = throwDice(current, "cpu");
+        adaSelectedRef.current = false;
+      } else if (!adaSelectedRef.current) {
+        // Keep the dice Ada wants, then announce the next throw.
+        const currentFaces = current.dice.map((d) => d.face);
+        const hold = bestHold(currentFaces, current.cards.cpu);
+        if (current.rolls >= MAX_ROLLS || hold.length === DICE_COUNT) {
+          next = takeBox(current, "cpu", bestCategory(currentFaces, current.cards.cpu));
+          adaSelectedRef.current = false;
         } else {
-          const currentFaces = current.dice.map((d) => d.face);
-          const hold = bestHold(currentFaces, current.cards.cpu);
-          if (current.rolls >= MAX_ROLLS || hold.length === DICE_COUNT) {
-            next = takeBox(current, "cpu", bestCategory(currentFaces, current.cards.cpu));
-          } else {
-            const held: State = {
-              ...current,
-              dice: current.dice.map((d, i) => ({ ...d, held: hold.includes(i) })),
-            };
-            next = throwDice(held, "cpu");
-          }
+          next = {
+            ...current,
+            dice: current.dice.map((d, i) => ({ ...d, held: hold.includes(i) })),
+          };
+          adaSelectedRef.current = true;
+          showBubble("cpu", `Throwing again...${ordinal(current.rolls + 1)} throw.`, 2000);
         }
-        stateRef.current = next;
-        return next;
-      });
+      } else {
+        // Re-throw after the two-second announcement pause.
+        next = throwDice(current, "cpu");
+        adaSelectedRef.current = false;
+      }
+      stateRef.current = next;
+      setState(next);
     }, 2000);
     return () => clearTimeout(timer);
   }, [isMulti, state.phase, state.turn, state.rolls, state.dice]);
@@ -485,12 +501,16 @@ function YahtzeeTable() {
   // kept dice, so we can animate the move. The "animating" sets persist across
   // re-renders (e.g. the one the rolling indicator triggers) so an animation
   // isn't cancelled mid-flight, and are cleared once it has finished.
-  const animating = useRef<{ held: Set<number>; released: Set<number> }>({
-    held: new Set(),
+  const animating = useRef<{ released: Set<number> }>({
     released: new Set(),
   });
   const animTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prevDiceRef = useRef<YDie[]>(state.dice);
+  const heldOrderRef = useRef<number[]>([]);
+  const centerDieElsRef = useRef<Map<number, HTMLElement>>(new Map());
+  const seatDieElsRef = useRef<Map<number, HTMLElement>>(new Map());
+  const centerRectsRef = useRef<Map<number, DOMRect>>(new Map());
+  const justHeldRef = useRef<number[]>([]);
 
   const heldNow = new Set<number>();
   const releasedNow = new Set<number>();
@@ -499,18 +519,24 @@ function YahtzeeTable() {
     if (p && p.held !== d.held) (d.held ? heldNow : releasedNow).add(i);
   });
   if (heldNow.size || releasedNow.size) {
-    heldNow.forEach((i) => animating.current.held.add(i));
+    // Track the order dice are kept so newly kept dice join the right-hand
+    // end of the seat instead of shoving the existing dice along.
+    heldOrderRef.current = heldOrderRef.current.filter((i) => !releasedNow.has(i));
+    [...heldNow]
+      .sort((a, b) => a - b)
+      .forEach((i) => {
+        if (!heldOrderRef.current.includes(i)) heldOrderRef.current.push(i);
+      });
+    // Dice held this render will fly from the throwing area into their seat.
+    justHeldRef.current = [...heldNow].sort((a, b) => a - b);
     releasedNow.forEach((i) => animating.current.released.add(i));
     if (animTimer.current) clearTimeout(animTimer.current);
-    // Long enough for the last staggered die (up to 4 × 200ms delay) to finish.
     animTimer.current = setTimeout(() => {
-      animating.current.held.clear();
       animating.current.released.clear();
-    }, 1500);
+    }, 1900);
   }
   prevDiceRef.current = state.dice;
 
-  const animHeld = animating.current.held;
   const animReleased = animating.current.released;
 
   useEffect(
@@ -520,7 +546,37 @@ function YahtzeeTable() {
     [],
   );
 
-  const dieAt = (index: number, scatter = false, animClass?: string, delayMs?: number) => {
+  useLayoutEffect(() => {
+    // Record where each centre die currently sits so a held die can fly from
+    // that exact landed spot into its seat.
+    centerDieElsRef.current.forEach((el, i) => {
+      centerRectsRef.current.set(i, el.getBoundingClientRect());
+    });
+
+    // Fly freshly held dice from their recorded centre position to the seat.
+    const mine = state.turn === "human";
+    justHeldRef.current.forEach((i, slot) => {
+      const el = seatDieElsRef.current.get(i);
+      const from = centerRectsRef.current.get(i);
+      if (!el || !from) return;
+      const to = el.getBoundingClientRect();
+      const dx = from.left + from.width / 2 - (to.left + to.width / 2);
+      const dy = from.top + from.height / 2 - (to.top + to.height / 2);
+      const rot = scatterFor(i, state.dice[i]!.face).angle;
+      const delay = mine ? 0 : slot * 300;
+      el.animate(
+        [
+          { opacity: 0, transform: `translate(${dx}px, ${dy}px) rotate(${rot}deg) scale(0.55)` },
+          { opacity: 1, transform: `translate(${dx * 0.1}px, ${dy * 0.1}px) rotate(${rot * 0.1}deg) scale(1.06)`, offset: 0.7 },
+          { opacity: 1, transform: "translate(0px, 0px) rotate(0deg) scale(1)" },
+        ],
+        { duration: 600, easing: "cubic-bezier(0.33, 0, 0.25, 1)", delay, fill: "both" },
+      );
+    });
+    justHeldRef.current = [];
+  });
+
+  const dieAt = (index: number, scatter = false, animClass?: string) => {
     const die = state.dice[index]!;
     const face = (
       <DieFace
@@ -531,11 +587,15 @@ function YahtzeeTable() {
       />
     );
     if (!scatter) {
+      // Seat die. The ref lets us measure its resting spot so a held die can
+      // fly here from its landed position in the throwing area.
       return (
         <div
           key={index}
-          className={animClass}
-          style={delayMs ? { animationDelay: `${delayMs}ms` } : undefined}
+          ref={(el) => {
+            if (el) seatDieElsRef.current.set(index, el);
+            else seatDieElsRef.current.delete(index);
+          }}
         >
           {face}
         </div>
@@ -545,6 +605,10 @@ function YahtzeeTable() {
     return (
       <div
         key={index}
+        ref={(el) => {
+          if (el) centerDieElsRef.current.set(index, el);
+          else centerDieElsRef.current.delete(index);
+        }}
         style={{ transform: `translate(${dx}px, ${dy}px) rotate(${angle}deg)` }}
       >
         {animClass ? <span className={`inline-block ${animClass}`}>{face}</span> : face}
@@ -560,12 +624,12 @@ function YahtzeeTable() {
   const seatBox = (side: Seat) => {
     const mine = side === "human";
     const active = state.turn === side && state.phase === "play";
-    const kept = active ? keptDice : [];
-    // Assign each newly-held die a stagger slot so they fly in one at a time.
-    const stagger = new Map<number, number>();
-    kept.forEach((i) => {
-      if (animHeld.has(i)) stagger.set(i, stagger.size);
-    });
+    const kept = active
+      ? [
+          ...heldOrderRef.current.filter((i) => state.dice[i]!.held),
+          ...keptDice.filter((i) => !heldOrderRef.current.includes(i)),
+        ]
+      : [];
     return (
       <section
         className={`rounded-2xl border p-3 transition-colors lg:p-5 ${
@@ -602,15 +666,7 @@ function YahtzeeTable() {
         <div className="mt-4 min-h-[3.2rem] grid place-items-center">
           {kept.length > 0 ? (
             <div className="flex flex-wrap justify-center gap-3">
-              {kept.map((i) => {
-                const animClass = animHeld.has(i)
-                  ? mine
-                    ? "animate-die-to-player"
-                    : "animate-die-to-cpu"
-                  : undefined;
-                const delayMs = animClass && !mine ? (stagger.get(i) ?? 0) * 200 : undefined;
-                return dieAt(i, false, animClass, delayMs);
-              })}
+              {kept.map((i) => dieAt(i, false))}
             </div>
           ) : (
             <p className="text-xs text-ivory/40">
@@ -733,7 +789,7 @@ function YahtzeeTable() {
       boxClassName="pt-2.5 pl-3 sm:pt-4 sm:pl-8"
     >
       <GameOverDialog
-        open={state.phase === "over"}
+        open={state.phase === "over" && !viewingScorecard}
         result={state.winner === "human" ? "win" : state.winner === "cpu" ? "loss" : "draw"}
         playerScore={grandTotal(myCard)}
         opponentScore={grandTotal(theirCard)}
@@ -741,6 +797,21 @@ function YahtzeeTable() {
         opponentName={opponentName}
         playerAvatar={playerAvatar}
         onPlayAgain={reset}
+        playAgainClassName="scale-90"
+        footerExtra={
+          <>
+            <Button
+              variant="parlorOutline"
+              className="scale-90"
+              onClick={() => setViewingScorecard(true)}
+            >
+              View scorecard
+            </Button>
+            <Button variant="parlorOutline" className="scale-90" onClick={() => navigate({ to: "/" })}>
+              Back to game room
+            </Button>
+          </>
+        }
       />
       <div className="space-y-2.5">
         <section className="flex flex-wrap items-end justify-between gap-4">
@@ -767,19 +838,21 @@ function YahtzeeTable() {
                   <div className="mt-2 flex items-center justify-center gap-8">
                     <div className="flex flex-col items-center gap-2">
                       <p className="font-display">{playerName}</p>
-                      {state.rolloff.human !== null ? (
-                        <DieFace face={state.rolloff.human} />
-                      ) : (
-                        <div className="grid size-[1.6rem] lg:size-[3.2rem] place-items-center rounded-lg border-2 border-dashed border-gold/30" />
+                      {state.rolloff.human !== null && (
+                        <DieFace
+                          face={state.rolloff.human}
+                          rotate={scatterFor(0, state.rolloff.human).angle}
+                        />
                       )}
                     </div>
                     <p className="font-display text-2xl text-gold">vs</p>
                     <div className="flex flex-col items-center gap-2">
                       <p className="font-display">{opponentName}</p>
-                      {state.rolloff.cpu !== null ? (
-                        <DieFace face={state.rolloff.cpu} />
-                      ) : (
-                        <div className="grid size-[1.6rem] lg:size-[3.2rem] place-items-center rounded-lg border-2 border-dashed border-gold/30" />
+                      {state.rolloff.cpu !== null && (
+                        <DieFace
+                          face={state.rolloff.cpu}
+                          rotate={scatterFor(1, state.rolloff.cpu).angle}
+                        />
                       )}
                     </div>
                   </div>
@@ -844,12 +917,14 @@ function DieFace({
   held = false,
   interactive = false,
   dim = false,
+  rotate,
   onClick,
 }: {
   face: number;
   held?: boolean;
   interactive?: boolean;
   dim?: boolean;
+  rotate?: number;
   onClick?: () => void;
 }) {
   const pips = PIPS[face] ?? [];
@@ -860,6 +935,7 @@ function DieFace({
       aria-pressed={held}
       disabled={!interactive}
       onClick={onClick}
+      style={rotate != null ? { transform: `rotate(${rotate}deg)` } : undefined}
       className={`grid size-[1.6rem] lg:size-[3.2rem] rounded-lg border lg:border-2 bg-cream p-1 lg:p-1.5 transition-all ${
         held ? "-translate-y-1.5 border-gold shadow-lg shadow-black/40" : "border-cream/40"
       } ${dim ? "opacity-40" : ""} ${

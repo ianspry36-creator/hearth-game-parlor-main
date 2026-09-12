@@ -180,6 +180,8 @@ function BackgammonTable() {
   const { match, isHost, opponentName: liveOpponent, opponentAvatar, remoteState, publish, opponentDisconnected, disconnectSecondsLeft, disconnectExpired } = useMatch<State>(matchId);
   const [state, setState] = useState<State>(freshState);
   const [selected, setSelected] = useState<number | "bar" | null>(null);
+  // Whether the end-of-game dialog has been dismissed to inspect the board.
+  const [viewingBoard, setViewingBoard] = useState(false);
   const stateRef = useRef(state);
   stateRef.current = state;
   useRecordMatchResult(match, isHost, state.winner);
@@ -249,6 +251,7 @@ function BackgammonTable() {
     stateRef.current = fresh;
     setState(fresh);
     setSelected(null);
+    setViewingBoard(false);
     setPassBubble(null);
     setStarterBubble(null);
     setMoving(false);
@@ -280,12 +283,20 @@ function BackgammonTable() {
     !moving && state.rolled && state.turn === "human"
       ? legalMoves(state.board, state.dice, "human")
       : [];
-  const destinations =
-    selected === null ? [] : moves.filter((m) => m.from === selected).map((m) => m.to);
 
   // Human has checkers on the bar and is waiting to re-enter after rolling.
   const barNeedsMove =
     state.board.bar.human > 0 && state.turn === "human" && state.rolled;
+
+  // Auto-select the bar while a checker needs to re-enter, so the legal
+  // re-entry points are highlighted without the player having to click the
+  // bar piece first. An explicit click still works (and takes over) as before.
+  const activeSelection: number | "bar" | null =
+    selected !== null ? selected : barNeedsMove ? "bar" : null;
+  const destinations =
+    activeSelection === null
+      ? []
+      : moves.filter((m) => m.from === activeSelection).map((m) => m.to);
 
   // Dice shown scattered across the middle of the board: the rolloff dice while
   // deciding who starts, then the active turn's dice during play.
@@ -597,6 +608,7 @@ function BackgammonTable() {
         navigate({ to: "/backgammon", search: { opponent: nickname, match: newMatchId } });
         setState(freshState());
         setSelected(null);
+        setViewingBoard(false);
       }}
       onNewGame={reset}
       rail={null}
@@ -605,7 +617,7 @@ function BackgammonTable() {
       }
     >
       <GameOverDialog
-        open={Boolean(state.winner)}
+        open={Boolean(state.winner) && !viewingBoard}
         result={state.winner === "human" ? "win" : "loss"}
         playerScore={state.board.off.human}
         opponentScore={state.board.off.cpu}
@@ -613,6 +625,16 @@ function BackgammonTable() {
         opponentName={opponentName}
         playerAvatar={playerAvatar}
         onPlayAgain={reset}
+        footerExtra={
+          <>
+            <Button variant="parlorOutline" onClick={() => setViewingBoard(true)}>
+              View Board
+            </Button>
+            <Button variant="parlorOutline" onClick={() => navigate({ to: "/" })}>
+              Back to game room
+            </Button>
+          </>
+        }
       />
       <div className="space-y-6">
         {/* Opponent — top of the table */}
@@ -655,7 +677,7 @@ function BackgammonTable() {
 
         <Board
           board={state.board}
-          selected={selected}
+          selected={activeSelection}
           destinations={destinations}
           selectable={moves.map((m) => m.from)}
           barNeedsMove={barNeedsMove}
@@ -663,7 +685,7 @@ function BackgammonTable() {
           slots={boardDiceSlots}
           onSelect={(index) => setSelected(index)}
           onMoveTo={(to) => {
-            const move = moves.find((m) => m.from === selected && m.to === to);
+            const move = moves.find((m) => m.from === activeSelection && m.to === to);
             if (move) play(move);
           }}
           tableGraphic={tableGraphic}
@@ -886,6 +908,9 @@ function Board({
     const boardStyle = window.getComputedStyle(boardEl);
     const borderLeft = parseFloat(boardStyle.borderLeftWidth) || 0;
     const borderTop = parseFloat(boardStyle.borderTopWidth) || 0;
+    const borderBottom = parseFloat(boardStyle.borderBottomWidth) || 0;
+    // Height of the fly container (the board's padding box, inside the border).
+    const innerHeight = boardRect.height - borderTop - borderBottom;
 
     // Centre of the checker being moved, measured from the bar edge outward so
     // the piece starts and lands exactly where the checkers sit (not the empty
@@ -941,6 +966,14 @@ function Board({
         ? Math.max(0, side === "human" ? b.points[loc]! : -b.points[loc]!)
         : 0;
 
+    // A borne-off checker flies off the nearest board edge toward the player's
+    // borne-off tray (above the board for the opponent, below for the player)
+    // before fading out, instead of vanishing in place.
+    const borneOffTarget = (side: "human" | "cpu", x: number): { x: number; y: number } => ({
+      x,
+      y: side === "cpu" ? -48 : innerHeight + 48,
+    });
+
     const started: FlyPiece[] = moved.map((m, idx) => {
       const from =
         m.from === "bar"
@@ -951,7 +984,7 @@ function Board({
         m.to === "bar"
           ? barCheckerCenter(barIndex(m.side, true))
           : fadeOut
-            ? from
+            ? borneOffTarget(m.side, from.x)
             : pointCheckerCenter(m.to as number, countAt(board, m.to, m.side));
       // A piece knocked to the bar waits for the hitter to land before flying.
       const delay = m.to === "bar" ? FLIGHT_MS : 0;

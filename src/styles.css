@@ -518,15 +518,16 @@
 @keyframes die-to-player {
   0% {
     opacity: 0;
-    transform: translateY(-150px) rotate(-14deg) scale(0.55);
+    transform: translate(var(--from-x, 0px), var(--from-y, -150px))
+      rotate(var(--from-rot, -14deg)) scale(0.55);
   }
   60% {
     opacity: 1;
-    transform: translateY(10px) rotate(4deg) scale(1.06);
+    transform: translate(0, 10px) rotate(4deg) scale(1.06);
   }
   100% {
     opacity: 1;
-    transform: translateY(0) rotate(0) scale(1);
+    transform: translate(0, 0) rotate(0deg) scale(1);
   }
 }
 
@@ -537,15 +538,16 @@
 @keyframes die-to-cpu {
   0% {
     opacity: 0;
-    transform: translateY(150px) rotate(14deg) scale(0.55);
+    transform: translate(var(--from-x, 0px), var(--from-y, 150px))
+      rotate(var(--from-rot, 14deg)) scale(0.55);
   }
   60% {
     opacity: 1;
-    transform: translateY(-10px) rotate(-4deg) scale(1.06);
+    transform: translate(0, -10px) rotate(-4deg) scale(1.06);
   }
   100% {
     opacity: 1;
-    transform: translateY(0) rotate(0) scale(1);
+    transform: translate(0, 0) rotate(0deg) scale(1);
   }
 }
 

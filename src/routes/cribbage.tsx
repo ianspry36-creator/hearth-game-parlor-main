@@ -72,6 +72,8 @@ type State = {
   phase: "cut" | "discard" | "play" | "between" | "pause" | "show" | "over";
   dealer: Side;
   scores: Record<Side, number>;
+  /** Show points that land on the board only once the dialog is dismissed. */
+  pendingScores: Record<Side, number> | null;
   playerHand: Card[];
   cpuHand: Card[];
   playerKept: Card[];
@@ -119,6 +121,7 @@ function dealHand(dealer: Side, scores: Record<Side, number>, log: LogEntry[]): 
     phase: "discard",
     dealer,
     scores,
+    pendingScores: null,
     // Cards arrive in the order they were dealt; the table sorts them afterwards.
     playerHand: deck.slice(0, 6),
     cpuHand: deck.slice(6, 12),
@@ -170,6 +173,7 @@ function mirror(s: State): State {
     turn: other(s.turn),
     winner: s.winner ? other(s.winner) : null,
     scores: { player: s.scores.cpu, cpu: s.scores.player },
+    pendingScores: s.pendingScores ? { player: s.pendingScores.cpu, cpu: s.pendingScores.player } : null,
     playerHand: s.cpuHand,
     cpuHand: s.playerHand,
     playerKept: s.cpuKept,
@@ -205,16 +209,40 @@ function runShow(s: State) {
     { side: s.dealer, kind: "crib", hand: s.crib },
   ];
 
+  // Tally the show into a pending total. It only lands on the board once the
+  // dialog is dismissed, so the pegs animate to their new positions then
+  // rather than jumping behind the "The show" overlay.
+  const scores = { ...s.scores };
+  let winner = s.winner;
+
   for (const entry of entries) {
-    if (s.winner) break;
+    if (winner) break;
     const lines = scoreHand(entry.hand, s.starter, entry.kind === "crib");
     const total = totalPoints(lines);
     blocks.push({ side: entry.side, kind: entry.kind, lines, total });
-    award(s, entry.side, total, entry.kind === "crib" ? "the crib" : "the hand");
+    if (total <= 0) continue;
+    scores[entry.side] += total;
+    s.log = note(s.log, {
+      side: entry.side,
+      text: `pegged ${total} — ${entry.kind === "crib" ? "the crib" : "the hand"}.`,
+    });
+    if (scores[entry.side] >= WIN && !winner) {
+      winner = entry.side;
+      s.log = note(s.log, { side: entry.side, text: `reached ${WIN}. Game over.` });
+    }
   }
 
   s.show = blocks;
-  if (!s.winner) s.phase = "show";
+  s.pendingScores = scores;
+  if (winner) {
+    s.winner = winner;
+    s.phase = "over";
+    // Land the final tally on the board immediately so the pegs animate to it
+    // and "View Board" shows the true finishing position.
+    s.scores = scores;
+  } else {
+    s.phase = "show";
+  }
 }
 
 /** Record pegged points so the table can show a score bubble over the pile. */
@@ -311,6 +339,8 @@ function GameOverDialog({
   opponentName,
   playerName,
   onPlayAgain,
+  onViewBoard,
+  onBackToGameRoom,
 }: {
   open: boolean;
   winner: Side;
@@ -319,6 +349,8 @@ function GameOverDialog({
   opponentName: string;
   playerName: string;
   onPlayAgain: () => void;
+  onViewBoard: () => void;
+  onBackToGameRoom: () => void;
 }) {
   const loser = other(winner);
   const margin = scores[winner] - scores[loser];
@@ -388,7 +420,13 @@ function GameOverDialog({
           </div>
         </div>
 
-        <div className="text-center">
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          <Button variant="parlorOutline" onClick={onViewBoard}>
+            View Board
+          </Button>
+          <Button variant="parlorOutline" onClick={onBackToGameRoom}>
+            Back to game room
+          </Button>
           <AlertDialogAction asChild>
             <Button variant="parlor" onClick={onPlayAgain}>
               Play again
@@ -412,6 +450,7 @@ function CribbageTable() {
   const [back, setBack] = useState<Record<Side, number>>({ player: 0, cpu: 0 });
   const [avatar, setAvatar] = useState<string>(AVATAR_OPTIONS[0]!.url);
   const [boardGraphic, setBoardGraphic] = useState<string>(readCribBoardGraphic);
+  const [viewingBoard, setViewingBoard] = useState(false);
   useEffect(() => setAvatar(readAvatar()), []);
   // Cards land face down, then turn over one at a time.
   const [faceUpCount, setFaceUpCount] = useState(6);
@@ -470,6 +509,7 @@ function CribbageTable() {
     // Reset the peg trail too, so a fresh game doesn't leave the back peg at the old score.
     prevScores.current = fresh.scores;
     setCutSeated({ player: false, cpu: false });
+    setViewingBoard(false);
     if (isMulti) void publish(isHost ? fresh : mirror(fresh));
   };
 
@@ -834,7 +874,10 @@ function CribbageTable() {
   };
 
   const nextHand = () =>
-    apply((current) => ({ ...dealHand(other(current.dealer), current.scores, current.log), lastPeg: null }));
+    apply((current) => ({
+      ...dealHand(other(current.dealer), current.pendingScores ?? current.scores, current.log),
+      lastPeg: null,
+    }));
 
 
   const count = peggingCount(state.pile);
@@ -949,13 +992,15 @@ function CribbageTable() {
       }
     >
       <GameOverDialog
-        open={state.phase === "over" && state.winner !== null}
+        open={state.phase === "over" && state.winner !== null && !viewingBoard}
         winner={state.winner ?? "player"}
-        scores={state.scores}
+        scores={state.pendingScores ?? state.scores}
         playerAvatar={avatar}
         opponentName={opponentName}
         playerName={playerName}
         onPlayAgain={() => reset(freshGame())}
+        onViewBoard={() => setViewingBoard(true)}
+        onBackToGameRoom={() => navigate({ to: "/" })}
       />
       <div className="space-y-6">
         {/* Opponent seat */}
@@ -1046,7 +1091,11 @@ function CribbageTable() {
                     aria-label={`Cut card ${index + 1}`}
                     disabled={Boolean(state.playerCut)}
                     onClick={() => cutDeck(card)}
-                    className={`relative transition-transform hover:z-10 hover:-translate-y-2 focus-visible:z-10 focus-visible:-translate-y-2 ${
+                    className={`relative transition-transform ${
+                      state.playerCut
+                        ? ""
+                        : "hover:z-10 hover:-translate-y-2 focus-visible:z-10 focus-visible:-translate-y-2"
+                    } ${
                       flipping ? "z-20 -translate-y-3" : ""
                     } ${gone ? "opacity-0" : flipping ? "" : "disabled:opacity-60"}`}
                   >
@@ -1109,20 +1158,18 @@ function CribbageTable() {
         )}
 
         {/* Message strip */}
-        <p className="mx-auto max-w-md rounded-lg border border-gold/40 bg-gold/15 px-4 py-2.5 text-center text-sm text-cream">
-          {message}
+        <p className="mx-auto flex h-16 max-w-md items-center justify-center rounded-lg border border-gold/40 bg-gold/15 px-4 text-center text-sm leading-5 text-cream">
+          <span className="line-clamp-2">{message}</span>
         </p>
 
-        <AlertDialog open={revealed}>
+        <AlertDialog open={state.phase === "show"}>
           <AlertDialogContent className="border-gold/30 bg-brand text-cream sm:max-w-3xl">
             <AlertDialogHeader>
               <AlertDialogTitle className="text-center font-display text-2xl text-gold">
                 The show
               </AlertDialogTitle>
               <AlertDialogDescription className="text-center text-ivory/70">
-                {state.phase === "over"
-                  ? "Final tally for the game."
-                  : "Points in each hand and the crib."}
+                Points in each hand and the crib.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <div className="grid gap-3 sm:grid-cols-3">
@@ -1164,19 +1211,11 @@ function CribbageTable() {
               ))}
             </div>
             <AlertDialogFooter className="sm:justify-center">
-              {state.phase === "over" ? (
-                <AlertDialogAction asChild>
-                  <Button variant="parlor" onClick={() => reset(freshGame())}>
-                    Play again
-                  </Button>
-                </AlertDialogAction>
-              ) : (
-                <AlertDialogAction asChild>
-                  <Button variant="parlor" onClick={nextHand}>
-                    Deal the next hand
-                  </Button>
-                </AlertDialogAction>
-              )}
+              <AlertDialogAction asChild>
+                <Button variant="parlor" onClick={nextHand}>
+                  Deal the next hand
+                </Button>
+              </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
@@ -1254,31 +1293,35 @@ function CribbageTable() {
               })}
             </div>
             <div className="mt-3 flex flex-col items-center gap-3">
-              {state.phase === "discard" && !waitingForDiscard && (
-                <Button
-                  variant="parlor"
-                  disabled={selected.length !== 2}
-                  onClick={confirmDiscards}
-                >
-                  Send to crib
-                </Button>
-              )}
-              {state.phase === "play" &&
-                state.turn === "player" &&
-                !canPlay(state.playerHand, state.pile) && (
+              {/* Reserve the action-button slot so the seat (and the crib beside
+                  it) does not jump up when the button appears or hides. */}
+              <div className="flex h-9 items-center">
+                {state.phase === "discard" && !waitingForDiscard && (
                   <Button
-                    variant="parlorOutline"
-                    onClick={() =>
-                      apply((current) => {
-                        const s = { ...current };
-                        resolveAfterPlay(s, "cpu");
-                        return s;
-                      })
-                    }
+                    variant="parlor"
+                    disabled={selected.length !== 2}
+                    onClick={confirmDiscards}
                   >
-                    Say go
+                    Send to crib
                   </Button>
                 )}
+                {state.phase === "play" &&
+                  state.turn === "player" &&
+                  !canPlay(state.playerHand, state.pile) && (
+                    <Button
+                      variant="parlorOutline"
+                      onClick={() =>
+                        apply((current) => {
+                          const s = { ...current };
+                          resolveAfterPlay(s, "cpu");
+                          return s;
+                        })
+                      }
+                    >
+                      Say go
+                    </Button>
+                  )}
+              </div>
               <Seat
                 name={playerName}
                 isDealer={state.dealer === "player"}
