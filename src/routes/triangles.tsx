@@ -121,6 +121,7 @@ function TrianglesTable() {
   const game = getGame("triangles");
   const navigate = useNavigate();
   const { opponent, match: matchId } = Route.useSearch();
+  const [state, setState] = useState<State>(() => freshState(SSR_SEED));
   const {
     match,
     isHost,
@@ -132,7 +133,6 @@ function TrianglesTable() {
     disconnectSecondsLeft,
     disconnectExpired,
   } = useMatch<State>(matchId, Boolean(state.winner));
-  const [state, setState] = useState<State>(() => freshState(SSR_SEED));
   const stateRef = useRef(state);
   stateRef.current = state;
   useRecordMatchResult(match, isHost, state.winner, matchId ? RECONNECT_SECONDS * 1000 : 0);
