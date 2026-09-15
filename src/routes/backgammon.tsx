@@ -1,6 +1,16 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { TableShell } from "@/components/parlor/TableShell";
 import { GameOverDialog } from "@/components/parlor/GameOverDialog";
 import { PlayerAvatar } from "@/components/parlor/PlayerAvatar";
@@ -9,7 +19,7 @@ import { TableOptionsDialog } from "@/components/parlor/TableOptionsDialog";
 import { ADA_AVATAR, readAvatar } from "@/lib/avatars";
 import { getGame } from "@/lib/games";
 import { CLASSIC_PALETTE, readTableGraphic, type TablePalette } from "@/lib/backgammonTables";
-import { getNickname, useMatch } from "@/lib/multiplayer";
+import { getNickname, RECONNECT_SECONDS, useMatch } from "@/lib/multiplayer";
 import { useRecordMatchResult } from "@/lib/stats";
 import {
   applyMove,
@@ -60,6 +70,7 @@ type State = {
   winner: Seat | null;
   phase: "rolloff" | "play";
   rolloff: { human: number | null; cpu: number | null };
+  rematch: Seat | null;
 };
 
 const freshState = (): State => ({
@@ -72,6 +83,7 @@ const freshState = (): State => ({
   winner: null,
   phase: "rolloff",
   rolloff: { human: null, cpu: null },
+  rematch: null,
 });
 
 const note = (log: LogEntry[], entry: LogEntry) => [entry, ...log].slice(0, 40);
@@ -92,6 +104,7 @@ function mirror(state: State): State {
     board: mirrorBoard(state.board),
     rolloff: { human: state.rolloff.cpu, cpu: state.rolloff.human },
     turn: flip(state.turn),
+    rematch: state.rematch ? flip(state.rematch) : null,
     winner: state.winner ? flip(state.winner) : null,
     log: state.log.map((entry) => ({ ...entry, side: entry.side ? flip(entry.side) : null })),
   };
@@ -177,14 +190,14 @@ function BackgammonTable() {
   const game = getGame("backgammon");
   const navigate = useNavigate();
   const { opponent, match: matchId } = Route.useSearch();
-  const { match, isHost, opponentName: liveOpponent, opponentAvatar, remoteState, publish, opponentDisconnected, disconnectSecondsLeft, disconnectExpired } = useMatch<State>(matchId);
   const [state, setState] = useState<State>(freshState);
+  const { match, isHost, opponentName: liveOpponent, opponentAvatar, remoteState, publish, opponentDisconnected, disconnectSecondsLeft, disconnectExpired } = useMatch<State>(matchId, Boolean(state.winner));
   const [selected, setSelected] = useState<number | "bar" | null>(null);
   // Whether the end-of-game dialog has been dismissed to inspect the board.
   const [viewingBoard, setViewingBoard] = useState(false);
   const stateRef = useRef(state);
   stateRef.current = state;
-  useRecordMatchResult(match, isHost, state.winner);
+  useRecordMatchResult(match, isHost, state.winner, matchId ? RECONNECT_SECONDS * 1000 : 0);
   // Which player is currently showing a "PASS" bubble (no legal move available).
   const [passBubble, setPassBubble] = useState<Seat | null>(null);
   const passTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -259,6 +272,24 @@ function BackgammonTable() {
     moveTimersRef.current = [];
     cpuLegsRef.current = [];
     if (isMulti) void publish(isHost ? fresh : mirror(fresh));
+  };
+
+  // Rematch: the local player asks the opponent to play another game.
+  const requestRematch = () => {
+    if (!isMulti) return;
+    apply((current) => ({ ...current, rematch: "human" }));
+  };
+
+  // The opponent declined our rematch — both players return to the final score.
+  const declineRematch = () => {
+    if (!isMulti) return;
+    apply((current) => ({ ...current, rematch: null }));
+  };
+
+  // The opponent accepted — start a fresh game for both players.
+  const acceptRematch = () => {
+    if (!isMulti) return;
+    reset();
   };
 
   // The host opens a fresh live table.
@@ -379,7 +410,7 @@ function BackgammonTable() {
   const rolloffLabel =
     state.rolloff.human === null
       ? canRollOff
-        ? "Roll the dice"
+        ? "Roll dice"
         : "Waiting…"
       : state.rolloff.cpu === null
         ? "Rolling…"
@@ -593,6 +624,33 @@ function BackgammonTable() {
             ? "Choose a checker, then a point"
             : "Your roll";
 
+  // Comment shown under each player's avatar during the rolloff and in play.
+  const opponentComment =
+    state.phase === "rolloff"
+      ? isMulti && state.rolloff.cpu === null && !canRollOff
+        ? "Roll the dice"
+        : "Waiting"
+      : state.turn === "cpu" && !state.winner
+        ? state.rolled
+          ? "Moving pieces"
+          : "Throwing dice…"
+        : "Waiting";
+
+  const playerComment =
+    state.phase === "rolloff"
+      ? canRollOff
+        ? "Roll the dice"
+        : "Waiting"
+      : state.turn === "human" && !state.winner
+        ? state.rolled
+          ? "Your turn"
+          : "Your turn to roll dice"
+        : "Waiting";
+
+  // Rematch flow: "human" means we asked, "cpu" means the opponent asked us.
+  const rematchOutgoing = state.rematch === "human";
+  const rematchIncoming = state.rematch === "cpu";
+
   return (
     <TableShell
       game={game}
@@ -612,6 +670,8 @@ function BackgammonTable() {
       }}
       onNewGame={reset}
       rail={null}
+      containerClassName="px-3 sm:px-6"
+      boxClassName="px-2.5 sm:px-8"
       menuExtra={
         <TableOptionsDialog tableGraphic={tableGraphic} onSelect={setTableGraphic} />
       }
@@ -624,7 +684,12 @@ function BackgammonTable() {
         scoreLabel="Checkers borne off"
         opponentName={opponentName}
         playerAvatar={playerAvatar}
-        onPlayAgain={reset}
+        onPlayAgain={isMulti ? requestRematch : reset}
+        playAgainLabel={isMulti ? "Rematch" : "Play again"}
+        playAgainDisabled={isMulti && state.rematch !== null}
+        {...(rematchOutgoing
+          ? { detail: `Rematch request sent — waiting for ${opponentName} to respond…` }
+          : {})}
         footerExtra={
           <>
             <Button variant="parlorOutline" onClick={() => setViewingBoard(true)}>
@@ -636,6 +701,30 @@ function BackgammonTable() {
           </>
         }
       />
+      <AlertDialog open={rematchIncoming}>
+        <AlertDialogContent className="border-gold/30 bg-brand text-cream sm:max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-center font-display text-2xl">
+              Rematch?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-center text-ivory/70">
+              {opponentName} wants to play again.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 sm:justify-center">
+            <AlertDialogAction asChild>
+              <Button variant="parlor" onClick={acceptRematch}>
+                Rematch
+              </Button>
+            </AlertDialogAction>
+            <AlertDialogCancel asChild>
+              <Button variant="parlorOutline" onClick={declineRematch}>
+                Decline
+              </Button>
+            </AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <div className="space-y-6">
         {/* Opponent — top of the table */}
         <div className="flex items-center justify-between gap-4 rounded-2xl border border-gold/15 bg-brand/50 p-4">
@@ -654,7 +743,7 @@ function BackgammonTable() {
             <div>
               <p className="font-display text-lg font-bold">{opponentName}</p>
               <p className="text-xs text-ivory/60">
-                {state.turn === "cpu" && !state.winner ? "Moving…" : "Waiting"}
+                {opponentComment}
               </p>
             </div>
           </div>
@@ -665,7 +754,7 @@ function BackgammonTable() {
                 <span
                   key={`off-cpu-${i}`}
                   title="Opponent piece"
-                  className="size-4 rounded-full border border-gold/40 bg-surface shadow-sm shadow-black/30"
+                  className="size-4 rounded-full border border-gold/40 bg-surface"
                 />
               ))}
               {state.board.off.cpu === 0 && (
@@ -698,7 +787,7 @@ function BackgammonTable() {
               <span
                 key={`off-human-mobile-${i}`}
                 title="Your piece"
-                className="size-4 rounded-full border border-black/20 bg-cream shadow-sm shadow-black/30"
+                className="size-4 rounded-full border border-black/20 bg-cream"
               />
             ))}
           </div>
@@ -710,6 +799,7 @@ function BackgammonTable() {
             <PlayerAvatar
               avatar={playerAvatar}
               onSelect={setPlayerAvatar}
+              size="size-14"
               {...(passBubble === "human"
                 ? { message: "PASS" }
                 : starterBubble === "human"
@@ -719,14 +809,18 @@ function BackgammonTable() {
             <div>
               <p className="font-display text-lg font-bold">{playerName}</p>
               <p className="text-xs text-ivory/60">
-                {state.turn === "human" && !state.winner ? "Your turn to roll dice" : "Waiting"}
+                {playerComment}
               </p>
             </div>
           </div>
           <div className="flex flex-1 items-center justify-end sm:justify-center">
             {state.winner ? (
-              <Button variant="parlor" onClick={reset}>
-                Play again
+              <Button
+                variant="parlor"
+                onClick={isMulti ? requestRematch : reset}
+                disabled={isMulti && state.rematch !== null}
+              >
+                {isMulti ? "Rematch" : "Play again"}
               </Button>
             ) : state.phase === "rolloff" ? (
               <Button
@@ -757,7 +851,7 @@ function BackgammonTable() {
                   })
                 }
               >
-                Roll the dice
+                Roll dice
               </Button>
             )}
           </div>
@@ -768,7 +862,7 @@ function BackgammonTable() {
                 <span
                   key={`off-human-${i}`}
                   title="Your piece"
-                  className="size-4 rounded-full border border-black/20 bg-cream shadow-sm shadow-black/30"
+                  className="size-4 rounded-full border border-black/20 bg-cream"
                 />
               ))}
               {state.board.off.human === 0 && (
@@ -1090,7 +1184,7 @@ function Board({
           return (
             <span
               key={i}
-              className={`relative z-10 mx-auto flex size-4 items-center justify-center sm:size-5 rounded-full border shadow-sm shadow-black/30 ${
+              className={`relative z-10 mx-auto flex size-4 items-center justify-center sm:size-5 rounded-full border ${
                 count > 0 ? "border-[#6b5233] bg-cream" : "border-[var(--opp-piece-border)] bg-[var(--opp-piece)]"
               }`}
             >
@@ -1139,9 +1233,9 @@ function Board({
                 type="button"
                 title="Your piece — click to re-enter"
                 onClick={() => (selectable.includes("bar") ? onSelect("bar") : undefined)}
-                className={`relative size-4 sm:size-5 rounded-full border p-0 transition-colors ${
+                className={`relative flex size-4 sm:size-5 items-center justify-center rounded-full border p-0 transition-colors ${
                   selected === "bar" ? "border-gold bg-gold/30" : "border-[#6b5233] bg-cream"
-                } shadow-sm shadow-black/30 ${
+                } ${
                   selectable.includes("bar") ? "cursor-pointer" : "cursor-default"
                 }`}
               >
@@ -1157,7 +1251,7 @@ function Board({
               <span
                 key={`bar-opp-${i}`}
                 title="Opponent piece"
-                className="size-4 sm:size-5 rounded-full border border-[var(--opp-piece-border)] bg-[var(--opp-piece)] shadow-sm shadow-black/30"
+                className="size-4 sm:size-5 rounded-full border border-[var(--opp-piece-border)] bg-[var(--opp-piece)]"
               />
             ))}
             {board.bar.human === 0 && board.bar.cpu === 0 && (
@@ -1203,7 +1297,7 @@ function Board({
           {flies.map((f) => (
             <span
               key={f.key}
-              className={`absolute size-4 sm:size-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 shadow-md shadow-black/60 transition-all duration-1000 ease-in-out ${
+              className={`absolute flex size-4 sm:size-5 items-center justify-center -translate-x-1/2 -translate-y-1/2 rounded-full border-2 transition-all duration-1000 ease-in-out ${
                 f.side === "human" ? "border-[#6b5233] bg-cream" : "border-[var(--opp-piece-border)] bg-[var(--opp-piece)]"
               } ${f.arrived && (f.fadeOut || f.settled) ? "scale-50 opacity-0" : "opacity-100"}`}
               style={{

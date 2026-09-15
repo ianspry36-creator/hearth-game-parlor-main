@@ -18,7 +18,16 @@ import { StatisticsDialog } from "@/components/parlor/StatisticsDialog";
 import { useSolitaireStats } from "@/lib/solitaireStats";
 import { CardMark } from "@/components/parlor/CardMark";
 import { RANK_LABEL, SUIT_SYMBOL, cardLabel, type Card } from "@/lib/cribbage";
-import { flip, freshGame, slotLabel, type GameState, type ClockPile } from "@/lib/clock";
+import {
+  currentCard,
+  freshGame,
+  place,
+  reveal,
+  slotLabel,
+  type GameState,
+  type ClockPile,
+  type CenterSlot,
+} from "@/lib/clock";
 import { mulberry32 } from "@/lib/random";
 import cardBackAsset from "@/assets/card-back.png";
 
@@ -62,16 +71,23 @@ function formatElapsed(seconds: number): string {
 // sits in the centre and is positioned separately.
 const SLOT_POSITIONS = Array.from({ length: 12 }, (_, i) => {
   const angle = ((i + 1) * Math.PI) / 6;
-  const x = 50 + 39 * Math.sin(angle);
-  const y = 50 - 39 * Math.cos(angle);
+  const x = 50 + 40 * Math.sin(angle);
+  const y = 50 - 40 * Math.cos(angle);
   return { left: `${x}%`, top: `${y}%` } as const;
 });
+
+// A card currently flying from the active pile to its own hour (double-click/drag move).
+type Flight = {
+  key: number;
+  card: Card;
+  from: { x: number; y: number };
+  to: { x: number; y: number };
+};
 
 function ClockTable() {
   const navigate = useNavigate();
   const game = getGame("clock");
   const [state, setState] = useState<GameState>(() => freshGame(mulberry32(SSR_SEED)));
-  const [auto, setAuto] = useState(false);
   const [confirming, setConfirming] = useState<"new" | "home" | null>(null);
   const { recordResult } = useSolitaireStats(game.id);
   const prevWonRef = useRef(false);
@@ -87,6 +103,24 @@ function ClockTable() {
   const stateRef = useRef(state);
   stateRef.current = state;
 
+  // Placement animation + drag-and-drop bookkeeping.
+  const [flights, setFlights] = useState<Flight[]>([]);
+  const [placing, setPlacing] = useState(false);
+  const currentRef = useRef<HTMLButtonElement | null>(null);
+  const slotRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  const registerSlot = (slot: number, el: HTMLDivElement | null) => {
+    if (el) slotRefs.current.set(slot, el);
+    else slotRefs.current.delete(slot);
+  };
+  const centerRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  const registerCenter = (index: number, el: HTMLDivElement | null) => {
+    if (el) centerRefs.current.set(index, el);
+    else centerRefs.current.delete(index);
+  };
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const dragStartRef = useRef<{ x: number; y: number } | null>(null);
+
   // Timer bookkeeping.
   const [elapsed, setElapsed] = useState(0);
   const [finishedElapsed, setFinishedElapsed] = useState<number | null>(null);
@@ -99,7 +133,6 @@ function ClockTable() {
 
   useEffect(() => {
     setState(freshGame());
-    setAuto(false);
     setElapsed(0);
     setFinishedElapsed(null);
     startRef.current = Date.now();
@@ -124,7 +157,6 @@ function ClockTable() {
     endedRef.current = over;
     if (over && finishedElapsed === null) {
       setFinishedElapsed(elapsed);
-      setAuto(false);
       if (state.won) {
         try {
           const nextWins = Number(localStorage.getItem(WINS_KEY) || 0) + 1;
@@ -141,35 +173,131 @@ function ClockTable() {
     }
   }, [state.won, state.lost, finishedElapsed, elapsed]);
 
-  // Auto-play: flip a card every tick until the clock has struck.
-  useEffect(() => {
-    if (!auto) return;
-    const id = window.setInterval(() => {
-      const current = stateRef.current;
-      if (current.won || current.lost || current.active < 0) {
-        setAuto(false);
-        return;
-      }
-      setState(flip(current));
-    }, 350);
-    return () => window.clearInterval(id);
-  }, [auto]);
-
   const shownElapsed = finishedElapsed ?? elapsed;
 
-  const doFlip = () => {
+  // Place the current card, then turn the next card of the destination pile —
+  // except when a King has just struck the centre, where the player chooses
+  // which of the centre's face-down cards to turn over next.
+  const advance = (s: GameState, card: Card) => {
+    let next = place(s);
+    if (card.rank === 13) return next;
+    next = reveal(next);
+    // Lay a card that lands back on its own hour straight through the clock:
+    // turn its pile's next face-down card automatically, so chains of
+    // same-rank cards never leave the hand waiting on a card already at home.
+    while (!next.won && !next.lost && next.active >= 0) {
+      const current = currentCard(next);
+      if (!current || current.rank === 13) return next;
+      if (next.active !== current.rank - 1) return next;
+      const pile = next.piles[next.active];
+      if (!pile || pile.faceDown.length === 0) return next;
+      next = place(next);
+      if (next.won || next.lost) return next;
+      next = reveal(next);
+    }
+    return next;
+  };
+
+  // Lay the current card at its own hour, flying it there when animated, then
+  // turn the next card of that hour's pile face up in place.
+  const placeCard = (animate = true) => {
     const current = stateRef.current;
-    if (current.won || current.lost || current.active < 0) return;
-    setState(flip(current));
+    const card = currentCard(current);
+    if (!card || current.won || current.lost || placing) return;
+    const target = card.rank - 1;
+    const fromRect = currentRef.current?.getBoundingClientRect();
+    // A King flies to the first empty centre position, not the centre grid's
+    // top-left corner.
+    const toRect =
+      target === 12
+        ? centerRefs.current
+            .get(current.center.findIndex((c) => c === null))
+            ?.getBoundingClientRect()
+        : slotRefs.current.get(target)?.getBoundingClientRect();
+    if (animate && fromRect && toRect) {
+      setPlacing(true);
+      const flight: Flight = {
+        key: Date.now(),
+        card,
+        from: { x: fromRect.left, y: fromRect.top },
+        to: { x: toRect.left, y: toRect.top },
+      };
+      setFlights((currentFlights) => [...currentFlights, flight]);
+      window.setTimeout(() => {
+        setFlights((currentFlights) => currentFlights.filter((f) => f.key !== flight.key));
+      }, 600);
+      // Commit the card to its hour only once the flight has landed, then
+      // turn the next card of that hour's pile face up.
+      window.setTimeout(() => {
+        setState(advance(stateRef.current, card));
+        setPlacing(false);
+      }, 450);
+      return;
+    }
+    setState(advance(current, card));
+  };
+
+  // Turn over the chosen face-down card of the centre pile (2 x 2 grid).
+  const revealCenter = (index: number) => {
+    const current = stateRef.current;
+    if (current.won || current.lost || current.active !== 12 || placing) return;
+    const revealed = reveal(current, index);
+    if (revealed === current) return;
+    const card = currentCard(revealed);
+    // A King turned over at the centre is already home: strike it at once so
+    // the player can turn over another centre card without having to move it.
+    setState(card && card.rank === 13 ? place(revealed) : revealed);
+  };
+
+  // Pointer-driven drag-and-drop for the current card (works for mouse and touch).
+  const onCardPointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (placing || !currentCard(stateRef.current)) return;
+    dragStartRef.current = { x: e.clientX, y: e.clientY };
+    setIsDragging(true);
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+
+  const onCardPointerMove = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (!dragStartRef.current) return;
+    setDragOffset({
+      x: e.clientX - dragStartRef.current.x,
+      y: e.clientY - dragStartRef.current.y,
+    });
+  };
+
+  const onCardPointerUp = (e: React.PointerEvent<HTMLButtonElement>) => {
+    const start = dragStartRef.current;
+    if (!start) return;
+    const didDrag = Math.hypot(e.clientX - start.x, e.clientY - start.y) > 8;
+    dragStartRef.current = null;
+    setIsDragging(false);
+    setDragOffset({ x: 0, y: 0 });
+    if (!didDrag) return;
+    const current = currentCard(stateRef.current);
+    const target = current ? current.rank - 1 : -1;
+    const targetEl = target >= 0 ? slotRefs.current.get(target) : undefined;
+    if (targetEl) {
+      const rect = targetEl.getBoundingClientRect();
+      const hit =
+        e.clientX >= rect.left &&
+        e.clientX <= rect.right &&
+        e.clientY >= rect.top &&
+        e.clientY <= rect.bottom;
+      if (hit) placeCard(true);
+    }
   };
 
   const reset = () => {
     setState(freshGame());
-    setAuto(false);
     setFinishedElapsed(null);
     setElapsed(0);
     startRef.current = Date.now();
     endedRef.current = false;
+    setFlights([]);
+    setPlacing(false);
+    setIsDragging(false);
+    setDragOffset({ x: 0, y: 0 });
+    dragStartRef.current = null;
   };
 
   const gameInProgress = state.revealed > 0 && !state.won && !state.lost;
@@ -178,7 +306,7 @@ function ClockTable() {
 
   return (
     <div className="min-h-screen bg-brand text-cream">
-      <div className="mx-auto max-w-3xl px-6 py-8">
+      <div className="mx-auto max-w-5xl px-1.5 py-8 sm:px-6">
         <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <Link
@@ -214,11 +342,24 @@ function ClockTable() {
 
         <div className="mt-8 grid items-start gap-6 lg:grid-cols-[1fr_260px]">
           <div className="relative rounded-2xl border border-gold/15 bg-surface/40 p-4 sm:p-6">
-            <ClockFace state={state} onFlip={doFlip} />
+            <ClockFace
+              state={state}
+              onPlace={() => placeCard(true)}
+              onRevealCenter={revealCenter}
+              currentRef={currentRef}
+              registerSlot={registerSlot}
+              registerCenter={registerCenter}
+              onCardPointerDown={onCardPointerDown}
+              onCardPointerMove={onCardPointerMove}
+              onCardPointerUp={onCardPointerUp}
+              dragOffset={dragOffset}
+              isDragging={isDragging}
+              placing={placing}
+            />
 
             <p className="mt-6 text-center text-xs text-ivory/50">
-              Turn the {slotLabel(state.active >= 0 ? state.active : 12)} pile next — lay each card
-              at its own hour. The fourth King ends the hand.
+              Double-click or drag the face-up card to its own hour. At the centre, pick any of
+              the four cards to turn over. The fourth King ends the hand.
             </p>
 
             {state.won && (
@@ -286,30 +427,8 @@ function ClockTable() {
           </aside>
         </div>
 
-        <div className="mt-6 flex flex-col items-center justify-center gap-3 border-t border-gold/15 pt-4 text-center">
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            <Button
-              variant="parlor"
-              onClick={doFlip}
-              disabled={state.won || state.lost}
-              className="scale-75 sm:scale-100"
-            >
-              Flip next
-            </Button>
-            <button
-              type="button"
-              onClick={() => setAuto((a) => !a)}
-              disabled={state.won || state.lost}
-              className="cursor-pointer rounded-full border border-gold/30 px-3 py-1.5 text-xs uppercase tracking-[0.15em] text-ivory/70 transition-colors hover:text-gold disabled:cursor-default disabled:opacity-40"
-            >
-              Auto {auto ? "on" : "off"}
-            </button>
-          </div>
-          <p className="text-xs text-ivory/40">
-            Click the glowing pile — or Flip next — to turn one card at a time.
-          </p>
-        </div>
       </div>
+
 
       <AlertDialog open={confirming !== null} onOpenChange={(next) => !next && setConfirming(null)}>
         <AlertDialogContent className="border-gold/25 bg-brand text-cream">
@@ -337,6 +456,10 @@ function ClockTable() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {flights.map((flight) => (
+        <FlightView key={flight.key} flight={flight} />
+      ))}
     </div>
   );
 }
@@ -350,25 +473,77 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-function ClockFace({ state, onFlip }: { state: GameState; onFlip: () => void }) {
+function ClockFace({
+  state,
+  onPlace,
+  onRevealCenter,
+  currentRef,
+  registerSlot,
+  registerCenter,
+  onCardPointerDown,
+  onCardPointerMove,
+  onCardPointerUp,
+  dragOffset,
+  isDragging,
+  placing,
+}: {
+  state: GameState;
+  onPlace: () => void;
+  onRevealCenter: (index: number) => void;
+  currentRef: React.RefObject<HTMLButtonElement | null>;
+  registerSlot: (slot: number, el: HTMLDivElement | null) => void;
+  registerCenter: (index: number, el: HTMLDivElement | null) => void;
+  onCardPointerDown: (e: React.PointerEvent<HTMLButtonElement>) => void;
+  onCardPointerMove: (e: React.PointerEvent<HTMLButtonElement>) => void;
+  onCardPointerUp: (e: React.PointerEvent<HTMLButtonElement>) => void;
+  dragOffset: { x: number; y: number };
+  isDragging: boolean;
+  placing: boolean;
+}) {
+  const current = currentCard(state);
+  const dropTarget = current ? current.rank - 1 : -1;
+  const activeSlot = state.active;
+  const slotProps = {
+    currentRef,
+    onCurrentDoubleClick: onPlace,
+    onCurrentPointerDown: onCardPointerDown,
+    onCurrentPointerMove: onCardPointerMove,
+    onCurrentPointerUp: onCardPointerUp,
+    dragOffset,
+    isDragging,
+    placing,
+  };
   return (
-    <div className="relative mx-auto aspect-square w-full max-w-[560px]">
+    <div className="relative mx-auto aspect-square w-full max-w-[620px]">
       <div className="absolute inset-4 rounded-full border border-gold/15" />
       {state.piles.slice(0, 12).map((pile, slot) => (
         <div
           key={slot}
+          ref={(el) => registerSlot(slot, el)}
           className="absolute -translate-x-1/2 -translate-y-1/2"
           style={SLOT_POSITIONS[slot]}
         >
-          <ClockSlot slot={slot} pile={pile} isActive={state.active === slot} onFlip={onFlip} />
+          <ClockSlot
+            slot={slot}
+            pile={pile}
+            isDropTarget={dropTarget === slot}
+            isCurrent={slot === activeSlot}
+            {...slotProps}
+          />
         </div>
       ))}
-      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-        <ClockSlot
-          slot={12}
-          pile={state.piles[12]!}
-          isActive={state.active === 12}
-          onFlip={onFlip}
+      <div
+        ref={(el) => registerSlot(12, el)}
+        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+      >
+        <CenterSlot
+          center={state.center}
+          activeCenter={state.activeCenter}
+          isDropTarget={dropTarget === 12}
+          isCurrent={12 === activeSlot}
+          onRevealCenter={onRevealCenter}
+          registerCenter={registerCenter}
+          {...slotProps}
         />
       </div>
     </div>
@@ -378,49 +553,208 @@ function ClockFace({ state, onFlip }: { state: GameState; onFlip: () => void }) 
 function ClockSlot({
   slot,
   pile,
-  isActive,
-  onFlip,
+  isDropTarget,
+  isCurrent,
+  currentRef,
+  onCurrentDoubleClick,
+  onCurrentPointerDown,
+  onCurrentPointerMove,
+  onCurrentPointerUp,
+  dragOffset,
+  isDragging,
+  placing,
 }: {
   slot: number;
   pile: ClockPile;
-  isActive: boolean;
-  onFlip: () => void;
+  isDropTarget: boolean;
+  isCurrent: boolean;
+  currentRef: React.RefObject<HTMLButtonElement | null>;
+  onCurrentDoubleClick: () => void;
+  onCurrentPointerDown: (e: React.PointerEvent<HTMLButtonElement>) => void;
+  onCurrentPointerMove: (e: React.PointerEvent<HTMLButtonElement>) => void;
+  onCurrentPointerUp: (e: React.PointerEvent<HTMLButtonElement>) => void;
+  dragOffset: { x: number; y: number };
+  isDragging: boolean;
+  placing: boolean;
 }) {
-  const faceDown = pile.faceDown.length;
-  const top = pile.faceUp[pile.faceUp.length - 1];
+  const down = pile.faceDown;
+  const up = pile.faceUp;
+  const isEmpty = down.length === 0 && up.length === 0;
+  const overlapStyle = { marginTop: "calc(var(--clock-overlap) * -1)" };
+
+  // The pile fans upward so the current card sits fully revealed at the
+  // bottom, face-down cards above it, and cards already laid at the very top —
+  // each card peeking a sliver of its top edge.
+  const current = isCurrent && up.length > 0 ? up[up.length - 1] : null;
+  const placed = current ? up.slice(0, -1) : up;
+
+  // Build the pile from the top of the screen down, then give each layer an
+  // increasing z-index so every card covers the one just above it, leaving the
+  // top sliver of that card visible.
+  type Layer =
+    | { kind: "placed"; card: Card }
+    | { kind: "down" }
+    | { kind: "current"; card: Card };
+  const layers: Layer[] = [
+    ...placed.map((card): Layer => ({ kind: "placed", card })),
+    ...down.map((): Layer => ({ kind: "down" })),
+    ...(current ? [{ kind: "current", card: current } as Layer] : []),
+  ];
+
   return (
     <div className="flex flex-col items-center gap-1">
-      <button
-        type="button"
-        onClick={onFlip}
-        disabled={!isActive}
-        aria-label={`${slotLabel(slot)} pile`}
-        className={`relative block transition-transform ${
-          isActive ? "scale-110 cursor-pointer" : "cursor-default"
-        }`}
-      >
-        {faceDown > 0 && (
-          <div className="absolute -left-1 -top-1 z-0 opacity-60">
-            <ClockCardBack />
-          </div>
+      <div className="relative block">
+        <div className="flex flex-col items-center">
+          {layers.map((layer, idx) => {
+            const style = {
+              ...(idx > 0 ? overlapStyle : {}),
+              zIndex: idx + 1,
+            };
+            if (layer.kind === "placed") {
+              return (
+                <div key={`placed-${idx}`} className="relative" style={style}>
+                  <ClockCardFace card={layer.card} />
+                </div>
+              );
+            }
+            if (layer.kind === "down") {
+              return (
+                <div key={`down-${idx}`} className="relative" style={style}>
+                  <ClockCardBack />
+                </div>
+              );
+            }
+            if (placing) {
+              return (
+                <div key="current" className="relative" style={style}>
+                  <ClockCardFace card={layer.card} />
+                </div>
+              );
+            }
+            return (
+              <button
+                key="current"
+                type="button"
+                ref={currentRef}
+                onDoubleClick={onCurrentDoubleClick}
+                onPointerDown={onCurrentPointerDown}
+                onPointerMove={onCurrentPointerMove}
+                onPointerUp={onCurrentPointerUp}
+                aria-label={`${cardLabel(layer.card)} — double-click or drag to its hour`}
+                className={`relative block cursor-grab touch-none select-none transition-transform ${
+                  isDragging ? "duration-0" : "duration-200"
+                }`}
+                style={{
+                  ...style,
+                  transform: `translate(${dragOffset.x}px, ${dragOffset.y}px)`,
+                }}
+              >
+                <ClockCardFace card={layer.card} />
+                <span className="absolute -inset-2 z-20 rounded-lg ring-2 ring-gold-bright animate-gentle-flash" />
+              </button>
+            );
+          })}
+        </div>
+        {isEmpty && <EmptySlot />}
+        {isDropTarget && (
+          <span className="absolute -inset-2 z-30 rounded-lg ring-2 ring-gold-bright animate-gentle-flash" />
         )}
-        <div className="relative z-10">{top ? <ClockCardFace card={top} /> : <EmptySlot />}</div>
-        {isActive && (
-          <span className="absolute -inset-1 z-20 rounded-md ring-2 ring-gold animate-gentle-flash" />
-        )}
-        {faceDown > 0 && (
-          <span className="absolute -bottom-1 -right-1 z-20 grid size-4 place-items-center rounded-full bg-brand text-[9px] font-bold text-cream ring-1 ring-gold/50">
-            {faceDown}
-          </span>
-        )}
-      </button>
-      <span
-        className={`text-[10px] font-bold uppercase tracking-wider ${
-          isActive ? "text-gold" : "text-ivory/50"
-        }`}
-      >
+      </div>
+      <span className="text-[10px] font-bold uppercase tracking-wider text-ivory/50">
         {slotLabel(slot)}
       </span>
+    </div>
+  );
+}
+
+function CenterSlot({
+  center,
+  activeCenter,
+  isDropTarget,
+  isCurrent,
+  currentRef,
+  onCurrentDoubleClick,
+  onCurrentPointerDown,
+  onCurrentPointerMove,
+  onCurrentPointerUp,
+  dragOffset,
+  isDragging,
+  placing,
+  onRevealCenter,
+  registerCenter,
+}: {
+  center: CenterSlot[];
+  activeCenter: number;
+  isDropTarget: boolean;
+  isCurrent: boolean;
+  currentRef: React.RefObject<HTMLButtonElement | null>;
+  onCurrentDoubleClick: () => void;
+  onCurrentPointerDown: (e: React.PointerEvent<HTMLButtonElement>) => void;
+  onCurrentPointerMove: (e: React.PointerEvent<HTMLButtonElement>) => void;
+  onCurrentPointerUp: (e: React.PointerEvent<HTMLButtonElement>) => void;
+  dragOffset: { x: number; y: number };
+  isDragging: boolean;
+  placing: boolean;
+  onRevealCenter: (index: number) => void;
+  registerCenter: (index: number, el: HTMLDivElement | null) => void;
+}) {
+  return (
+    <div className="flex flex-col items-center gap-1.5">
+      <div className="relative">
+        {/* The four centre positions stay put: face-down cards wait to be
+            turned over, a card flips face up in its own position, and a struck
+            King sits face up where it was laid. */}
+        <div className="grid grid-cols-2 gap-1">
+          {center.map((slot, i) => (
+            <div key={`centre-${i}`} ref={(el) => registerCenter(i, el)}>
+              {slot === null ? (
+                <EmptySlot />
+              ) : slot.faceUp && i === activeCenter && !placing ? (
+                <button
+                  type="button"
+                  ref={currentRef}
+                  onDoubleClick={onCurrentDoubleClick}
+                  onPointerDown={onCurrentPointerDown}
+                  onPointerMove={onCurrentPointerMove}
+                  onPointerUp={onCurrentPointerUp}
+                  aria-label={`${cardLabel(slot.card)} — double-click or drag to its hour`}
+                  className={`relative z-10 block cursor-grab touch-none select-none transition-transform ${
+                    isDragging ? "duration-0" : "duration-200"
+                  }`}
+                  style={{ transform: `translate(${dragOffset.x}px, ${dragOffset.y}px)` }}
+                >
+                  <ClockCardFace card={slot.card} />
+                  <span className="absolute -inset-2 z-20 rounded-lg ring-2 ring-gold-bright animate-gentle-flash" />
+                </button>
+              ) : slot.faceUp ? (
+                <div className="relative">
+                  <ClockCardFace card={slot.card} />
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  disabled={!isCurrent || placing}
+                  onClick={() => onRevealCenter(i)}
+                  aria-label="Turn over a centre card"
+                  className={`relative block rounded-md transition-shadow ${
+                    isCurrent && !placing
+                      ? "cursor-pointer hover:ring-2 hover:ring-gold-bright"
+                      : "cursor-default"
+                  }`}
+                >
+                  <ClockCardBack />
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {isDropTarget && (
+          <span className="absolute -inset-2 z-30 rounded-lg ring-2 ring-gold-bright animate-gentle-flash" />
+        )}
+      </div>
+
+      <span className="text-[10px] font-bold uppercase tracking-wider text-ivory/50">K</span>
     </div>
   );
 }
@@ -434,11 +768,11 @@ function ClockCardFace({ card }: { card: Card }) {
         red ? "text-[#c0392b]" : "text-brand"
       }`}
     >
-      <span className="absolute left-0.5 top-0.5 flex flex-col items-center font-display text-[8px] font-bold leading-none">
+      <span className="absolute left-0.5 top-0.5 flex flex-col items-center font-display text-[10px] font-bold leading-none">
         <span>{RANK_LABEL[card.rank]}</span>
-        <span className="mt-0.5 text-[7px]">{SUIT_SYMBOL[card.suit]}</span>
+        <span className="mt-0.5 text-[9px]">{SUIT_SYMBOL[card.suit]}</span>
       </span>
-      <span className="absolute inset-0 grid place-items-center text-sm">
+      <span className="absolute inset-0 grid place-items-center text-base">
         {SUIT_SYMBOL[card.suit]}
       </span>
     </div>
@@ -459,5 +793,33 @@ function ClockCardBack() {
 function EmptySlot() {
   return (
     <div className="grid h-[var(--clock-card-h)] w-[var(--clock-card-w)] place-items-center rounded-md border border-dashed border-gold/30 text-gold/30" />
+  );
+}
+
+// A card animating from its own pile to its own hour.
+function FlightView({ flight }: { flight: Flight }) {
+  const [moved, setMoved] = useState(false);
+  useEffect(() => {
+    let raf = 0;
+    raf = requestAnimationFrame(() => {
+      raf = requestAnimationFrame(() => setMoved(true));
+    });
+    return () => cancelAnimationFrame(raf);
+  }, []);
+  const dx = moved ? flight.to.x - flight.from.x : 0;
+  const dy = moved ? flight.to.y - flight.from.y : 0;
+  return (
+    <div
+      aria-hidden
+      className="pointer-events-none fixed z-50 transition-transform duration-500 ease-out"
+      style={{
+        left: flight.from.x,
+        top: flight.from.y,
+        transformOrigin: "top left",
+        transform: `translate(${dx}px, ${dy}px)`,
+      }}
+    >
+      <ClockCardFace card={flight.card} />
+    </div>
   );
 }

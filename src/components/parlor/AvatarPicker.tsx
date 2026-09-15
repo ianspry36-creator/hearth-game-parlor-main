@@ -23,6 +23,8 @@ type Props = {
   avatar: string;
   onSelect: (url: string) => void;
   sad?: boolean;
+  /** Tailwind size class for the badge (defaults to a compact 2rem). */
+  size?: string;
 };
 
 const CATEGORIES: { value: AvatarCategory; label: string }[] = [
@@ -33,7 +35,7 @@ const CATEGORIES: { value: AvatarCategory; label: string }[] = [
 ];
 
 /** Player avatar badge — click to choose a different portrait. */
-export function AvatarPicker({ avatar, onSelect, sad = false }: Props) {
+export function AvatarPicker({ avatar, onSelect, sad = false, size = "size-8" }: Props) {
   const [open, setOpen] = useState(false);
   const [nickname, setCurrentNickname] = useState(() => getNickname() ?? "");
   const [draft, setDraft] = useState(() => getNickname() ?? "");
@@ -76,7 +78,7 @@ export function AvatarPicker({ avatar, onSelect, sad = false }: Props) {
         <button
           type="button"
           aria-label="Change your avatar"
-          className="grid size-8 place-items-center overflow-hidden rounded-full bg-gold/20 ring-1 ring-gold/40 transition-transform hover:scale-110 focus-visible:scale-110"
+          className={`grid ${size} place-items-center overflow-hidden rounded-full bg-gold/20 ring-1 ring-gold/40 transition-transform hover:scale-110 focus-visible:scale-110`}
         >
           <img
             src={avatar}

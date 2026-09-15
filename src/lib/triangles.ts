@@ -9,8 +9,15 @@ export type Board = {
 export const SPOTS = 20;
 export const BOARD_WIDTH = 760;
 export const BOARD_HEIGHT = 560;
-const PADDING = 44;
+// Side margins are tighter than top/bottom so spots sit closer to the board's
+// left and right edges (reduced ~60% from the original 44).
+const PADDING_X = 18;
+const PADDING_Y = 44;
 const MIN_GAP = 96;
+// A drawn line must stay at least this far from any spot it does not connect
+// to, so it never overlaps a neighbouring spot's enlarged dot. Sized for the
+// enlarged dots (radius ~12) plus the line stroke (~2.5).
+const SPOT_CLEARANCE = 15;
 
 export const edgeId = (a: number, b: number) => (a < b ? `${a}-${b}` : `${b}-${a}`);
 export const parseEdge = (key: string): [number, number] =>
@@ -44,8 +51,8 @@ function scatter(seed: number): Point[] {
   while (points.length < SPOTS && guard < 20000) {
     guard += 1;
     const p = {
-      x: PADDING + next() * (BOARD_WIDTH - PADDING * 2),
-      y: PADDING + next() * (BOARD_HEIGHT - PADDING * 2),
+      x: PADDING_X + next() * (BOARD_WIDTH - PADDING_X * 2),
+      y: PADDING_Y + next() * (BOARD_HEIGHT - PADDING_Y * 2),
     };
     if (points.every((q) => (q.x - p.x) ** 2 + (q.y - p.y) ** 2 >= gap * gap)) points.push(p);
     else if (guard % 800 === 0) gap *= 0.9;
@@ -65,6 +72,16 @@ function onSegment(p: Point, q: Point, r: Point): boolean {
     q.y <= Math.max(p.y, r.y) &&
     q.y >= Math.min(p.y, r.y)
   );
+}
+
+/** Perpendicular distance from point `q` to the closed segment `p`–`r`. */
+function distanceToSegment(q: Point, p: Point, r: Point): number {
+  const dx = r.x - p.x;
+  const dy = r.y - p.y;
+  const lenSq = dx * dx + dy * dy;
+  if (lenSq === 0) return Math.hypot(q.x - p.x, q.y - p.y);
+  const t = Math.max(0, Math.min(1, ((q.x - p.x) * dx + (q.y - p.y) * dy) / lenSq));
+  return Math.hypot(q.x - (p.x + t * dx), q.y - (p.y + t * dy));
 }
 
 /**
@@ -111,6 +128,12 @@ export function canDraw(
     const [c, d] = parseEdge(key);
     if (a === c || a === d || b === c || b === d) continue; // shared spot is fine
     if (segmentsIntersect(pa, pb, points[c]!, points[d]!)) return false;
+  }
+  // The line must not pass through (or brush) a spot it doesn't connect to,
+  // otherwise the enlarged dots would visually overlap the drawn line.
+  for (let k = 0; k < points.length; k += 1) {
+    if (k === a || k === b) continue;
+    if (distanceToSegment(points[k]!, pa, pb) < SPOT_CLEARANCE) return false;
   }
   return true;
 }

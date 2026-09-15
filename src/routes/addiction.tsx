@@ -20,6 +20,7 @@ import { CardMark } from "@/components/parlor/CardMark";
 import { RANK_LABEL, SUIT_SYMBOL, cardLabel, type Card, type Suit } from "@/lib/cribbage";
 import {
   freshGame,
+  hasAnyMove,
   isCorrect,
   legalTargets,
   moveCard,
@@ -83,11 +84,19 @@ function AddictionTable() {
     prevWonRef.current = state.won;
   }, [state.won, recordResult]);
 
+  // Stuck with no shuffle left means the hand is lost.
+  const lost = !state.won && shufflesRemaining(state) === 0 && !hasAnyMove(state.board);
+  const prevLostRef = useRef(false);
+  useEffect(() => {
+    if (lost && !prevLostRef.current) recordResult("loss");
+    prevLostRef.current = lost;
+  }, [lost, recordResult]);
+
   // Timer bookkeeping.
   const [elapsed, setElapsed] = useState(0);
   const [finishedElapsed, setFinishedElapsed] = useState<number | null>(null);
   const startRef = useRef(0);
-  const wonRef = useRef(false);
+  const endedRef = useRef(false);
 
   // Best scores, loaded from local storage once on the client.
   const [best, setBest] = useState<Best>({ moves: 0, time: 0 });
@@ -99,10 +108,10 @@ function AddictionTable() {
     setFinishedElapsed(null);
     setElapsed(0);
     startRef.current = Date.now();
-    wonRef.current = false;
+    endedRef.current = false;
 
     const id = window.setInterval(() => {
-      if (!wonRef.current) setElapsed(Math.floor((Date.now() - startRef.current) / 1000));
+      if (!endedRef.current) setElapsed(Math.floor((Date.now() - startRef.current) / 1000));
     }, 250);
 
     try {
@@ -117,22 +126,25 @@ function AddictionTable() {
   }, []);
 
   useEffect(() => {
-    wonRef.current = state.won;
-    if (state.won && finishedElapsed === null) {
+    const over = state.won || lost;
+    endedRef.current = over;
+    if (over && finishedElapsed === null) {
       setFinishedElapsed(elapsed);
-      try {
-        const bestMoves = Number(localStorage.getItem(BEST_MOVES_KEY) || 0);
-        const bestTime = Number(localStorage.getItem(BEST_TIME_KEY) || 0);
-        const newMoves = bestMoves === 0 || state.moves < bestMoves ? state.moves : bestMoves;
-        const newTime = bestTime === 0 || elapsed < bestTime ? elapsed : bestTime;
-        localStorage.setItem(BEST_MOVES_KEY, String(newMoves));
-        localStorage.setItem(BEST_TIME_KEY, String(newTime));
-        setBest({ moves: newMoves, time: newTime });
-      } catch {
-        // ignore
+      if (state.won) {
+        try {
+          const bestMoves = Number(localStorage.getItem(BEST_MOVES_KEY) || 0);
+          const bestTime = Number(localStorage.getItem(BEST_TIME_KEY) || 0);
+          const newMoves = bestMoves === 0 || state.moves < bestMoves ? state.moves : bestMoves;
+          const newTime = bestTime === 0 || elapsed < bestTime ? elapsed : bestTime;
+          localStorage.setItem(BEST_MOVES_KEY, String(newMoves));
+          localStorage.setItem(BEST_TIME_KEY, String(newTime));
+          setBest({ moves: newMoves, time: newTime });
+        } catch {
+          // ignore
+        }
       }
     }
-  }, [state.won, finishedElapsed, elapsed, state.moves]);
+  }, [state.won, lost, finishedElapsed, elapsed, state.moves]);
 
   const shownElapsed = finishedElapsed ?? elapsed;
 
@@ -153,15 +165,15 @@ function AddictionTable() {
     setFinishedElapsed(null);
     setElapsed(0);
     startRef.current = Date.now();
-    wonRef.current = false;
+    endedRef.current = false;
   };
 
-  const gameInProgress = state.moves > 0;
+  const gameInProgress = state.moves > 0 && !state.won && !lost;
   const confirmReset = () => (gameInProgress ? setConfirming("new") : reset());
   const confirmHome = () => (gameInProgress ? setConfirming("home") : void navigate({ to: "/" }));
 
   const undo = () => {
-    if (history.length === 0 || state.won) return;
+    if (history.length === 0 || state.won || lost) return;
     const prev = history[history.length - 1]!;
     setState(prev);
     setHistory(history.slice(0, -1));
@@ -195,11 +207,20 @@ function AddictionTable() {
     if (card) setSelection(pos);
   };
 
+  // Double-click a card to move it straight into its first legal empty slot.
+  const doubleClickSlot = (pos: Position) => {
+    if (state.won || lost) return;
+    const targets = legalTargets(state.board, pos);
+    if (targets.length === 0) return;
+    const moved = moveCard(state, pos, targets[0]!);
+    if (moved !== state) apply(moved);
+  };
+
   const remaining = shufflesRemaining(state);
 
   return (
     <div className="min-h-screen bg-brand text-cream">
-      <div className="mx-auto max-w-6xl px-6 py-8">
+      <div className="mx-auto max-w-6xl px-1.5 py-8 sm:px-6">
         <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <Link
@@ -254,6 +275,7 @@ function AddictionTable() {
                             isTarget={isTarget}
                             correct={correct}
                             onClick={() => clickSlot(pos)}
+                            onDoubleClick={() => doubleClickSlot(pos)}
                           />
                         );
                       })}
@@ -297,6 +319,21 @@ function AddictionTable() {
                 </div>
               </div>
             )}
+
+            {lost && (
+              <div className="absolute inset-0 z-10 grid place-items-center rounded-2xl bg-brand/85 p-6 backdrop-blur-sm">
+                <div className="space-y-4 text-center">
+                  <div className="text-5xl">🔒</div>
+                  <h2 className="font-display text-3xl font-bold text-gold">You're stuck</h2>
+                  <p className="mx-auto max-w-sm text-ivory/70">
+                    No card can move and your three shuffles are spent.
+                  </p>
+                  <Button variant="parlor" onClick={reset}>
+                    Deal again
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
 
           <aside className="space-y-4">
@@ -320,7 +357,7 @@ function AddictionTable() {
                   variant="parlorGhost"
                   className="w-full"
                   onClick={undo}
-                  disabled={history.length === 0 || state.won}
+                  disabled={history.length === 0 || state.won || lost}
                 >
                   Undo
                 </Button>
@@ -385,12 +422,14 @@ function CardCell({
   isTarget,
   correct,
   onClick,
+  onDoubleClick,
 }: {
   card: Card | null;
   selected: boolean;
   isTarget: boolean;
   correct: boolean;
   onClick: () => void;
+  onDoubleClick: () => void;
 }) {
   if (!card) {
     return (
@@ -416,6 +455,7 @@ function CardCell({
     <button
       type="button"
       onClick={onClick}
+      onDoubleClick={onDoubleClick}
       aria-label={cardLabel(card)}
       className={`relative block h-[var(--ad-card-h)] w-[var(--ad-card-w)] shrink-0 select-none rounded-lg border border-black/10 bg-white text-left shadow-md shadow-black/30 transition-transform ${
         red ? "text-[#c0392b]" : "text-brand"

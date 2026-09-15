@@ -1,12 +1,29 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { TableShell } from "@/components/parlor/TableShell";
 import { GameOverDialog } from "@/components/parlor/GameOverDialog";
 import { PlayerAvatar } from "@/components/parlor/PlayerAvatar";
 import { SpeechBubble } from "@/components/parlor/SpeechBubble";
 import { getGame } from "@/lib/games";
-import { getNickname, useMatch } from "@/lib/multiplayer";
+import { getNickname, RECONNECT_SECONDS, useMatch } from "@/lib/multiplayer";
 import { useRecordMatchResult } from "@/lib/stats";
 import { ADA_AVATAR, readAvatar } from "@/lib/avatars";
 import {
@@ -58,12 +75,16 @@ type State = {
   turnScore: number;
   rolled: boolean;
   farkled: boolean;
+  /** True when the current player just cleared all six dice (hot dice). The
+   *  re-roll is delayed two seconds so both seats can announce it first. */
+  hotDice: boolean;
   /** Dice queued to set aside one at a time during Ada's solo turn. */
   pending: number[];
   /** Points from the queued keep, added once every die has landed. */
   pendingScore: number;
   log: LogEntry[];
   winner: Seat | null;
+  rematch: Seat | null;
 };
 
 const blankDice = (): Die[] =>
@@ -92,10 +113,12 @@ const freshState = (): State => ({
   turnScore: 0,
   rolled: false,
   farkled: false,
+  hotDice: false,
   pending: [],
   pendingScore: 0,
   log: [{ side: null, text: "Highest roll goes first. Throw the dice." }],
   winner: null,
+  rematch: null,
 });
 
 const note = (log: LogEntry[], entry: LogEntry) => [entry, ...log].slice(0, 40);
@@ -116,6 +139,7 @@ function mirror(state: State): State {
     rolloff: { human: state.rolloff.cpu, cpu: state.rolloff.human },
     scores: { human: state.scores.cpu, cpu: state.scores.human },
     turn: flip(state.turn),
+    rematch: state.rematch ? flip(state.rematch) : null,
     winner: state.winner ? flip(state.winner) : null,
     log: state.log.map((entry) => ({ ...entry, side: entry.side ? flip(entry.side) : null })),
   };
@@ -143,6 +167,10 @@ function FarkleTable() {
   const game = getGame("farkle");
   const navigate = useNavigate();
   const { opponent, match: matchId } = Route.useSearch();
+  const [state, setState] = useState<State>(freshState);
+  const [selected, setSelected] = useState<number[]>([]);
+  const [playerAvatar, setPlayerAvatar] = useState<string>(readAvatar);
+  const [viewingBoard, setViewingBoard] = useState(false);
   const {
     match,
     isHost,
@@ -153,13 +181,10 @@ function FarkleTable() {
     opponentDisconnected,
     disconnectSecondsLeft,
     disconnectExpired,
-  } = useMatch<State>(matchId);
-  const [state, setState] = useState<State>(freshState);
-  const [selected, setSelected] = useState<number[]>([]);
-  const [playerAvatar, setPlayerAvatar] = useState<string>(readAvatar);
+  } = useMatch<State>(matchId, Boolean(state.winner));
   const stateRef = useRef(state);
   stateRef.current = state;
-  useRecordMatchResult(match, isHost, state.winner);
+  useRecordMatchResult(match, isHost, state.winner, matchId ? RECONNECT_SECONDS * 1000 : 0);
   const [avatarMessage, setAvatarMessage] = useState<string | null>(null);
   const messageTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const showAvatarMessage = (text: string) => {
@@ -175,7 +200,7 @@ function FarkleTable() {
     cpuMessageTimer.current = setTimeout(() => setCpuMessage(null), 2200);
   };
   const prevCpuScore = useRef(state.scores.cpu);
-  const cpuHotRef = useRef(false);
+  const prevHotDice = useRef(false);
   useEffect(() => {
     const gained = state.scores.cpu - prevCpuScore.current;
     if (gained > 0) showCpuMessage(`${gained.toLocaleString()} banked`);
@@ -187,13 +212,15 @@ function FarkleTable() {
       showCpuMessage("Farkle!");
     }
   }, [state.farkled, state.turn, state.phase]);
-  // Ada announces "Hot Dice!" once she clears all six dice.
+  // Whoever clears all six dice announces "Hot Dice!" — the active player in
+  // their own bubble, the opponent in Ada's (works for both solo and multiplayer).
   useEffect(() => {
-    if (cpuHotRef.current) {
-      cpuHotRef.current = false;
-      showCpuMessage("Hot Dice!");
+    if (state.hotDice && !prevHotDice.current) {
+      if (state.turn === "human") showAvatarMessage("Hot Dice!");
+      else showCpuMessage("Hot Dice!");
     }
-  }, [state.dice, state.turn]);
+    prevHotDice.current = state.hotDice;
+  }, [state.hotDice, state.turn]);
   useEffect(
     () => () => {
       if (messageTimer.current) clearTimeout(messageTimer.current);
@@ -217,8 +244,27 @@ function FarkleTable() {
     const fresh = freshState();
     stateRef.current = fresh;
     setSelected([]);
+    setViewingBoard(false);
     setState(fresh);
     if (isMulti) void publish(isHost ? fresh : mirror(fresh));
+  };
+
+  // Rematch: the local player asks the opponent to play another game.
+  const requestRematch = () => {
+    if (!isMulti) return;
+    apply((current) => ({ ...current, rematch: "human" }));
+  };
+
+  // The opponent declined our rematch — both players return to the final score.
+  const declineRematch = () => {
+    if (!isMulti) return;
+    apply((current) => ({ ...current, rematch: null }));
+  };
+
+  // The opponent accepted — start a fresh game for both players.
+  const acceptRematch = () => {
+    if (!isMulti) return;
+    reset();
   };
 
   // The host opens a fresh live table.
@@ -360,6 +406,7 @@ function FarkleTable() {
     turnScore: 0,
     rolled: false,
     farkled: false,
+    hotDice: false,
     pending: [],
     pendingScore: 0,
   });
@@ -382,6 +429,21 @@ function FarkleTable() {
     }
     return passDice(logged);
   };
+
+  // Hot dice: let the "Hot Dice!" bubble play out for two seconds, then throw
+  // all six again. In multiplayer only the seat whose turn it is performs (and
+  // publishes) the re-roll; the other seat just watches its mirrored copy.
+  useEffect(() => {
+    if (!state.hotDice) return;
+    if (isMulti && state.turn !== "human") return;
+    const timer = setTimeout(() => {
+      apply((current) => {
+        if (!current.hotDice) return current;
+        return rollFor({ ...current, hotDice: false }, current.turn);
+      });
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [state.hotDice, isMulti, state.turn]);
 
   const myTurn = state.turn === "human" && state.phase === "play";
   const farkledOut = myTurn && state.farkled;
@@ -419,15 +481,17 @@ function FarkleTable() {
         ...current,
         dice,
         turnScore: current.turnScore + selectionScore,
+        hotDice: willBeHot,
         log: note(current.log, {
           side: "human",
           text: `set aside ${selectionScore.toLocaleString()}.`,
         }),
       };
-      return rollFor(staged, "human");
+      // On hot dice the re-roll is deferred to the hot-dice effect below, which
+      // pauses for the "Hot Dice!" announcement before throwing all six again.
+      return willBeHot ? staged : rollFor(staged, "human");
     });
     setSelected([]);
-    if (willBeHot) showAvatarMessage("Hot Dice!");
   };
 
   const bank = () => {
@@ -450,6 +514,7 @@ function FarkleTable() {
   useEffect(() => {
     if (isMulti) return;
     if (state.phase !== "play" || state.turn !== "cpu") return;
+    if (state.hotDice) return;
     const timer = setTimeout(() => {
       setState((current) => {
         if (current.phase !== "play" || current.turn !== "cpu") return current;
@@ -477,11 +542,13 @@ function FarkleTable() {
               }),
             };
             const diceLeft = dice.filter((d) => !d.set).length;
-            if (diceLeft === 0) cpuHotRef.current = true;
             const behindBy = staged.scores.human - staged.scores.cpu;
-            next = shouldBank(staged.turnScore, diceLeft, behindBy)
-              ? bankFor(staged, "cpu", 0)
-              : rollFor(staged, "cpu");
+            next =
+              diceLeft === 0
+                ? { ...staged, hotDice: true }
+                : shouldBank(staged.turnScore, diceLeft, behindBy)
+                  ? bankFor(staged, "cpu", 0)
+                  : rollFor(staged, "cpu");
           }
         } else {
           const faces = openFaces(current.dice);
@@ -504,7 +571,7 @@ function FarkleTable() {
       });
     }, 1000);
     return () => clearTimeout(timer);
-  }, [isMulti, state.phase, state.turn, state.rolled, state.farkled, state.dice, state.turnScore, state.pending, state.pendingScore]);
+  }, [isMulti, state.phase, state.turn, state.rolled, state.farkled, state.hotDice, state.dice, state.turnScore, state.pending, state.pendingScore]);
 
   const status =
     isMulti && !match
@@ -529,27 +596,50 @@ function FarkleTable() {
   const activeDice = state.dice.filter((d) => !d.set);
   const diceLeft = activeDice.length;
 
-  const meldBox = (
-    <div className="rounded-xl border border-gold/15 bg-cream/95 p-4 text-brand shadow-lg">
-      <p className="mb-3 text-center font-display text-lg font-bold">Meld Values</p>
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-brand/20">
-            <th className="pb-1.5 text-left font-semibold">Meld</th>
-            <th className="pb-1.5 text-right font-semibold">Value</th>
+  const meldTable = (
+    <table className="w-full text-sm">
+      <thead>
+        <tr className="border-b border-brand/20">
+          <th className="pb-1.5 text-left font-semibold">Meld</th>
+          <th className="pb-1.5 text-right font-semibold">Value</th>
+        </tr>
+      </thead>
+      <tbody>
+        {MELD_VALUES.map((row) => (
+          <tr key={row.meld} className="border-b border-brand/10 last:border-0">
+            <td className="py-1 text-left">{row.meld}</td>
+            <td className="py-1 text-right font-medium">{row.value}</td>
           </tr>
-        </thead>
-        <tbody>
-          {MELD_VALUES.map((row) => (
-            <tr key={row.meld} className="border-b border-brand/10 last:border-0">
-              <td className="py-1 text-left">{row.meld}</td>
-              <td className="py-1 text-right font-medium">{row.value}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+        ))}
+      </tbody>
+    </table>
   );
+
+  const meldValues = (
+    <>
+      <div className="hidden rounded-xl border border-gold/15 bg-cream/95 p-4 text-brand shadow-lg lg:block">
+        <p className="mb-3 text-center font-display text-lg font-bold">Meld Values</p>
+        {meldTable}
+      </div>
+      <Dialog>
+        <DialogTrigger asChild>
+          <Button variant="parlor" className="w-full bg-white text-brand hover:bg-white/90 lg:hidden">
+            Meld Values
+          </Button>
+        </DialogTrigger>
+        <DialogContent className="max-h-[85vh] overflow-y-auto border-gold/25 bg-cream text-brand sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-display text-2xl font-bold">Meld Values</DialogTitle>
+          </DialogHeader>
+          {meldTable}
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+
+  // Rematch flow: "human" means we asked, "cpu" means the opponent asked us.
+  const rematchOutgoing = state.rematch === "human";
+  const rematchIncoming = state.rematch === "cpu";
 
   return (
     <TableShell
@@ -565,19 +655,58 @@ function FarkleTable() {
         reset();
       }}
       onNewGame={reset}
-      middle={meldBox}
+      middle={meldValues}
       middleClassName="self-start"
     >
       <GameOverDialog
-        open={state.phase === "over" && Boolean(state.winner)}
+        open={state.phase === "over" && Boolean(state.winner) && !viewingBoard}
         result={state.winner === "human" ? "win" : "loss"}
         playerScore={state.scores.human.toLocaleString()}
         opponentScore={state.scores.cpu.toLocaleString()}
         scoreLabel="Final points"
         opponentName={opponentName}
         playerAvatar={playerAvatar}
-        onPlayAgain={reset}
+        onPlayAgain={isMulti ? requestRematch : reset}
+        playAgainLabel={isMulti ? "Rematch" : "Play again"}
+        playAgainDisabled={isMulti && state.rematch !== null}
+        {...(rematchOutgoing
+          ? { detail: `Rematch request sent — waiting for ${opponentName} to respond…` }
+          : {})}
+        footerExtra={
+          <>
+            <Button variant="parlorOutline" onClick={() => setViewingBoard(true)}>
+              View Board
+            </Button>
+            <Button variant="parlorOutline" onClick={() => navigate({ to: "/" })}>
+              Back to game room
+            </Button>
+          </>
+        }
       />
+      <AlertDialog open={rematchIncoming}>
+        <AlertDialogContent className="border-gold/30 bg-brand text-cream sm:max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-center font-display text-2xl">
+              Rematch?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-center text-ivory/70">
+              {opponentName} wants to play again.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 sm:justify-center">
+            <AlertDialogAction asChild>
+              <Button variant="parlor" onClick={acceptRematch}>
+                Rematch
+              </Button>
+            </AlertDialogAction>
+            <AlertDialogCancel asChild>
+              <Button variant="parlorOutline" onClick={declineRematch}>
+                Decline
+              </Button>
+            </AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <div className="flex min-h-[560px] flex-col justify-start gap-6">
         {/* Ada — top of the table */}
         <div className="flex flex-col items-center gap-4 rounded-2xl border border-gold/15 bg-brand/50 p-4 sm:flex-row sm:justify-between">
@@ -718,40 +847,41 @@ function FarkleTable() {
         </div>
 
         {/* Player — bottom of the table */}
-        <div className="rounded-2xl border border-gold/15 bg-brand/50 p-4">
-          <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="rounded-2xl border border-gold/15 bg-brand/50 p-4 sm:px-7 sm:py-[41px]">
+          <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-4">
               <PlayerAvatar
                 avatar={playerAvatar}
                 onSelect={setPlayerAvatar}
+                size="size-8 sm:size-10"
                 {...(farkledOut ? { sad: true } : {})}
                 {...(playerMessage ? { message: playerMessage } : {})}
               />
               <div>
-                <p className="font-display text-lg font-bold">{playerName}</p>
-                <p className="text-xs text-ivory/60">
+                <p className="font-display text-lg font-bold sm:text-xl">{playerName}</p>
+                <p className="text-xs text-ivory/60 sm:text-sm">
                   {myTurn && state.phase === "play" ? "Your turn" : "Waiting"}
                 </p>
               </div>
-              <div className="rounded-lg border border-gold/20 bg-surface/60 px-3 py-1.5 text-center sm:px-5 sm:py-2">
-                <p className="text-[10px] uppercase tracking-[0.2em] text-ivory/50">Score</p>
-                <p className="font-display text-xl font-bold text-gold sm:text-2xl">
+              <div className="rounded-lg border border-gold/20 bg-surface/60 px-3 py-1.5 text-center sm:px-6 sm:py-2.5">
+                <p className="text-[10px] uppercase tracking-[0.2em] text-ivory/50 sm:text-xs">Score</p>
+                <p className="font-display text-xl font-bold text-gold sm:text-3xl">
                   {state.scores.human.toLocaleString()}
                 </p>
               </div>
             </div>
 
-            <div className="order-3 flex flex-col items-center gap-3 sm:order-2 sm:flex-1 sm:items-end">
-              <div className="flex min-h-9 flex-wrap items-center justify-center gap-2">
+            <div className="order-3 flex flex-col items-center gap-2 sm:order-2 sm:h-32 sm:flex-1 sm:items-center sm:justify-center">
+              <div className="flex min-h-9 flex-wrap items-center justify-center gap-2 sm:min-h-11">
                 {state.turn === "human" && state.phase === "play" && setAsideDice.length > 0 && (
                   <>
-                    <span className="text-[10px] uppercase tracking-[0.2em] text-ivory/50">
+                    <span className="text-[10px] uppercase tracking-[0.2em] text-ivory/50 sm:text-xs">
                       Set aside
                     </span>
                     {setAsideDice.map((die) => {
                       const realIndex = state.dice.indexOf(die);
                       return (
-                        <span key={`s${realIndex}`} className="animate-die-to-player">
+                        <span key={`s${realIndex}`} className="animate-die-to-player sm:scale-[1.2]">
                           <DieFace face={die.face} small />
                         </span>
                       );
@@ -793,13 +923,6 @@ function FarkleTable() {
                       </>
                     )}
                   </>
-                )}
-                {state.rolled && !state.farkled && myTurn && selected.length > 0 && (
-                  <p className="text-sm text-ivory/55">
-                    {selectionScore === null
-                      ? "Every die you keep must score."
-                      : `Selection worth ${selectionScore.toLocaleString()}.`}
-                  </p>
                 )}
               </div>
             </div>

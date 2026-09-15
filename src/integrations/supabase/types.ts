@@ -112,6 +112,43 @@ export type Database = {
         }
         Relationships: []
       }
+      connection_errors: {
+        Row: {
+          created_at: string
+          details: Json | null
+          error_type: string
+          game: string | null
+          id: string
+          message: string
+          nickname: string | null
+          origin: string | null
+          session_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          details?: Json | null
+          error_type: string
+          game?: string | null
+          id?: string
+          message: string
+          nickname?: string | null
+          origin?: string | null
+          session_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          details?: Json | null
+          error_type?: string
+          game?: string | null
+          id?: string
+          message?: string
+          nickname?: string | null
+          origin?: string | null
+          session_id?: string | null
+        }
+        Relationships: []
+      }
+
       game_rooms: {
         Row: {
           created_at: string

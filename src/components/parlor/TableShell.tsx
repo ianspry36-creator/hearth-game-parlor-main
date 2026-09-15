@@ -41,6 +41,7 @@ export function TableShell({
   playerCount,
   lobby,
   menuExtra,
+  below,
   containerClassName = "px-6",
   boxClassName = "",
 }: {
@@ -63,6 +64,7 @@ export function TableShell({
   playerCount?: 2 | 3 | 4;
   lobby?: (props: { open: boolean; onOpenChange: (open: boolean) => void }) => ReactNode;
   menuExtra?: ReactNode;
+  below?: ReactNode;
   containerClassName?: string;
   boxClassName?: string;
 }) {
@@ -133,6 +135,8 @@ export function TableShell({
           <div className={`rounded-2xl border border-gold/20 bg-surface/40 p-5 sm:p-8 ${boxClassName}`}>
             <ChatContext.Provider value={chatMessage}>{children}</ChatContext.Provider>
           </div>
+
+          {below ? <div className="lg:hidden">{below}</div> : null}
 
           {middle ? <div className={middleClassName}>{middle}</div> : null}
 

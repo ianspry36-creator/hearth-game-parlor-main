@@ -243,6 +243,51 @@ function Peg({
   );
 }
 
+export function ScoreGrid({
+  playerName,
+  opponentName,
+  playerAvatar,
+  cpuAvatar,
+  playerScore,
+  cpuScore,
+}: {
+  playerName: string;
+  opponentName: string;
+  playerAvatar: string;
+  cpuAvatar: string;
+  playerScore: number;
+  cpuScore: number;
+}) {
+  return (
+    <div className="overflow-hidden rounded-lg border border-gold/20">
+      <div className="flex items-center justify-between gap-2 border-b border-gold/15 bg-brand/60 px-3 py-2">
+        <span className="flex min-w-0 items-center gap-2 text-sm">
+          <img
+            src={playerAvatar}
+            alt=""
+            className="size-7 shrink-0 rounded-full object-cover ring-1 ring-gold/40"
+          />
+          <span className="truncate">{playerName}</span>
+          <span className="size-2.5 shrink-0 rounded-full bg-gold" />
+        </span>
+        <span className="shrink-0 font-display text-lg text-gold">{playerScore}</span>
+      </div>
+      <div className="flex items-center justify-between gap-2 bg-brand/40 px-3 py-2">
+        <span className="flex min-w-0 items-center gap-2 text-sm">
+          <img
+            src={cpuAvatar}
+            alt=""
+            className="size-7 shrink-0 rounded-full object-cover ring-1 ring-ivory/40"
+          />
+          <span className="truncate">{opponentName}</span>
+          <span className="size-2.5 shrink-0 rounded-full bg-ivory" />
+        </span>
+        <span className="shrink-0 font-display text-lg">{cpuScore}</span>
+      </div>
+    </div>
+  );
+}
+
 export function CribBoard({
   graphic,
   playerScore,
@@ -251,6 +296,8 @@ export function CribBoard({
   cpuBack,
   opponentName,
   playerName,
+  playerAvatar,
+  cpuAvatar,
 }: {
   graphic: string;
   playerScore: number;
@@ -259,11 +306,12 @@ export function CribBoard({
   cpuBack: number;
   opponentName: string;
   playerName: string;
+  playerAvatar: string;
+  cpuAvatar: string;
 }) {
   return (
     <div className="rounded-xl border border-gold/20 bg-surface/60 p-4">
-      <p className="mb-3 text-[11px] uppercase tracking-[0.22em] text-ivory/60">The board</p>
-      <div className="relative mx-auto w-full max-w-[210px]">
+      <div className="relative mx-auto w-full max-w-[168px]">
         <img
           src={graphic}
           alt="Cribbage peg board"
@@ -274,19 +322,15 @@ export function CribBoard({
         <Peg side="cpu" score={cpuScore} tone="ivory" />
         <Peg side="cpu" score={cpuBack} tone="ivory" lag />
       </div>
-      <div className="mt-4 overflow-hidden rounded-lg border border-gold/20">
-        <div className="flex items-center justify-between border-b border-gold/15 bg-brand/60 px-3 py-2">
-          <span className="flex items-center gap-2 text-sm">
-            <span className="size-2.5 rounded-full bg-gold" /> {playerName}
-          </span>
-          <span className="font-display text-lg text-gold">{playerScore}</span>
-        </div>
-        <div className="flex items-center justify-between bg-brand/40 px-3 py-2">
-          <span className="flex items-center gap-2 text-sm">
-            <span className="size-2.5 rounded-full bg-ivory" /> {opponentName}
-          </span>
-          <span className="font-display text-lg">{cpuScore}</span>
-        </div>
+      <div className="mt-4">
+        <ScoreGrid
+          playerName={playerName}
+          opponentName={opponentName}
+          playerAvatar={playerAvatar}
+          cpuAvatar={cpuAvatar}
+          playerScore={playerScore}
+          cpuScore={cpuScore}
+        />
       </div>
     </div>
   );

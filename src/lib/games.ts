@@ -466,7 +466,7 @@ export const GAMES: GameMeta[] = [
       },
       {
         heading: "The play",
-        body: "Turn over the top card of the centre pile and lay it face up beneath the pile of its own number — an Ace under one o'clock, a seven under seven. Then turn the top card of that pile, and so on around the clock.",
+        body: "Turn over any of the four centre cards — your choice — and lay it face up beneath the pile of its own number: an Ace under one o'clock, a seven under seven. Then turn the top card of that pile, and so on around the clock, returning to the centre whenever a King is laid.",
       },
       {
         heading: "Winning and losing",

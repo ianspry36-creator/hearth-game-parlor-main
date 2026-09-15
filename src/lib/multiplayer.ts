@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { GameId } from "@/lib/games";
 import { recordMatchResult } from "@/lib/stats";
 import { readAvatar } from "@/lib/avatars";
+import { logConnectionError } from "@/lib/connection-errors";
 
 export const NICKNAME_KEY = "green-cardroom-nickname";
 export const SESSION_KEY = "green-cardroom-session";
@@ -72,7 +73,7 @@ export async function sendInvite(params: {
   toSession: string;
   toNickname: string;
 }): Promise<InviteRow | null> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("match_invites")
     .insert({
       game: params.game,
@@ -84,6 +85,20 @@ export async function sendInvite(params: {
     })
     .select(INVITE_COLUMNS)
     .single();
+
+  if (error) {
+    console.error("[multiplayer] sendInvite failed:", error);
+    logConnectionError("send_invite", error, {
+      game: params.game,
+      to_session: params.toSession,
+      to_nickname: params.toNickname,
+      code: error.code,
+      details: error.details,
+      hint: error.hint,
+    });
+    throw new Error(error.message);
+  }
+
   return (data as InviteRow | null) ?? null;
 }
 
@@ -96,7 +111,7 @@ export async function acceptInvite(
   invite: InviteRow,
   myNickname: string,
 ): Promise<MatchRow | null> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("matches")
     .insert({
       game: invite.game,
@@ -111,6 +126,19 @@ export async function acceptInvite(
     })
     .select("*")
     .single();
+
+  if (error) {
+    console.error("[multiplayer] acceptInvite failed:", error);
+    logConnectionError("accept_invite", error, {
+      game: invite.game,
+      from_session: invite.from_session,
+      code: error.code,
+      details: error.details,
+      hint: error.hint,
+    });
+    throw new Error(error.message);
+  }
+
   if (!data) return null;
   const match = data as MatchRow;
   await supabase
@@ -146,7 +174,7 @@ export async function fetchInvite(id: string): Promise<InviteRow | null> {
  * Shared-state hook for a live two-player table. Both devices read the same row;
  * the host's orientation is canonical and the guest mirrors it locally.
  */
-export function useMatch<T>(matchId: string | undefined) {
+export function useMatch<T>(matchId: string | undefined, gameOver = false) {
   const [match, setMatch] = useState<MatchRow | null>(null);
   const [loading, setLoading] = useState(Boolean(matchId));
   const version = useRef(0);
@@ -159,6 +187,10 @@ export function useMatch<T>(matchId: string | undefined) {
   const [disconnectExpired, setDisconnectExpired] = useState(false);
   const seenOpponentRef = useRef(false);
   const expiredRef = useRef(false);
+  // Tracks whether we have already logged the current disconnect episode, so a
+  // flapping presence channel doesn't flood the email log with one report per
+  // sync/leave event.
+  const loggedDisconnectRef = useRef(false);
 
   useEffect(() => {
     if (!matchId) {
@@ -248,12 +280,23 @@ export function useMatch<T>(matchId: string | undefined) {
   // Track the opponent's live connection through a Realtime presence channel so a
   // dropped peer can be detected and given a short window to reconnect.
   useEffect(() => {
-    if (!matchId || !opponentSession) return;
+    if (!matchId || !opponentSession || gameOver) return;
     const mySession = sessionId || getSessionId();
 
     const markOnline = () => {
       if (expiredRef.current) return;
       seenOpponentRef.current = true;
+      // If we had reported the opponent offline and they came back, log the
+      // recovery so a transient "player disconnected" false alarm is visible in
+      // the email report (rather than only the final forfeit being logged).
+      if (loggedDisconnectRef.current) {
+        loggedDisconnectRef.current = false;
+        logConnectionError("opponent_reconnect", new Error("opponent presence restored"), {
+          match_id: matchId,
+          opponent_session: opponentSession,
+          my_session: mySession,
+        });
+      }
       setOpponentOnline(true);
       setOpponentDisconnected(false);
       setDisconnectSecondsLeft(RECONNECT_SECONDS);
@@ -262,6 +305,17 @@ export function useMatch<T>(matchId: string | undefined) {
       if (!seenOpponentRef.current || expiredRef.current) return;
       setOpponentOnline(false);
       setOpponentDisconnected(true);
+      // Log the first transition of a disconnect episode so the moment the
+      // "Player has disconnected!" dialog appears is captured, even when the
+      // opponent was never really gone.
+      if (!loggedDisconnectRef.current) {
+        loggedDisconnectRef.current = true;
+        logConnectionError("opponent_disconnect", new Error("opponent presence lost"), {
+          match_id: matchId,
+          opponent_session: opponentSession,
+          my_session: mySession,
+        });
+      }
     };
 
     const channel = supabase
@@ -286,12 +340,12 @@ export function useMatch<T>(matchId: string | undefined) {
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [matchId, opponentSession, sessionId]);
+  }, [matchId, opponentSession, sessionId, gameOver]);
 
   // Count the reconnect window down; when it reaches zero the match is awarded
   // to the player who stayed connected.
   useEffect(() => {
-    if (!opponentDisconnected) return;
+    if (!opponentDisconnected || gameOver) return;
     if (disconnectSecondsLeft <= 0) {
       expiredRef.current = true;
       setDisconnectExpired(true);
@@ -300,14 +354,28 @@ export function useMatch<T>(matchId: string | undefined) {
     }
     const timer = setTimeout(() => setDisconnectSecondsLeft((s) => s - 1), 1_000);
     return () => clearTimeout(timer);
-  }, [opponentDisconnected, disconnectSecondsLeft]);
+  }, [opponentDisconnected, disconnectSecondsLeft, gameOver]);
 
   // Record a forfeit when the opponent fails to reconnect: the player who
   // stayed connected wins and the leaver is counted as a loss.
   useEffect(() => {
-    if (!disconnectExpired || !matchId || !sessionId) return;
+    if (!disconnectExpired || !matchId || !sessionId || gameOver) return;
+    logConnectionError("realtime_disconnect", new Error("opponent failed to reconnect"), {
+      match_id: matchId,
+    });
     void recordMatchResult(matchId, sessionId);
-  }, [disconnectExpired, matchId, sessionId]);
+  }, [disconnectExpired, matchId, sessionId, gameOver]);
+
+  // Once the game is over (a winner is decided) the disconnect/forfeit flow no
+  // longer applies: clear any in-flight disconnect state so a player who simply
+  // declines a rematch and leaves the table isn't miscounted as a forfeit.
+  useEffect(() => {
+    if (!gameOver) return;
+    expiredRef.current = false;
+    setOpponentDisconnected(false);
+    setDisconnectExpired(false);
+    setDisconnectSecondsLeft(RECONNECT_SECONDS);
+  }, [gameOver]);
 
   // Once a match has finished there is no way back into it: a returning URL
   // still pointing at the finished match is redirected home instead of

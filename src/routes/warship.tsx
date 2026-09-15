@@ -6,7 +6,7 @@ import { GameOverDialog } from "@/components/parlor/GameOverDialog";
 import { PlayerAvatar } from "@/components/parlor/PlayerAvatar";
 import { getGame } from "@/lib/games";
 import { ADA_AVATAR, readAvatar } from "@/lib/avatars";
-import { getNickname, useMatch } from "@/lib/multiplayer";
+import { getNickname, RECONNECT_SECONDS, useMatch } from "@/lib/multiplayer";
 import { useRecordMatchResult } from "@/lib/stats";
 import { playExplosion, playSinking, playSplash } from "@/lib/warship-sounds";
 import {
@@ -136,7 +136,7 @@ function WarshipTable() {
   const [grab, setGrab] = useState<{ name: string; cell: number } | null>(null);
   const stateRef = useRef(state);
   stateRef.current = state;
-  useRecordMatchResult(match, isHost, state.winner);
+  useRecordMatchResult(match, isHost, state.winner, matchId ? RECONNECT_SECONDS * 1000 : 0);
 
 
   const isMulti = Boolean(matchId);
@@ -161,11 +161,16 @@ function WarshipTable() {
   };
 
   const [playerAvatar, setPlayerAvatar] = useState<string>(readAvatar);
+  const [viewingBoard, setViewingBoard] = useState(false);
 
   const reset = () => {
     const fresh = freshState();
+    // In a live game both seats start with a fleet (solo mode only hands the
+    // human a random fleet; the guest's fleet would otherwise come up empty).
+    if (isMulti) fresh.ships.cpu = randomFleet();
     stateRef.current = fresh;
     setState(fresh);
+    setViewingBoard(false);
     if (isMulti) void publish(isHost ? fresh : mirror(fresh));
   };
 
@@ -173,6 +178,8 @@ function WarshipTable() {
   useEffect(() => {
     if (!isMulti || !match || match.state || !isHost) return;
     const fresh = freshState();
+    // Seed the guest's fleet too so it isn't blank when the shared table opens.
+    fresh.ships.cpu = randomFleet();
     stateRef.current = fresh;
     setState(fresh);
     void publish(fresh);
@@ -376,13 +383,14 @@ function WarshipTable() {
       onMatched={(nickname, newMatchId) => {
         navigate({ to: "/warship", search: { opponent: nickname, match: newMatchId } });
         setState(freshState());
+        setViewingBoard(false);
       }}
       onNewGame={reset}
       rail={null}
       boxClassName="min-h-[32rem]"
     >
       <GameOverDialog
-        open={Boolean(state.winner)}
+        open={Boolean(state.winner) && !viewingBoard}
         result={state.winner === "human" ? "win" : "loss"}
         playerScore={state.ships.cpu.filter((ship) => isSunk(ship, state.shots.human)).length}
         opponentScore={state.ships.human.filter((ship) => isSunk(ship, state.shots.cpu)).length}
@@ -390,6 +398,17 @@ function WarshipTable() {
         opponentName={opponentName}
         playerAvatar={playerAvatar}
         onPlayAgain={reset}
+        playAgainLabel={isMulti ? "Rematch" : "Play again"}
+        footerExtra={
+          <>
+            <Button variant="parlorOutline" onClick={() => setViewingBoard(true)}>
+              View Board
+            </Button>
+            <Button variant="parlorOutline" onClick={() => navigate({ to: "/" })}>
+              Back to game room
+            </Button>
+          </>
+        }
       />
       <div className="space-y-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -420,9 +439,14 @@ function WarshipTable() {
               </>
             )}
             {state.winner && (
-              <Button variant="parlor" onClick={reset}>
-                Play again
-              </Button>
+              <>
+                <Button variant="parlor" onClick={reset}>
+                  {isMulti ? "Rematch" : "Play again"}
+                </Button>
+                <Button variant="parlorOutline" onClick={() => navigate({ to: "/" })}>
+                  Back to game room
+                </Button>
+              </>
             )}
           </div>
         </div>
@@ -550,7 +574,7 @@ function Grid({
 }) {
   const occupied = new Set(ships.flatMap((ship) => ship.cells));
   return (
-    <div className="w-full rounded-2xl border border-gold/25 bg-brand/70 p-2.5 shadow-2xl shadow-black/40">
+    <div className="w-full rounded-2xl border border-gold/25 bg-brand/70 p-[0.3125rem] shadow-2xl shadow-black/40">
       <div
         className={`grid gap-1 ${
           hideLabelsOnMobile
@@ -588,15 +612,27 @@ function Grid({
                 <button
                   key={cell}
                   aria-label={coordLabel(cell)}
+                  data-cell={cell}
                   disabled={!interactive}
                   onClick={() => onCell(cell)}
                   onPointerDown={(event) => {
-                    // Release implicit touch capture so the drop lands on the square under the finger.
-                    if (event.currentTarget.hasPointerCapture?.(event.pointerId))
-                      event.currentTarget.releasePointerCapture(event.pointerId);
+                    const el = event.currentTarget;
                     onGrab?.(cell);
+                    // Implicit touch capture is only established after pointerdown
+                    // finishes, so releasing it here is a no-op. Defer it so the
+                    // pointerup lands on the square under the finger.
+                    setTimeout(() => {
+                      if (el.hasPointerCapture?.(event.pointerId))
+                        el.releasePointerCapture(event.pointerId);
+                    }, 0);
                   }}
-                  onPointerUp={() => onDrop?.(cell)}
+                  onPointerUp={(event) => {
+                    // Resolve the square under the finger at release; on touch,
+                    // implicit capture would otherwise deliver pointerup here.
+                    const target = document.elementFromPoint(event.clientX, event.clientY);
+                    const hit = target?.closest("[data-cell]")?.getAttribute("data-cell");
+                    onDrop?.(hit != null ? Number(hit) : cell);
+                  }}
                   onDoubleClick={() => onRotate?.(cell)}
                   className={`relative aspect-square touch-none select-none rounded-[3px] border text-[10px] font-semibold transition-colors ${
                     shot && !hit

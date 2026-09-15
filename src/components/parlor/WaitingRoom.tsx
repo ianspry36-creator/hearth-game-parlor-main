@@ -29,6 +29,7 @@ import {
 } from "@/lib/nickname";
 import { moderateNickname } from "@/lib/moderation";
 import { readAvatar } from "@/lib/avatars";
+import { logConnectionError } from "@/lib/connection-errors";
 
 /** Players not seen for this long are treated as having left the room. */
 const STALE_MS = 45_000;
@@ -107,6 +108,7 @@ export function WaitingRoom({
       .gte("last_seen_at", cutoff)
       .order("created_at", { ascending: true });
     if (queryError) {
+      logConnectionError("reach_room", queryError, { game: game.id });
       setError("Could not reach the waiting room.");
       return;
     }
@@ -132,7 +134,14 @@ export function WaitingRoom({
         )
         .select("id")
         .single();
-      if (upsertError || !data) return null;
+      if (upsertError || !data) {
+        logConnectionError(
+          "join_room",
+          upsertError ?? new Error("waiting_players upsert returned no row"),
+          { game: game.id },
+        );
+        return null;
+      }
       return data.id as string;
     },
     [game.id],
@@ -228,19 +237,22 @@ export function WaitingRoom({
     return () => window.clearInterval(interval);
   }, [joined, open]);
 
-  const join = async (value: string) => {
-    setLoading(true);
-    setError(null);
-    const id = await upsertEntry(value);
-    setLoading(false);
-    if (!id) {
-      setError("Could not join the waiting room. Try again.");
-      return;
-    }
-    entryId.current = id;
-    setJoined(true);
-    void refresh();
-  };
+  const join = useCallback(
+    async (value: string) => {
+      setLoading(true);
+      setError(null);
+      const id = await upsertEntry(value);
+      setLoading(false);
+      if (!id) {
+        setError("Could not join the waiting room. Try again.");
+        return;
+      }
+      entryId.current = id;
+      setJoined(true);
+      void refresh();
+    },
+    [upsertEntry, refresh],
+  );
 
   const submitNickname = async (value: string) => {
     setLoading(true);
@@ -260,15 +272,34 @@ export function WaitingRoom({
     void join(value);
   };
 
+  // If we already have a saved nickname, skip the prompt and join immediately.
+  useEffect(() => {
+    if (!open || joined || !nickname) return;
+    void join(nickname);
+  }, [open, joined, nickname, join]);
+
   const invitePlayer = async (player: WaitingPlayer) => {
     setError(null);
-    const invite = await sendInvite({
-      game: game.id,
-      fromNickname: nickname ?? "Guest",
-      toSession: player.session_id,
-      toNickname: player.nickname,
-    });
+    let invite: InviteRow | null = null;
+    try {
+      invite = await sendInvite({
+        game: game.id,
+        fromNickname: nickname ?? "Guest",
+        toSession: player.session_id,
+        toNickname: player.nickname,
+      });
+    } catch (err) {
+      setError(
+        `Could not send the invitation: ${err instanceof Error ? err.message : "unknown error"}`,
+      );
+      return;
+    }
     if (!invite) {
+      logConnectionError("send_invite", new Error("sendInvite returned no row"), {
+        game: game.id,
+        to_session: player.session_id,
+        to_nickname: player.nickname,
+      });
       setError("Could not send the invitation. Try again.");
       return;
     }
@@ -287,12 +318,22 @@ export function WaitingRoom({
 
   const accept = async (invite: InviteRow) => {
     setError(null);
-    const match = await acceptInvite(invite, nickname ?? "Guest");
-    if (!match) {
-      setError("Could not open the table. Try again.");
-      return;
+    try {
+      const match = await acceptInvite(invite, nickname ?? "Guest");
+      if (!match) {
+        logConnectionError("accept_invite", new Error("acceptInvite returned no row"), {
+          game: invite.game,
+          from_session: invite.from_session,
+        });
+        setError("Could not open the table. Try again.");
+        return;
+      }
+      enterMatch(invite.from_nickname, match.id);
+    } catch (err) {
+      setError(
+        `Could not open the table: ${err instanceof Error ? err.message : "unknown error"}`,
+      );
     }
-    enterMatch(invite.from_nickname, match.id);
   };
 
   const decline = async (invite: InviteRow) => {

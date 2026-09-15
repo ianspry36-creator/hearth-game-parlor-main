@@ -396,8 +396,6 @@ function CrazyEightsTable() {
     if (isValidState(roomRemoteState)) return;
     if (liveRoom?.status !== "playing") return;
     if (roomPlayerCount < 2) return;
-    // Abandoned room: don't resurrect a deal nobody is around to receive.
-    if (isStalePlayingRoom(liveRoom)) return;
     const fresh = freshState(activeCount);
     stateRef.current = fresh;
     setState(fresh);
@@ -792,7 +790,7 @@ function CrazyEightsTable() {
       disconnectExpired={disconnectExpired}
       gameInProgress={state.phase !== "over" && state.pile.length > 1}
       hideOpponent
-      waitingRoomLabel="Multiplayer"
+      waitingRoomLabel="Human"
       lobby={({ open, onOpenChange }) => (
         <CrazyEightsLobby
           game={game}

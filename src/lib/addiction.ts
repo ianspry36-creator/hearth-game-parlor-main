@@ -83,6 +83,16 @@ export function legalTargets(board: Board, from: Position): Position[] {
   return out;
 }
 
+/** Whether any card on the board can still legally move into an empty slot. */
+export function hasAnyMove(board: Board): boolean {
+  for (let r = 0; r < ROWS; r += 1) {
+    for (let c = 0; c < COLS; c += 1) {
+      if (board[r]![c] && legalTargets(board, { row: r, col: c }).length > 0) return true;
+    }
+  }
+  return false;
+}
+
 /** Move the card at `from` to the empty slot at `to`, when the move is legal. */
 export function moveCard(state: GameState, from: Position, to: Position): GameState {
   if (state.won) return state;

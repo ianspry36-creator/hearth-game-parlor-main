@@ -125,13 +125,27 @@ function winnerToResult(winner: string | null): "win" | "loss" | "draw" | null {
  * Record a multiplayer match result the moment a winner is decided. Call this
  * from each multiplayer route with its `state.winner`; it records exactly once
  * per finished game (per client) and is idempotent across the two clients.
+ *
+ * `delayMs` optionally defers the write so a live opponent who drops right as
+ * the game ends still gets their reconnect window before the match is closed
+ * out and they are bumped from the table.
  */
 export function useRecordMatchResult(
   match: { id: string; host_session: string; guest_session: string } | null,
   isHost: boolean,
   winner: string | null,
+  delayMs = 0,
 ) {
   const lastWinnerRef = useRef<string | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Cancel any pending write if the component unmounts first.
+  useEffect(
+    () => () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    },
+    [],
+  );
 
   useEffect(() => {
     if (winner) {
@@ -139,12 +153,19 @@ export function useRecordMatchResult(
         lastWinnerRef.current = winner;
         const result = winnerToResult(winner);
         if (result && match?.id) {
-          void recordMatchResult(match.id, resolveWinnerSession(isHost, match, result));
+          if (timerRef.current) clearTimeout(timerRef.current);
+          timerRef.current = setTimeout(() => {
+            void recordMatchResult(match.id, resolveWinnerSession(isHost, match, result));
+          }, delayMs);
         }
       }
     } else {
       lastWinnerRef.current = null;
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
     }
-  }, [winner, match, isHost]);
+  }, [winner, match, isHost, delayMs]);
 }
 

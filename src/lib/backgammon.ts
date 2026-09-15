@@ -17,8 +17,11 @@ export type Move = {
   from: number | "bar";
   to: number | "off";
   dice: number[];
-  /** Intermediate landing point for a combined (two-dice) move on one checker. */
-  via?: number;
+  /**
+   * Intermediate landing points (in order) for a combined move that plays two or
+   * more dice on a single checker. Empty/omitted for single-die, bar, and off moves.
+   */
+  via?: number[];
 };
 
 export function initialBoard(): BoardState {
@@ -65,6 +68,13 @@ function canLand(board: BoardState, to: number, p: Player): boolean {
   return Math.abs(count) <= 1;
 }
 
+/** True when a checker sits further from home than `from` (rules out overshooting). */
+function hasFurtherChecker(board: BoardState, from: number, p: Player): boolean {
+  return p === "human"
+    ? board.points.slice(from + 1, 6).some((c) => c > 0)
+    : board.points.slice(18, from).some((c) => c < 0);
+}
+
 export function legalMoves(board: BoardState, dice: number[], p: Player): Move[] {
   const moves: Move[] = [];
   const dieSet = [...new Set(dice)];
@@ -90,44 +100,55 @@ export function legalMoves(board: BoardState, dice: number[], p: Player): Move[]
           moves.push({ from, to: "off", dice: [die] });
         } else if (die > pipsNeeded) {
           // Only legal when no checker sits further from home
-          const further =
-            p === "human"
-              ? board.points.slice(from + 1, 6).some((c) => c > 0)
-              : board.points.slice(18, from).some((c) => c < 0);
-          if (!further) moves.push({ from, to: "off", dice: [die] });
+          if (!hasFurtherChecker(board, from, p)) moves.push({ from, to: "off", dice: [die] });
         }
       }
     }
   }
 
-  // Combined moves: play two dice on a single checker (e.g. 3 + 5 = 8).
-  const pairsByTotal = new Map<number, [number, number]>();
-  for (let i = 0; i < dice.length; i++) {
-    for (let j = i + 1; j < dice.length; j++) {
-      const a = dice[i]!;
-      const b = dice[j]!;
-      const total = a + b;
-      if (!pairsByTotal.has(total)) pairsByTotal.set(total, [a, b]);
-    }
-  }
-  for (const [total, pair] of pairsByTotal) {
-    const [a, b] = pair;
-    for (let from = 0; from < 24; from++) {
-      if (!owns(board.points[from]!, p)) continue;
-      const to = destination(from, total, p);
-      if (to < 0 || to > 23) continue;
-      if (!canLand(board, to, p)) continue;
-      // At least one intermediate point must be open for a die ordering to work.
-      // Record the playable ordering (first die → `via`) so the combined move
-      // can be animated as two separate single-die steps.
-      const viaA = destination(from, a, p);
-      const viaB = destination(from, b, p);
-      if (canLand(board, viaA, p)) {
-        moves.push({ from, to, dice: [a, b], via: viaA });
-      } else if (canLand(board, viaB, p)) {
-        moves.push({ from, to, dice: [b, a], via: viaB });
+  // Combined moves: play two or more dice on a single checker (e.g. 3 + 5 = 8,
+  // or all four dice on a double). Every distinct ordering is emitted so the
+  // player (and the CPU) can pick whichever path the board allows, and the
+  // chosen sequence of intermediate points is recorded in `via` so it can be
+  // animated as separate single-die steps.
+  const seen = new Set<string>();
+  const addCombined = (from: number, seq: number[], to: number | "off", via: number[]) => {
+    const key = `${from}|${to}|${seq.join(",")}|${via.join(",")}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    moves.push({ from, to, dice: [...seq], via: via.length ? via : undefined });
+  };
+
+  const used = new Array<boolean>(dice.length).fill(false);
+  const walk = (from: number, positions: number[], seq: number[]) => {
+    const pos = positions[positions.length - 1]!;
+    for (let i = 0; i < dice.length; i++) {
+      if (used[i]) continue;
+      const die = dice[i]!;
+      const next = destination(pos, die, p);
+      used[i] = true;
+      const newSeq = [...seq, die];
+      if (next >= 0 && next <= 23 && canLand(board, next, p)) {
+        if (newSeq.length >= 2) addCombined(from, newSeq, next, positions.slice(1));
+        walk(from, [...positions, next], newSeq);
+      } else if (home && (next < 0 || next > 23)) {
+        // Bear off with the sum of the dice: legal when the last die lands the
+        // checker exactly, or overshoots with no checker further from home.
+        const pipsNeeded = p === "human" ? pos + 1 : 24 - pos;
+        if (
+          newSeq.length >= 2 &&
+          (die === pipsNeeded || (die > pipsNeeded && !hasFurtherChecker(board, pos, p)))
+        ) {
+          addCombined(from, newSeq, "off", positions.slice(1));
+        }
       }
+      used[i] = false;
     }
+  };
+
+  for (let from = 0; from < 24; from++) {
+    if (!owns(board.points[from]!, p)) continue;
+    walk(from, [from], []);
   }
 
   return moves;
@@ -174,15 +195,20 @@ export function consumeDice(dice: number[], used: number[]): number[] {
 
 /**
  * Break a move into its single-die legs so each can be animated separately.
- * A combined (two-dice) move becomes two legs: `from → via` then `via → to`.
- * Single-die, bar, and off moves are returned as-is.
+ * A combined move becomes one leg per die: `from → via[0] → … → to`, each step
+ * carrying a single die. Single-die, bar, and off moves are returned as-is.
  */
 export function splitMove(move: Move): Move[] {
-  if (move.via === undefined) return [move];
-  return [
-    { from: move.from, to: move.via, dice: [move.dice[0]!] },
-    { from: move.via, to: move.to, dice: [move.dice[1]!] },
-  ];
+  const via = move.via ?? [];
+  if (via.length === 0) return [move];
+  const legs: Move[] = [];
+  let from: number | "bar" = move.from;
+  for (let i = 0; i < via.length; i++) {
+    legs.push({ from, to: via[i]!, dice: [move.dice[i]!] });
+    from = via[i]!;
+  }
+  legs.push({ from, to: move.to, dice: [move.dice[move.dice.length - 1]!] });
+  return legs;
 }
 
 export const winner = (board: BoardState): Player | null =>

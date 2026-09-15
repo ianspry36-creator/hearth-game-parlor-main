@@ -8,17 +8,19 @@ export function PlayerAvatar({
   onSelect,
   sad = false,
   message,
+  size,
 }: {
   avatar: string;
   onSelect: (url: string) => void;
   sad?: boolean;
   message?: string;
+  size?: string;
 }) {
   const chatMessage = useChatMessage();
   const bubble = message ?? chatMessage;
   return (
     <div className="relative inline-block">
-      <AvatarPicker avatar={avatar} onSelect={onSelect} sad={sad} />
+      <AvatarPicker avatar={avatar} onSelect={onSelect} sad={sad} size={size} />
       {bubble && (
         <div className="absolute bottom-full left-full z-10 mb-2 ml-2">
           <SpeechBubble text={bubble} />

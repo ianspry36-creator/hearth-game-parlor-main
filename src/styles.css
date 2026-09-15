@@ -669,14 +669,16 @@
 
 /* Clock Solitaire responsive card sizing — thirteen piles around a clock face */
 :root {
-  --clock-card-h: 72px;
-  --clock-card-w: 52px;
+  --clock-card-h: 86px;
+  --clock-card-w: 62px;
+  --clock-overlap: 72px;
 }
 
 @media (max-width: 639.98px) {
   :root {
-    --clock-card-h: 42px;
-    --clock-card-w: 30px;
+    --clock-card-h: 50px;
+    --clock-card-w: 36px;
+    --clock-overlap: 41.5px;
   }
 }
 

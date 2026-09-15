@@ -1,5 +1,5 @@
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type DragEvent } from "react";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -84,12 +84,19 @@ type Selection =
   | { type: "tableau"; index: number; cardIndex: number }
   | null;
 
+type DropTarget =
+  | { type: "foundation"; index: number }
+  | { type: "tableau"; index: number }
+  | null;
+
 function CanfieldTable() {
   const navigate = useNavigate();
   const game = getGame("canfield");
   const [state, setState] = useState<GameState>(() => freshGame(mulberry32(SSR_SEED)));
   const [history, setHistory] = useState<GameState[]>([]);
   const [selection, setSelection] = useState<Selection>(null);
+  const [dragOverTarget, setDragOverTarget] = useState<DropTarget>(null);
+  const dragSourceRef = useRef<Selection>(null);
   const [drawMode, setDrawMode] = useState<DrawMode>(3);
   const [confirming, setConfirming] = useState<"new" | "home" | null>(null);
   const { recordResult } = useSolitaireStats(game.id);
@@ -279,6 +286,67 @@ function CanfieldTable() {
     setSelection(null);
   };
 
+  const clearDrag = () => {
+    dragSourceRef.current = null;
+    setDragOverTarget(null);
+  };
+
+  const beginDrag = (source: Selection, e: DragEvent<HTMLButtonElement>) => {
+    if (source?.type === "tableau") {
+      const pile = stateRef.current.tableau[source.index]!;
+      if (!isRun(pile.slice(source.cardIndex))) {
+        e.preventDefault();
+        return;
+      }
+    }
+    dragSourceRef.current = source;
+    setSelection(null);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", source ? JSON.stringify(source) : "");
+  };
+
+  const highlightFoundation = (index: number) => (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDragOverTarget((t) =>
+      t?.type === "foundation" && t.index === index ? t : { type: "foundation", index },
+    );
+  };
+
+  const highlightTableau = (index: number) => (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDragOverTarget((t) =>
+      t?.type === "tableau" && t.index === index ? t : { type: "tableau", index },
+    );
+  };
+
+  const dropOnFoundation = (index: number) => (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const src = dragSourceRef.current;
+    clearDrag();
+    if (!src) return;
+    const s = stateRef.current;
+    if (src.type === "waste") apply(moveWasteToFoundation(s, index));
+    else if (src.type === "reserve") apply(moveReserveToFoundation(s, index));
+    else if (src.type === "tableau") {
+      if (src.cardIndex === s.tableau[src.index]!.length - 1)
+        apply(moveTableauToFoundation(s, src.index, index));
+    }
+  };
+
+  const dropOnTableau = (index: number) => (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const src = dragSourceRef.current;
+    clearDrag();
+    if (!src) return;
+    const s = stateRef.current;
+    if (src.type === "waste") apply(moveWasteToTableau(s, index));
+    else if (src.type === "reserve") apply(moveReserveToTableau(s, index));
+    else if (src.type === "foundation") apply(moveFoundationToTableau(s, src.index, index));
+    else if (src.type === "tableau") apply(moveTableauToTableau(s, src.index, src.cardIndex, index));
+  };
+
   return (
     <div className="min-h-screen bg-brand text-cream">
       <div className="mx-auto max-w-5xl px-6 py-8">
@@ -326,6 +394,8 @@ function CanfieldTable() {
                   selected={selection?.type === "waste"}
                   onClick={clickWaste}
                   onDoubleClick={doubleClickWaste}
+                  onDragStart={(e) => beginDrag({ type: "waste" }, e)}
+                  onDragEnd={clearDrag}
                 />
               </div>
               <div className="flex gap-2">
@@ -335,6 +405,11 @@ function CanfieldTable() {
                     pile={pile}
                     selected={selection?.type === "foundation" && selection.index === index}
                     onClick={() => clickFoundation(index)}
+                    onDragStart={(e) => beginDrag({ type: "foundation", index }, e)}
+                    onDragEnd={clearDrag}
+                    onDragOver={highlightFoundation(index)}
+                    onDrop={dropOnFoundation(index)}
+                    isDropTarget={dragOverTarget?.type === "foundation" && dragOverTarget.index === index}
                   />
                 ))}
               </div>
@@ -347,6 +422,8 @@ function CanfieldTable() {
                   selected={selection?.type === "reserve"}
                   onClick={clickReserve}
                   onDoubleClick={doubleClickReserve}
+                  onDragStart={(e) => beginDrag({ type: "reserve" }, e)}
+                  onDragEnd={clearDrag}
                 />
                 <span className="text-[10px] uppercase tracking-[0.18em] text-ivory/45">
                   Reserve
@@ -361,6 +438,11 @@ function CanfieldTable() {
                     index={index}
                     onCardClick={clickTableau}
                     onDoubleClick={doubleClickTableau}
+                    onCardDragStart={(i, e) => beginDrag({ type: "tableau", index, cardIndex: i }, e)}
+                    onDragEnd={clearDrag}
+                    onDragOver={highlightTableau(index)}
+                    onDrop={dropOnTableau(index)}
+                    isDropTarget={dragOverTarget?.type === "tableau" && dragOverTarget.index === index}
                   />
                 ))}
               </div>
@@ -488,11 +570,17 @@ function CardFace({
   selected = false,
   onClick,
   onDoubleClick,
+  draggable,
+  onDragStart,
+  onDragEnd,
 }: {
   card: Card;
   selected?: boolean;
   onClick?: () => void;
   onDoubleClick?: () => void;
+  draggable?: boolean;
+  onDragStart?: (e: DragEvent<HTMLButtonElement>) => void;
+  onDragEnd?: () => void;
 }) {
   const red = isRed(card.suit);
   const isFaceCard = card.rank === 1 || card.rank > 10;
@@ -501,6 +589,9 @@ function CardFace({
       type="button"
       onClick={onClick}
       onDoubleClick={onDoubleClick}
+      draggable={draggable}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
       aria-label={cardLabel(card)}
       className={`relative block h-[var(--canfield-card-h)] w-[var(--canfield-card-w)] select-none rounded-md border border-black/10 bg-white text-left shadow-md shadow-black/30 transition-transform ${
         red ? "text-[#c0392b]" : "text-brand"
@@ -559,11 +650,15 @@ function WastePile({
   selected,
   onClick,
   onDoubleClick,
+  onDragStart,
+  onDragEnd,
 }: {
   cards: Card[];
   selected: boolean;
   onClick: () => void;
   onDoubleClick: () => void;
+  onDragStart: (e: DragEvent<HTMLButtonElement>) => void;
+  onDragEnd: () => void;
 }) {
   const visible = cards.slice(-3);
   if (visible.length === 0) return <EmptySlot />;
@@ -576,7 +671,15 @@ function WastePile({
         </div>
       ))}
       <div className="relative z-10">
-        <CardFace card={top} selected={selected} onClick={onClick} onDoubleClick={onDoubleClick} />
+        <CardFace
+          card={top}
+          selected={selected}
+          onClick={onClick}
+          onDoubleClick={onDoubleClick}
+          draggable
+          onDragStart={onDragStart}
+          onDragEnd={onDragEnd}
+        />
       </div>
     </div>
   );
@@ -586,14 +689,28 @@ function FoundationSlot({
   pile,
   selected,
   onClick,
+  onDragStart,
+  onDragEnd,
+  onDragOver,
+  onDrop,
+  isDropTarget,
 }: {
   pile: Card[];
   selected: boolean;
   onClick: () => void;
+  onDragStart: (e: DragEvent<HTMLButtonElement>) => void;
+  onDragEnd: () => void;
+  onDragOver: (e: DragEvent<HTMLDivElement>) => void;
+  onDrop: (e: DragEvent<HTMLDivElement>) => void;
+  isDropTarget: boolean;
 }) {
   const top = pile[pile.length - 1];
   return (
-    <div className="relative">
+    <div
+      className={`relative rounded-md ${isDropTarget ? "ring-2 ring-gold" : ""}`}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+    >
       {!top ? (
         <EmptySlot onClick={onClick} />
       ) : (
@@ -604,7 +721,14 @@ function FoundationSlot({
             </div>
           )}
           <div className="relative">
-            <CardFace card={top} selected={selected} onClick={onClick} />
+            <CardFace
+              card={top}
+              selected={selected}
+              onClick={onClick}
+              draggable
+              onDragStart={onDragStart}
+              onDragEnd={onDragEnd}
+            />
           </div>
         </>
       )}
@@ -617,11 +741,15 @@ function ReservePile({
   selected,
   onClick,
   onDoubleClick,
+  onDragStart,
+  onDragEnd,
 }: {
   cards: Card[];
   selected: boolean;
   onClick: () => void;
   onDoubleClick: () => void;
+  onDragStart: (e: DragEvent<HTMLButtonElement>) => void;
+  onDragEnd: () => void;
 }) {
   const top = cards[cards.length - 1];
   return (
@@ -641,6 +769,9 @@ function ReservePile({
               selected={selected}
               onClick={onClick}
               onDoubleClick={onDoubleClick}
+              draggable
+              onDragStart={onDragStart}
+              onDragEnd={onDragEnd}
             />
           </div>
         </>
@@ -655,16 +786,30 @@ function TableauPile({
   selection,
   onCardClick,
   onDoubleClick,
+  onCardDragStart,
+  onDragEnd,
+  onDragOver,
+  onDrop,
+  isDropTarget,
 }: {
   pile: Card[];
   index: number;
   selection: Selection;
   onCardClick: (index: number, cardIndex: number) => void;
   onDoubleClick: (index: number) => void;
+  onCardDragStart: (cardIndex: number, e: DragEvent<HTMLButtonElement>) => void;
+  onDragEnd: () => void;
+  onDragOver: (e: DragEvent<HTMLDivElement>) => void;
+  onDrop: (e: DragEvent<HTMLDivElement>) => void;
+  isDropTarget: boolean;
 }) {
   const empty = pile.length === 0;
   return (
-    <div className="flex flex-col items-stretch">
+    <div
+      className={`flex flex-col items-stretch rounded-md ${isDropTarget ? "ring-2 ring-gold" : ""}`}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+    >
       {pile.map((card, i) => {
         const isSelected =
           selection?.type === "tableau" && selection.index === index && selection.cardIndex === i;
@@ -680,6 +825,9 @@ function TableauPile({
               selected={isSelected}
               onClick={() => onCardClick(index, i)}
               onDoubleClick={() => onDoubleClick(index)}
+              draggable
+              onDragStart={(e) => onCardDragStart(i, e)}
+              onDragEnd={onDragEnd}
             />
           </div>
         );

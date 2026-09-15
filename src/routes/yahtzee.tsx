@@ -102,9 +102,9 @@ const freshState = (): State => ({
 const note = (log: LogEntry[], entry: LogEntry) => [entry, ...log].slice(0, 40);
 const flip = (side: Seat): Seat => (side === "human" ? "cpu" : "human");
 
-// Truncate a long nickname for the narrow scorecard column: over 7 characters
-// shows the first four characters followed by three dots.
-const shortName = (name: string) => (name.length > 7 ? `${name.slice(0, 4)}...` : name);
+// Truncate a long nickname for the narrow scorecard column: over 4 characters
+// shows the first three characters followed by three dots.
+const shortName = (name: string) => (name.length > 4 ? `${name.slice(0, 3)}...` : name);
 
 // Ordinal suffix for Ada's throw announcements ("2nd throw", "3rd throw").
 const ordinal = (n: number) => (n === 1 ? "1st" : n === 2 ? "2nd" : "3rd");
@@ -758,7 +758,7 @@ function YahtzeeTable() {
             <Row key={category} category={category} />
           ))}
           <Totals
-            label="Total score"
+            label="Total"
             mine={grandTotal(myCard)}
             theirs={grandTotal(theirCard)}
           />
@@ -785,8 +785,8 @@ function YahtzeeTable() {
       }}
       onNewGame={reset}
       middle={scorecard}
-      containerClassName="px-3 sm:px-6"
-      boxClassName="pt-2.5 pl-3 sm:pt-4 sm:pl-8"
+      containerClassName="px-1.5 sm:px-3"
+      boxClassName="pt-2.5 pl-1.5 pr-[5px] sm:pt-4 sm:pl-4 sm:pr-2"
     >
       <GameOverDialog
         open={state.phase === "over" && !viewingScorecard}
@@ -798,6 +798,7 @@ function YahtzeeTable() {
         playerAvatar={playerAvatar}
         onPlayAgain={reset}
         playAgainClassName="scale-90"
+        playAgainLabel="Rematch"
         footerExtra={
           <>
             <Button
@@ -822,7 +823,7 @@ function YahtzeeTable() {
           </div>
           {state.phase === "over" && (
             <Button variant="parlor" onClick={reset}>
-              Play again
+              Rematch
             </Button>
           )}
         </section>
@@ -837,7 +838,7 @@ function YahtzeeTable() {
                   <p className="mt-1 font-display text-xs font-bold">Highest roll starts game</p>
                   <div className="mt-2 flex items-center justify-center gap-8">
                     <div className="flex flex-col items-center gap-2">
-                      <p className="font-display">{playerName}</p>
+                      <PlayerAvatar avatar={playerAvatar} onSelect={setPlayerAvatar} />
                       {state.rolloff.human !== null && (
                         <DieFace
                           face={state.rolloff.human}
@@ -847,7 +848,13 @@ function YahtzeeTable() {
                     </div>
                     <p className="font-display text-2xl text-gold">vs</p>
                     <div className="flex flex-col items-center gap-2">
-                      <p className="font-display">{opponentName}</p>
+                      <img
+                        src={opponentAvatar ?? ADA_AVATAR}
+                        alt={`${opponentName}'s avatar`}
+                        width={64}
+                        height={64}
+                        className="size-8 rounded-full border-2 border-gold/40 object-cover"
+                      />
                       {state.rolloff.cpu !== null && (
                         <DieFace
                           face={state.rolloff.cpu}
@@ -856,14 +863,9 @@ function YahtzeeTable() {
                       )}
                     </div>
                   </div>
-                  {state.rolloff.human !== null && state.rolloff.cpu !== null &&
-                    (rolloffWinner === null ? (
-                      <p className="mt-2 text-sm text-ivory/55">Tie at {state.rolloff.human} — roll again.</p>
-                    ) : (
-                      <p className="mt-2 text-sm text-ivory/55">
-                        {rolloffWinner === "human" ? "You go first!" : `${opponentName} goes first!`}
-                      </p>
-                    ))}
+                  {state.rolloff.human !== null && state.rolloff.cpu !== null && rolloffWinner === null && (
+                    <p className="mt-2 text-sm text-ivory/55">Tie at {state.rolloff.human} — roll again.</p>
+                  )}
                 </div>
               ) : centreDice.length > 0 ? (
                 <div className="flex flex-wrap justify-center gap-3">
