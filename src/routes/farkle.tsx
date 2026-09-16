@@ -184,7 +184,15 @@ function FarkleTable() {
   } = useMatch<State>(matchId, Boolean(state.winner));
   const stateRef = useRef(state);
   stateRef.current = state;
-  useRecordMatchResult(match, isHost, state.winner, matchId ? RECONNECT_SECONDS * 1000 : 0);
+  // While a rematch is being negotiated the match row must stay open: treat the
+  // game as unfinished so the delayed "completed" write doesn't fire and bounce
+  // both players back to the game room mid-rematch.
+  useRecordMatchResult(
+    match,
+    isHost,
+    state.rematch ? null : state.winner,
+    matchId ? RECONNECT_SECONDS * 1000 : 0,
+  );
   const [avatarMessage, setAvatarMessage] = useState<string | null>(null);
   const messageTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const showAvatarMessage = (text: string) => {

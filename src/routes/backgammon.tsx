@@ -197,7 +197,15 @@ function BackgammonTable() {
   const [viewingBoard, setViewingBoard] = useState(false);
   const stateRef = useRef(state);
   stateRef.current = state;
-  useRecordMatchResult(match, isHost, state.winner, matchId ? RECONNECT_SECONDS * 1000 : 0);
+  // While a rematch is being negotiated the match row must stay open: treat the
+  // game as unfinished so the delayed "completed" write doesn't fire and bounce
+  // both players back to the game room mid-rematch.
+  useRecordMatchResult(
+    match,
+    isHost,
+    state.rematch ? null : state.winner,
+    matchId ? RECONNECT_SECONDS * 1000 : 0,
+  );
   // Which player is currently showing a "PASS" bubble (no legal move available).
   const [passBubble, setPassBubble] = useState<Seat | null>(null);
   const passTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);

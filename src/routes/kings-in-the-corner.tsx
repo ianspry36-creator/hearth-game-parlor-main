@@ -1,5 +1,5 @@
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -42,7 +42,7 @@ export const Route = createFileRoute("/kings-in-the-corner")({
       {
         name: "description",
         content:
-          "Kings in the Corner solitaire in the parlour: settle the twelve face cards into their reserved slots and pair off every numbered card that sums to ten.",
+          "Kings in the Corner solitaire in the parlour: settle the twelve face cards into their reserved slots to win the hand.",
       },
       { property: "og:title", content: "Play Kings in the Corner — Cards and Games" },
       {
@@ -73,6 +73,10 @@ const BEST_TIME_KEY = "kings-in-the-corner-best-time";
 
 type Best = { moves: number; time: number };
 
+type DragSource =
+  | { type: "draw" }
+  | { type: "board"; pos: Position };
+
 function KingsInTheCornerTable() {
   const navigate = useNavigate();
   const game = getGame("kings-in-the-corner");
@@ -80,7 +84,11 @@ function KingsInTheCornerTable() {
   const [history, setHistory] = useState<GameState[]>([]);
   const [selection, setSelection] = useState<Position | null>(null);
   const [confirming, setConfirming] = useState<"new" | "home" | null>(null);
+  const [viewingBoard, setViewingBoard] = useState(false);
+  const [undoCount, setUndoCount] = useState(0);
   const { recordResult } = useSolitaireStats(game.id);
+  const stateRef = useRef(state);
+  stateRef.current = state;
   const prevWonRef = useRef(false);
   useEffect(() => {
     if (state.won && !prevWonRef.current) recordResult("win");
@@ -105,6 +113,7 @@ function KingsInTheCornerTable() {
     setState(freshGame());
     setHistory([]);
     setSelection(null);
+    setUndoCount(0);
     setFinishedElapsed(null);
     setElapsed(0);
     startRef.current = Date.now();
@@ -161,6 +170,8 @@ function KingsInTheCornerTable() {
     setState(freshGame());
     setHistory([]);
     setSelection(null);
+    setViewingBoard(false);
+    setUndoCount(0);
     setFinishedElapsed(null);
     setElapsed(0);
     startRef.current = Date.now();
@@ -172,11 +183,17 @@ function KingsInTheCornerTable() {
   const confirmHome = () => (gameInProgress ? setConfirming("home") : void navigate({ to: "/" }));
 
   const undo = () => {
-    if (history.length === 0 || state.won || state.lost) return;
+    if (history.length === 0 || state.won) return;
+    // Once the board is full and the game is lost, the player may still undo
+    // after dismissing the "stuck" overlay with Keep Playing.
+    if (state.lost && !viewingBoard) return;
     const prev = history[history.length - 1]!;
     setState(prev);
     setHistory(history.slice(0, -1));
     setSelection(null);
+    setViewingBoard(false);
+    setFinishedElapsed(null);
+    setUndoCount((c) => c + 1);
   };
 
   const handleRemoval = (pos: Position, card: Card) => {
@@ -207,7 +224,73 @@ function KingsInTheCornerTable() {
     }
   };
 
+  // --- Drag-and-drop (pointer-based so it also works with touch on mobile) ---
+  const dragRef = useRef<{
+    source: DragSource;
+    card: Card;
+    startX: number;
+    startY: number;
+    moved: boolean;
+  } | null>(null);
+  const suppressClickRef = useRef(false);
+  const [dragGhost, setDragGhost] = useState<{ card: Card; x: number; y: number } | null>(null);
+
+  const beginDrag = (source: DragSource, card: Card) => (e: ReactPointerEvent) => {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    dragRef.current = { source, card, startX: e.clientX, startY: e.clientY, moved: false };
+    setDragGhost({ card, x: e.clientX, y: e.clientY });
+  };
+
+  const moveDrag = (e: ReactPointerEvent) => {
+    const drag = dragRef.current;
+    if (!drag) return;
+    if (!drag.moved && Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY) > 8)
+      drag.moved = true;
+    setDragGhost({ card: drag.card, x: e.clientX, y: e.clientY });
+  };
+
+  const endDrag = (e: ReactPointerEvent) => {
+    const drag = dragRef.current;
+    if (!drag) return;
+    dragRef.current = null;
+    setDragGhost(null);
+    if (!drag.moved) return; // it was a tap — let onClick handle it
+    suppressClickRef.current = true;
+    setTimeout(() => {
+      suppressClickRef.current = false;
+    }, 0);
+
+    const target = document.elementFromPoint(e.clientX, e.clientY);
+    const drop = target?.closest("[data-drop]");
+    if (!drop) return;
+    const row = Number(drop.getAttribute("data-row"));
+    const col = Number(drop.getAttribute("data-col"));
+    if (Number.isNaN(row) || Number.isNaN(col)) return;
+    const pos = { row, col };
+    const s = stateRef.current;
+
+    if (drag.source.type === "draw") {
+      // Drop the face-up draw card onto an empty slot.
+      const placed = placeCard(s, pos);
+      if (placed !== s) apply(placed);
+      return;
+    }
+
+    // Dragging one numbered card onto another: pair them off if they sum to ten.
+    const from = s.board[drag.source.pos.row]?.[drag.source.pos.col];
+    const to = s.board[row]?.[col];
+    if (from && to && pairSumsToTen(from, to)) {
+      const removed = removeCards(s, drag.source.pos, pos);
+      if (removed !== s) apply(removed);
+    }
+  };
+
   const clickSlot = (pos: Position) => {
+    if (suppressClickRef.current) {
+      suppressClickRef.current = false;
+      return;
+    }
     const card = state.board[pos.row]?.[pos.col];
     if (card) {
       handleRemoval(pos, card);
@@ -222,7 +305,7 @@ function KingsInTheCornerTable() {
 
   return (
     <div className="min-h-screen bg-brand text-cream">
-      <div className="mx-auto max-w-4xl px-6 py-8">
+      <div className="mx-auto max-w-4xl px-1.5 py-8 sm:px-6">
         <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <Link
@@ -254,12 +337,11 @@ function KingsInTheCornerTable() {
           <Stat label="Time" value={formatElapsed(shownElapsed)} />
           <Stat label="Best moves" value={best.moves > 0 ? String(best.moves) : "—"} />
           <Stat label="Best time" value={best.time > 0 ? formatElapsed(best.time) : "—"} />
-          <Stat label="Stock" value={String(state.stock.length)} />
         </div>
 
         <div className="mt-8 grid items-start gap-6 lg:grid-cols-[1fr_260px]">
           <div className="relative rounded-2xl border border-gold/15 bg-surface/40 p-5 sm:p-8">
-            <div className="mb-6 flex items-center justify-center gap-5">
+            <div className="mb-6 flex items-start justify-center gap-5">
               <div className="relative">
                 {state.stock.length > 0 ? <CardBack /> : <EmptySlot />}
                 <span className="absolute -bottom-4 left-1/2 -translate-x-1/2 text-[10px] text-ivory/50">
@@ -267,9 +349,26 @@ function KingsInTheCornerTable() {
                 </span>
               </div>
               <div className="flex flex-col items-center gap-1">
-                {state.draw ? <CardFace card={state.draw} /> : <EmptySlot />}
+                {state.draw ? (
+                  <CardFace
+                    card={state.draw}
+                    onPointerDown={beginDrag({ type: "draw" }, state.draw)}
+                    onPointerMove={moveDrag}
+                    onPointerUp={endDrag}
+                  />
+                ) : (
+                  <EmptySlot />
+                )}
                 <span className="text-[10px] uppercase tracking-[0.18em] text-ivory/45">Draw</span>
               </div>
+              <Button
+                variant="parlorGhost"
+                className="self-center"
+                onClick={undo}
+                disabled={history.length === 0 || state.won || (state.lost && !viewingBoard)}
+              >
+                Undo
+              </Button>
             </div>
 
             <div className="mx-auto grid w-fit grid-cols-4 gap-1 sm:gap-2">
@@ -282,6 +381,7 @@ function KingsInTheCornerTable() {
                   return (
                     <SlotCell
                       key={key}
+                      pos={pos}
                       card={card}
                       kind={kind}
                       selected={
@@ -289,6 +389,13 @@ function KingsInTheCornerTable() {
                       }
                       isLegal={legalSet.has(key)}
                       onClick={() => clickSlot(pos)}
+                      {...(card && card.rank < 10
+                        ? {
+                            onPointerDown: beginDrag({ type: "board", pos }, card),
+                            onPointerMove: moveDrag,
+                            onPointerUp: endDrag,
+                          }
+                        : {})}
                     />
                   );
                 }),
@@ -296,39 +403,63 @@ function KingsInTheCornerTable() {
             </div>
 
             <p className="mt-6 text-center text-xs text-ivory/50">
-              Place the drawn card, then pair off cards whose ranks add up to ten. Click a ten to
-              clear it alone.
+              Drag the drawn card onto an empty slot, or drag one card onto another to pair off ten.
+              Tap a ten to clear it alone.
             </p>
 
-            {state.won && (
-              <div className="absolute inset-0 z-10 grid place-items-center rounded-2xl bg-brand/80 p-6 backdrop-blur-sm">
+            {state.won && !viewingBoard && (
+              <div className="absolute inset-x-0 inset-y-[15%] z-10 grid place-items-center rounded-2xl bg-brand/80 p-6 backdrop-blur-sm">
                 <div className="space-y-4 text-center">
                   <div className="text-5xl">🎉</div>
                   <h2 className="font-display text-3xl font-bold text-gold">
-                    You cleared the table!
+                    You won!
                   </h2>
                   <p className="mx-auto max-w-sm text-ivory/70">
-                    All twelve face cards are home and every numbered card is paired off in{" "}
-                    {state.moves} moves.
+                    All twelve face cards are home in{" "}
+                    {state.moves} {state.moves === 1 ? "move" : "moves"} using {undoCount}{" "}
+                    {undoCount === 1 ? "undo" : "undos"}.
                   </p>
-                  <Button variant="parlor" onClick={reset}>
-                    Deal again
-                  </Button>
+                  <div className="flex flex-wrap items-center justify-center gap-2">
+                    <Button variant="parlor" onClick={reset}>
+                      Deal again
+                    </Button>
+                    <Button variant="parlorOutline" onClick={() => setViewingBoard(true)}>
+                      View Board
+                    </Button>
+                    <Button variant="parlorOutline" onClick={() => void navigate({ to: "/" })}>
+                      Return to game board
+                    </Button>
+                  </div>
                 </div>
               </div>
             )}
 
-            {state.lost && (
-              <div className="absolute inset-0 z-10 grid place-items-center rounded-2xl bg-brand/80 p-6 backdrop-blur-sm">
-                <div className="space-y-4 text-center">
+            {state.lost && !viewingBoard && (
+              <div className="absolute inset-x-0 inset-y-[15%] z-10 grid place-items-center rounded-2xl bg-brand/80 p-3 backdrop-blur-sm">
+                <div className="space-y-2 text-center">
                   <div className="text-5xl">🃏</div>
                   <h2 className="font-display text-3xl font-bold text-gold">You're stuck</h2>
                   <p className="mx-auto max-w-sm text-ivory/70">
                     {state.lostReason ?? "There is no legal move left."}
                   </p>
-                  <Button variant="parlor" onClick={reset}>
-                    Deal again
-                  </Button>
+                  <p className="mx-auto max-w-sm text-ivory/70">
+                    You can keep playing and use Undo function.
+                  </p>
+                  <p className="mx-auto max-w-sm text-ivory/70">
+                    You used {52 - state.stock.length} cards and made {state.moves}{" "}
+                    {state.moves === 1 ? "move" : "moves"}.
+                  </p>
+                  <div className="flex flex-wrap items-center justify-center gap-2">
+                    <Button variant="parlor" onClick={reset}>
+                      Deal again
+                    </Button>
+                    <Button variant="parlorOutline" onClick={() => setViewingBoard(true)}>
+                      Keep Playing
+                    </Button>
+                    <Button variant="parlorOutline" onClick={() => void navigate({ to: "/" })}>
+                      Return to game board
+                    </Button>
+                  </div>
                 </div>
               </div>
             )}
@@ -351,14 +482,6 @@ function KingsInTheCornerTable() {
                     </Button>
                   }
                 />
-                <Button
-                  variant="parlorGhost"
-                  className="w-full"
-                  onClick={undo}
-                  disabled={history.length === 0 || state.won || state.lost}
-                >
-                  Undo
-                </Button>
                 <StatisticsDialog
                   game={game}
                   trigger={
@@ -406,6 +529,15 @@ function KingsInTheCornerTable() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {dragGhost && (
+        <div
+          className="pointer-events-none fixed z-50"
+          style={{ left: dragGhost.x, top: dragGhost.y, transform: "translate(-50%, -50%)" }}
+        >
+          <CardFace card={dragGhost.card} />
+        </div>
+      )}
     </div>
   );
 }
@@ -427,22 +559,33 @@ const SLOT_MARK: Record<SlotKind, string> = {
 };
 
 function SlotCell({
+  pos,
   card,
   kind,
   selected,
   isLegal,
   onClick,
+  onPointerDown,
+  onPointerMove,
+  onPointerUp,
 }: {
+  pos: Position;
   card: Card | null;
   kind: SlotKind;
   selected: boolean;
   isLegal: boolean;
   onClick: () => void;
+  onPointerDown?: (e: ReactPointerEvent) => void;
+  onPointerMove?: (e: ReactPointerEvent) => void;
+  onPointerUp?: (e: ReactPointerEvent) => void;
 }) {
   if (!card) {
     return (
       <button
         type="button"
+        data-drop="slot"
+        data-row={pos.row}
+        data-col={pos.col}
         onClick={onClick}
         aria-label={`Empty ${kind} slot`}
         className={`grid h-[var(--kic-card-h)] w-[var(--kic-card-w)] shrink-0 place-items-center rounded-lg border text-sm font-bold transition-colors sm:text-lg ${
@@ -462,38 +605,57 @@ function SlotCell({
   return (
     <button
       type="button"
+      data-drop="slot"
+      data-row={pos.row}
+      data-col={pos.col}
       onClick={onClick}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
       aria-label={cardLabel(card)}
-      className={`relative block h-[var(--kic-card-h)] w-[var(--kic-card-w)] shrink-0 select-none rounded-lg border border-black/10 bg-white text-left shadow-md shadow-black/30 transition-transform ${
+      className={`relative block h-[var(--kic-card-h)] w-[var(--kic-card-w)] shrink-0 touch-none select-none rounded-lg border border-black/10 bg-white text-left shadow-md shadow-black/30 transition-transform ${
         red ? "text-[#c0392b]" : "text-brand"
       } ${selected ? "-translate-y-1 ring-2 ring-gold" : ""}`}
     >
-      <span className="absolute left-0.5 top-0.5 flex flex-col items-center font-display text-[9px] font-bold leading-none sm:left-1 sm:top-1 sm:text-sm">
+      <span className="absolute left-0.5 top-0.5 flex flex-col items-center font-display text-[18px] font-bold leading-none sm:left-1 sm:top-1 sm:text-sm">
         <span>{RANK_LABEL[card.rank]}</span>
-        <span className="mt-0.5 text-[8px] sm:text-xs">{SUIT_SYMBOL[card.suit]}</span>
+        <span className="mt-0.5 text-[16px] sm:text-xs">{SUIT_SYMBOL[card.suit]}</span>
       </span>
-      <span className="absolute inset-0 grid place-items-center text-sm sm:text-3xl">
+      <span className="absolute inset-0 grid place-items-center text-[28px] sm:text-3xl">
         {isFaceCard ? RANK_LABEL[card.rank] : SUIT_SYMBOL[card.suit]}
       </span>
     </button>
   );
 }
 
-function CardFace({ card }: { card: Card }) {
+function CardFace({
+  card,
+  onPointerDown,
+  onPointerMove,
+  onPointerUp,
+}: {
+  card: Card;
+  onPointerDown?: (e: ReactPointerEvent) => void;
+  onPointerMove?: (e: ReactPointerEvent) => void;
+  onPointerUp?: (e: ReactPointerEvent) => void;
+}) {
   const red = isRed(card.suit);
   const isFaceCard = card.rank === 1 || card.rank > 10;
   return (
     <div
       aria-label={cardLabel(card)}
-      className={`relative block h-[var(--kic-card-h)] w-[var(--kic-card-w)] select-none rounded-lg border border-black/10 bg-white text-left shadow-md shadow-black/30 ${
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      className={`relative block h-[var(--kic-card-h)] w-[var(--kic-card-w)] touch-none select-none rounded-lg border border-black/10 bg-white text-left shadow-md shadow-black/30 ${
         red ? "text-[#c0392b]" : "text-brand"
       }`}
     >
-      <span className="absolute left-0.5 top-0.5 flex flex-col items-center font-display text-[9px] font-bold leading-none sm:left-1 sm:top-1 sm:text-sm">
+      <span className="absolute left-0.5 top-0.5 flex flex-col items-center font-display text-[18px] font-bold leading-none sm:left-1 sm:top-1 sm:text-sm">
         <span>{RANK_LABEL[card.rank]}</span>
-        <span className="mt-0.5 text-[8px] sm:text-xs">{SUIT_SYMBOL[card.suit]}</span>
+        <span className="mt-0.5 text-[16px] sm:text-xs">{SUIT_SYMBOL[card.suit]}</span>
       </span>
-      <span className="absolute inset-0 grid place-items-center text-sm sm:text-3xl">
+      <span className="absolute inset-0 grid place-items-center text-[28px] sm:text-3xl">
         {isFaceCard ? RANK_LABEL[card.rank] : SUIT_SYMBOL[card.suit]}
       </span>
     </div>

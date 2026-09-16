@@ -317,12 +317,12 @@ export const GAMES: GameMeta[] = [
     id: "kings-in-the-corner",
     name: "Kings in the Corner",
     initial: "K",
-    tagline: "Settle twelve face cards into their slots and pair off every number that sums to ten.",
+    tagline: "Settle all twelve face cards into their reserved slots to win the hand.",
     path: "/kings-in-the-corner",
     rules: [
       {
         heading: "The object",
-        body: "Place all twelve face cards in the slots reserved for them, then clear every other card from the table by pairing numbers that add up to ten.",
+        body: "Place all twelve face cards — the four kings, four queens and four jacks — in the slots reserved for them. Numbered cards only keep the game moving: pair numbers that add up to ten to clear space and keep drawing until every face card is placed.",
       },
       {
         heading: "The deal",
@@ -334,7 +334,7 @@ export const GAMES: GameMeta[] = [
       },
       {
         heading: "Removing cards",
-        body: "Select two cards whose ranks add up to ten — an ace and a nine, a two and an eight, a three and a seven, a four and a six, or a pair of fives — to clear them both. A ten is cleared on its own.",
+        body: "Once the board is full, select two cards whose ranks add up to ten — an ace and a nine, a two and an eight, a three and a seven, a four and a six, or a pair of fives — to clear them both. A ten is cleared on its own. You cannot remove cards until every slot is filled, and once the board fills up you must clear every ten and every pair that adds up to ten before the next card is drawn.",
       },
       {
         heading: "Losing",
@@ -342,7 +342,7 @@ export const GAMES: GameMeta[] = [
       },
       {
         heading: "Winning",
-        body: "When every face card sits in its proper slot and the stock is empty, the hand is won.",
+        body: "When every jack, queen and king sits in its proper slot, the hand is won.",
       },
     ],
   },

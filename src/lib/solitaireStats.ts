@@ -50,5 +50,18 @@ export function useSolitaireStats(game: GameId) {
     [game],
   );
 
-  return { won: stats.won, lost: stats.lost, played: stats.won + stats.lost, recordResult };
+  const reset = useCallback(() => {
+    clearSolitaireStats(game);
+    setStats({ won: 0, lost: 0 });
+  }, [game]);
+
+  return { won: stats.won, lost: stats.lost, played: stats.won + stats.lost, recordResult, reset };
+}
+
+/** Remove all locally stored single-player statistics for a game (record and best scores). */
+export function clearSolitaireStats(game: GameId) {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(key(game));
+  window.localStorage.removeItem(`${game}-best-moves`);
+  window.localStorage.removeItem(`${game}-best-time`);
 }

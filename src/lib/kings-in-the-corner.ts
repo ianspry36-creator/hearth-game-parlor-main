@@ -4,7 +4,8 @@ import { freshDeck, RANK_LABEL, type Card } from "./cribbage";
  * Kings in the Corner is played on a four-by-four board. The four corner
  * slots take kings, the two middle slots of the top and bottom rows take
  * queens, the two middle slots of the left and right columns take jacks,
- * and the remaining four centre slots take any numbered card.
+ * and the remaining four centre slots are free for numbered cards, which
+ * may also be set on any other empty slot until they are paired off.
  */
 export const ROWS = 4;
 export const COLS = 4;
@@ -75,6 +76,11 @@ export function pairSumsToTen(a: Card, b: Card): boolean {
   return a.rank < 10 && b.rank < 10 && a.rank + b.rank === 10;
 }
 
+/** Whether every slot on the board currently holds a card. */
+export function isBoardFull(board: Board): boolean {
+  return board.every((row) => row.every((slot) => slot !== null));
+}
+
 /** Whether the board still holds a removable ten or a removable pair. */
 export function hasAnyRemoval(board: Board): boolean {
   const numbered: Card[] = [];
@@ -94,9 +100,10 @@ export function hasAnyRemoval(board: Board): boolean {
 }
 
 /**
- * Won when the stock is gone and the board holds exactly the twelve face
- * cards in their reserved slots — the four centre slots empty, every
- * numbered card already paired off and removed.
+ * Won once all twelve face cards sit in their reserved slots. Numbered
+ * cards — whether still in the centre or the stock — do not matter: when
+ * every jack, queen and king is placed, no numbered card can occupy a face
+ * slot, so the hand is simply won.
  */
 export function isWon(board: Board): boolean {
   for (let r = 0; r < ROWS; r += 1) {
@@ -109,8 +116,6 @@ export function isWon(board: Board): boolean {
         if (!card || card.rank !== 12) return false;
       } else if (kind === "jack") {
         if (!card || card.rank !== 11) return false;
-      } else if (card !== null) {
-        return false;
       }
     }
   }
@@ -122,9 +127,16 @@ function recompute(state: GameState): GameState {
   if (state.won || state.lost) return state;
   const { board, draw } = state;
 
-  if (draw === null && isWon(board)) return { ...state, won: true };
+  if (isWon(board)) return { ...state, won: true };
 
   const canPlaceDraw = draw !== null && legalSlots(board, draw).length > 0;
+
+  // Drawing a face card whose slots are all taken is an immediate loss, even
+  // if removable pairs still sit on the board.
+  if (draw !== null && draw.rank >= 11 && !canPlaceDraw) {
+    return { ...state, lost: true, lostReason: stuckReason(state) };
+  }
+
   if (!canPlaceDraw && !hasAnyRemoval(board)) {
     return { ...state, lost: true, lostReason: stuckReason(state) };
   }
@@ -139,7 +151,11 @@ function stuckReason(state: GameState): string {
   return "The board is full and no two cards add up to ten.";
 }
 
-/** Place the face-up card into `pos`, then draw the next card from the stock. */
+/**
+ * Place the face-up card into `pos`, then draw the next card from the stock.
+ * Filling the board pauses the deal: every ten and ten-pair must be cleared
+ * before the next card is withdrawn.
+ */
 export function placeCard(state: GameState, pos: Position): GameState {
   if (state.won || state.lost) return state;
   const card = state.draw;
@@ -149,7 +165,7 @@ export function placeCard(state: GameState, pos: Position): GameState {
   const board = state.board.map((row) => row.slice());
   board[pos.row]![pos.col] = card;
   const stock = state.stock.slice();
-  const draw = stock.pop() ?? null;
+  const draw = isBoardFull(board) ? null : (stock.pop() ?? null);
   return recompute({ ...state, board, stock, draw, moves: state.moves + 1 });
 }
 
@@ -159,6 +175,13 @@ export function placeCard(state: GameState, pos: Position): GameState {
  */
 export function removeCards(state: GameState, a: Position, b: Position | null): GameState {
   if (state.won || state.lost) return state;
+  // Cards may only be removed when the board is full — that is, when the
+  // current draw card has nowhere to go. This keeps removal out of normal play
+  // (you must keep placing) while still allowing it when a full board, an
+  // unplaceable face card, or an empty stock leaves removal as the only move.
+  if (state.draw !== null && legalSlots(state.board, state.draw).length > 0) {
+    return state;
+  }
   const board = state.board.map((row) => row.slice());
   const cardA = board[a.row]?.[a.col];
   if (!cardA || cardA.rank > 10) return state;
@@ -173,5 +196,10 @@ export function removeCards(state: GameState, a: Position, b: Position | null): 
     board[b.row]![b.col] = null;
   }
 
-  return recompute({ ...state, board, moves: state.moves + 1 });
+  // Keep clearing until no ten or ten-pair remains, then withdraw the next
+  // card. Only the clearing phase (draw held back as null) resumes drawing;
+  // an unplaceable face card in hand is never discarded.
+  const stock = state.stock.slice();
+  const draw = state.draw === null && !hasAnyRemoval(board) ? (stock.pop() ?? null) : state.draw;
+  return recompute({ ...state, board, stock, draw, moves: state.moves + 1 });
 }

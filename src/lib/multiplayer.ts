@@ -372,6 +372,11 @@ export function useMatch<T>(matchId: string | undefined, gameOver = false) {
   useEffect(() => {
     if (!gameOver) return;
     expiredRef.current = false;
+    // A rematch starts a fresh game on the same match row. Forget that we ever
+    // saw the opponent so the presence channel that is re-subscribed once the
+    // game resumes doesn't treat the brief window before the opponent re-tracks
+    // as a fresh "player disconnected" episode.
+    seenOpponentRef.current = false;
     setOpponentDisconnected(false);
     setDisconnectExpired(false);
     setDisconnectSecondsLeft(RECONNECT_SECONDS);
