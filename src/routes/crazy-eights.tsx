@@ -771,8 +771,8 @@ function CrazyEightsTable() {
   // Overlap grows as cards are added and shrinks as cards leave. Cards that fit
   // keep a few pixels between them (never touching); otherwise they overlap to
   // fill the row. `CARD_W - 1` keeps at least 1px of every card visible.
-  const CARD_W = 48;
-  const MIN_GAP = 4;
+  const CARD_W = 60;
+  const MIN_GAP = 5;
   const handOverlap = (() => {
     const n = myHand.length;
     if (n <= 1 || handWidth <= 0) return 0;
@@ -902,7 +902,7 @@ function CrazyEightsTable() {
                       className="pointer-events-none absolute inset-0 z-10 grid place-items-center"
                     >
                       <span
-                        className={`grid size-7 place-items-center rounded-full border border-gold/60 bg-cream/95 font-display text-base shadow-lg shadow-black/40 ${
+                        className={`grid size-[35px] place-items-center rounded-full border border-gold/60 bg-cream/95 font-display text-xl shadow-lg shadow-black/40 ${
                           isRed(state.wildSuit) ? "text-destructive" : "text-brand"
                         }`}
                       >
@@ -919,7 +919,7 @@ function CrazyEightsTable() {
                 aria-label="Name a suit"
                 className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-1.5 rounded-2xl bg-brand/95 p-3"
               >
-                <p className="text-[10px] uppercase tracking-[0.2em] text-gold">Name a suit</p>
+                <p className="text-[12.5px] uppercase tracking-[0.2em] text-gold">Name a suit</p>
                 <div className="flex gap-1.5">
                   {SUITS.map((suit) => (
                     <button
@@ -927,7 +927,7 @@ function CrazyEightsTable() {
                       type="button"
                       onClick={() => pickSuit(suit)}
                       aria-label={SUIT_NAME[suit]}
-                      className={`grid size-7 place-items-center rounded-md border border-gold/40 bg-cream font-display text-base transition-transform hover:-translate-y-0.5 hover:border-gold ${
+                      className={`grid size-[35px] place-items-center rounded-md border border-gold/40 bg-cream font-display text-xl transition-transform hover:-translate-y-0.5 hover:border-gold ${
                         isRed(suit) ? "text-destructive" : "text-brand"
                       }`}
                     >
@@ -963,8 +963,8 @@ function CrazyEightsTable() {
         {/* Your hand */}
         <section>
           <div className="mb-2 flex items-center justify-center gap-3">
-            <PlayerAvatar avatar={playerAvatar} onSelect={setPlayerAvatar} />
-            <p className="text-[10px] uppercase tracking-[0.22em] text-ivory/45">
+            <PlayerAvatar avatar={playerAvatar} onSelect={setPlayerAvatar} size="size-10" />
+            <p className="text-[12.5px] uppercase tracking-[0.22em] text-ivory/45">
               {seatName("you")}
             </p>
           </div>
@@ -1070,7 +1070,7 @@ function OpponentSeat({
             alt=""
             aria-hidden="true"
             className={`rounded-full border object-cover ${
-              vertical ? "size-12" : "size-10"
+              vertical ? "size-15" : "size-[50px]"
             } ${active ? "border-gold ring-2 ring-gold/40" : "border-gold/40"}`}
           />
           {bubble && (
@@ -1086,14 +1086,14 @@ function OpponentSeat({
             </div>
           )}
         </div>
-        <p className="text-[10px] uppercase tracking-[0.22em] text-ivory/45">
+        <p className="text-[12.5px] uppercase tracking-[0.22em] text-ivory/45">
           {name}
         </p>
       </div>
-      {/* Reserve vertical space for up to 10 stacked cards (h-16 minus -mt-11
-          overlap = 20px each, so 64 + 9*20 = 244px) so the side seats don't
+      {/* Reserve vertical space for up to 10 stacked cards (h-20 minus -mt-[55px]
+          overlap = 25px each, so 80 + 9*25 = 305px) so the side seats don't
           make the screen grow deeper card-by-card while dealing. */}
-      <div className={vertical ? "flex min-h-[244px] flex-col items-center" : "flex"}>
+      <div className={vertical ? "flex min-h-[305px] flex-col items-center" : "flex"}>
         {cards.map((card, index) => {
           const arrived = !dealing || dealt > index * playerCount + seatIndex;
           if (!arrived) return null;
@@ -1104,7 +1104,7 @@ function OpponentSeat({
                 if (el) handEls.set(card.id, el);
                 else handEls.delete(card.id);
               }}
-              className={`${vertical ? "-mt-11 first:mt-0" : "-ml-6 first:ml-0"} ${
+              className={`${vertical ? "-mt-[55px] first:mt-0" : "-ml-[30px] first:ml-0"} ${
                 dealing ? "animate-deal-out" : ""
               }`}
             >
@@ -1159,7 +1159,7 @@ function FaceDownCard({
       aria-hidden="true"
       loading="lazy"
       className={`block rounded-lg object-cover shadow-md shadow-black/30 ${
-        small ? "h-16 w-11" : "h-24 w-16"
+        small ? "h-20 w-[55px]" : "h-[120px] w-20"
       } ${className}`}
     />
   );
@@ -1185,29 +1185,29 @@ function PlayingCard({
     <span
       className={`relative block overflow-hidden rounded-lg bg-white shadow-md shadow-black/30 ${
         highlighted ? "border-2 border-gold" : "border border-black/15"
-      } ${tiny ? "h-16 w-11" : small ? "h-[4.5rem] w-12" : "h-28 w-[4.75rem]"} ${
+      } ${tiny ? "h-20 w-[55px]" : small ? "h-[90px] w-15" : "h-[140px] w-[95px]"} ${
         red ? "text-destructive" : "text-brand"
       }`}
     >
       {/* Rank and suit, stacked in the top-left corner */}
       <span
         className={`absolute left-1.5 top-1 flex flex-col items-center font-display font-bold leading-none ${
-          small || tiny ? "text-base" : "text-2xl"
+          small || tiny ? "text-xl" : "text-3xl"
         }`}
       >
         <span>{rank}</span>
-        <span className={small || tiny ? "text-sm" : "text-xl"}>{suit}</span>
+        <span className={small || tiny ? "text-[17.5px]" : "text-[25px]"}>{suit}</span>
       </span>
 
       {/* Pip cluster in the lower body of the card */}
       <span
         aria-hidden
         className={`absolute bottom-1.5 right-1.5 flex w-[58%] flex-wrap-reverse justify-end gap-x-[1px] gap-y-[1px] leading-[0.85] ${
-          small || tiny ? "text-[7px]" : "text-[10px]"
+          small || tiny ? "text-[8.75px]" : "text-[12.5px]"
         }`}
       >
         {isFace ? (
-          <span className={`font-display font-bold ${small || tiny ? "text-lg" : "text-2xl"}`}>{rank}</span>
+          <span className={`font-display font-bold ${small || tiny ? "text-[22.5px]" : "text-3xl"}`}>{rank}</span>
         ) : (
           Array.from({ length: pips }, (_, index) => <span key={index}>{suit}</span>)
         )}

@@ -822,9 +822,6 @@ function FarkleTable() {
             </div>
           ) : (
             <div className="rounded-2xl border border-gold/25 bg-surface/60 p-6 shadow-2xl shadow-black/40">
-              <p className="mb-4 text-center text-[10px] uppercase tracking-[0.22em] text-ivory/45">
-                {state.rolled ? `${diceLeft} dice in hand` : "Six dice waiting"}
-              </p>
               <div className="flex flex-wrap justify-center gap-3">
                 {state.dice.map((die, i) => {
                   if (!state.rolled || die.set) {
@@ -855,7 +852,7 @@ function FarkleTable() {
         </div>
 
         {/* Player — bottom of the table */}
-        <div className="rounded-2xl border border-gold/15 bg-brand/50 p-4 sm:px-7 sm:py-[41px]">
+        <div className="rounded-2xl border border-gold/15 bg-brand/50 p-4 sm:px-7 sm:py-[49px]">
           <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-4">
               <PlayerAvatar

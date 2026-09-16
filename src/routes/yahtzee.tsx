@@ -291,7 +291,7 @@ function YahtzeeTable() {
     state.rolloff.human === null
       ? canRollOff
         ? "Roll for first turn"
-        : "Waiting…"
+        : "Rolling Dice"
       : state.rolloff.cpu === null
         ? "Rolling…"
         : "Roll again";
@@ -670,7 +670,7 @@ function YahtzeeTable() {
             </div>
           ) : (
             <p className="text-xs text-ivory/40">
-              {active ? "Dice you keep will sit here" : "Waiting"}
+              {active ? "Dice you keep will sit here" : state.phase === "rolloff" ? "Rolling Dice" : "Waiting"}
             </p>
           )}
         </div>

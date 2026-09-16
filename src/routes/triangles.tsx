@@ -484,7 +484,7 @@ function TrianglesTable() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      <div className="space-y-8">
+      <div>
         {/* Opponent — top of the table */}
         <section className="flex items-center gap-3 rounded-2xl border border-gold/15 bg-brand/50 px-1.5 py-4 sm:px-2.5">
           <img
@@ -503,7 +503,7 @@ function TrianglesTable() {
           <p className="font-display text-2xl font-bold text-player-teal">{theirs}</p>
         </section>
 
-        <section className="rounded-2xl border border-gold/25 bg-brand/70 px-1.5 py-4 shadow-2xl shadow-black/40 sm:px-2.5 sm:py-6">
+        <section className="mx-auto mt-4 w-[90%] rounded-2xl border border-gold/25 bg-brand/70 px-1.5 py-4 shadow-2xl shadow-black/40 sm:px-2.5 sm:py-6">
           <svg
             ref={svgRef}
             viewBox={`0 0 ${BOARD_WIDTH} ${BOARD_HEIGHT}`}
@@ -604,7 +604,7 @@ function TrianglesTable() {
         </section>
 
         {/* Player — bottom of the table */}
-        <section className="flex items-center gap-3 rounded-2xl border border-gold/15 bg-brand/50 px-1.5 py-4 sm:px-2.5">
+        <section className="mt-8 flex items-center gap-3 rounded-2xl border border-gold/15 bg-brand/50 px-1.5 py-4 sm:px-2.5">
           <PlayerAvatar avatar={playerAvatar} onSelect={setPlayerAvatar} size="size-14" />
           <div className="min-w-0 flex-1">
             <p className="font-display text-lg font-bold">{playerName}</p>
