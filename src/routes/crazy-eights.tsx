@@ -420,6 +420,14 @@ function CrazyEightsTable() {
     );
   }, [isRoom, roomId, roomLoading, liveRoom, navigate]);
 
+  // When the player navigates away from a live table, release their seat so a
+  // returning player isn't silently re-seated against the same live opponent.
+  useEffect(() => {
+    return () => {
+      if (roomId) void leaveRoom(roomId);
+    };
+  }, [roomId]);
+
   const top = state.pile[state.pile.length - 1]!;
   const myHand = state.hands.you ?? [];
   const myTurn = state.turn === "you" && state.phase === "play";
@@ -990,7 +998,7 @@ function CrazyEightsTable() {
                   style={index > 0 ? { marginLeft: -handOverlap } : undefined}
                   className={`relative transition-transform focus:z-20 focus:outline-none ${
                     dealing ? "animate-deal-in-player" : ""
-                  } ${chosen ? "z-20 -translate-y-4" : legal ? "hover:z-20 hover:-translate-y-2" : "opacity-50"}`}
+                  } ${chosen ? "z-20 -translate-y-4" : legal ? "hover:z-20 hover:-translate-y-2" : ""}`}
                 >
                   <PlayingCard card={card} small highlighted={chosen} />
                 </button>
