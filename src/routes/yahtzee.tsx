@@ -291,7 +291,7 @@ function YahtzeeTable() {
     state.rolloff.human === null
       ? canRollOff
         ? "Roll for first turn"
-        : "Rolling Dice"
+        : "Waiting…"
       : state.rolloff.cpu === null
         ? "Rolling…"
         : "Roll again";
@@ -621,6 +621,10 @@ function YahtzeeTable() {
   const centreDice = showDice ? indexes.filter((i) => !state.dice[i]!.held) : [];
   const keptDice = showDice ? indexes.filter((i) => state.dice[i]!.held) : [];
 
+  // The host opens the roll-off (in solo play the local player does), so that
+  // seat shows "Rolling Dice" while whoever rolls second is still waiting.
+  const rolloffFirst: Seat = isMulti && !isHost ? "cpu" : "human";
+
   const seatBox = (side: Seat) => {
     const mine = side === "human";
     const active = state.turn === side && state.phase === "play";
@@ -670,7 +674,11 @@ function YahtzeeTable() {
             </div>
           ) : (
             <p className="text-xs text-ivory/40">
-              {active ? "Dice you keep will sit here" : state.phase === "rolloff" ? "Rolling Dice" : "Waiting"}
+              {active
+                ? "Dice you keep will sit here"
+                : state.phase === "rolloff" && side === rolloffFirst
+                  ? "Rolling Dice"
+                  : "Waiting"}
             </p>
           )}
         </div>
