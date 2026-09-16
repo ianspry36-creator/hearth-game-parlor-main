@@ -433,7 +433,9 @@ function TrianglesTable() {
       onNewGame={reset}
       rail={null}
       containerClassName="px-2.5 sm:px-6"
-      boxClassName="px-2 sm:px-3"
+      // sm:pt-4 halves the space above the opponent box (p-5/sm:p-8 on the game
+      // box puts 32px there from the sm breakpoint on).
+      boxClassName="px-2 sm:px-3 sm:pt-4"
     >
       <GameOverDialog
         open={Boolean(state.winner) && !viewingBoard}
@@ -503,7 +505,9 @@ function TrianglesTable() {
           <p className="font-display text-2xl font-bold text-player-teal">{theirs}</p>
         </section>
 
-        <section className="mx-auto mt-4 w-[90%] rounded-2xl border border-gold/25 bg-brand/70 px-1.5 py-4 shadow-2xl shadow-black/40 sm:px-2.5 sm:py-6">
+        {/* The board fills a little more of a phone screen (90% → 99%); from the
+            sm breakpoint on it keeps the original width. */}
+        <section className="mx-auto mt-4 w-[99%] rounded-2xl border border-gold/25 bg-brand/70 px-1.5 py-4 shadow-2xl shadow-black/40 sm:w-[90%] sm:px-2.5 sm:py-6">
           <svg
             ref={svgRef}
             viewBox={`0 0 ${BOARD_WIDTH} ${BOARD_HEIGHT}`}
@@ -604,7 +608,7 @@ function TrianglesTable() {
         </section>
 
         {/* Player — bottom of the table */}
-        <section className="mt-8 flex items-center gap-3 rounded-2xl border border-gold/15 bg-brand/50 px-1.5 py-4 sm:px-2.5">
+        <section className="mt-8 flex items-center gap-3 rounded-2xl border border-gold/15 bg-brand/50 px-1.5 py-4 sm:mt-4 sm:px-2.5">
           <PlayerAvatar avatar={playerAvatar} onSelect={setPlayerAvatar} size="size-14" />
           <div className="min-w-0 flex-1">
             <p className="font-display text-lg font-bold">{playerName}</p>

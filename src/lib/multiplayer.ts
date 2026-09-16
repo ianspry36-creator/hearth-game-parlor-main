@@ -56,7 +56,24 @@ export type MatchRow = {
   state: unknown;
   version: number;
   status: string;
+  updated_at: string;
 };
+
+/**
+ * Identifies a single write to a shared table row: its version plus the moment
+ * it was written. A row is only skipped when it matches a write we have already
+ * seen — our own echo, or a repeated delivery of the row we just applied.
+ *
+ * The version on its own is not enough: a client that missed an update writes a
+ * *lower* version from its own counter, and the writes that do not touch the
+ * game state (the "completed" result recorded when somebody leaves, for
+ * instance) keep the previous version. Comparing versions alone discarded both,
+ * leaving the other player's table frozen mid-turn with their opponent's move,
+ * score and the end of the match never arriving.
+ */
+export function matchRowWriteKey(row: { version: number; updated_at: string }): string {
+  return `${row.version}|${Date.parse(row.updated_at)}`;
+}
 
 const INVITE_COLUMNS =
   "id, game, from_session, from_nickname, from_avatar, to_session, to_nickname, status, match_id, created_at";
@@ -191,6 +208,14 @@ export function useMatch<T>(matchId: string | undefined, gameOver = false) {
   // flapping presence channel doesn't flood the email log with one report per
   // sync/leave event.
   const loggedDisconnectRef = useRef(false);
+  // The last write we made to the shared row, and the last row we adopted, so an
+  // echo of our own update (or a repeated delivery) can be told apart from a
+  // genuine update from the other player.
+  const myWriteRef = useRef<string | null>(null);
+  const appliedRef = useRef<string | null>(null);
+  // Set by the presence effect: called when the other player's client has just
+  // written to the shared row, which proves it is still at the table.
+  const noteOpponentActivityRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     if (!matchId) {
@@ -200,16 +225,47 @@ export function useMatch<T>(matchId: string | undefined, gameOver = false) {
     }
     let live = true;
     version.current = 0;
+    myWriteRef.current = null;
+    appliedRef.current = null;
     setLoading(true);
-    void (async () => {
-      const { data } = await supabase.from("matches").select("*").eq("id", matchId).maybeSingle();
+
+    /**
+     * Adopt a row from the shared table. Everything the other player writes has
+     * to be adopted, even when its version is not higher than ours: a client
+     * that missed an update writes a lower version from its own counter, and a
+     * result write ("completed") does not move the version at all. Dropping
+     * those rows used to leave one player's table frozen — the opponent's throw,
+     * their score on the shared scorecard and the end of the game never arrived,
+     * with no disconnection shown because the table was still "connected".
+     */
+    const applyRow = (row: MatchRow) => {
       if (!live) return;
-      if (data) {
-        const row = data as MatchRow;
-        version.current = row.version;
-        setMatch(row);
+      const key = matchRowWriteKey(row);
+      if (key === myWriteRef.current || key === appliedRef.current) return;
+      appliedRef.current = key;
+      version.current = Math.max(version.current, row.version);
+      setMatch(row);
+      // The other client reached the server, so it has not walked away: cancel
+      // any reconnect countdown that a presence blip started (a backgrounded or
+      // suspended mobile tab being the usual false alarm).
+      noteOpponentActivityRef.current();
+    };
+
+    const readRow = async () => {
+      try {
+        const { data } = await supabase.from("matches").select("*").eq("id", matchId).maybeSingle();
+        if (!live || !data) return;
+        applyRow(data as MatchRow);
+      } catch (error) {
+        // A dropped connection is not fatal: the next poll (or the tab waking
+        // up) fetches the row again, so never let it reject unhandled.
+        console.error("[multiplayer] read match failed:", error);
       }
-      setLoading(false);
+    };
+
+    void (async () => {
+      await readRow();
+      if (live) setLoading(false);
     })();
 
     const channel = supabase
@@ -217,29 +273,26 @@ export function useMatch<T>(matchId: string | undefined, gameOver = false) {
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "matches", filter: `id=eq.${matchId}` },
-        (payload) => {
-          const row = payload.new as MatchRow;
-          if (row.version <= version.current) return;
-          version.current = row.version;
-          setMatch(row);
-        },
+        (payload) => applyRow(payload.new as MatchRow),
       )
       .subscribe();
 
-    const poll = window.setInterval(() => {
-      void (async () => {
-        const { data } = await supabase.from("matches").select("*").eq("id", matchId).maybeSingle();
-        if (!data) return;
-        const row = data as MatchRow;
-        if (row.version <= version.current) return;
-        version.current = row.version;
-        setMatch(row);
-      })();
-    }, 2_500);
+    const poll = window.setInterval(() => void readRow(), 2_500);
+
+    // Mobile browsers freeze timers and drop the realtime socket while a tab is
+    // hidden, so catch up the moment it is visible again (or the network comes
+    // back) instead of waiting for the next poll.
+    const onWake = () => {
+      if (document.visibilityState === "visible") void readRow();
+    };
+    document.addEventListener("visibilitychange", onWake);
+    window.addEventListener("online", onWake);
 
     return () => {
       live = false;
       window.clearInterval(poll);
+      document.removeEventListener("visibilitychange", onWake);
+      window.removeEventListener("online", onWake);
       void supabase.removeChannel(channel);
     };
   }, [matchId]);
@@ -249,18 +302,21 @@ export function useMatch<T>(matchId: string | undefined, gameOver = false) {
       if (!matchId) return;
       const next = version.current + 1;
       version.current = next;
-      // Note: we intentionally do NOT optimistically setMatch here. Publishing bumps
-      // the local version ref so our own realtime/poll echoes are ignored, but we
-      // leave `match` untouched so the remote-state receive effect (which depends on
-      // `match.version` / `remoteState`) does not fire for our own move. If it did,
-      // a guest's mirrored state would be re-mirrored into a fresh object and re-render
-      // the board mid-animation, cancelling the piece fly.
+      const updatedAt = new Date().toISOString();
+      // Remember this write so the realtime/poll echo of it is recognised as
+      // ours. Note: we intentionally do NOT optimistically setMatch here — we
+      // leave `match` untouched so the remote-state receive effect (which
+      // depends on `match.version` / `remoteState`) does not fire for our own
+      // move. If it did, a guest's mirrored state would be re-mirrored into a
+      // fresh object and re-render the board mid-animation, cancelling the
+      // piece fly.
+      myWriteRef.current = matchRowWriteKey({ version: next, updated_at: updatedAt });
       await supabase
         .from("matches")
         .update({
           state: state as unknown as never,
           version: next,
-          updated_at: new Date().toISOString(),
+          updated_at: updatedAt,
         })
         .eq("id", matchId);
     },
@@ -318,6 +374,28 @@ export function useMatch<T>(matchId: string | undefined, gameOver = false) {
       }
     };
 
+    // Proof of life from the shared row: the opponent's client has just written
+    // to the server, so any reconnect countdown in flight was a false alarm.
+    // Unlike a presence sighting this does not arm the disconnect detection by
+    // itself — presence is still what tells us the opponent has left the table,
+    // so a player whose presence entry is missing while their moves keep landing
+    // is never mistaken for a leaver.
+    const noteOpponentActivity = () => {
+      if (expiredRef.current) return;
+      if (loggedDisconnectRef.current) {
+        loggedDisconnectRef.current = false;
+        logConnectionError("opponent_reconnect", new Error("opponent activity resumed"), {
+          match_id: matchId,
+          opponent_session: opponentSession,
+          my_session: mySession,
+        });
+      }
+      setOpponentOnline(true);
+      setOpponentDisconnected(false);
+      setDisconnectSecondsLeft(RECONNECT_SECONDS);
+    };
+    noteOpponentActivityRef.current = noteOpponentActivity;
+
     const channel = supabase
       .channel(`match-presence-${matchId}`, {
         config: { presence: { key: mySession } },
@@ -337,7 +415,19 @@ export function useMatch<T>(matchId: string | undefined, gameOver = false) {
         if (status === "SUBSCRIBED") void channel.track({ online_at: new Date().toISOString() });
       });
 
+    // A hidden mobile tab loses its presence entry (and its socket), so announce
+    // ourselves again the moment the tab is visible: without this the opponent
+    // awards themselves a forfeit against a player who never actually left.
+    const onVisible = () => {
+      if (document.visibilityState === "visible") {
+        void channel.track({ online_at: new Date().toISOString() });
+      }
+    };
+    document.addEventListener("visibilitychange", onVisible);
+
     return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      noteOpponentActivityRef.current = () => {};
       void supabase.removeChannel(channel);
     };
   }, [matchId, opponentSession, sessionId, gameOver]);

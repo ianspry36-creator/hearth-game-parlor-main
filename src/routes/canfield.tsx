@@ -349,7 +349,7 @@ function CanfieldTable() {
 
   return (
     <div className="min-h-screen bg-brand text-cream">
-      <div className="mx-auto max-w-5xl px-6 py-8">
+      <div className="mx-auto max-w-5xl px-1.5 py-8 sm:px-6">
         <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <Link
@@ -398,7 +398,7 @@ function CanfieldTable() {
                   onDragEnd={clearDrag}
                 />
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-1">
                 {state.foundations.map((pile, index) => (
                   <FoundationSlot
                     key={index}
@@ -635,9 +635,31 @@ function EmptySlot({ onClick, symbol }: { onClick?: () => void; symbol?: string 
 }
 
 function StockPile({ count, onClick }: { count: number; onClick: () => void }) {
+  // A tight stack of card-back "shadows" peeking out behind the stock hints
+  // at a deep pile without stretching its footprint.
+  const shadowDepth = Math.max(0, Math.min(count - 1, 3));
   return (
     <div className="relative">
-      {count > 0 ? <CardBack onClick={onClick} /> : <EmptySlot onClick={onClick} />}
+      {count > 0 ? (
+        <>
+          {shadowDepth > 0 && (
+            <div className="pointer-events-none absolute inset-0" aria-hidden>
+              {Array.from({ length: shadowDepth }).map((_, i) => (
+                <img
+                  key={i}
+                  src={cardBackAsset}
+                  alt=""
+                  className="absolute h-[var(--canfield-card-h)] w-[var(--canfield-card-w)] overflow-hidden rounded-md object-cover shadow-md shadow-black/30"
+                  style={{ top: `${-(i + 1) * 2}px`, left: `${-(i + 1) * 2}px` }}
+                />
+              ))}
+            </div>
+          )}
+          <CardBack onClick={onClick} />
+        </>
+      ) : (
+        <EmptySlot onClick={onClick} />
+      )}
       <span className="absolute -bottom-4 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] text-ivory/50">
         {count}
       </span>
@@ -757,13 +779,19 @@ function ReservePile({
       {!top ? (
         <EmptySlot />
       ) : (
-        <>
-          {cards.length > 1 && (
-            <div className="absolute -top-1.5 opacity-60">
+        <div className="flex flex-col items-stretch">
+          {/* The reserve fans upward: every card below the playable one peeks a few
+              pixels above the card in front of it, so the depth of the pile reads
+              at a glance. Only the top card is interactive. */}
+          {cards.slice(0, -1).map((card) => (
+            <div
+              key={card.id}
+              className="mb-[calc(var(--canfield-reserve-visible)_-_var(--canfield-card-h))]"
+            >
               <CardBack />
             </div>
-          )}
-          <div className="relative">
+          ))}
+          <div className="relative z-10">
             <CardFace
               card={top}
               selected={selected}
@@ -774,7 +802,7 @@ function ReservePile({
               onDragEnd={onDragEnd}
             />
           </div>
-        </>
+        </div>
       )}
     </div>
   );

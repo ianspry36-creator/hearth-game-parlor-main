@@ -151,11 +151,6 @@ function dealHand(dealer: Side, scores: Record<Side, number>, log: LogEntry[]): 
   };
 }
 
-/** A live table skips the ceremony and deals straight away. */
-function dealtGame(): State {
-  return dealHand(Math.random() < 0.5 ? "player" : "cpu", { player: 0, cpu: 0 }, []);
-}
-
 /** Spread the deck so both sides can cut for the first deal. */
 function cutForDeal(
   scores: Record<Side, number> = { player: 0, cpu: 0 },
@@ -466,8 +461,8 @@ function CribbageTable() {
     disconnectExpired,
   } = useMatch<State>(matchId);
   const isMulti = Boolean(matchId);
-  const freshGame = () => (isMulti ? dealtGame() : cutForDeal());
-  const [state, setState] = useState<State>(() => (matchId ? dealtGame() : cutForDeal()));
+  const freshGame = () => cutForDeal();
+  const [state, setState] = useState<State>(() => cutForDeal());
   const [selected, setSelected] = useState<string[]>([]);
   const [back, setBack] = useState<Record<Side, number>>({ player: 0, cpu: 0 });
   const [avatar, setAvatar] = useState<string>(AVATAR_OPTIONS[0]!.url);
@@ -633,16 +628,27 @@ function CribbageTable() {
   /** Cut for the first deal: the high card plays first, so the other seat deals. */
   const cutDeck = (card: Card) => {
     if (state.playerCut) return;
-    const remaining = state.cutFan.filter((c) => c.id !== card.id);
-    const ada = remaining[Math.floor(Math.random() * remaining.length)]!;
+    // In a live match, never cut a card the opponent already took.
+    if (isMulti && state.cpuCut?.id === card.id) return;
     setCutStage("flipMine");
-    setState((current) => {
+    apply((current) => {
+      // Against a live opponent there is no auto-cut: wait for their card to
+      // arrive through the shared state instead of drawing one locally.
+      if (isMulti) {
+        const next: State = { ...current, playerCut: card };
+        next.log = note(next.log, {
+          side: null,
+          text: `You cut ${cardLabel(card)} — waiting for ${opponentName} to cut…`,
+        });
+        return next;
+      }
+      const remaining = current.cutFan.filter((c) => c.id !== card.id);
+      const ada = remaining[Math.floor(Math.random() * remaining.length)]!;
       const next: State = { ...current, playerCut: card, cpuCut: ada };
       next.log = note(next.log, {
         side: null,
         text: `You cut ${cardLabel(card)}, ${opponentName} cut ${cardLabel(ada)}.`,
       });
-      stateRef.current = next;
       return next;
     });
   };
@@ -650,11 +656,15 @@ function CribbageTable() {
   // Step the ceremony: my flip, my card flies to my seat, her flip, her card flies to hers.
   useEffect(() => {
     if (cutStage === "idle" || cutStage === "seated") return;
+    // In a live match, hold at "seatMine" until the opponent's cut has landed.
+    if (isMulti && cutStage === "seatMine" && !state.cpuCut) return;
     const nextStage =
       cutStage === "flipMine" ? "seatMine" : cutStage === "seatMine" ? "flipTheirs" : "seated";
     const delay = cutStage === "flipMine" ? 800 : cutStage === "seatMine" ? 1200 : 800;
+    // Against a live opponent their card flies on their own device, so only my
+    // own card is animated locally; the opponent's appears via the reveal effect.
     const flySide: Side | null =
-      nextStage === "seatMine" ? "player" : nextStage === "seated" ? "cpu" : null;
+      nextStage === "seatMine" ? "player" : nextStage === "seated" && !isMulti ? "cpu" : null;
     const timer = setTimeout(() => {
       if (flySide === "player" && stateRef.current.playerCut) {
         flyCutCard(stateRef.current.playerCut, "player");
@@ -675,12 +685,15 @@ function CribbageTable() {
       }
     }, delay);
     return () => clearTimeout(timer);
-  }, [cutStage]);
+  }, [cutStage, isMulti, state.cpuCut]);
 
   // Resolve the cut once both cards have reached their seats.
   useEffect(() => {
     if (state.phase !== "cut" || !state.playerCut || !state.cpuCut) return;
     if (cutStage !== "seated") return;
+    // In a live match only the host resolves the cut and deals the hand; the
+    // guest waits for the shared state to arrive.
+    if (isMulti && !isHost) return;
     const mine = state.playerCut.rank;
     const theirs = state.cpuCut.rank;
     const timer = setTimeout(() => {
@@ -696,7 +709,23 @@ function CribbageTable() {
       reset(dealt);
     }, 2400);
     return () => clearTimeout(timer);
-  }, [state.phase, state.playerCut, state.cpuCut, cutStage]);
+  }, [state.phase, state.playerCut, state.cpuCut, cutStage, isMulti, isHost]);
+
+  // In a live match, reveal the opponent's cut at their seat as soon as it
+  // lands, and clear it again when a fresh cut-for-deal begins.
+  useEffect(() => {
+    if (!isMulti) return;
+    setCutSeated((s) => (state.cpuCut ? { ...s, cpu: true } : { ...s, cpu: false }));
+  }, [isMulti, state.cpuCut]);
+
+  // Reset the cut ceremony whenever a fresh cut-for-deal begins (e.g. a tie or a
+  // rematch), so stale seat cards and stages don't linger between hands.
+  useEffect(() => {
+    if (state.phase !== "cut") return;
+    if (state.playerCut || state.cpuCut) return;
+    setCutStage("idle");
+    setCutSeated({ player: false, cpu: false });
+  }, [state.phase, state.playerCut, state.cpuCut]);
 
   // Note which seat laid the newest pile card so it animates in from that side.
   useEffect(() => {
@@ -712,7 +741,7 @@ function CribbageTable() {
   // The host seeds the first deal for a fresh live table.
   useEffect(() => {
     if (!isMulti || !match || match.state || !isHost) return;
-    const fresh = dealtGame();
+    const fresh = cutForDeal();
     stateRef.current = fresh;
     setState(fresh);
     void publish(fresh);
@@ -1159,13 +1188,14 @@ function CribbageTable() {
                   const isMine = state.playerCut?.id === card.id;
                   const isTheirs = state.cpuCut?.id === card.id;
                   const flipping =
-                    (isMine && cutStage === "flipMine") || (isTheirs && cutStage === "flipTheirs");
+                    (isMine && cutStage === "flipMine") ||
+                    (isTheirs && !isMulti && cutStage === "flipTheirs");
                   const gone =
                     (isMine &&
                       (cutStage === "seatMine" ||
                         cutStage === "flipTheirs" ||
                         cutStage === "seated")) ||
-                    (isTheirs && cutStage === "seated");
+                    (isTheirs && (cutStage === "seated" || isMulti));
                   return (
                     <button
                       key={card.id}
@@ -1175,7 +1205,7 @@ function CribbageTable() {
                       }}
                       type="button"
                       aria-label={`Cut card ${index + 1}`}
-                      disabled={Boolean(state.playerCut)}
+                      disabled={Boolean(state.playerCut) || (isMulti && isTheirs)}
                       onClick={() => cutDeck(card)}
                       className={`relative transition-transform ${
                         state.playerCut

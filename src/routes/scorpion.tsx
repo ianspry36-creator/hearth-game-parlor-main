@@ -1,5 +1,5 @@
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type DragEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { CardMark } from "@/components/parlor/CardMark";
 import {
@@ -78,6 +78,8 @@ function ScorpionTable() {
   const [state, setState] = useState<GameState>(() => freshGame(mulberry32(SSR_SEED)));
   const [history, setHistory] = useState<GameState[]>([]);
   const [selection, setSelection] = useState<Selection>(null);
+  const [dragOverTarget, setDragOverTarget] = useState<number | null>(null);
+  const dragSourceRef = useRef<Selection>(null);
   const [confirming, setConfirming] = useState<"new" | "home" | null>(null);
   const { recordResult } = useSolitaireStats(game.id);
   const prevWonRef = useRef(false);
@@ -194,6 +196,37 @@ function ScorpionTable() {
     if (candidate !== current) apply(candidate);
   };
 
+  const clearDrag = () => {
+    dragSourceRef.current = null;
+    setDragOverTarget(null);
+  };
+
+  const beginDrag = (source: Selection, e: DragEvent<HTMLButtonElement>) => {
+    if (!source) {
+      e.preventDefault();
+      return;
+    }
+    dragSourceRef.current = source;
+    setSelection(null);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", JSON.stringify(source));
+  };
+
+  const highlightTableau = (index: number) => (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDragOverTarget((t) => (t === index ? t : index));
+  };
+
+  const dropOnTableau = (index: number) => (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const src = dragSourceRef.current;
+    clearDrag();
+    if (!src) return;
+    const candidate = moveTableau(stateRef.current, src.index, src.cardIndex, index);
+    if (candidate !== stateRef.current) apply(candidate);
+  };
+
   const clickTail = () => {
     const candidate = dealTail(stateRef.current);
     if (candidate !== stateRef.current) apply(candidate);
@@ -208,7 +241,7 @@ function ScorpionTable() {
 
   return (
     <div className="min-h-screen bg-brand text-cream">
-      <div className="relative mx-auto max-w-6xl px-4 pb-10 pt-6 sm:px-6">
+      <div className="relative mx-auto max-w-6xl px-1 pb-10 pt-6 sm:px-6">
         <header className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <Link
@@ -244,7 +277,7 @@ function ScorpionTable() {
         </div>
 
         <div className="mt-8 grid items-start gap-6 lg:grid-cols-[1fr_260px]">
-          <div className="relative rounded-2xl border border-gold/15 bg-surface/40 p-4 sm:p-6">
+          <div className="relative rounded-2xl border border-gold/15 bg-surface/40 px-1 py-4 sm:p-6">
             <div className="mb-6 flex flex-wrap items-start justify-between gap-6">
               <div className="flex flex-col items-center gap-1">
                 <TailPile count={state.tail.length} disabled={!canDealTail} onClick={clickTail} />
@@ -265,13 +298,20 @@ function ScorpionTable() {
                   index={index}
                   onCardClick={clickTableau}
                   onEmptyClick={clickEmpty}
+                  onCardDragStart={(cardIndex, e) =>
+                    beginDrag({ type: "tableau", index, cardIndex }, e)
+                  }
+                  onDragEnd={clearDrag}
+                  onDragOver={highlightTableau(index)}
+                  onDrop={dropOnTableau(index)}
+                  isDropTarget={dragOverTarget === index}
                 />
               ))}
             </div>
 
             <p className="mt-6 text-center text-xs text-ivory/50">
-              Build four descending runs, King to Ace, one per suit. Select a card, then click where
-              its run should go. Only a King fills an empty pile.
+              Build four descending runs, King to Ace, one per suit. Drag (or click) a card onto
+              another pile to move its run. Only a King fills an empty pile.
             </p>
 
             {state.won && (
@@ -392,10 +432,16 @@ function CardFace({
   card,
   selected = false,
   onClick,
+  draggable,
+  onDragStart,
+  onDragEnd,
 }: {
   card: Card;
   selected?: boolean;
   onClick?: () => void;
+  draggable?: boolean;
+  onDragStart?: (e: DragEvent<HTMLButtonElement>) => void;
+  onDragEnd?: () => void;
 }) {
   const red = isRed(card.suit);
   const isFaceCard = card.rank === 1 || card.rank > 10;
@@ -403,6 +449,9 @@ function CardFace({
     <button
       type="button"
       onClick={onClick}
+      draggable={draggable}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
       aria-label={cardLabel(card)}
       className={`relative block h-[var(--scorpion-card-h)] w-[var(--scorpion-card-w)] select-none rounded-md border border-black/10 bg-white text-left shadow-md shadow-black/30 transition-transform ${
         red ? "text-[#c0392b]" : "text-brand"
@@ -514,16 +563,30 @@ function TableauPile({
   selection,
   onCardClick,
   onEmptyClick,
+  onCardDragStart,
+  onDragEnd,
+  onDragOver,
+  onDrop,
+  isDropTarget,
 }: {
   pile: TableauPile;
   index: number;
   selection: Selection;
   onCardClick: (index: number, cardIndex: number) => void;
   onEmptyClick: (index: number) => void;
+  onCardDragStart: (cardIndex: number, e: DragEvent<HTMLButtonElement>) => void;
+  onDragEnd: () => void;
+  onDragOver: (e: DragEvent<HTMLDivElement>) => void;
+  onDrop: (e: DragEvent<HTMLDivElement>) => void;
+  isDropTarget: boolean;
 }) {
   const empty = pile.faceDown.length === 0 && pile.faceUp.length === 0;
   return (
-    <div className="flex flex-col items-stretch">
+    <div
+      className={`flex flex-col items-stretch rounded-md ${isDropTarget ? "ring-2 ring-gold" : ""}`}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+    >
       {pile.faceDown.map((card, i) => (
         <div
           key={card.id}
@@ -543,7 +606,14 @@ function TableauPile({
             : "calc(var(--scorpion-visible) - var(--scorpion-card-h))";
         return (
           <div key={card.id} style={{ marginTop }}>
-            <CardFace card={card} selected={isSelected} onClick={() => onCardClick(index, i)} />
+            <CardFace
+              card={card}
+              selected={isSelected}
+              onClick={() => onCardClick(index, i)}
+              draggable
+              onDragStart={(e) => onCardDragStart(i, e)}
+              onDragEnd={onDragEnd}
+            />
           </div>
         );
       })}

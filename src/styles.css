@@ -652,18 +652,22 @@
   }
 }
 
-/* Canfield responsive card sizing — stock, waste, reserve and four tableau piles */
+/* Canfield responsive card sizing — stock, waste, reserve and four tableau piles.
+   The reserve is a thirteen card fan, so it needs a much tighter step than the
+   tableau: every card in it peeks a few pixels past the one above. */
 :root {
   --canfield-card-h: 96px;
   --canfield-card-w: 70px;
   --canfield-visible: 24px;
+  --canfield-reserve-visible: 20px;
 }
 
 @media (max-width: 639.98px) {
   :root {
-    --canfield-card-h: 56px;
-    --canfield-card-w: 40px;
+    --canfield-card-h: 71px;
+    --canfield-card-w: 50px;
     --canfield-visible: 12px;
+    --canfield-reserve-visible: 16px;
   }
 }
 
@@ -684,17 +688,18 @@
 
 /* Scorpion Solitaire responsive card sizing — seven tableau piles plus a tail */
 :root {
-  --scorpion-card-h: 88px;
-  --scorpion-card-w: 60px;
-  --scorpion-visible: 24px;
+  /* Card faces scaled up 20%; face-up overlap reduced a further 10% (larger reveal). */
+  --scorpion-card-h: 106px;
+  --scorpion-card-w: 72px;
+  --scorpion-visible: 32px;
   --scorpion-down: 6px;
 }
 
 @media (max-width: 639.98px) {
   :root {
-    --scorpion-card-h: 50px;
-    --scorpion-card-w: 34px;
-    --scorpion-visible: 14px;
+    --scorpion-card-h: 66px;
+    --scorpion-card-w: 45px;
+    --scorpion-visible: 19px;
     --scorpion-down: 4px;
   }
 }
@@ -717,10 +722,12 @@
   }
 }
 
-/* Yukon Solitaire responsive card sizing — seven tableau piles with face-down stacks */
+/* Yukon Solitaire responsive card sizing — seven tableau piles with face-down stacks.
+   The desktop tier is 1.5x the original card faces (76x52 -> 114x78); the phone
+   tier below keeps the smaller cards untouched. */
 :root {
-  --yukon-card-h: 76px;
-  --yukon-card-w: 52px;
+  --yukon-card-h: 114px;
+  --yukon-card-w: 78px;
   --yukon-visible: 24px;
   --yukon-down: 8px;
 }
