@@ -646,6 +646,7 @@ function YahtzeeTable() {
               <PlayerAvatar
                 avatar={playerAvatar}
                 onSelect={setPlayerAvatar}
+                size="size-12"
                 {...(bubble?.side === "human" ? { message: bubble.text } : {})}
               />
             ) : (
@@ -655,7 +656,7 @@ function YahtzeeTable() {
                   alt={`${opponentName}'s avatar`}
                   width={64}
                   height={64}
-                  className="size-10 rounded-full border-2 border-gold/40 object-cover"
+                  className="size-[3.75rem] rounded-full border-2 border-gold/40 object-cover"
                 />
                 {bubble?.side === "cpu" && (
                   <div className="absolute bottom-full left-full z-10 mb-2 ml-2">
@@ -840,13 +841,13 @@ function YahtzeeTable() {
           <div className="min-w-0 space-y-2.5">
             {seatBox("cpu")}
 
-            <section className="grid h-[7.33rem] place-items-center rounded-2xl border border-dashed border-gold/20 bg-brand/20 p-3 lg:h-[10.67rem] lg:p-6">
+            <section className="grid h-[14.66rem] place-items-center rounded-2xl border border-dashed border-gold/20 bg-brand/20 p-3 lg:h-[10.67rem] lg:p-6">
               {state.phase === "rolloff" ? (
                 <div className="text-center">
                   <p className="mt-1 font-display text-xs font-bold">Highest roll starts game</p>
                   <div className="mt-2 flex items-center justify-center gap-8">
                     <div className="flex flex-col items-center gap-2">
-                      <PlayerAvatar avatar={playerAvatar} onSelect={setPlayerAvatar} />
+                      <PlayerAvatar avatar={playerAvatar} onSelect={setPlayerAvatar} size="size-12" />
                       {state.rolloff.human !== null && (
                         <DieFace
                           face={state.rolloff.human}
@@ -861,7 +862,7 @@ function YahtzeeTable() {
                         alt={`${opponentName}'s avatar`}
                         width={64}
                         height={64}
-                        className="size-8 rounded-full border-2 border-gold/40 object-cover"
+                        className="size-12 rounded-full border-2 border-gold/40 object-cover"
                       />
                       {state.rolloff.cpu !== null && (
                         <DieFace
