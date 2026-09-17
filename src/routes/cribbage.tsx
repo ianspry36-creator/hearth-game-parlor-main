@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
   AlertDialogAction,
+  AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
@@ -96,6 +97,8 @@ type State = {
   /** Which seats have dismissed their "show" dialog and are ready for the next hand. */
   showReady: { player: boolean; cpu: boolean };
   winner: Side | null;
+  /** Which side asked for a rematch; drives the live 2-player handshake. */
+  rematch: Side | null;
   /** Cut-for-deal: the spread deck plus each side's drawn card. */
   cutFan: Card[];
   playerCut: Card | null;
@@ -144,6 +147,7 @@ function dealHand(dealer: Side, scores: Record<Side, number>, log: LogEntry[]): 
     show: [],
     showReady: { player: false, cpu: false },
     winner: null,
+    rematch: null,
     cutFan: [],
     playerCut: null,
     cpuCut: null,
@@ -176,6 +180,7 @@ function mirror(s: State): State {
     dealer: other(s.dealer),
     turn: other(s.turn),
     winner: s.winner ? other(s.winner) : null,
+    rematch: s.rematch ? other(s.rematch) : null,
     scores: { player: s.scores.cpu, cpu: s.scores.player },
     pendingScores: s.pendingScores
       ? { player: s.pendingScores.cpu, cpu: s.pendingScores.player }
@@ -347,6 +352,8 @@ function GameOverDialog({
   onViewBoard,
   onBackToGameRoom,
   playAgainLabel = "Play again",
+  playAgainDisabled = false,
+  detail,
 }: {
   open: boolean;
   winner: Side;
@@ -358,6 +365,8 @@ function GameOverDialog({
   onViewBoard: () => void;
   onBackToGameRoom: () => void;
   playAgainLabel?: string;
+  playAgainDisabled?: boolean;
+  detail?: string;
 }) {
   const loser = other(winner);
   const margin = scores[winner] - scores[loser];
@@ -373,9 +382,10 @@ function GameOverDialog({
             {winner === "player" ? `${playerName} won!` : `${opponentName} won!`}
           </AlertDialogTitle>
           <AlertDialogDescription className="text-center text-ivory/70">
-            {isSkunk
-              ? `A skunk! ${loserName === "You" ? "You were" : `${loserName} was`} well and truly beaten.`
-              : `The game is over — here is how the table finished.`}
+            {detail ??
+              (isSkunk
+                ? `A skunk! ${loserName === "You" ? "You were" : `${loserName} was`} well and truly beaten.`
+                : `The game is over — here is how the table finished.`)}
           </AlertDialogDescription>
         </AlertDialogHeader>
 
@@ -435,7 +445,7 @@ function GameOverDialog({
             Back to game room
           </Button>
           <AlertDialogAction asChild>
-            <Button variant="parlor" onClick={onPlayAgain}>
+            <Button variant="parlor" onClick={onPlayAgain} disabled={playAgainDisabled}>
               {playAgainLabel}
             </Button>
           </AlertDialogAction>
@@ -509,7 +519,12 @@ function CribbageTable() {
   // Defer the "completed" write while the end-of-game dialog is up, so the two
   // players aren't bounced back to the game room before they can see the final
   // score. A rematch resets the winner and cancels the pending write.
-  useRecordMatchResult(match, isHost, state.winner, matchId ? RECONNECT_SECONDS * 1000 : 0);
+  useRecordMatchResult(
+    match,
+    isHost,
+    state.rematch ? null : state.winner,
+    matchId ? RECONNECT_SECONDS * 1000 : 0,
+  );
 
   const opponentName = liveOpponent ?? opponent ?? "Ada";
   const playerName = getNickname() ?? "You";
@@ -532,6 +547,24 @@ function CribbageTable() {
     setCutSeated({ player: false, cpu: false });
     setViewingBoard(false);
     if (isMulti) void publish(isHost ? fresh : mirror(fresh));
+  };
+
+  // Rematch: the local player asks the opponent to play another game.
+  const requestRematch = () => {
+    if (!isMulti) return;
+    apply((current) => ({ ...current, rematch: "player" }));
+  };
+
+  // The opponent declined our rematch — both players return to the final score.
+  const declineRematch = () => {
+    if (!isMulti) return;
+    apply((current) => ({ ...current, rematch: null }));
+  };
+
+  // The opponent accepted — start a fresh game for both players.
+  const acceptRematch = () => {
+    if (!isMulti) return;
+    reset(freshGame());
   };
 
   /** Lay a card from the player's hand, animating it to the pegging pile. */
@@ -1031,6 +1064,10 @@ function CribbageTable() {
     </div>
   );
 
+  // Rematch flow: "player" means we asked, "cpu" means the opponent asked us.
+  const rematchOutgoing = isMulti && state.rematch === "player";
+  const rematchIncoming = isMulti && state.rematch === "cpu";
+
   return (
     <TableShell
       game={game}
@@ -1111,11 +1148,41 @@ function CribbageTable() {
         playerAvatar={avatar}
         opponentName={opponentName}
         playerName={playerName}
-        onPlayAgain={() => reset(freshGame())}
+        onPlayAgain={() => (isMulti ? requestRematch() : reset(freshGame()))}
         playAgainLabel={isMulti ? "Rematch" : "Play again"}
+        playAgainDisabled={isMulti && state.rematch !== null}
+        detail={
+          rematchOutgoing
+            ? `Rematch request sent — waiting for ${opponentName} to respond…`
+            : undefined
+        }
         onViewBoard={() => setViewingBoard(true)}
         onBackToGameRoom={() => navigate({ to: "/" })}
       />
+      <AlertDialog open={rematchIncoming}>
+        <AlertDialogContent className="border-gold/30 bg-brand text-cream sm:max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-center font-display text-2xl">
+              Rematch?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-center text-ivory/70">
+              {opponentName} wants to play again.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 sm:justify-center">
+            <AlertDialogAction asChild>
+              <Button variant="parlor" onClick={acceptRematch}>
+                Rematch
+              </Button>
+            </AlertDialogAction>
+            <AlertDialogCancel asChild>
+              <Button variant="parlorOutline" onClick={declineRematch}>
+                Decline
+              </Button>
+            </AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <div className="space-y-6">
         {/* Opponent seat */}
         <div className="flex flex-wrap items-start justify-center gap-8">
@@ -1125,7 +1192,7 @@ function CribbageTable() {
               name={opponentName}
               isDealer={state.dealer === "cpu"}
               avatar={
-                <span className="grid size-8 place-items-center overflow-hidden rounded-full bg-gold/20 ring-1 ring-gold/40">
+                <span className="grid size-16 place-items-center overflow-hidden rounded-full bg-gold/20 ring-1 ring-gold/40">
                   <img
                     src={opponentAvatar ?? ADA_AVATAR}
                     alt={`${opponentName}'s avatar`}
@@ -1185,7 +1252,7 @@ function CribbageTable() {
                 seatRef={playerSeatRef}
               />
             </div>
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto pt-4">
               <div className="mx-auto flex w-max flex-nowrap justify-center px-2 [&>*:not(:first-child)]:-ml-[48px]">
                 {state.cutFan.map((card, index) => {
                   const isMine = state.playerCut?.id === card.id;
@@ -1448,11 +1515,19 @@ function CribbageTable() {
                     </Button>
                   )}
               </div>
-              <Seat
-                name={playerName}
-                isDealer={state.dealer === "player"}
-                avatar={<PlayerAvatar avatar={avatar} onSelect={setAvatar} />}
-              />
+              <div
+                className={`transition-transform duration-300 ${
+                  state.dealer === "player" && state.phase !== "cut"
+                    ? "translate-x-16"
+                    : "translate-x-0"
+                }`}
+              >
+                <Seat
+                  name={playerName}
+                  isDealer={state.dealer === "player"}
+                  avatar={<PlayerAvatar avatar={avatar} onSelect={setAvatar} size="size-16" />}
+                />
+              </div>
             </div>
           </div>
         </div>
