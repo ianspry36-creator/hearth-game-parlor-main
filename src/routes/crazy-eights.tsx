@@ -3,11 +3,21 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { TableShell } from "@/components/parlor/TableShell";
 import { GameOverDialog } from "@/components/parlor/GameOverDialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { PlayerAvatar } from "@/components/parlor/PlayerAvatar";
 import { SpeechBubble } from "@/components/parlor/SpeechBubble";
 import { ADA_AVATAR, AVATAR_OPTIONS, readAvatar } from "@/lib/avatars";
 import { getGame } from "@/lib/games";
-import { getNickname, useMatch } from "@/lib/multiplayer";
+import { getNickname, RECONNECT_SECONDS, useMatch } from "@/lib/multiplayer";
 import { useRecordMatchResult } from "@/lib/stats";
 import { isStalePlayingRoom, leaveRoom, useCrazyEightsRoom } from "@/lib/crazyEightsLobby";
 import { CrazyEightsLobby } from "@/components/parlor/CrazyEightsLobby";
@@ -94,6 +104,8 @@ type State = {
   hands: Record<Seat, Card[]>;
   log: LogEntry[];
   winner: Seat | null;
+  /** Seat that has asked for a rematch; used for the live 2-player handshake. */
+  rematch: Seat | null;
   /** Monotonic id bumped on each fresh deal; keys the dealing animation. */
   dealId: number;
   /** Cards drawn so far this turn — a player may draw up to MAX_DRAWS. */
@@ -142,6 +154,7 @@ function freshState(count: PlayerCount = 2, random: () => number = Math.random):
       },
     ],
     winner: null,
+    rematch: null,
     dealId: ++dealCounter,
     drew: 0,
   };
@@ -163,6 +176,7 @@ function mirror(state: State): State {
     },
     turn: swap(state.turn),
     winner: state.winner ? swap(state.winner) : null,
+    rematch: state.rematch ? swap(state.rematch) : null,
     log: state.log.map((entry) => ({ ...entry, side: entry.side ? swap(entry.side) : null })),
   };
 }
@@ -189,6 +203,7 @@ function remapState(state: State, shift: number, count: PlayerCount): State {
     hands,
     turn: map(state.turn),
     winner: state.winner ? map(state.winner) : null,
+    rematch: state.rematch ? map(state.rematch) : null,
     log: state.log.map((entry) => ({ ...entry, side: entry.side ? map(entry.side) : null })),
   };
 }
@@ -278,7 +293,15 @@ function CrazyEightsTable() {
   const handRef = useRef<HTMLDivElement>(null);
   const stateRef = useRef(state);
   stateRef.current = state;
-  useRecordMatchResult(match, isHost, state.winner);
+  // While a rematch is being negotiated the match row must stay open: treat the
+  // game as unfinished so the delayed "completed" write doesn't fire and bounce
+  // both players back to the game room mid-rematch.
+  useRecordMatchResult(
+    match,
+    isHost,
+    state.rematch ? null : state.winner,
+    matchId ? RECONNECT_SECONDS * 1000 : 0,
+  );
 
   const isMulti = Boolean(matchId);
   const isRoom = Boolean(roomId);
@@ -372,6 +395,24 @@ function CrazyEightsTable() {
   };
 
   const reset = () => startGame(playerCount);
+
+  // Rematch: the local player asks the opponent to play another game.
+  const requestRematch = () => {
+    if (!isMulti) return;
+    apply((current) => ({ ...current, rematch: "you" }));
+  };
+
+  // The opponent declined our rematch — both players return to the final score.
+  const declineRematch = () => {
+    if (!isMulti) return;
+    apply((current) => ({ ...current, rematch: null }));
+  };
+
+  // The opponent accepted — start a fresh game for both players.
+  const acceptRematch = () => {
+    if (!isMulti) return;
+    reset();
+  };
 
   // The host opens a fresh live table.
   useEffect(() => {
@@ -788,6 +829,10 @@ function CrazyEightsTable() {
     return fit <= 0 ? -MIN_GAP : Math.min(CARD_W - 1, fit);
   })();
 
+  // Rematch flow: "you" means we asked, the opponent's seat means they asked us.
+  const rematchOutgoing = isMulti && state.rematch === "you";
+  const rematchIncoming = isMulti && state.rematch === "ada";
+
   return (
     <TableShell
       game={game}
@@ -829,7 +874,12 @@ function CrazyEightsTable() {
         opponentName={winnerName}
         playerAvatar={playerAvatar}
         results={results}
-        onPlayAgain={reset}
+        onPlayAgain={isMulti ? requestRematch : reset}
+        playAgainLabel={isMulti ? "Rematch" : "Play again"}
+        playAgainDisabled={isMulti && state.rematch !== null}
+        {...(rematchOutgoing
+          ? { detail: `Rematch request sent — waiting for ${opponentName} to respond…` }
+          : {})}
         footerExtra={
           <>
             <Button variant="parlorOutline" onClick={() => setViewingHand(true)}>
@@ -841,11 +891,39 @@ function CrazyEightsTable() {
           </>
         }
       />
+      <AlertDialog open={rematchIncoming}>
+        <AlertDialogContent className="border-gold/30 bg-brand text-cream sm:max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-center font-display text-2xl">
+              Rematch?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-center text-ivory/70">
+              {opponentName} wants to play again.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 sm:justify-center">
+            <AlertDialogAction asChild>
+              <Button variant="parlor" onClick={acceptRematch}>
+                Rematch
+              </Button>
+            </AlertDialogAction>
+            <AlertDialogCancel asChild>
+              <Button variant="parlorOutline" onClick={declineRematch}>
+                Decline
+              </Button>
+            </AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <div className="space-y-4 sm:space-y-8">
         <section className="flex flex-wrap items-end justify-between gap-4">
           {state.phase === "over" && (
-            <Button variant="parlor" onClick={reset}>
-              Play again
+            <Button
+              variant="parlor"
+              onClick={isMulti ? requestRematch : reset}
+              disabled={isMulti && state.rematch !== null}
+            >
+              {isMulti ? "Rematch" : "Play again"}
             </Button>
           )}
         </section>
