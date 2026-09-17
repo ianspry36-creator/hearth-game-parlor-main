@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, Settings } from "lucide-react";
+import { Check, Plus, Settings, ShieldOff, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { THEME_OPTIONS, readTheme, writeTheme, type ThemeId } from "@/lib/theme";
 import { EFFECT_OPTIONS, readEffect, writeEffect, type EffectId } from "@/lib/effects";
+import { useBlockedUsers } from "@/lib/blockedUsers";
 
 type Props = {
   className?: string;
@@ -23,6 +24,12 @@ export function SettingsDialog({ className }: Props) {
   const [candidate, setCandidate] = useState<ThemeId>(theme);
   const [effect, setEffect] = useState<EffectId>(() => readEffect());
   const [effectCandidate, setEffectCandidate] = useState<EffectId>(effect);
+  const { blockedUsers, addBlockedUser, removeBlockedUser } = useBlockedUsers();
+  const [blockDraft, setBlockDraft] = useState("");
+
+  const submitBlock = () => {
+    if (addBlockedUser(blockDraft)) setBlockDraft("");
+  };
 
   const applyThemeOption = (id: ThemeId) => {
     setTheme(id);
@@ -59,12 +66,15 @@ export function SettingsDialog({ className }: Props) {
         </DialogHeader>
 
         <Tabs defaultValue="colours">
-          <TabsList className="grid w-full grid-cols-2 rounded-xl border border-gold/25 bg-surface p-1">
+          <TabsList className="grid w-full grid-cols-3 rounded-xl border border-gold/25 bg-surface p-1">
             <TabsTrigger value="colours" className="data-[state=active]:bg-gold data-[state=active]:text-brand">
               Colours
             </TabsTrigger>
             <TabsTrigger value="effects" className="data-[state=active]:bg-gold data-[state=active]:text-brand">
               Effects
+            </TabsTrigger>
+            <TabsTrigger value="blocked" className="data-[state=active]:bg-gold data-[state=active]:text-brand">
+              Block Users
             </TabsTrigger>
           </TabsList>
 
@@ -155,6 +165,66 @@ export function SettingsDialog({ className }: Props) {
                 Select
               </button>
             </div>
+          </TabsContent>
+
+          <TabsContent value="blocked">
+            <p className="text-sm text-ivory/70">
+              Blocked players are hidden from your invites and waiting room. Add a nickname below to block it.
+            </p>
+
+            <form
+              className="mt-4 flex items-center gap-2"
+              onSubmit={(event) => {
+                event.preventDefault();
+                submitBlock();
+              }}
+            >
+              <input
+                type="text"
+                value={blockDraft}
+                onChange={(event) => setBlockDraft(event.target.value)}
+                placeholder="Nickname to block"
+                maxLength={10}
+                aria-label="Nickname to block"
+                className="h-10 flex-1 rounded-lg border border-gold/25 bg-surface/60 px-3 text-base text-cream placeholder:text-ivory/40 focus:border-gold/60 focus:outline-none"
+              />
+              <button
+                type="submit"
+                disabled={!blockDraft.trim()}
+                className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-gold px-4 text-sm font-semibold text-brand transition-colors hover:bg-gold-bright disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Plus className="size-4" />
+                Add
+              </button>
+            </form>
+
+            {blockedUsers.length === 0 ? (
+              <div className="mt-6 flex flex-col items-center gap-2 rounded-xl border border-dashed border-gold/20 bg-surface/20 px-6 py-8 text-center">
+                <ShieldOff className="size-6 text-gold/40" />
+                <p className="font-display text-base text-ivory/50">No blocked users</p>
+                <p className="text-sm text-ivory/40">You haven't blocked anyone yet.</p>
+              </div>
+            ) : (
+              <ul className="mt-4 space-y-2">
+                {blockedUsers.map((name) => (
+                  <li
+                    key={name}
+                    className="flex items-center justify-between rounded-lg border border-gold/20 bg-surface/40 px-3 py-2"
+                  >
+                    <span className="font-display text-base font-semibold">{name}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeBlockedUser(name)}
+                      aria-label={`Unblock ${name}`}
+                      title={`Unblock ${name}`}
+                      className="grid size-8 place-items-center rounded-full text-ivory/50 transition-colors hover:bg-gold/15 hover:text-gold"
+                    >
+                      <X className="size-4" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </TabsContent>
 
         </Tabs>

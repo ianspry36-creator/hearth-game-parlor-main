@@ -12,6 +12,7 @@ import { getSessionId } from "@/lib/multiplayer";
 import { ADA_AVATAR, LEO_AVATAR } from "@/lib/avatars";
 import { useNickname } from "@/components/parlor/WaitingRoom";
 import { moderateNickname } from "@/lib/moderation";
+import { useBlockedUsers } from "@/lib/blockedUsers";
 import {
   INAPPROPRIATE_NAME_MESSAGE,
   MAX_NICKNAME_LENGTH,
@@ -50,8 +51,11 @@ export function CrazyEightsLobby({
   onPlay: (roomId: string) => void;
 }) {
   const { nickname, save } = useNickname();
+  const { blockedUsers } = useBlockedUsers();
   const { rooms, playersByRoom, myRoomId, myRoom, loading: lobbyLoading, refresh } =
     useCrazyEightsLobby(game.id);
+  // Tables hosted by a blocked player are hidden from the lobby list.
+  const visibleRooms = rooms.filter((room) => !blockedUsers.includes(room.host_nickname));
 
   const [stage, setStage] = useState<Stage>("name");
   const [draft, setDraft] = useState("");
@@ -314,13 +318,13 @@ export function CrazyEightsLobby({
               <p className="mb-2 text-[11px] uppercase tracking-[0.22em] text-ivory/60">Open tables</p>
               {lobbyLoading ? (
                 <p className="text-sm text-ivory/55">Looking for tables…</p>
-              ) : rooms.length === 0 ? (
+              ) : visibleRooms.length === 0 ? (
                 <p className="rounded-lg border border-dashed border-gold/20 bg-brand/30 p-6 text-center text-sm text-ivory/55">
                   No open tables yet. Start one — it appears here for other players.
                 </p>
               ) : (
                 <div className="space-y-2">
-                  {rooms.map((room) => (
+                  {visibleRooms.map((room) => (
                     <div
                       key={room.id}
                       className="flex items-center gap-3 rounded-lg border border-gold/20 bg-brand/50 p-3"

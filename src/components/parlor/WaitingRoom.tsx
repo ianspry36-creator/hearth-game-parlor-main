@@ -32,6 +32,7 @@ import { readAvatar } from "@/lib/avatars";
 import { logConnectionError } from "@/lib/connection-errors";
 import { getStreak } from "@/lib/medals";
 import { MedalBadge } from "@/components/parlor/MedalBadge";
+import { useBlockedUsers } from "@/lib/blockedUsers";
 
 /** Players not seen for this long are treated as having left the room. */
 const STALE_MS = 45_000;
@@ -97,6 +98,7 @@ export function WaitingRoom({
   // True while we had at least one pending incoming invite; used to put us back
   // in the room once the invite resolves without a match.
   const hadInviteRef = useRef(false);
+  const { blockedUsers } = useBlockedUsers();
 
   useEffect(() => {
     if (open && nickname) setDraft(nickname);
@@ -360,8 +362,24 @@ export function WaitingRoom({
     }
   }, [invites, joined, rejoin]);
 
+  // Blocked users are invisible here: drop any invite they sent and keep ourselves
+  // seated so the other players in the room can still see us.
+  useEffect(() => {
+    if (blockedUsers.length === 0) return;
+    const blockedInvites = invites.filter((invite) =>
+      blockedUsers.includes(invite.from_nickname),
+    );
+    if (blockedInvites.length === 0) return;
+    for (const invite of blockedInvites) void setInviteStatus(invite.id, "declined");
+    setInvites((current) =>
+      current.filter((invite) => !blockedUsers.includes(invite.from_nickname)),
+    );
+  }, [invites, blockedUsers]);
+
   const mySession = typeof window === "undefined" ? "" : getSessionId();
-  const others = players.filter((player) => player.session_id !== mySession);
+  const others = players.filter(
+    (player) => player.session_id !== mySession && !blockedUsers.includes(player.nickname),
+  );
   const me = players.find((player) => player.session_id === mySession);
 
   return (
