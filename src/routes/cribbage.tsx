@@ -1172,7 +1172,7 @@ function CribbageTable() {
 
         {/* Centre: deck, starter, pile and count */}
         {state.phase === "cut" ? (
-          <div className="space-y-3">
+          <div className="space-y-6">
             <div className="flex flex-wrap justify-center gap-6">
               <CutSeat
                 label={opponentName}
