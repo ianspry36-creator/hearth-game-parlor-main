@@ -119,6 +119,7 @@ export const AVATAR_OPTIONS: AvatarOption[] = [
     url: twemoji(codepoint),
     label,
     category: "animals" as const,
+    scale: 0.9,
   })),
   ...OBJECTS.map(({ codepoint, label, scale }, index) => ({
     id: `object-${index + 1}`,
