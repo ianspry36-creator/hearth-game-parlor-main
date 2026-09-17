@@ -78,7 +78,7 @@ export function SettingsDialog({ className }: Props) {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="colours">
+          <TabsContent value="colours" className="min-h-[33rem]">
             <div className="grid grid-cols-4 gap-3">
               {THEME_OPTIONS.map((option) => {
                 const active = option.id === theme;
@@ -121,7 +121,7 @@ export function SettingsDialog({ className }: Props) {
             </div>
           </TabsContent>
 
-          <TabsContent value="effects">
+          <TabsContent value="effects" className="min-h-[33rem]">
             <div className="grid grid-cols-2 gap-3">
               {EFFECT_OPTIONS.map((option) => {
                 const active = option.id === effect;
@@ -167,7 +167,7 @@ export function SettingsDialog({ className }: Props) {
             </div>
           </TabsContent>
 
-          <TabsContent value="blocked">
+          <TabsContent value="blocked" className="min-h-[33rem]">
             <p className="text-sm text-ivory/70">
               Blocked players are hidden from your invites and waiting room. Add a nickname below to block it.
             </p>
