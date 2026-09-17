@@ -209,11 +209,14 @@ export function useMatch<T>(matchId: string | undefined, gameOver = false) {
   // flapping presence channel doesn't flood the email log with one report per
   // sync/leave event.
   const loggedDisconnectRef = useRef(false);
-  // The last write we made to the shared row, and the last row we adopted, so an
-  // echo of our own update (or a repeated delivery) can be told apart from a
-  // genuine update from the other player.
-  const myWriteRef = useRef<string | null>(null);
-  const appliedRef = useRef<string | null>(null);
+  // Every write we have made to the shared row, and every row we have adopted, so
+  // an echo of our own update (or a repeated delivery) can be told apart from a
+  // genuine update from the other player. These are sets, not single slots: a
+  // player can fire two shots back-to-back (a hit keeps the turn), and the echo
+  // of the first shot would otherwise no longer match the "last write" and be
+  // adopted, reverting the second shot's optimistic state.
+  const myWriteKeysRef = useRef<Set<string>>(new Set());
+  const appliedKeysRef = useRef<Set<string>>(new Set());
   // Set by the presence effect: called when the other player's client has just
   // written to the shared row, which proves it is still at the table.
   const noteOpponentActivityRef = useRef<() => void>(() => {});
@@ -226,8 +229,8 @@ export function useMatch<T>(matchId: string | undefined, gameOver = false) {
     }
     let live = true;
     version.current = 0;
-    myWriteRef.current = null;
-    appliedRef.current = null;
+    myWriteKeysRef.current = new Set();
+    appliedKeysRef.current = new Set();
     setLoading(true);
 
     /**
@@ -242,8 +245,8 @@ export function useMatch<T>(matchId: string | undefined, gameOver = false) {
     const applyRow = (row: MatchRow) => {
       if (!live) return;
       const key = matchRowWriteKey(row);
-      if (key === myWriteRef.current || key === appliedRef.current) return;
-      appliedRef.current = key;
+      if (myWriteKeysRef.current.has(key) || appliedKeysRef.current.has(key)) return;
+      appliedKeysRef.current.add(key);
       version.current = Math.max(version.current, row.version);
       setMatch(row);
       // The other client reached the server, so it has not walked away: cancel
@@ -311,7 +314,7 @@ export function useMatch<T>(matchId: string | undefined, gameOver = false) {
       // move. If it did, a guest's mirrored state would be re-mirrored into a
       // fresh object and re-render the board mid-animation, cancelling the
       // piece fly.
-      myWriteRef.current = matchRowWriteKey({ version: next, updated_at: updatedAt });
+      myWriteKeysRef.current.add(matchRowWriteKey({ version: next, updated_at: updatedAt }));
       await supabase
         .from("matches")
         .update({
