@@ -21,7 +21,7 @@ import { TableShell } from "@/components/parlor/TableShell";
 import { CribBoard, ScoreGrid } from "@/components/parlor/CribBoard";
 import { CribBoardOptionsDialog } from "@/components/parlor/CribBoardOptionsDialog";
 import { getGame } from "@/lib/games";
-import { getNickname, useMatch } from "@/lib/multiplayer";
+import { getNickname, RECONNECT_SECONDS, useMatch } from "@/lib/multiplayer";
 import { useRecordMatchResult } from "@/lib/stats";
 import {
   cardLabel,
@@ -506,7 +506,10 @@ function CribbageTable() {
   const prevScores = useRef(state.scores);
   const stateRef = useRef(state);
   stateRef.current = state;
-  useRecordMatchResult(match, isHost, state.winner);
+  // Defer the "completed" write while the end-of-game dialog is up, so the two
+  // players aren't bounced back to the game room before they can see the final
+  // score. A rematch resets the winner and cancels the pending write.
+  useRecordMatchResult(match, isHost, state.winner, matchId ? RECONNECT_SECONDS * 1000 : 0);
 
   const opponentName = liveOpponent ?? opponent ?? "Ada";
   const playerName = getNickname() ?? "You";
@@ -1183,7 +1186,7 @@ function CribbageTable() {
               />
             </div>
             <div className="overflow-x-auto">
-              <div className="mx-auto flex w-max flex-nowrap justify-center px-2 [&>*:not(:first-child)]:-ml-[100px] sm:[&>*:not(:first-child)]:-ml-[60px]">
+              <div className="mx-auto flex w-max flex-nowrap justify-center px-2 [&>*:not(:first-child)]:-ml-[48px]">
                 {state.cutFan.map((card, index) => {
                   const isMine = state.playerCut?.id === card.id;
                   const isTheirs = state.cpuCut?.id === card.id;
