@@ -1,6 +1,16 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { TableShell } from "@/components/parlor/TableShell";
 import { GameOverDialog } from "@/components/parlor/GameOverDialog";
 import { PlayerAvatar } from "@/components/parlor/PlayerAvatar";
@@ -67,6 +77,7 @@ type State = {
   cards: { human: Card; cpu: Card };
   log: LogEntry[];
   winner: Seat | null;
+  rematch: Seat | null;
   draw: boolean;
 };
 
@@ -97,6 +108,7 @@ const freshState = (): State => ({
   cards: { human: {}, cpu: {} },
   log: [{ side: null, text: "Highest roll goes first. Roll the dice." }],
   winner: null,
+  rematch: null,
   draw: false,
 });
 
@@ -127,6 +139,7 @@ function mirror(state: State): State {
     turn: flip(state.turn),
     pendingFirst: state.pendingFirst ? flip(state.pendingFirst) : null,
     winner: state.winner ? flip(state.winner) : null,
+    rematch: state.rematch ? flip(state.rematch) : null,
     log: state.log.map((entry) => ({ ...entry, side: entry.side ? flip(entry.side) : null })),
   };
 }
@@ -135,6 +148,7 @@ function YahtzeeTable() {
   const game = getGame("yahtzee");
   const navigate = useNavigate();
   const { opponent, match: matchId } = Route.useSearch();
+  const [state, setState] = useState<State>(freshState);
   const {
     match,
     isHost,
@@ -145,11 +159,18 @@ function YahtzeeTable() {
     opponentDisconnected,
     disconnectSecondsLeft,
     disconnectExpired,
-  } = useMatch<State>(matchId);
-  const [state, setState] = useState<State>(freshState);
+  } = useMatch<State>(matchId, Boolean(state.winner));
   const stateRef = useRef(state);
   stateRef.current = state;
-  useRecordMatchResult(match, isHost, state.winner, matchId ? RECONNECT_SECONDS * 1000 : 0);
+  // While a rematch is being negotiated the match row must stay open: treat the
+  // game as unfinished so the delayed "completed" write doesn't fire and bounce
+  // both players back to the game room mid-rematch.
+  useRecordMatchResult(
+    match,
+    isHost,
+    state.rematch ? null : state.winner,
+    matchId ? RECONNECT_SECONDS * 1000 : 0,
+  );
 
   const isMulti = Boolean(matchId);
   const opponentName = liveOpponent ?? opponent ?? "Ada";
@@ -171,6 +192,24 @@ function YahtzeeTable() {
     setState(fresh);
     setViewingScorecard(false);
     if (isMulti) void publish(isHost ? fresh : mirror(fresh));
+  };
+
+  // Rematch: the local player asks the opponent to play another game.
+  const requestRematch = () => {
+    if (!isMulti) return;
+    apply((current) => ({ ...current, rematch: "human" }));
+  };
+
+  // The opponent declined our rematch — both players return to the final score.
+  const declineRematch = () => {
+    if (!isMulti) return;
+    apply((current) => ({ ...current, rematch: null }));
+  };
+
+  // The opponent accepted — start a fresh game for both players.
+  const acceptRematch = () => {
+    if (!isMulti) return;
+    reset();
   };
 
   // The host opens a fresh live table.
@@ -788,6 +827,10 @@ function YahtzeeTable() {
     </div>
   );
 
+  // Rematch flow: "human" means we asked, "cpu" means the opponent asked us.
+  const rematchOutgoing = state.rematch === "human";
+  const rematchIncoming = state.rematch === "cpu";
+
   return (
     <TableShell
       game={game}
@@ -817,9 +860,13 @@ function YahtzeeTable() {
         scoreLabel="Final scorecard total"
         opponentName={opponentName}
         playerAvatar={playerAvatar}
-        onPlayAgain={reset}
+        onPlayAgain={isMulti ? requestRematch : reset}
         playAgainClassName="scale-90"
-        playAgainLabel="Rematch"
+        playAgainLabel={isMulti ? "Rematch" : "Play again"}
+        playAgainDisabled={isMulti && state.rematch !== null}
+        {...(rematchOutgoing
+          ? { detail: `Rematch request sent — waiting for ${opponentName} to respond…` }
+          : {})}
         footerExtra={
           <>
             <Button
@@ -835,6 +882,30 @@ function YahtzeeTable() {
           </>
         }
       />
+      <AlertDialog open={rematchIncoming}>
+        <AlertDialogContent className="border-gold/30 bg-brand text-cream sm:max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-center font-display text-2xl">
+              Rematch?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-center text-ivory/70">
+              {opponentName} wants to play again.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 sm:justify-center">
+            <AlertDialogAction asChild>
+              <Button variant="parlor" onClick={acceptRematch}>
+                Rematch
+              </Button>
+            </AlertDialogAction>
+            <AlertDialogCancel asChild>
+              <Button variant="parlorOutline" onClick={declineRematch}>
+                Decline
+              </Button>
+            </AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <div className="space-y-2.5">
         <section className="flex flex-wrap items-end justify-between gap-4">
           <div>
@@ -843,7 +914,7 @@ function YahtzeeTable() {
             )}
           </div>
           {state.phase === "over" && (
-            <Button variant="parlor" onClick={reset}>
+            <Button variant="parlor" onClick={isMulti ? requestRematch : reset}>
               Rematch
             </Button>
           )}
