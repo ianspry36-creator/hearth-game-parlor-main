@@ -262,6 +262,7 @@ export type Database = {
           last_seen_at: string
           nickname: string
           session_id: string
+          streak: number | null
         }
         Insert: {
           avatar?: string | null
@@ -271,6 +272,7 @@ export type Database = {
           last_seen_at?: string
           nickname: string
           session_id: string
+          streak?: number | null
         }
         Update: {
           avatar?: string | null
@@ -280,6 +282,25 @@ export type Database = {
           last_seen_at?: string
           nickname?: string
           session_id?: string
+          streak?: number | null
+        }
+        Relationships: []
+      }
+      player_profiles: {
+        Row: {
+          session_id: string
+          streak: number
+          updated_at: string
+        }
+        Insert: {
+          session_id: string
+          streak?: number
+          updated_at?: string
+        }
+        Update: {
+          session_id?: string
+          streak?: number
+          updated_at?: string
         }
         Relationships: []
       }

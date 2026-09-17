@@ -3,6 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import type { GameId } from "@/lib/games";
 import { recordMatchResult } from "@/lib/stats";
+import { recordDisconnect } from "@/lib/medals";
 import { readAvatar } from "@/lib/avatars";
 import { logConnectionError } from "@/lib/connection-errors";
 
@@ -454,7 +455,13 @@ export function useMatch<T>(matchId: string | undefined, gameOver = false) {
       match_id: matchId,
     });
     void recordMatchResult(matchId, sessionId);
-  }, [disconnectExpired, matchId, sessionId, gameOver]);
+    // A forfeit means the leaver abandoned the table mid-game: drop their medal
+    // one tier. A match that already completed normally is not a forfeit, so
+    // leave the other player's streak untouched.
+    if (opponentSession && match?.status !== "completed") {
+      void recordDisconnect(opponentSession);
+    }
+  }, [disconnectExpired, matchId, sessionId, gameOver, opponentSession, match?.status]);
 
   // Once the game is over (a winner is decided) the disconnect/forfeit flow no
   // longer applies: clear any in-flight disconnect state so a player who simply

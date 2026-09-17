@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { GameId } from "@/lib/games";
+import { recordCompletedGame } from "@/lib/medals";
 
 /** The nine single-player tables, which have no named opponent to rank. */
 const SOLO_GAMES: GameId[] = [
@@ -156,6 +157,7 @@ export function useRecordMatchResult(
           if (timerRef.current) clearTimeout(timerRef.current);
           timerRef.current = setTimeout(() => {
             void recordMatchResult(match.id, resolveWinnerSession(isHost, match, result));
+            void recordCompletedGame(isHost ? match.host_session : match.guest_session);
           }, delayMs);
         }
       }

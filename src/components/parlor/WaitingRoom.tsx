@@ -30,6 +30,8 @@ import {
 import { moderateNickname } from "@/lib/moderation";
 import { readAvatar } from "@/lib/avatars";
 import { logConnectionError } from "@/lib/connection-errors";
+import { getStreak } from "@/lib/medals";
+import { MedalBadge } from "@/components/parlor/MedalBadge";
 
 /** Players not seen for this long are treated as having left the room. */
 const STALE_MS = 45_000;
@@ -42,6 +44,7 @@ type WaitingPlayer = {
   nickname: string;
   avatar: string | null;
   last_seen_at: string;
+  streak: number | null;
 };
 
 export function useNickname() {
@@ -103,7 +106,7 @@ export function WaitingRoom({
     const cutoff = new Date(Date.now() - STALE_MS).toISOString();
     const { data, error: queryError } = await supabase
       .from("waiting_players")
-      .select("id, session_id, nickname, avatar, last_seen_at, created_at")
+      .select("id, session_id, nickname, avatar, last_seen_at, created_at, streak")
       .eq("game", game.id)
       .gte("last_seen_at", cutoff)
       .order("created_at", { ascending: true });
@@ -120,6 +123,7 @@ export function WaitingRoom({
   // Upsert our own waiting-room entry and return its id (or null on failure).
   const upsertEntry = useCallback(
     async (value: string): Promise<string | null> => {
+      const streak = await getStreak(getSessionId());
       const { data, error: upsertError } = await supabase
         .from("waiting_players")
         .upsert(
@@ -128,6 +132,7 @@ export function WaitingRoom({
             game: game.id,
             nickname: value,
             avatar: readAvatar(),
+            streak,
             last_seen_at: new Date().toISOString(),
           },
           { onConflict: "session_id,game" },
@@ -357,6 +362,7 @@ export function WaitingRoom({
 
   const mySession = typeof window === "undefined" ? "" : getSessionId();
   const others = players.filter((player) => player.session_id !== mySession);
+  const me = players.find((player) => player.session_id === mySession);
 
   return (
     <Dialog
@@ -426,13 +432,16 @@ export function WaitingRoom({
           <div className="space-y-2">
             <div className="flex items-center justify-between rounded-lg border border-gold/30 bg-brand/60 p-3">
               <div className="flex items-center gap-3">
-                <img
-                  src={readAvatar()}
-                  alt={nickname ?? "You"}
-                  width={36}
-                  height={36}
-                  className="size-9 shrink-0 rounded-full border border-gold/40 object-cover"
-                />
+                <div className="relative shrink-0">
+                  <img
+                    src={readAvatar()}
+                    alt={nickname ?? "You"}
+                    width={72}
+                    height={72}
+                    className="size-[4.5rem] shrink-0 rounded-full border border-gold/40 object-cover"
+                  />
+                  <MedalBadge streak={me?.streak ?? 0} />
+                </div>
                 <div>
                   <p className="text-sm font-medium">{nickname} (you)</p>
                   <p className="text-xs text-ivory/55">Seated in the room</p>
@@ -492,19 +501,22 @@ export function WaitingRoom({
                   key={player.id}
                   className="flex items-center gap-3 rounded-lg border border-gold/20 bg-brand/50 p-3"
                 >
-                  {player.avatar ? (
-                    <img
-                      src={player.avatar}
-                      alt={player.nickname}
-                      width={36}
-                      height={36}
-                      className="size-9 shrink-0 rounded-full border border-gold/30 object-cover"
-                    />
-                  ) : (
-                    <span className="grid size-9 shrink-0 place-items-center rounded-full border border-gold/30 bg-surface font-display text-sm text-gold">
-                      {player.nickname.charAt(0).toUpperCase()}
-                    </span>
-                  )}
+                  <div className="relative shrink-0">
+                    {player.avatar ? (
+                      <img
+                        src={player.avatar}
+                        alt={player.nickname}
+                        width={72}
+                        height={72}
+                        className="size-[4.5rem] shrink-0 rounded-full border border-gold/30 object-cover"
+                      />
+                    ) : (
+                      <span className="grid size-[4.5rem] shrink-0 place-items-center rounded-full border border-gold/30 bg-surface font-display text-2xl text-gold">
+                        {player.nickname.charAt(0).toUpperCase()}
+                      </span>
+                    )}
+                    <MedalBadge streak={player.streak ?? 0} />
+                  </div>
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium">{player.nickname}</p>
                     <p className="text-xs text-ivory/55">
