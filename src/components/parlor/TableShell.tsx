@@ -96,7 +96,7 @@ export function TableShell({
       ? setConfirming(count === 3 ? "3" : count === 4 ? "4" : "2")
       : onPlayerCount?.(count);
   return (
-    <div className="min-h-screen bg-brand text-cream">
+    <div className="min-h-screen text-cream">
       <DisconnectDialog
         open={opponentDisconnected || disconnectExpired}
         secondsLeft={disconnectSecondsLeft}

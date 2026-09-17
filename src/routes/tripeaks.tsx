@@ -259,7 +259,7 @@ function TriPeaksTable() {
         ? "No open card fits — draw from the stock."
         : "No more moves — undo or deal a new game.";
   return (
-    <div className="min-h-screen bg-brand text-cream">
+    <div className="min-h-screen text-cream">
       <div className="relative mx-auto max-w-6xl px-4 pb-10 pt-6 sm:px-6">
         <header className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">

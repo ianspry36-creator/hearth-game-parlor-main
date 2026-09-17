@@ -305,7 +305,7 @@ function ClockTable() {
   const confirmHome = () => (gameInProgress ? setConfirming("home") : void navigate({ to: "/" }));
 
   return (
-    <div className="min-h-screen bg-brand text-cream">
+    <div className="min-h-screen text-cream">
       <div className="mx-auto max-w-5xl px-1.5 py-8 sm:px-6">
         <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
