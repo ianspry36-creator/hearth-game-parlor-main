@@ -105,6 +105,56 @@ export function scoreCategory(category: Category, faces: number[]): number {
   }
 }
 
+export const isYahtzee = (faces: number[]) =>
+  faces.length === DICE_COUNT && faces.every((f) => f === faces[0]);
+
+/** The upper box a single repeated face maps to (only meaningful for a Yahtzee). */
+export const upperForFace = (face: number): Category => UPPER[face - 1] as Category;
+
+/**
+ * Score a "joker" — a Yahtzee rolled while the Yahtzee box is already filled.
+ * A Yahtzee fills every lower box at full value, including the straights,
+ * which a literal all-same roll would not otherwise satisfy.
+ */
+export function scoreJoker(category: Category, faces: number[]): number {
+  if (category === "smallStraight") return 30;
+  if (category === "largeStraight") return 40;
+  return scoreCategory(category, faces);
+}
+
+export interface MoveScore {
+  score: number;
+  /** Extra points to add to the Yahtzee box (100 per additional Yahtzee). */
+  yahtzeeBonus: number;
+}
+
+/**
+ * Score a roll in a category, applying the multiple-Yahtzee (joker) rules:
+ * when the Yahtzee box is already filled and the roll is itself a Yahtzee,
+ * the move scores as a joker and — unless the box was scratched with 0 —
+ * earns a 100-point Yahtzee bonus folded into the Yahtzee box.
+ */
+export function scoreMove(category: Category, faces: number[], card: Card): MoveScore {
+  const joker = isYahtzee(faces) && card.yahtzee !== undefined && category !== "yahtzee";
+  return {
+    score: joker ? scoreJoker(category, faces) : scoreCategory(category, faces),
+    yahtzeeBonus: joker && (card.yahtzee ?? 0) > 0 ? 100 : 0,
+  };
+}
+
+/**
+ * The boxes a player may fill with the current roll. Returns null when there
+ * is no joker restriction (any unfilled box is allowed). For a joker Yahtzee:
+ * if the matching upper box is still open it must be taken; otherwise any
+ * lower box is fair game.
+ */
+export function jokerTargets(card: Card, faces: number[]): Category[] | null {
+  if (!isYahtzee(faces) || card.yahtzee === undefined) return null;
+  const upper = upperForFace(faces[0]!);
+  if (card[upper] === undefined) return [upper];
+  return LOWER.filter((cat) => card[cat] === undefined);
+}
+
 export const upperTotal = (card: Card) =>
   UPPER.reduce((s, cat) => s + (card[cat] ?? 0), 0);
 
@@ -164,11 +214,13 @@ export function bestHold(faces: number[], card: Card): number[] {
 
 /** The category Ada should take, weighted a little to keep options open. */
 export function bestCategory(faces: number[], card: Card): Category {
+  const targets = jokerTargets(card, faces);
+  const candidates = targets ?? CATEGORIES;
   let choice: Category | null = null;
   let bestValue = -Infinity;
-  for (const cat of CATEGORIES) {
+  for (const cat of candidates) {
     if (card[cat] !== undefined) continue;
-    const score = scoreCategory(cat, faces);
+    const score = targets ? scoreJoker(cat, faces) : scoreCategory(cat, faces);
     let value = score;
     if (cat === "chance") value -= 8; // keep chance in reserve
     if (UPPER.includes(cat) && score === 0) value -= 6;

@@ -20,8 +20,9 @@ import {
   bonusFor,
   cardComplete,
   grandTotal,
+  jokerTargets,
   rollFace,
-  scoreCategory,
+  scoreMove,
   upperTotal,
   type Card,
   type Category,
@@ -204,15 +205,20 @@ function YahtzeeTable() {
 
   const takeBox = (current: State, side: Seat, category: Category): State => {
     const faces = current.dice.map((d) => d.face);
-    const score = scoreCategory(category, faces);
-    const card: Card = { ...current.cards[side], [category]: score };
+    const prevCard = current.cards[side];
+    const { score, yahtzeeBonus } = scoreMove(category, faces, prevCard);
+    const card: Card = { ...prevCard, [category]: score };
+    if (yahtzeeBonus > 0) card.yahtzee = (prevCard.yahtzee ?? 0) + yahtzeeBonus;
     const cards = { ...current.cards, [side]: card };
     const logged: State = {
       ...current,
       cards,
       log: note(current.log, {
         side,
-        text: `take ${CATEGORY_LABELS[category]} for ${score}.`,
+        text:
+          yahtzeeBonus > 0
+            ? `take ${CATEGORY_LABELS[category]} for ${score} (+100 Yahtzee bonus).`
+            : `take ${CATEGORY_LABELS[category]} for ${score}.`,
       }),
     };
     if (cardComplete(cards.human) && cardComplete(cards.cpu)) {
@@ -410,6 +416,8 @@ function YahtzeeTable() {
   const take = (category: Category) => {
     if (!myTurn || state.rolls === 0) return;
     if (state.cards.human[category] !== undefined) return;
+    const targets = jokerTargets(state.cards.human, faces);
+    if (targets !== null && !targets.includes(category)) return;
     apply((current) => takeBox(current, "human", category));
   };
 
@@ -707,8 +715,12 @@ function YahtzeeTable() {
 
   const Row = ({ category }: { category: Category }) => {
     const taken = myCard[category] !== undefined;
+    const targets = jokerTargets(myCard, faces);
+    const allowed = targets === null || targets.includes(category);
     const preview =
-      !taken && myTurn && state.rolls > 0 ? scoreCategory(category, faces) : null;
+      !taken && myTurn && state.rolls > 0 && allowed
+        ? scoreMove(category, faces, myCard).score
+        : null;
     return (
       <tr className="border-t border-gold/10">
         <td className="py-0.5 pr-0 text-ivory/75 lg:py-1.5">{CATEGORY_LABELS[category]}</td>
