@@ -121,6 +121,7 @@ function WarshipTable() {
   const game = getGame("warship");
   const navigate = useNavigate();
   const { opponent, match: matchId } = Route.useSearch();
+  const [state, setState] = useState<State>(() => freshState(mulberry32(SSR_SEED)));
   const {
     match,
     isHost,
@@ -131,8 +132,7 @@ function WarshipTable() {
     opponentDisconnected,
     disconnectSecondsLeft,
     disconnectExpired,
-  } = useMatch<State>(matchId);
-  const [state, setState] = useState<State>(() => freshState(mulberry32(SSR_SEED)));
+  } = useMatch<State>(matchId, Boolean(state.winner));
   const [grab, setGrab] = useState<{ name: string; cell: number } | null>(null);
   const stateRef = useRef(state);
   stateRef.current = state;

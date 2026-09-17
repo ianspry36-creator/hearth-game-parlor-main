@@ -154,10 +154,13 @@ export function useRecordMatchResult(
         lastWinnerRef.current = winner;
         const result = winnerToResult(winner);
         if (result && match?.id) {
+          // Record the completed game immediately. It must not be deferred by the
+          // reconnect window, nor lost when the player navigates back to the game
+          // room before that window elapses (route unmount clears the timer below).
+          void recordCompletedGame(isHost ? match.host_session : match.guest_session);
           if (timerRef.current) clearTimeout(timerRef.current);
           timerRef.current = setTimeout(() => {
             void recordMatchResult(match.id, resolveWinnerSession(isHost, match, result));
-            void recordCompletedGame(isHost ? match.host_session : match.guest_session);
           }, delayMs);
         }
       }
