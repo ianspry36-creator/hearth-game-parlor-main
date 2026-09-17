@@ -7,7 +7,7 @@ import { PlayerAvatar } from "@/components/parlor/PlayerAvatar";
 import { SpeechBubble } from "@/components/parlor/SpeechBubble";
 import { getGame } from "@/lib/games";
 import { ADA_AVATAR, readAvatar } from "@/lib/avatars";
-import { getNickname, useMatch } from "@/lib/multiplayer";
+import { getNickname, RECONNECT_SECONDS, useMatch } from "@/lib/multiplayer";
 import { useRecordMatchResult } from "@/lib/stats";
 import {
   CATEGORY_LABELS,
@@ -149,7 +149,7 @@ function YahtzeeTable() {
   const [state, setState] = useState<State>(freshState);
   const stateRef = useRef(state);
   stateRef.current = state;
-  useRecordMatchResult(match, isHost, state.winner);
+  useRecordMatchResult(match, isHost, state.winner, matchId ? RECONNECT_SECONDS * 1000 : 0);
 
   const isMulti = Boolean(matchId);
   const opponentName = liveOpponent ?? opponent ?? "Ada";
