@@ -117,6 +117,8 @@ type FlyingCard = {
   card: Card;
   from: { x: number; y: number };
   to: { x: number; y: number };
+  /** Render the flying copy face-down (used for opponents' draws). */
+  faceDown?: boolean;
 };
 
 // The opening deal must match the server, so the first render uses a fixed
@@ -282,6 +284,10 @@ function CrazyEightsTable() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [dealt, setDealt] = useState(HAND_SIZE * 2);
   const [flying, setFlying] = useState<FlyingCard[]>([]);
+  /** Card currently being drawn from the stock; hidden in its hand until the flight lands. */
+  const [drawingId, setDrawingId] = useState<string | null>(null);
+  /** Cards currently in flight from a hand to the up card; hidden in place until they land. */
+  const [layingIds, setLayingIds] = useState<string[]>([]);
   const [viewingHand, setViewingHand] = useState(false);
   const [sortDesc, setSortDesc] = useState(false);
   const [handWidth, setHandWidth] = useState(0);
@@ -291,6 +297,9 @@ function CrazyEightsTable() {
   const handEls = useRef(new Map<string, HTMLButtonElement>());
   const seatHandEls = useRef(new Map<string, HTMLElement>());
   const handRef = useRef<HTMLDivElement>(null);
+  const drawingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Re-entrancy guard so a second lay can't start while one is mid-flight. */
+  const layingRef = useRef(false);
   const stateRef = useRef(state);
   stateRef.current = state;
   // While a rematch is being negotiated the match row must stay open: treat the
@@ -580,8 +589,16 @@ function CrazyEightsTable() {
     }, (flights.length - 1) * STAGGER_MS + FLIGHT_MS);
   };
 
+  /** Reveal the card being drawn once its flying copy has landed. */
+  const revealDrawnCard = () => {
+    if (drawingTimer.current) clearTimeout(drawingTimer.current);
+    drawingTimer.current = setTimeout(() => setDrawingId(null), FLIGHT_MS);
+  };
+
   /** Animate the given cards from the hand to the pile and commit the move. */
   const playCardsNow = (cards: Card[]) => {
+    if (layingRef.current) return;
+    layingRef.current = true;
     const pileRect = pileRef.current?.getBoundingClientRect();
     const flights: FlyingCard[] = [];
     if (pileRect) {
@@ -598,8 +615,21 @@ function CrazyEightsTable() {
       });
     }
     setSelectedIds([]);
-    apply((current) => playCards(current, "you", cards));
-    scheduleFlights(flights);
+    // Hide the laid cards in the hand while they fly, and commit the move only
+    // once they land so they don't appear on the up card mid-flight.
+    setLayingIds(cards.map((c) => c.id));
+    if (flights.length) {
+      scheduleFlights(flights);
+      window.setTimeout(() => {
+        apply((current) => playCards(current, "you", cards));
+        setLayingIds([]);
+        layingRef.current = false;
+      }, (flights.length - 1) * STAGGER_MS + FLIGHT_MS);
+    } else {
+      apply((current) => playCards(current, "you", cards));
+      setLayingIds([]);
+      layingRef.current = false;
+    }
   };
 
   const playSelected = () => {
@@ -626,6 +656,9 @@ function CrazyEightsTable() {
     // Fly the drawn card from the stock to its new spot in the hand.
     const stockRect = stockRef.current?.getBoundingClientRect();
     const drawn = drawOne(state.deck, state.pile).card;
+    // Hide the card in the hand until the flying copy lands, so it doesn't
+    // show up at its destination before the animation completes.
+    if (drawn) setDrawingId(drawn.id);
     apply((current) => takeCard(current, "you"));
     if (stockRect && drawn) {
       // Wait a frame for the hand to re-render, then read the card's landing spot.
@@ -642,8 +675,12 @@ function CrazyEightsTable() {
               to: { x: rect.left, y: rect.top },
             },
           ]);
+          revealDrawnCard();
         });
       });
+    } else if (drawn) {
+      // No stock anchor to animate from — reveal the card immediately.
+      setDrawingId(null);
     }
   };
 
@@ -664,6 +701,7 @@ function CrazyEightsTable() {
   useEffect(
     () => () => {
       if (bubbleTimer.current) clearTimeout(bubbleTimer.current);
+      if (drawingTimer.current) clearTimeout(drawingTimer.current);
     },
     [],
   );
@@ -718,6 +756,12 @@ function CrazyEightsTable() {
         }
       }
 
+      const commit = () => {
+        stateRef.current = next;
+        setState(next);
+        if (isRoom && roomIsHost) void publishRoom(remapState(next, mySeat, activeCount));
+      };
+
       // Fly the opponent's cards onto the up card, like the player's lay.
       if (played.length) {
         const pileRect = pileRef.current?.getBoundingClientRect();
@@ -735,14 +779,23 @@ function CrazyEightsTable() {
             });
           });
         }
+        // Hide the laid cards in the seat while they fly, then commit once they
+        // land so they don't show up on the up card before the animation ends.
+        setLayingIds(played.map((c) => c.id));
         scheduleFlights(flights);
+        window.setTimeout(() => {
+          commit();
+          setLayingIds([]);
+        }, (flights.length - 1) * STAGGER_MS + FLIGHT_MS);
+      } else {
+        commit();
       }
 
-      stateRef.current = next;
-      setState(next);
-
-      // Fly the opponent's drawn card from the stock to their hand.
+      // Fly the opponent's drawn card from the stock to their hand, hiding the
+      // real card in the seat until the flying copy lands (and flying it
+      // face-down so the opponent's hand stays concealed).
       if (drawnCard) {
+        setDrawingId(drawnCard.id);
         const stockRect = stockRef.current?.getBoundingClientRect();
         if (stockRect) {
           // Wait a frame for the seat to re-render, then read the landing spot.
@@ -757,14 +810,17 @@ function CrazyEightsTable() {
                   card: drawnCard,
                   from: { x: stockRect.left, y: stockRect.top },
                   to: { x: rect.left, y: rect.top },
+                  faceDown: true,
                 },
               ]);
+              revealDrawnCard();
             });
           });
+        } else {
+          setDrawingId(null);
         }
       }
 
-      if (isRoom && roomIsHost) void publishRoom(remapState(next, mySeat, activeCount));
     }, 900);
     return () => clearTimeout(timer);
   }, [
@@ -941,6 +997,8 @@ function CrazyEightsTable() {
             playerCount={activeCount}
             seatIndex={seatPos("ada")}
             bubble={bubble?.side === "ada" ? bubble.text : null}
+            hiddenId={drawingId}
+            layingIds={layingIds}
           />
         </div>
 
@@ -960,6 +1018,8 @@ function CrazyEightsTable() {
                 playerCount={activeCount}
                 seatIndex={seatPos("ace")}
                 bubble={bubble?.side === "ace" ? bubble.text : null}
+                hiddenId={drawingId}
+                layingIds={layingIds}
               />
             ) : null}
           </div>
@@ -1041,6 +1101,8 @@ function CrazyEightsTable() {
                 playerCount={activeCount}
                 seatIndex={seatPos("leo")}
                 bubble={bubble?.side === "leo" ? bubble.text : null}
+                hiddenId={drawingId}
+                layingIds={layingIds}
               />
             ) : null}
           </div>
@@ -1076,7 +1138,9 @@ function CrazyEightsTable() {
                   style={index > 0 ? { marginLeft: -handOverlap } : undefined}
                   className={`relative transition-transform focus:z-20 focus:outline-none ${
                     dealing ? "animate-deal-in-player" : ""
-                  } ${chosen ? "z-20 -translate-y-4" : legal ? "hover:z-20 hover:-translate-y-2" : ""}`}
+                  } ${chosen ? "z-20 -translate-y-4" : legal ? "hover:z-20 hover:-translate-y-2" : ""} ${
+                    drawingId === card.id || layingIds.includes(card.id) ? "invisible" : ""
+                  }`}
                 >
                   <PlayingCard card={card} small highlighted={chosen} />
                 </button>
@@ -1132,6 +1196,8 @@ function OpponentSeat({
   seatIndex = 1,
   avatarSide = "left",
   bubble,
+  hiddenId,
+  layingIds = [],
 }: {
   name: string;
   avatar: string;
@@ -1146,6 +1212,8 @@ function OpponentSeat({
   seatIndex?: number;
   avatarSide?: "left" | "right";
   bubble?: string | null;
+  hiddenId?: string | null;
+  layingIds?: string[];
 }) {
   return (
     <div className={vertical ? `flex items-center gap-4 ${avatarSide === "right" ? "flex-row-reverse" : ""}` : ""}>
@@ -1192,7 +1260,7 @@ function OpponentSeat({
               }}
               className={`${vertical ? "-mt-[55px] first:mt-0" : "-ml-[30px] first:ml-0"} ${
                 dealing ? "animate-deal-out" : ""
-              }`}
+              } ${hiddenId === card.id || layingIds.includes(card.id) ? "invisible" : ""}`}
             >
               <FaceDownCard small className={rotation} />
             </span>
@@ -1226,7 +1294,11 @@ function FlyingCardView({ flight }: { flight: FlyingCard }) {
         transform: `translate(${dx}px, ${dy}px)`,
       }}
     >
-      <PlayingCard card={flight.card} small />
+      {flight.faceDown ? (
+        <FaceDownCard small />
+      ) : (
+        <PlayingCard card={flight.card} small />
+      )}
     </div>
   );
 }
