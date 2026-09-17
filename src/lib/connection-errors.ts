@@ -15,7 +15,9 @@ export type ConnectionErrorType =
   | "reach_room"
   | "realtime_disconnect"
   | "opponent_disconnect"
-  | "opponent_reconnect";
+  | "opponent_reconnect"
+  | "read_streak"
+  | "record_streak";
 
 export interface ConnectionErrorContext {
   game?: string;

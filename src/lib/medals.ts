@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { logConnectionError } from "@/lib/connection-errors";
 
 /** Medal tiers derived from a player's completed-game streak. */
 export type MedalTier = "none" | "bronze" | "silver" | "gold";
@@ -29,23 +30,36 @@ export function disconnectPenalty(streak: number): number {
 
 /** A player's current completed-game streak (0 for players with no record). */
 export async function getStreak(sessionId: string): Promise<number> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("player_profiles")
     .select("streak")
     .eq("session_id", sessionId)
     .maybeSingle();
+  if (error) {
+    // A missing table, a type mismatch or an RLS block would otherwise be
+    // silently swallowed here, leaving the waiting room permanently at "0".
+    logConnectionError("read_streak", error, { session_id: sessionId });
+    console.error("[medals] getStreak failed:", error);
+  }
   return (data?.streak as number | undefined) ?? 0;
 }
 
 /** Record one more completed online game for a player. */
 export async function recordCompletedGame(sessionId: string): Promise<void> {
   const streak = await getStreak(sessionId);
-  await supabase
+  const { error } = await supabase
     .from("player_profiles")
     .upsert(
       { session_id: sessionId, streak: streak + 1, updated_at: new Date().toISOString() },
       { onConflict: "session_id" },
     );
+  if (error) {
+    logConnectionError("record_streak", error, {
+      session_id: sessionId,
+      streak: streak + 1,
+    });
+    console.error("[medals] recordCompletedGame failed:", error);
+  }
 }
 
 /** Drop a player's streak one tier after they disconnect mid-game. */
@@ -53,10 +67,14 @@ export async function recordDisconnect(sessionId: string): Promise<void> {
   const streak = await getStreak(sessionId);
   const next = disconnectPenalty(streak);
   if (next === streak) return; // already at "none" — nothing to drop.
-  await supabase
+  const { error } = await supabase
     .from("player_profiles")
     .upsert(
       { session_id: sessionId, streak: next, updated_at: new Date().toISOString() },
       { onConflict: "session_id" },
     );
+  if (error) {
+    logConnectionError("record_streak", error, { session_id: sessionId, streak: next });
+    console.error("[medals] recordDisconnect failed:", error);
+  }
 }
