@@ -197,6 +197,15 @@ function BackgammonTable() {
   const [viewingBoard, setViewingBoard] = useState(false);
   const stateRef = useRef(state);
   stateRef.current = state;
+  // DOM refs for the borne-off trays (the opponent's, and the player's desktop
+  // and mobile trays) so a borne-off checker flies to the slot it lands in.
+  const cpuOffRef = useRef<HTMLDivElement | null>(null);
+  const humanOffDesktopRef = useRef<HTMLDivElement | null>(null);
+  const humanOffMobileRef = useRef<HTMLDivElement | null>(null);
+  // How many borne-off checkers per side are still mid-flight. The tray hides
+  // these circles until the flight settles and the flying ghost fades out, so a
+  // borne-off checker doesn't appear in the tray before its animation finishes.
+  const [offIncoming, setOffIncoming] = useState<{ human: number; cpu: number }>({ human: 0, cpu: 0 });
   // While a rematch is being negotiated the match row must stay open: treat the
   // game as unfinished so the delayed "completed" write doesn't fire and bounce
   // both players back to the game room mid-rematch.
@@ -757,8 +766,8 @@ function BackgammonTable() {
           </div>
           <div className="rounded-lg border border-gold/20 bg-surface/60 px-4 py-2 text-center">
             <p className="text-[10px] uppercase tracking-[0.2em] text-ivory/50">Borne off</p>
-            <div className="mx-auto mt-1 flex max-w-36 flex-wrap items-center justify-center gap-1">
-              {Array.from({ length: state.board.off.cpu }, (_, i) => (
+            <div ref={cpuOffRef} className="mx-auto mt-1 flex max-w-36 flex-wrap items-center justify-center gap-1">
+              {Array.from({ length: Math.max(0, state.board.off.cpu - offIncoming.cpu) }, (_, i) => (
                 <span
                   key={`off-cpu-${i}`}
                   title="Opponent piece"
@@ -785,13 +794,17 @@ function BackgammonTable() {
             const move = moves.find((m) => m.from === activeSelection && m.to === to);
             if (move) play(move);
           }}
+          cpuOffRef={cpuOffRef}
+          humanOffDesktopRef={humanOffDesktopRef}
+          humanOffMobileRef={humanOffMobileRef}
+          onOffIncomingChange={setOffIncoming}
           tableGraphic={tableGraphic}
         />
 
         {/* Player borne off — slim full-width strip above the player box (mobile only) */}
         <div className="rounded-lg border border-gold/20 bg-surface/60 px-4 py-2 sm:hidden">
-          <div className="flex min-h-5 flex-wrap items-center justify-center gap-1">
-            {Array.from({ length: state.board.off.human }, (_, i) => (
+          <div ref={humanOffMobileRef} className="flex min-h-5 flex-wrap items-center justify-center gap-1">
+            {Array.from({ length: Math.max(0, state.board.off.human - offIncoming.human) }, (_, i) => (
               <span
                 key={`off-human-mobile-${i}`}
                 title="Your piece"
@@ -816,7 +829,7 @@ function BackgammonTable() {
             />
             <div>
               <p className="font-display text-lg font-bold">{playerName}</p>
-              <p className="text-xs text-ivory/60">
+              <p className="min-w-[9rem] whitespace-nowrap text-xs text-ivory/60">
                 {playerComment}
               </p>
             </div>
@@ -865,8 +878,8 @@ function BackgammonTable() {
           </div>
           <div className="hidden shrink-0 rounded-lg border border-gold/20 bg-surface/60 px-4 py-2 text-center sm:block">
             <p className="text-[10px] uppercase tracking-[0.2em] text-ivory/50">Borne off</p>
-            <div className="mx-auto mt-1 flex max-w-36 flex-wrap items-center justify-center gap-1">
-              {Array.from({ length: state.board.off.human }, (_, i) => (
+            <div ref={humanOffDesktopRef} className="mx-auto mt-1 flex max-w-36 flex-wrap items-center justify-center gap-1">
+              {Array.from({ length: Math.max(0, state.board.off.human - offIncoming.human) }, (_, i) => (
                 <span
                   key={`off-human-${i}`}
                   title="Your piece"
@@ -951,6 +964,10 @@ function Board({
   slots,
   onSelect,
   onMoveTo,
+  cpuOffRef,
+  humanOffDesktopRef,
+  humanOffMobileRef,
+  onOffIncomingChange,
   tableGraphic,
 }: {
   board: BoardState;
@@ -962,6 +979,10 @@ function Board({
   slots: number[];
   onSelect: (index: number | "bar") => void;
   onMoveTo: (to: number | "off") => void;
+  cpuOffRef: React.RefObject<HTMLDivElement | null>;
+  humanOffDesktopRef: React.RefObject<HTMLDivElement | null>;
+  humanOffMobileRef: React.RefObject<HTMLDivElement | null>;
+  onOffIncomingChange: (incoming: { human: number; cpu: number }) => void;
   tableGraphic: TablePalette | null;
 }) {
   const topRow = Array.from({ length: 12 }, (_, i) => 12 + i);
@@ -978,6 +999,21 @@ function Board({
   const barCheckersRef = useRef<HTMLDivElement>(null);
   const prevBoardRef = useRef(board);
   const [flies, setFlies] = useState<FlyPiece[]>([]);
+  const lastOffIncomingRef = useRef<{ human: number; cpu: number }>({ human: 0, cpu: 0 });
+
+  // Report how many borne-off checkers per side are still mid-flight so the
+  // parent can hide those tray circles until the flight settles.
+  useLayoutEffect(() => {
+    const next = {
+      human: flies.filter((f) => f.to === "off" && f.side === "human" && !f.settled).length,
+      cpu: flies.filter((f) => f.to === "off" && f.side === "cpu" && !f.settled).length,
+    };
+    const prev = lastOffIncomingRef.current;
+    if (prev.human !== next.human || prev.cpu !== next.cpu) {
+      lastOffIncomingRef.current = next;
+      onOffIncomingChange(next);
+    }
+  }, [flies, onOffIncomingChange]);
 
   useLayoutEffect(() => {
     const prev = prevBoardRef.current;
@@ -1068,13 +1104,28 @@ function Board({
         ? Math.max(0, side === "human" ? b.points[loc]! : -b.points[loc]!)
         : 0;
 
-    // A borne-off checker flies off the nearest board edge toward the player's
-    // borne-off tray (above the board for the opponent, below for the player)
-    // before fading out, instead of vanishing in place.
-    const borneOffTarget = (side: "human" | "cpu", x: number): { x: number; y: number } => ({
-      x,
-      y: side === "cpu" ? -48 : innerHeight + 48,
-    });
+    // A borne-off checker flies to the exact slot it lands in on its borne-off
+    // tray (the opponent's above the board, the player's below) instead of
+    // flying straight off the nearest board edge.
+    const borneOffTarget = (side: "human" | "cpu", x: number): { x: number; y: number } => {
+      const container =
+        side === "cpu"
+          ? cpuOffRef.current
+          : isSm
+            ? humanOffDesktopRef.current
+            : humanOffMobileRef.current;
+      const count = side === "cpu" ? board.off.cpu : board.off.human;
+      const index = Math.max(0, count - 1);
+      const fallback = { x, y: side === "cpu" ? -48 : innerHeight + 48 };
+      if (!container) return fallback;
+      const circle = (container.children[index] as HTMLElement | null) ?? container;
+      const r = circle.getBoundingClientRect();
+      if (r.width === 0 && r.height === 0) return fallback;
+      return {
+        x: r.left + r.width / 2 - boardRect.left - borderLeft,
+        y: r.top + r.height / 2 - boardRect.top - borderTop,
+      };
+    };
 
     const started: FlyPiece[] = moved.map((m, idx) => {
       const from =
@@ -1307,7 +1358,7 @@ function Board({
               key={f.key}
               className={`absolute flex size-4 sm:size-5 items-center justify-center -translate-x-1/2 -translate-y-1/2 rounded-full border-2 transition-all duration-1000 ease-in-out ${
                 f.side === "human" ? "border-[#6b5233] bg-cream" : "border-[var(--opp-piece-border)] bg-[var(--opp-piece)]"
-              } ${f.arrived && (f.fadeOut || f.settled) ? "scale-50 opacity-0" : "opacity-100"}`}
+              } ${f.arrived && f.settled ? "scale-50 opacity-0" : "opacity-100"}`}
               style={{
                 left: f.arrived ? f.tx : f.x,
                 top: f.arrived ? f.ty : f.y,
