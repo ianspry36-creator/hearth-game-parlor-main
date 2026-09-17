@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { ADA_HAPPY, ADA_SAD, ADA_AVATAR } from "@/lib/avatars";
 import skunk from "@/assets/skunk.png";
 import { getNickname } from "@/lib/multiplayer";
-import type { ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
 
 export type GameOverResult = "win" | "loss" | "draw";
 
@@ -96,12 +96,24 @@ export function GameOverDialog({
   // With 4 players the row gets crowded, so shrink each seat by ~25%.
   const compact = seats.length >= 4;
 
+  // Radix's AlertDialog focuses its Cancel button on open, but this dialog has
+  // no Cancel, so the default auto-focus is a no-op. That leaves whatever was
+  // focused behind the overlay (e.g. the board cell that just ended the game)
+  // still focused when Radix applies aria-hidden to the background, which makes
+  // the browser warn: "Blocked aria-hidden on an element because its descendant
+  // retained focus." Focus the primary action ourselves instead.
+  const actionRef = useRef<HTMLButtonElement>(null);
+
   return (
     <AlertDialog open={open}>
       <AlertDialogContent
         className={`border-gold/30 bg-brand text-cream ${
           seats.length >= 4 ? "sm:max-w-xl" : "sm:max-w-md"
         }`}
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          actionRef.current?.focus({ preventScroll: true });
+        }}
       >
         <AlertDialogHeader>
           <AlertDialogTitle className="text-center font-display text-3xl">{title}</AlertDialogTitle>
@@ -168,6 +180,7 @@ export function GameOverDialog({
           {footerExtra}
           <AlertDialogAction asChild>
             <Button
+              ref={actionRef}
               variant="parlor"
               className={playAgainClassName}
               onClick={onPlayAgain}
