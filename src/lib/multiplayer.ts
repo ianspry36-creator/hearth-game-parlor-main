@@ -221,6 +221,12 @@ export function useMatch<T>(matchId: string | undefined, gameOver = false) {
   // written to the shared row, which proves it is still at the table.
   const noteOpponentActivityRef = useRef<() => void>(() => {});
 
+  // True once we have adopted a non-completed row for this match, i.e. we were
+  // actually seated at the table playing it. Distinguishes a match that just
+  // finished (leave the final score on screen for a rematch) from a returning
+  // URL to a match that was already over (redirect home).
+  const sawActiveMatchRef = useRef(false);
+
   useEffect(() => {
     if (!matchId) {
       setMatch(null);
@@ -231,6 +237,7 @@ export function useMatch<T>(matchId: string | undefined, gameOver = false) {
     version.current = 0;
     myWriteKeysRef.current = new Set();
     appliedKeysRef.current = new Set();
+    sawActiveMatchRef.current = false;
     setLoading(true);
 
     /**
@@ -248,6 +255,7 @@ export function useMatch<T>(matchId: string | undefined, gameOver = false) {
       if (myWriteKeysRef.current.has(key) || appliedKeysRef.current.has(key)) return;
       appliedKeysRef.current.add(key);
       version.current = Math.max(version.current, row.version);
+      if (row.status !== "completed") sawActiveMatchRef.current = true;
       setMatch(row);
       // The other client reached the server, so it has not walked away: cancel
       // any reconnect countdown that a presence blip started (a backgrounded or
@@ -332,10 +340,11 @@ export function useMatch<T>(matchId: string | undefined, gameOver = false) {
   const opponentName = match ? (isHost ? match.guest_nickname : match.host_nickname) : null;
   const opponentSession = match ? (isHost ? match.guest_session : match.host_session) : null;
   const opponentAvatar = match ? (isHost ? match.guest_avatar : match.host_avatar) : null;
-  // A finished match is never resumable: hide its last state so a returning
-  // URL can't resurrect the final-score screen, and bounce the player home.
-  const completed = match?.status === "completed";
-  const remoteState = completed ? null : ((match?.state ?? null) as T | null);
+  // Keep the final state visible even after the match is marked completed so a
+  // rematch negotiated from the game-over screen can still sync across seats.
+  // A finished match is still not resumable: the redirect effect below bounces
+  // a returning URL home before it can resurrect the final-score screen.
+  const remoteState = (match?.state ?? null) as T | null;
 
   // Track the opponent's live connection through a Realtime presence channel so a
   // dropped peer can be detected and given a short window to reconnect.
@@ -484,9 +493,14 @@ export function useMatch<T>(matchId: string | undefined, gameOver = false) {
 
   // Once a match has finished there is no way back into it: a returning URL
   // still pointing at the finished match is redirected home instead of
-  // re-opening the completed table.
+  // re-opening the completed table. This must NOT fire when the match the
+  // player is currently at finishes — that would bounce them to the room before
+  // they have seen the final score or had a chance to rematch. `sawActiveMatchRef`
+  // is true once we have adopted a non-completed row (we were seated here
+  // playing), so only a genuinely fresh load of an already-finished match is
+  // sent home.
   useEffect(() => {
-    if (matchId && match?.status === "completed") {
+    if (matchId && match?.status === "completed" && !sawActiveMatchRef.current) {
       void navigate({ to: "/" });
     }
   }, [matchId, match?.status, navigate]);
