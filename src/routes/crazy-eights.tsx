@@ -876,7 +876,7 @@ function CrazyEightsTable() {
   // Overlap grows as cards are added and shrinks as cards leave. Cards that fit
   // keep a few pixels between them (never touching); otherwise they overlap to
   // fill the row. `CARD_W - 1` keeps at least 1px of every card visible.
-  const CARD_W = 60;
+  const CARD_W = 90;
   const MIN_GAP = 5;
   const handOverlap = (() => {
     const n = myHand.length;
@@ -1036,12 +1036,12 @@ function CrazyEightsTable() {
                   ref={stockRef}
                   className="block transition-transform enabled:hover:-translate-y-1 disabled:opacity-60"
                 >
-                  <FaceDownCard small />
+                  <FaceDownCard table />
                 </button>
               </div>
               <div className="text-center" ref={pileRef}>
                 <div className="relative">
-                  <PlayingCard card={top} tiny />
+                  <PlayingCard card={top} table />
                   {state.wildSuit && (
                     <span
                       aria-hidden
@@ -1111,7 +1111,7 @@ function CrazyEightsTable() {
         {/* Your hand */}
         <section>
           <div className="mb-2 flex items-center justify-center gap-3">
-            <PlayerAvatar avatar={playerAvatar} onSelect={setPlayerAvatar} size="size-10" />
+            <PlayerAvatar avatar={playerAvatar} onSelect={setPlayerAvatar} size="size-15" />
             <p className="text-[12.5px] uppercase tracking-[0.22em] text-ivory/45">
               {seatName("you")}
             </p>
@@ -1142,7 +1142,7 @@ function CrazyEightsTable() {
                     drawingId === card.id || layingIds.includes(card.id) ? "invisible" : ""
                   }`}
                 >
-                  <PlayingCard card={card} small highlighted={chosen} />
+                  <PlayingCard card={card} medium highlighted={chosen} />
                 </button>
               );
             })}
@@ -1224,7 +1224,7 @@ function OpponentSeat({
             alt=""
             aria-hidden="true"
             className={`rounded-full border object-cover ${
-              vertical ? "size-15" : "size-[50px]"
+              vertical ? "size-[90px]" : "size-[75px]"
             } ${active ? "border-gold ring-2 ring-gold/40" : "border-gold/40"}`}
           />
           {bubble && (
@@ -1244,10 +1244,10 @@ function OpponentSeat({
           {name}
         </p>
       </div>
-      {/* Reserve vertical space for up to 10 stacked cards (h-20 minus -mt-[55px]
-          overlap = 25px each, so 80 + 9*25 = 305px) so the side seats don't
+      {/* Reserve vertical space for up to 10 stacked cards (h-[135px] minus -mt-[110px]
+          overlap = 25px each, so 135 + 9*25 = 360px) so the side seats don't
           make the screen grow deeper card-by-card while dealing. */}
-      <div className={vertical ? "flex min-h-[305px] flex-col items-center" : "flex"}>
+      <div className={vertical ? "flex min-h-[360px] flex-col items-center" : "flex"}>
         {cards.map((card, index) => {
           const arrived = !dealing || dealt > index * playerCount + seatIndex;
           if (!arrived) return null;
@@ -1258,7 +1258,7 @@ function OpponentSeat({
                 if (el) handEls.set(card.id, el);
                 else handEls.delete(card.id);
               }}
-              className={`${vertical ? "-mt-[55px] first:mt-0" : "-ml-[30px] first:ml-0"} ${
+              className={`${vertical ? "-mt-[110px] first:mt-0" : "-ml-[65px] first:ml-0"} ${
                 dealing ? "animate-deal-out" : ""
               } ${hiddenId === card.id || layingIds.includes(card.id) ? "invisible" : ""}`}
             >
@@ -1295,9 +1295,9 @@ function FlyingCardView({ flight }: { flight: FlyingCard }) {
       }}
     >
       {flight.faceDown ? (
-        <FaceDownCard small />
+        <FaceDownCard table />
       ) : (
-        <PlayingCard card={flight.card} small />
+        <PlayingCard card={flight.card} table />
       )}
     </div>
   );
@@ -1305,9 +1305,11 @@ function FlyingCardView({ flight }: { flight: FlyingCard }) {
 
 function FaceDownCard({
   small = false,
+  table = false,
   className = "",
 }: {
   small?: boolean;
+  table?: boolean;
   className?: string;
 }) {
   return (
@@ -1317,7 +1319,7 @@ function FaceDownCard({
       aria-hidden="true"
       loading="lazy"
       className={`block rounded-lg object-cover shadow-md shadow-black/30 ${
-        small ? "h-20 w-[55px]" : "h-[120px] w-20"
+        small ? "h-[135px] w-[90px]" : table ? "h-[120px] w-[82px]" : "h-[120px] w-20"
       } ${className}`}
     />
   );
@@ -1327,48 +1329,72 @@ function PlayingCard({
   card,
   small = false,
   tiny = false,
+  medium = false,
+  table = false,
   highlighted = false,
 }: {
   card: Card;
   small?: boolean;
   tiny?: boolean;
+  medium?: boolean;
+  table?: boolean;
   highlighted?: boolean;
 }) {
   const red = isRed(card.suit);
   const rank = RANK_LABEL[card.rank];
   const suit = SUIT_SYMBOL[card.suit];
   const isFace = card.rank > 10;
-  const pips = isFace || card.rank === 1 ? 1 : card.rank;
   return (
     <span
-      className={`relative block overflow-hidden rounded-lg bg-white shadow-md shadow-black/30 ${
-        highlighted ? "border-2 border-gold" : "border border-black/15"
-      } ${tiny ? "h-20 w-[55px]" : small ? "h-[90px] w-15" : "h-[140px] w-[95px]"} ${
+      className={`relative block overflow-hidden rounded-lg border bg-cream shadow-md shadow-black/30 transition-transform ${
+        tiny
+          ? "h-20 w-[55px]"
+          : small
+            ? "h-[90px] w-15"
+            : medium
+              ? "h-[135px] w-[90px]"
+              : table
+                ? "h-[120px] w-[82px]"
+                : "h-[140px] w-[95px]"
+      } ${highlighted ? "border-gold ring-2 ring-gold" : "border-black/10"} ${
         red ? "text-destructive" : "text-brand"
       }`}
     >
-      {/* Rank and suit, stacked in the top-left corner */}
+      {/* corner index */}
       <span
-        className={`absolute left-1.5 top-1 flex flex-col items-center font-display font-bold leading-none ${
-          small || tiny ? "text-xl" : "text-3xl"
+        className={`absolute left-1 top-0.5 flex flex-col items-center leading-none font-display font-bold ${
+          tiny ? "text-sm" : small ? "text-base" : medium ? "text-2xl" : table ? "text-xl" : "text-2xl"
         }`}
       >
         <span>{rank}</span>
-        <span className={small || tiny ? "text-[17.5px]" : "text-[25px]"}>{suit}</span>
+        <span className={tiny ? "text-[13px]" : small ? "text-[14px]" : medium ? "text-[22px]" : table ? "text-[18px]" : "text-[22px]"}>{suit}</span>
       </span>
 
-      {/* Pip cluster in the lower body of the card */}
+      {/* graphic */}
       <span
         aria-hidden
-        className={`absolute bottom-1.5 right-1.5 flex w-[58%] flex-wrap-reverse justify-end gap-x-[1px] gap-y-[1px] leading-[0.85] ${
-          small || tiny ? "text-[8.75px]" : "text-[12.5px]"
-        }`}
+        className={`absolute inset-0 grid place-items-center font-display ${
+          tiny ? "text-3xl" : small ? "text-4xl" : medium ? "text-6xl" : table ? "text-5xl" : "text-6xl"
+        } ${isFace ? "opacity-90" : "opacity-80"}`}
       >
         {isFace ? (
-          <span className={`font-display font-bold ${small || tiny ? "text-[22.5px]" : "text-3xl"}`}>{rank}</span>
+          <span className="flex flex-col items-center leading-none">
+            <span className={tiny ? "text-lg" : small ? "text-xl" : medium ? "text-4xl" : table ? "text-3xl" : "text-4xl"}>{rank}</span>
+            <span className={tiny ? "text-2xl" : small ? "text-3xl" : medium ? "text-5xl" : table ? "text-4xl" : "text-5xl"}>{suit}</span>
+          </span>
         ) : (
-          Array.from({ length: pips }, (_, index) => <span key={index}>{suit}</span>)
+          suit
         )}
+      </span>
+
+      {/* mirrored bottom-right index */}
+      <span
+        className={`absolute bottom-0.5 right-1 flex rotate-180 flex-col items-center leading-none font-display font-bold ${
+          tiny ? "text-sm" : small ? "text-base" : medium ? "text-2xl" : table ? "text-xl" : "text-2xl"
+        }`}
+      >
+        <span>{rank}</span>
+        <span className={tiny ? "text-[13px]" : small ? "text-[14px]" : medium ? "text-[22px]" : table ? "text-[18px]" : "text-[22px]"}>{suit}</span>
       </span>
 
       <span className="sr-only">{cardLabel(card)}</span>

@@ -12,31 +12,35 @@ export type GameMeta = {
 
 export const GAMES: GameMeta[] = [
   {
-    id: "cribbage",
-    name: "Cribbage",
-    initial: "C",
-    tagline: "Four suits, a peg, and a quiet duel of points and patience.",
-    path: "/cribbage",
+    id: "addiction",
+    name: "Addiction",
+    initial: "A",
+    tagline: "Four rows, four suits, and a single careful line from two to king.",
+    path: "/addiction",
     rules: [
       {
         heading: "The object",
-        body: "Be first to peg 121 points. Points are won during the play of the cards and again when hands are shown.",
+        body: "Order the table so each of the four rows reads two through king of a single suit in sequence, with an empty slot at the far right of every row.",
       },
       {
         heading: "The deal",
-        body: "Each player receives six cards and discards two face down to the crib, which belongs to the dealer. A starter card is then cut and turned. If the starter is a Jack, the dealer pegs two for his heels.",
+        body: "A full deck is dealt into four rows of thirteen cards. The four aces are then removed, leaving four empty slots to work with.",
       },
       {
-        heading: "The play",
-        body: "Non-dealer leads. Players alternate laying cards, calling the running total, which may not exceed thirty-one. Score two for reaching fifteen or thirty-one, two for a pair, six for three of a kind, twelve for four, and one per card for a run of three or more.",
+        heading: "Moving a card",
+        body: "A card may move into an empty slot only when the card immediately to its left is the same suit and exactly one rank lower. A two may occupy only the leftmost slot of a row, and nothing may sit to the right of a king.",
       },
       {
-        heading: "Go",
-        body: "If you cannot lay a card without passing thirty-one, say go and your opponent continues alone. The last player to lay a card pegs one, or two if the total was exactly thirty-one, then the count resets.",
+        heading: "Locked in",
+        body: "Once a card forms an unbroken run back to a two on the far left, it is locked in place — shown with a gold pip — and can never be shuffled away.",
       },
       {
-        heading: "The show",
-        body: "Non-dealer scores first, then dealer, then the crib. Count fifteens (two each), pairs (two each), runs (one per card), a four-card flush (four, five with the starter; the crib needs all five), and one for his nobs — the Jack matching the starter's suit.",
+        heading: "Shuffling",
+        body: "Three times a game you may shuffle every card that is not yet locked and redeal it into the empty slots. Locked cards stay put, so progress is never lost.",
+      },
+      {
+        heading: "Winning",
+        body: "When all four rows read two through king of a single suit and the rightmost slot of each is empty, the table is solved.",
       },
     ],
   },
@@ -70,89 +74,97 @@ export const GAMES: GameMeta[] = [
     ],
   },
   {
-    id: "warship",
-    name: "Warship",
-    initial: "W",
-    tagline: "Eight hidden ships, ten by ten of open water, and a duel of guesswork.",
-    path: "/warship",
+    id: "canfield",
+    name: "Canfield",
+    initial: "C",
+    tagline: "Build four foundations up from the lead rank and drain the reserve home.",
+    path: "/canfield",
     rules: [
       {
         heading: "The object",
-        body: "Find and sink your opponent's entire fleet of eight ships before they sink yours.",
+        body: "Move all fifty-two cards onto the four foundations. Each foundation holds one suit, built upward from the lead rank dealt at the start and wrapping from King to Ace.",
       },
       {
-        heading: "The fleet",
-        body: "Each admiral hides a Carrier of five squares, a Battleship of four, a Cruiser and a Submarine of three each, a Destroyer of two, and a Patrol Boat, Gunboat and Scout of one square each. Ships sit horizontally or vertically and may not overlap.",
+        heading: "The setup",
+        body: "One card is dealt to the first foundation to fix the lead rank. Thirteen cards go to the reserve, one to each of the four tableau piles, and the rest to the stock.",
       },
       {
-        heading: "Taking aim",
-        body: "Players fire one shot per turn by naming a square on the opponent's grid. A shot is reported as a hit or a miss, and once every square of a ship is struck that ship is sunk.",
+        heading: "The foundations",
+        body: "Build each suit upward from the lead rank, wrapping King to Ace. An empty foundation is started with a card of the lead rank, and a foundation card may be brought back down to the tableau.",
       },
       {
-        heading: "Reading the board",
-        body: "Your own waters are shown below; the opponent's are above. Red marks a hit, a pale dot marks a miss, and sunk ships are called out in the table talk.",
+        heading: "The stock and waste",
+        body: "Click the stock to flip one or three cards onto the waste — set your preference with the Draw toggle. When the stock runs out, the waste is turned over and redealt.",
       },
       {
-        heading: "Victory",
-        body: "The first admiral to sink all eight of the enemy ships wins the engagement.",
+        heading: "The reserve",
+        body: "Only the top reserve card may be moved, to a foundation or the tableau. Whenever a tableau pile empties, the top reserve card fills it automatically.",
+      },
+      {
+        heading: "Moving on the tableau",
+        body: "Build down in alternating colours, wrapping from Ace to King: a red six goes on a black seven, and a King may sit on an Ace. Whole or partial runs move together. Double-click a card to fly it home.",
+      },
+      {
+        heading: "Finishing",
+        body: "When the stock and reserve are spent, the table clears itself. Undo as often as you like — each undo counts as a move.",
       },
     ],
   },
   {
-    id: "farkle",
-    name: "Farkle",
-    initial: "F",
-    tagline: "Six dice, a rising pile of points, and the nerve to know when to stop.",
-    path: "/farkle",
+    id: "checkers",
+    name: "Checkers",
+    initial: "C",
+    tagline: "Jump, capture and crown your way across the chequered board.",
+    path: "/checkers",
     rules: [
       {
         heading: "The object",
-        body: "Be the first to bank ten thousand points. Points are gathered a turn at a time, and a turn lasts only as long as your luck holds.",
+        body: "Capture all of Ada's pieces — or leave her with no legal move — to win. You play the dark men on the three rows nearest you.",
       },
       {
-        heading: "The throw",
-        body: "Roll all six dice, then set aside at least one scoring die. You may bank what you have and end your turn, or throw the dice that remain to add to the pile.",
+        heading: "The setup",
+        body: "Each side begins with twelve men on the dark squares of the three rows closest to them. The light squares are never used.",
       },
       {
-        heading: "Scoring",
-        body: "Each one is worth a hundred, each five is worth fifty. Three of a kind pays a hundred times the face — three ones pay a thousand — four of a kind pays a thousand, five of a kind pays two thousand, and six of a kind pays three thousand. A run of one to six pays fifteen hundred, three pairs pay fifteen hundred, and two triplets pay twenty-five hundred.",
+        heading: "Movement",
+        body: "A man moves diagonally forward one square onto an empty dark square. Men never move backward until they are crowned.",
       },
       {
-        heading: "Farkle",
-        body: "If a throw shows nothing that can be set aside you have farkled: the whole pile for that turn is lost and the dice pass to your opponent.",
+        heading: "Capturing",
+        body: "Jump over an adjacent opponent's piece onto the empty square beyond to capture it. Capturing is compulsory, and a single turn may chain several jumps together. You must take any jump that is available, though you are never forced to take the most.",
       },
       {
-        heading: "Hot dice",
-        body: "Score with all six dice in a single turn and the dice run hot — pick up all six and throw again, carrying your pile with you.",
+        heading: "Kings",
+        body: "Reach the far row to be crowned a king. Kings move and jump diagonally forward and backward. If you are crowned in the middle of a jump, you must stop and wait until your next turn to move backward.",
+      },
+      {
+        heading: "Winning",
+        body: "You lose if all your pieces are captured, or if you have no legal move. The game is a draw if the same position comes up three times without a capture, or if a hundred moves pass with no piece taken.",
       },
     ],
   },
   {
-    id: "yahtzee",
-    name: "Yahtzee",
-    initial: "Y",
-    tagline: "Five dice, thirteen boxes, and the hunt for all five alike.",
-    path: "/yahtzee",
+    id: "clock",
+    name: "Clock Solitaire",
+    initial: "C",
+    tagline: "Deal the deck around the clock and lay each card at its own hour before the fourth King tolls.",
+    path: "/clock",
     rules: [
       {
         heading: "The object",
-        body: "Fill all thirteen boxes on your scorecard. When both cards are full the higher grand total wins the table.",
+        body: "Lay all fifty-two cards face up, each at its own hour of the clock — the Ace at one o'clock, two through ten at their numbers, the Jack at eleven, the Queen at twelve, and the Kings in the centre.",
       },
       {
-        heading: "The turn",
-        body: "Throw all five dice, then hold any you wish and throw the rest. You have three throws in all, after which you must enter a score in one open box.",
+        heading: "The deal",
+        body: "The whole deck is dealt face down into thirteen piles of four, set in a circle like the hours of a clock. The thirteenth pile, in the middle, belongs to the Kings.",
       },
       {
-        heading: "The upper section",
-        body: "Ones through sixes score the sum of the dice showing that number. Reach sixty-three or more across the upper section and you earn a bonus of thirty-five.",
+        heading: "The play",
+        body: "Turn over any of the four centre cards — your choice — and lay it face up beneath the pile of its own number: an Ace under one o'clock, a seven under seven. Then turn the top card of that pile, and so on around the clock, returning to the centre whenever a King is laid.",
       },
       {
-        heading: "The lower section",
-        body: "Three of a kind and four of a kind score the total of all five dice. A full house pays twenty-five, a small straight of four in a row pays thirty, a large straight of five in a row pays forty, and five alike — Yahtzee — pays fifty. Chance simply scores the total of the dice.",
-      },
-      {
-        heading: "No empty hands",
-        body: "Every turn must fill a box. If nothing fits, you must enter a zero somewhere — choosing where to take that loss is half the game.",
+        heading: "Winning and losing",
+        body: "Lay every card before the fourth King appears and you've won — odds of about one in thirteen. Turn the fourth King too soon and the clock has struck; the hand is lost.",
       },
     ],
   },
@@ -186,64 +198,60 @@ export const GAMES: GameMeta[] = [
     ],
   },
   {
-    id: "triangles",
-    name: "Triangles",
-    initial: "T",
-    tagline: "Twenty scattered spots, one line at a time, and the third line takes the triangle.",
-    path: "/triangles",
+    id: "cribbage",
+    name: "Cribbage",
+    initial: "C",
+    tagline: "Four suits, a peg, and a quiet duel of points and patience.",
+    path: "/cribbage",
     rules: [
       {
         heading: "The object",
-        body: "Claim more triangles than your opponent. When no more lines can be drawn without crossing, the higher tally wins the table.",
+        body: "Be first to peg 121 points. Points are won during the play of the cards and again when hands are shown.",
       },
       {
-        heading: "The board",
-        body: "Twenty spots are scattered at random and left unjoined — a fresh layout every game. Each player has a colour, and a triangle you close is filled in yours.",
+        heading: "The deal",
+        body: "Each player receives six cards and discards two face down to the crib, which belongs to the dealer. A starter card is then cut and turned. If the starter is a Jack, the dealer pegs two for his heels.",
       },
       {
-        heading: "Drawing",
-        body: "Players take it in turn to draw one line between any two spots, so long as it does not touch or cross a line already on the board. A line once drawn cannot be moved or taken away.",
+        heading: "The play",
+        body: "Non-dealer leads. Players alternate laying cards, calling the running total, which may not exceed thirty-one. Score two for reaching fifteen or thirty-one, two for a pair, six for three of a kind, twelve for four, and one per card for a run of three or more.",
       },
       {
-        heading: "Claiming",
-        body: "Draw the third and final line of a triangle and it is marked as yours — but only if no other spot sits inside it. A single line may close two triangles at once, and both are yours.",
+        heading: "Go",
+        body: "If you cannot lay a card without passing thirty-one, say go and your opponent continues alone. The last player to lay a card pegs one, or two if the total was exactly thirty-one, then the count resets.",
       },
       {
-        heading: "The tactic",
-        body: "Avoid giving a triangle its second line: doing so leaves the third for your opponent, and one careless line can hand over a whole chain.",
+        heading: "The show",
+        body: "Non-dealer scores first, then dealer, then the crib. Count fifteens (two each), pairs (two each), runs (one per card), a four-card flush (four, five with the starter; the crib needs all five), and one for his nobs — the Jack matching the starter's suit.",
       },
     ],
   },
   {
-    id: "solitaire",
-    name: "Solitaire",
-    initial: "S",
-    tagline: "Deal the tableau, build four foundations, and send every card home.",
-    path: "/solitaire",
+    id: "farkle",
+    name: "Farkle",
+    initial: "F",
+    tagline: "Six dice, a rising pile of points, and the nerve to know when to stop.",
+    path: "/farkle",
     rules: [
       {
         heading: "The object",
-        body: "Move every card onto the four foundations. Each foundation holds one suit, built up from Ace to King.",
+        body: "Be the first to bank ten thousand points. Points are gathered a turn at a time, and a turn lasts only as long as your luck holds.",
       },
       {
-        heading: "The setup",
-        body: "Seven tableau piles are dealt from one to seven cards, left to right. The top card of each pile is face up, the rest face down, and what remains becomes the stock.",
+        heading: "The throw",
+        body: "Roll all six dice, then set aside at least one scoring die. You may bank what you have and end your turn, or throw the dice that remain to add to the pile.",
       },
       {
-        heading: "The stock and waste",
-        body: "Click the stock to flip one or three cards onto the waste — set your preference with the Draw toggle. When the stock runs out, the waste is turned back over and you go again.",
+        heading: "Scoring",
+        body: "Each one is worth a hundred, each five is worth fifty. Three of a kind pays a hundred times the face — three ones pay a thousand — four of a kind pays a thousand, five of a kind pays two thousand, and six of a kind pays three thousand. A run of one to six pays fifteen hundred, three pairs pay fifteen hundred, and two triplets pay twenty-five hundred.",
       },
       {
-        heading: "Moving on the tableau",
-        body: "Build down in alternating colours: a red six goes on a black seven. Whole face-up runs move together, and only a king may fill an empty tableau pile.",
+        heading: "Farkle",
+        body: "If a throw shows nothing that can be set aside you have farkled: the whole pile for that turn is lost and the dice pass to your opponent.",
       },
       {
-        heading: "Foundations",
-        body: "Send Aces up as soon as they appear, then build each suit in order. Double-click any card to fly it home, or click it and then a foundation. A foundation card can be brought back down to the tableau.",
-      },
-      {
-        heading: "Finishing",
-        body: "Click a face-down tableau card to turn it over. When every tableau card is face up and the stock is spent, the table clears itself. Undo as often as you like — each undo counts as a move.",
+        heading: "Hot dice",
+        body: "Score with all six dice in a single turn and the dice run hot — pick up all six and throw again, carrying your pile with you.",
       },
     ],
   },
@@ -277,39 +285,6 @@ export const GAMES: GameMeta[] = [
       {
         heading: "Finishing",
         body: "With the free cells empty and every tableau pile ordered as a descending, alternating run, the table clears itself. Undo as often as you like — each undo counts as a move.",
-      },
-    ],
-  },
-  {
-    id: "addiction",
-    name: "Addiction",
-    initial: "A",
-    tagline: "Four rows, four suits, and a single careful line from two to king.",
-    path: "/addiction",
-    rules: [
-      {
-        heading: "The object",
-        body: "Order the table so each of the four rows reads two through king of a single suit in sequence, with an empty slot at the far right of every row.",
-      },
-      {
-        heading: "The deal",
-        body: "A full deck is dealt into four rows of thirteen cards. The four aces are then removed, leaving four empty slots to work with.",
-      },
-      {
-        heading: "Moving a card",
-        body: "A card may move into an empty slot only when the card immediately to its left is the same suit and exactly one rank lower. A two may occupy only the leftmost slot of a row, and nothing may sit to the right of a king.",
-      },
-      {
-        heading: "Locked in",
-        body: "Once a card forms an unbroken run back to a two on the far left, it is locked in place — shown with a gold pip — and can never be shuffled away.",
-      },
-      {
-        heading: "Shuffling",
-        body: "Three times a game you may shuffle every card that is not yet locked and redeal it into the empty slots. Locked cards stay put, so progress is never lost.",
-      },
-      {
-        heading: "Winning",
-        body: "When all four rows read two through king of a single suit and the rightmost slot of each is empty, the table is solved.",
       },
     ],
   },
@@ -380,101 +355,6 @@ export const GAMES: GameMeta[] = [
     ],
   },
   {
-    id: "checkers",
-    name: "Checkers",
-    initial: "C",
-    tagline: "Jump, capture and crown your way across the chequered board.",
-    path: "/checkers",
-    rules: [
-      {
-        heading: "The object",
-        body: "Capture all of Ada's pieces — or leave her with no legal move — to win. You play the dark men on the three rows nearest you.",
-      },
-      {
-        heading: "The setup",
-        body: "Each side begins with twelve men on the dark squares of the three rows closest to them. The light squares are never used.",
-      },
-      {
-        heading: "Movement",
-        body: "A man moves diagonally forward one square onto an empty dark square. Men never move backward until they are crowned.",
-      },
-      {
-        heading: "Capturing",
-        body: "Jump over an adjacent opponent's piece onto the empty square beyond to capture it. Capturing is compulsory, and a single turn may chain several jumps together. You must take any jump that is available, though you are never forced to take the most.",
-      },
-      {
-        heading: "Kings",
-        body: "Reach the far row to be crowned a king. Kings move and jump diagonally forward and backward. If you are crowned in the middle of a jump, you must stop and wait until your next turn to move backward.",
-      },
-      {
-        heading: "Winning",
-        body: "You lose if all your pieces are captured, or if you have no legal move. The game is a draw if the same position comes up three times without a capture, or if a hundred moves pass with no piece taken.",
-      },
-    ],
-  },
-  {
-    id: "canfield",
-    name: "Canfield",
-    initial: "C",
-    tagline: "Build four foundations up from the lead rank and drain the reserve home.",
-    path: "/canfield",
-    rules: [
-      {
-        heading: "The object",
-        body: "Move all fifty-two cards onto the four foundations. Each foundation holds one suit, built upward from the lead rank dealt at the start and wrapping from King to Ace.",
-      },
-      {
-        heading: "The setup",
-        body: "One card is dealt to the first foundation to fix the lead rank. Thirteen cards go to the reserve, one to each of the four tableau piles, and the rest to the stock.",
-      },
-      {
-        heading: "The foundations",
-        body: "Build each suit upward from the lead rank, wrapping King to Ace. An empty foundation is started with a card of the lead rank, and a foundation card may be brought back down to the tableau.",
-      },
-      {
-        heading: "The stock and waste",
-        body: "Click the stock to flip one or three cards onto the waste — set your preference with the Draw toggle. When the stock runs out, the waste is turned over and redealt.",
-      },
-      {
-        heading: "The reserve",
-        body: "Only the top reserve card may be moved, to a foundation or the tableau. Whenever a tableau pile empties, the top reserve card fills it automatically.",
-      },
-      {
-        heading: "Moving on the tableau",
-        body: "Build down in alternating colours, wrapping from Ace to King: a red six goes on a black seven, and a King may sit on an Ace. Whole or partial runs move together. Double-click a card to fly it home.",
-      },
-      {
-        heading: "Finishing",
-        body: "When the stock and reserve are spent, the table clears itself. Undo as often as you like — each undo counts as a move.",
-      },
-    ],
-  },
-  {
-    id: "clock",
-    name: "Clock Solitaire",
-    initial: "C",
-    tagline: "Deal the deck around the clock and lay each card at its own hour before the fourth King tolls.",
-    path: "/clock",
-    rules: [
-      {
-        heading: "The object",
-        body: "Lay all fifty-two cards face up, each at its own hour of the clock — the Ace at one o'clock, two through ten at their numbers, the Jack at eleven, the Queen at twelve, and the Kings in the centre.",
-      },
-      {
-        heading: "The deal",
-        body: "The whole deck is dealt face down into thirteen piles of four, set in a circle like the hours of a clock. The thirteenth pile, in the middle, belongs to the Kings.",
-      },
-      {
-        heading: "The play",
-        body: "Turn over any of the four centre cards — your choice — and lay it face up beneath the pile of its own number: an Ace under one o'clock, a seven under seven. Then turn the top card of that pile, and so on around the clock, returning to the centre whenever a King is laid.",
-      },
-      {
-        heading: "Winning and losing",
-        body: "Lay every card before the fourth King appears and you've won — odds of about one in thirteen. Turn the fourth King too soon and the clock has struck; the hand is lost.",
-      },
-    ],
-  },
-  {
     id: "scorpion",
     name: "Scorpion Solitaire",
     initial: "S",
@@ -512,6 +392,39 @@ export const GAMES: GameMeta[] = [
     ],
   },
   {
+    id: "solitaire",
+    name: "Solitaire",
+    initial: "S",
+    tagline: "Deal the tableau, build four foundations, and send every card home.",
+    path: "/solitaire",
+    rules: [
+      {
+        heading: "The object",
+        body: "Move every card onto the four foundations. Each foundation holds one suit, built up from Ace to King.",
+      },
+      {
+        heading: "The setup",
+        body: "Seven tableau piles are dealt from one to seven cards, left to right. The top card of each pile is face up, the rest face down, and what remains becomes the stock.",
+      },
+      {
+        heading: "The stock and waste",
+        body: "Click the stock to flip one or three cards onto the waste — set your preference with the Draw toggle. When the stock runs out, the waste is turned back over and you go again.",
+      },
+      {
+        heading: "Moving on the tableau",
+        body: "Build down in alternating colours: a red six goes on a black seven. Whole face-up runs move together, and only a king may fill an empty tableau pile.",
+      },
+      {
+        heading: "Foundations",
+        body: "Send Aces up as soon as they appear, then build each suit in order. Double-click any card to fly it home, or click it and then a foundation. A foundation card can be brought back down to the tableau.",
+      },
+      {
+        heading: "Finishing",
+        body: "Click a face-down tableau card to turn it over. When every tableau card is face up and the stock is spent, the table clears itself. Undo as often as you like — each undo counts as a move.",
+      },
+    ],
+  },
+  {
     id: "tripeaks",
     name: "Tri Peaks Solitaire",
     initial: "T",
@@ -541,6 +454,93 @@ export const GAMES: GameMeta[] = [
       {
         heading: "Numbered games and records",
         body: "Fifty thousand numbered games are dealt fresh from their number, and your best result for each is remembered. Be first to win a game, break your own record, or simply leave fewer cards behind than ever before.",
+      },
+    ],
+  },
+  {
+    id: "triangles",
+    name: "Triangles",
+    initial: "T",
+    tagline: "Twenty scattered spots, one line at a time, and the third line takes the triangle.",
+    path: "/triangles",
+    rules: [
+      {
+        heading: "The object",
+        body: "Claim more triangles than your opponent. When no more lines can be drawn without crossing, the higher tally wins the table.",
+      },
+      {
+        heading: "The board",
+        body: "Twenty spots are scattered at random and left unjoined — a fresh layout every game. Each player has a colour, and a triangle you close is filled in yours.",
+      },
+      {
+        heading: "Drawing",
+        body: "Players take it in turn to draw one line between any two spots, so long as it does not touch or cross a line already on the board. A line once drawn cannot be moved or taken away.",
+      },
+      {
+        heading: "Claiming",
+        body: "Draw the third and final line of a triangle and it is marked as yours — but only if no other spot sits inside it. A single line may close two triangles at once, and both are yours.",
+      },
+      {
+        heading: "The tactic",
+        body: "Avoid giving a triangle its second line: doing so leaves the third for your opponent, and one careless line can hand over a whole chain.",
+      },
+    ],
+  },
+  {
+    id: "warship",
+    name: "Warship",
+    initial: "W",
+    tagline: "Eight hidden ships, ten by ten of open water, and a duel of guesswork.",
+    path: "/warship",
+    rules: [
+      {
+        heading: "The object",
+        body: "Find and sink your opponent's entire fleet of eight ships before they sink yours.",
+      },
+      {
+        heading: "The fleet",
+        body: "Each admiral hides a Carrier of five squares, a Battleship of four, a Cruiser and a Submarine of three each, a Destroyer of two, and a Patrol Boat, Gunboat and Scout of one square each. Ships sit horizontally or vertically and may not overlap.",
+      },
+      {
+        heading: "Taking aim",
+        body: "Players fire one shot per turn by naming a square on the opponent's grid. A shot is reported as a hit or a miss, and once every square of a ship is struck that ship is sunk.",
+      },
+      {
+        heading: "Reading the board",
+        body: "Your own waters are shown below; the opponent's are above. Red marks a hit, a pale dot marks a miss, and sunk ships are called out in the table talk.",
+      },
+      {
+        heading: "Victory",
+        body: "The first admiral to sink all eight of the enemy ships wins the engagement.",
+      },
+    ],
+  },
+  {
+    id: "yahtzee",
+    name: "Yahtzee",
+    initial: "Y",
+    tagline: "Five dice, thirteen boxes, and the hunt for all five alike.",
+    path: "/yahtzee",
+    rules: [
+      {
+        heading: "The object",
+        body: "Fill all thirteen boxes on your scorecard. When both cards are full the higher grand total wins the table.",
+      },
+      {
+        heading: "The turn",
+        body: "Throw all five dice, then hold any you wish and throw the rest. You have three throws in all, after which you must enter a score in one open box.",
+      },
+      {
+        heading: "The upper section",
+        body: "Ones through sixes score the sum of the dice showing that number. Reach sixty-three or more across the upper section and you earn a bonus of thirty-five.",
+      },
+      {
+        heading: "The lower section",
+        body: "Three of a kind and four of a kind score the total of all five dice. A full house pays twenty-five, a small straight of four in a row pays thirty, a large straight of five in a row pays forty, and five alike — Yahtzee — pays fifty. Chance simply scores the total of the dice.",
+      },
+      {
+        heading: "No empty hands",
+        body: "Every turn must fill a box. If nothing fits, you must enter a zero somewhere — choosing where to take that loss is half the game.",
       },
     ],
   },

@@ -6,7 +6,15 @@ export type ThemeId =
   | "teal"
   | "amber"
   | "berry"
-  | "slate";
+  | "slate"
+  | "lilac"
+  | "rust"
+  | "charcoal"
+  | "cobalt"
+  | "pine"
+  | "violet"
+  | "maroon"
+  | "navy";
 
 export type ThemeOption = {
   id: ThemeId;
@@ -56,6 +64,46 @@ export const THEME_OPTIONS: ThemeOption[] = [
     label: "Slate & Pearl",
     swatch: { brand: "oklch(0.235 0.02 250)", accent: "oklch(0.72 0.04 210)" },
   },
+  {
+    id: "lilac",
+    label: "Lilac & Lavender",
+    swatch: { brand: "oklch(0.235 0.055 285)", accent: "oklch(0.72 0.13 300)" },
+  },
+  {
+    id: "rust",
+    label: "Rust & Bronze",
+    swatch: { brand: "oklch(0.235 0.05 45)", accent: "oklch(0.72 0.14 55)" },
+  },
+  {
+    id: "charcoal",
+    label: "Charcoal & Silver",
+    swatch: { brand: "oklch(0.235 0.015 30)", accent: "oklch(0.72 0.05 40)" },
+  },
+  {
+    id: "cobalt",
+    label: "Cobalt & Tangerine",
+    swatch: { brand: "oklch(0.235 0.06 258)", accent: "oklch(0.72 0.17 45)" },
+  },
+  {
+    id: "pine",
+    label: "Pine & Poppy",
+    swatch: { brand: "oklch(0.235 0.055 155)", accent: "oklch(0.72 0.18 5)" },
+  },
+  {
+    id: "violet",
+    label: "Violet & Citron",
+    swatch: { brand: "oklch(0.235 0.06 295)", accent: "oklch(0.72 0.17 105)" },
+  },
+  {
+    id: "maroon",
+    label: "Maroon & Mint",
+    swatch: { brand: "oklch(0.235 0.06 355)", accent: "oklch(0.72 0.15 160)" },
+  },
+  {
+    id: "navy",
+    label: "Navy & Apricot",
+    swatch: { brand: "oklch(0.235 0.055 245)", accent: "oklch(0.72 0.15 60)" },
+  },
 ];
 
 const KEY = "parlor.theme";
@@ -98,4 +146,4 @@ export function applyTheme(id: ThemeId) {
  */
 export const THEME_INIT_SCRIPT =
   `(function(){try{var t=localStorage.getItem("parlor.theme");` +
-  `document.documentElement.dataset.theme=["plum","forest","midnight","wine","teal","amber","berry","slate"].indexOf(t)>-1?t:"plum";}catch(e){}})();`;
+  `document.documentElement.dataset.theme=["plum","forest","midnight","wine","teal","amber","berry","slate","lilac","rust","charcoal","cobalt","pine","violet","maroon","navy"].indexOf(t)>-1?t:"plum";}catch(e){}})();`;

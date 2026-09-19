@@ -1219,7 +1219,7 @@ function Board({
           pointRefs.current[index] = el;
         }}
         onClick={() => (isDestination ? onMoveTo(index) : isSelectable ? onSelect(index) : undefined)}
-        className={`relative flex min-h-32 flex-col ${top ? "justify-start" : "justify-end"} gap-0.5 p-0.5 sm:gap-1 sm:p-1.5 transition-shadow ${
+        className={`relative flex min-h-32 sm:min-h-50 flex-col ${top ? "justify-start" : "justify-end"} gap-0.5 p-0.5 sm:gap-1 sm:p-1.5 transition-shadow ${
           isDestination
             ? "ring-2 ring-gold ring-offset-1 ring-offset-[var(--board-surface)]"
             : isSelected

@@ -1,3 +1,6 @@
+import carAvatar from "@/assets/avatar-car.svg";
+import bikeAvatar from "@/assets/avatar-bike.svg";
+
 export type AvatarCategory = "people" | "animals" | "objects" | "aliens";
 
 export type AvatarOption = {
@@ -49,7 +52,7 @@ const PEOPLE: AvatarSeed[] = [
   { seed: "shaggy-hair", label: "Shaggy hair" },
 ];
 
-type TwemojiGlyph = { codepoint: string; label: string; scale?: number };
+type TwemojiGlyph = { codepoint: string; label: string; scale?: number; url?: string };
 
 /** Recognizable animal faces (Twemoji, CC-BY 4.0). */
 const ANIMALS: TwemojiGlyph[] = [
@@ -69,7 +72,7 @@ const ANIMALS: TwemojiGlyph[] = [
 
 /** Recognizable inanimate objects (Twemoji, CC-BY 4.0). */
 const OBJECTS: TwemojiGlyph[] = [
-  { codepoint: "1f697", label: "Car", scale: 0.81 },
+  { codepoint: "1f697", label: "Car", scale: 0.81, url: carAvatar },
   { codepoint: "1f3e0", label: "House" },
   { codepoint: "1f333", label: "Tree" },
   { codepoint: "23f0", label: "Clock" },
@@ -77,7 +80,7 @@ const OBJECTS: TwemojiGlyph[] = [
   { codepoint: "1f4bb", label: "Computer", scale: 0.81 },
   { codepoint: "1f37a", label: "Beer glass", scale: 0.81 },
   { codepoint: "1f6cf", label: "Bed", scale: 0.81 },
-  { codepoint: "1f6b2", label: "Bike", scale: 0.81 },
+  { codepoint: "1f6b2", label: "Bike", scale: 0.81, url: bikeAvatar },
   { codepoint: "26f0", label: "Mountain" },
   { codepoint: "1f4d6", label: "Book" },
   { codepoint: "26bd", label: "Ball" },
@@ -121,9 +124,9 @@ export const AVATAR_OPTIONS: AvatarOption[] = [
     category: "animals" as const,
     scale: 0.9,
   })),
-  ...OBJECTS.map(({ codepoint, label, scale }, index) => ({
+  ...OBJECTS.map(({ codepoint, label, scale, url }, index) => ({
     id: `object-${index + 1}`,
-    url: twemoji(codepoint),
+    url: url ?? twemoji(codepoint),
     label,
     category: "objects" as const,
     ...(scale !== undefined ? { scale } : {}),

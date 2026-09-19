@@ -229,8 +229,8 @@ function WarshipTable() {
           phase: won ? "over" : "play",
           log: note(current.log, {
             side: "cpu",
-            text: `fires at ${coordLabel(cell)} — ${
-              hit ? (sank ? `hit, and sinks your ${sunk!.name}!` : "a hit.") : "a miss."
+            text: `${opponentName} shoots at ${coordLabel(cell)} and ${
+              hit ? (sank ? `sinks the ${sunk!.name}!` : "hits.") : "misses."
             }`,
           }),
         };
@@ -239,7 +239,7 @@ function WarshipTable() {
       });
     }, 900);
     return () => clearTimeout(timer);
-  }, [isMulti, state.phase, state.turn, state.winner, state.ships.human, state.shots.cpu]);
+  }, [isMulti, opponentName, state.phase, state.turn, state.winner, state.ships.human, state.shots.cpu]);
 
   const placedNames = state.ships.human.map((ship) => ship.name);
   const nextShip = FLEET.find((spec) => !placedNames.includes(spec.name)) ?? null;
@@ -346,8 +346,8 @@ function WarshipTable() {
         phase: won ? "over" : "play",
         log: note(current.log, {
           side: "human",
-          text: `fire at ${coordLabel(cell)} — ${
-            hit ? (sank ? `a hit, and you sink the ${sunk!.name}!` : "a hit.") : "a miss."
+          text: `${playerName} shoots at ${coordLabel(cell)} and ${
+            hit ? (sank ? `sinks the ${sunk!.name}!` : "hits.") : "misses."
           }`,
         }),
       };
@@ -502,9 +502,21 @@ function WarshipTable() {
               revealShips={state.phase === "over"}
               interactive={state.phase === "play" && state.turn === "human" && !state.winner}
               onCell={fire}
+              crosshair
             />
           </section>
         </div>
+
+        {state.log.length > 0 && (
+          <div className="rounded-2xl border border-gold/25 bg-brand/70 p-4">
+            <p className="mb-2 text-[11px] uppercase tracking-[0.3em] text-gold">Action log</p>
+            <ol className="space-y-1 text-sm text-ivory/85">
+              {state.log.map((entry, i) => (
+                <li key={`${i}-${entry.text}`}>{entry.text}</li>
+              ))}
+            </ol>
+          </div>
+        )}
       </div>
     </TableShell>
   );
@@ -560,6 +572,7 @@ function Grid({
   onDrop,
   onRotate,
   hideLabelsOnMobile = false,
+  crosshair = false,
 }: {
   ships: Ship[];
   shots: number[];
@@ -571,6 +584,7 @@ function Grid({
   onDrop?: (cell: number) => void;
   onRotate?: (cell: number) => void;
   hideLabelsOnMobile?: boolean;
+  crosshair?: boolean;
 }) {
   const occupied = new Set(ships.flatMap((ship) => ship.cells));
   return (
@@ -639,7 +653,9 @@ function Grid({
                       ? "border-gold/10 bg-surface/80 text-ivory/45"
                       : "border-gold/10 bg-surface/40"
                   } ${dragged ? "opacity-60 ring-1 ring-gold" : ""} ${
-                    interactive ? "cursor-pointer hover:border-gold hover:bg-gold/20" : "cursor-default"
+                    interactive
+                      ? `${crosshair ? "cursor-target" : "cursor-pointer"} hover:border-gold hover:bg-gold/20`
+                      : "cursor-default"
                   }`}
                 >
                   {ship && <ShipSegment ship={ship} cell={cell} />}
@@ -648,7 +664,11 @@ function Grid({
                       ✕
                     </span>
                   )}
-                  {shot && !hit ? "·" : ""}
+                  {shot && !hit ? (
+                    <span className="absolute inset-0 grid place-items-center">
+                      <span className="block h-3 w-3 rounded-full bg-ivory/55 lg:h-5 lg:w-5" />
+                    </span>
+                  ) : null}
                 </button>
               );
 

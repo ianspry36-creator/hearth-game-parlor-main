@@ -21,6 +21,7 @@ import {
 import { TableShell } from "@/components/parlor/TableShell";
 import { GameOverDialog } from "@/components/parlor/GameOverDialog";
 import { PlayerAvatar } from "@/components/parlor/PlayerAvatar";
+import { CryingTears } from "@/components/parlor/CryingTears";
 import { SpeechBubble } from "@/components/parlor/SpeechBubble";
 import { getGame } from "@/lib/games";
 import { getNickname, RECONNECT_SECONDS, useMatch } from "@/lib/multiplayer";
@@ -87,8 +88,7 @@ type State = {
   rematch: Seat | null;
 };
 
-const blankDice = (): Die[] =>
-  Array.from({ length: DICE_COUNT }, () => ({ face: 1, set: false }));
+const blankDice = (): Die[] => Array.from({ length: DICE_COUNT }, () => ({ face: 1, set: false }));
 
 // Deterministic pseudo-random in [0, 1) so each die keeps its landing angle/offset
 // across re-renders, but re-rolls (a new face) settle in a fresh scattered position.
@@ -160,7 +160,7 @@ const MELD_VALUES = [
   { meld: "Five of a kind", value: "2,000" },
   { meld: "Six of a kind", value: "3,000" },
   { meld: "Three pairs", value: "1,500" },
-  { meld: "Straight 1–6", value: "1,500" },
+  { meld: "Straight 1–6", value: "2,500" },
 ];
 
 function FarkleTable() {
@@ -294,7 +294,9 @@ function FarkleTable() {
   }, [isMulti, isHost, match?.version, remoteState]);
 
   const rolloffWinner: Seat | null =
-    state.rolloff.human !== null && state.rolloff.cpu !== null && state.rolloff.human !== state.rolloff.cpu
+    state.rolloff.human !== null &&
+    state.rolloff.cpu !== null &&
+    state.rolloff.human !== state.rolloff.cpu
       ? state.rolloff.human > state.rolloff.cpu
         ? "human"
         : "cpu"
@@ -455,15 +457,14 @@ function FarkleTable() {
 
   const myTurn = state.turn === "human" && state.phase === "play";
   const farkledOut = myTurn && state.farkled;
+  const cpuFarkled = state.farkled && state.turn === "cpu";
   const playerMessage = farkledOut ? "Farkle!" : (avatarMessage ?? undefined);
   const selectedFaces = selected.map((i) => state.dice[i]?.face ?? 0);
   const selectionScore = selected.length ? scoreSelection(selectedFaces) : null;
   // Highest-scoring legal keep available from the current throw, used to let the
   // player bank the best possible score without first selecting dice by hand.
   const bestKeepResult =
-    myTurn && state.rolled && !state.farkled
-      ? bestKeep(openFaces(state.dice))
-      : null;
+    myTurn && state.rolled && !state.farkled ? bestKeep(openFaces(state.dice)) : null;
 
   const toggle = (index: number) => {
     if (!myTurn || !state.rolled || state.farkled) return;
@@ -511,11 +512,20 @@ function FarkleTable() {
     showAvatarMessage(`${banked.toLocaleString()} banked`);
   };
 
-  const endFarkledTurn = () => {
-    if (!myTurn || !state.farkled) return;
-    apply(passDice);
-    setSelected([]);
-  };
+  // A farkle auto-passes: after a three-second pause (letting the cry and rattle
+  // land) the turn moves on with no "Pass the dice" click. In multiplayer only
+  // the farkling seat performs (and publishes) the pass.
+  useEffect(() => {
+    if (state.phase !== "play" || !state.farkled || state.turn !== "human") return;
+    const timer = setTimeout(() => {
+      apply((current) => {
+        if (current.phase !== "play" || !current.farkled || current.turn !== "human")
+          return current;
+        return passDice(current);
+      });
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [state.farkled, state.turn, state.phase]);
 
   // Ada's turn, one deliberate step at a time (solo play only). When she
   // decides what to keep, the chosen dice move to her area one per second.
@@ -560,9 +570,7 @@ function FarkleTable() {
           }
         } else {
           const faces = openFaces(current.dice);
-          const openIndexes = current.dice
-            .map((d, i) => (d.set ? -1 : i))
-            .filter((i) => i >= 0);
+          const openIndexes = current.dice.map((d, i) => (d.set ? -1 : i)).filter((i) => i >= 0);
           const keep = bestKeep(faces);
           if (!keep) {
             next = passDice(current);
@@ -579,7 +587,18 @@ function FarkleTable() {
       });
     }, 1000);
     return () => clearTimeout(timer);
-  }, [isMulti, state.phase, state.turn, state.rolled, state.farkled, state.hotDice, state.dice, state.turnScore, state.pending, state.pendingScore]);
+  }, [
+    isMulti,
+    state.phase,
+    state.turn,
+    state.rolled,
+    state.farkled,
+    state.hotDice,
+    state.dice,
+    state.turnScore,
+    state.pending,
+    state.pendingScore,
+  ]);
 
   const status =
     isMulti && !match
@@ -591,14 +610,14 @@ function FarkleTable() {
         : state.phase === "rolloff"
           ? "Highest roll goes first"
           : myTurn
-          ? state.farkled
-            ? "Farkled — pass the dice"
-            : state.rolled
-              ? "Set aside the scorers"
-              : "Your throw"
-          : isMulti
-            ? `Waiting for ${opponentName}…`
-            : "Rattling the dice…";
+            ? state.farkled
+              ? "Farkled — passing the dice…"
+              : state.rolled
+                ? "Set aside the scorers"
+                : "Your throw"
+            : isMulti
+              ? `Waiting for ${opponentName}…`
+              : "Rattling the dice…";
 
   const setAsideDice = state.dice.filter((d) => d.set);
   const activeDice = state.dice.filter((d) => !d.set);
@@ -631,7 +650,10 @@ function FarkleTable() {
       </div>
       <Dialog>
         <DialogTrigger asChild>
-          <Button variant="parlor" className="w-full bg-white text-brand hover:bg-white/90 lg:hidden">
+          <Button
+            variant="parlor"
+            className="w-full bg-white text-brand hover:bg-white/90 lg:hidden"
+          >
             Meld Values
           </Button>
         </DialogTrigger>
@@ -715,7 +737,7 @@ function FarkleTable() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      <div className="flex min-h-[560px] flex-col justify-start gap-6">
+      <div className="flex min-h-[560px] flex-col sm:min-h-[720px]">
         {/* Ada — top of the table */}
         <div className="flex flex-col items-center gap-4 rounded-2xl border border-gold/15 bg-brand/50 p-4 sm:flex-row sm:justify-between">
           <div className="flex items-center gap-4">
@@ -725,8 +747,11 @@ function FarkleTable() {
                 alt={opponentName}
                 width={64}
                 height={64}
-                className="size-14 rounded-full border-2 border-gold/40 bg-surface object-cover"
+                className={`size-14 rounded-full border-2 border-gold/40 bg-surface object-cover ${
+                  cpuFarkled ? "animate-cry" : ""
+                }`}
               />
+              {cpuFarkled && <CryingTears />}
               {cpuMessage && (
                 <div className="absolute left-0 top-full z-10 mt-2">
                   <SpeechBubble text={cpuMessage} tail="up-left" />
@@ -756,7 +781,10 @@ function FarkleTable() {
                 {setAsideDice.map((die) => {
                   const realIndex = state.dice.indexOf(die);
                   return (
-                    <span key={`c${realIndex}`} className="animate-die-to-cpu">
+                    <span
+                      key={`c${realIndex}`}
+                      className={state.farkled ? "animate-rattle" : "animate-die-to-cpu"}
+                    >
                       <DieFace face={die.face} small />
                     </span>
                   );
@@ -764,95 +792,97 @@ function FarkleTable() {
               </>
             )}
           </div>
-
         </div>
 
         {/* Middle arena — status and thrown dice */}
-        <div className="flex flex-col items-center justify-start gap-5">
+        <div className="mt-6 flex flex-1 flex-col items-center gap-2.5">
           <div className="w-full max-w-xl rounded-xl border border-gold/20 bg-gold/10 px-5 py-3 text-center">
             <p className="flex min-h-10 items-center justify-center text-sm font-medium text-cream">
               {status}
             </p>
           </div>
 
-          {state.phase === "rolloff" ? (
-            <div className="text-center">
-              <p className="text-[11px] uppercase tracking-[0.3em] text-gold">Who goes first?</p>
-              <p className="mt-2 font-display text-2xl font-bold">Highest roll starts the game</p>
-              <div className="mt-6 flex items-center justify-center gap-8">
-                <div className="flex flex-col items-center gap-2">
-                  <p className="font-display">{playerName}</p>
-                  {state.rolloff.human !== null && (
-                    <div
-                      style={{
-                        transform: `rotate(${scatterFor(0, state.rolloff.human).angle}deg)`,
-                      }}
-                    >
-                      <DieFace face={state.rolloff.human} />
-                    </div>
-                  )}
+          <div className="flex flex-1 flex-col items-center justify-center">
+            {state.phase === "rolloff" ? (
+              <div className="text-center">
+                <p className="text-[11px] uppercase tracking-[0.3em] text-gold">Who goes first?</p>
+                <p className="mt-2 font-display text-2xl font-bold">Highest roll starts the game</p>
+                <div className="mt-6 flex items-center justify-center gap-8">
+                  <div className="flex flex-col items-center gap-2">
+                    <p className="font-display">{playerName}</p>
+                    {state.rolloff.human !== null && (
+                      <div
+                        style={{
+                          transform: `rotate(${scatterFor(0, state.rolloff.human).angle}deg)`,
+                        }}
+                      >
+                        <DieFace face={state.rolloff.human} />
+                      </div>
+                    )}
+                  </div>
+                  <p className="font-display text-2xl text-gold">vs</p>
+                  <div className="flex flex-col items-center gap-2">
+                    <p className="font-display">{opponentName}</p>
+                    {state.rolloff.cpu !== null && (
+                      <div
+                        style={{
+                          transform: `rotate(${scatterFor(1, state.rolloff.cpu).angle}deg)`,
+                        }}
+                      >
+                        <DieFace face={state.rolloff.cpu} />
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <p className="font-display text-2xl text-gold">vs</p>
-                <div className="flex flex-col items-center gap-2">
-                  <p className="font-display">{opponentName}</p>
-                  {state.rolloff.cpu !== null && (
-                    <div
-                      style={{
-                        transform: `rotate(${scatterFor(1, state.rolloff.cpu).angle}deg)`,
-                      }}
-                    >
-                      <DieFace face={state.rolloff.cpu} />
-                    </div>
+                {state.rolloff.human !== null &&
+                  state.rolloff.cpu !== null &&
+                  rolloffWinner === null && (
+                    <p className="mt-4 text-sm text-ivory/55">
+                      Tie at {state.rolloff.human} — throw again.
+                    </p>
                   )}
+                <div className="mt-6">
+                  <Button variant="parlor" onClick={rollForFirst} disabled={!canRollOff}>
+                    {rolloffLabel}
+                  </Button>
                 </div>
               </div>
-              {state.rolloff.human !== null && state.rolloff.cpu !== null &&
-                (rolloffWinner === null ? (
-                  <p className="mt-4 text-sm text-ivory/55">Tie at {state.rolloff.human} — throw again.</p>
-                ) : (
-                  <p className="mt-4 text-sm text-ivory/55">
-                    {rolloffWinner === "human" ? "You go first!" : `${opponentName} goes first!`}
+            ) : (
+              <div className="rounded-2xl border border-gold/25 bg-surface/60 p-6 shadow-2xl shadow-black/40 sm:px-10 sm:py-[90px]">
+                <div className="flex flex-wrap justify-center gap-3 sm:gap-4">
+                  {state.dice.map((die, i) => {
+                    if (!state.rolled || die.set) {
+                      return <div key={i} className="size-14" aria-hidden />;
+                    }
+                    const { angle, dx, dy } = scatterFor(i, die.face);
+                    return (
+                      <div
+                        key={i}
+                        style={{ transform: `translate(${dx}px, ${dy}px) rotate(${angle}deg)` }}
+                      >
+                        <DieFace
+                          face={die.face}
+                          medium
+                          selected={selected.includes(i)}
+                          interactive={myTurn && state.rolled && !state.farkled}
+                          onClick={() => toggle(i)}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+                {diceLeft === 0 && state.rolled && (
+                  <p className="mt-3 text-center text-sm text-ivory/60">
+                    Hot dice — throw all six again.
                   </p>
-                ))}
-              <div className="mt-6">
-                <Button variant="parlor" onClick={rollForFirst} disabled={!canRollOff}>
-                  {rolloffLabel}
-                </Button>
+                )}
               </div>
-            </div>
-          ) : (
-            <div className="rounded-2xl border border-gold/25 bg-surface/60 p-6 shadow-2xl shadow-black/40">
-              <div className="flex flex-wrap justify-center gap-3">
-                {state.dice.map((die, i) => {
-                  if (!state.rolled || die.set) {
-                    return <div key={i} className="size-10" aria-hidden />;
-                  }
-                  const { angle, dx, dy } = scatterFor(i, die.face);
-                  return (
-                    <div
-                      key={i}
-                      style={{ transform: `translate(${dx}px, ${dy}px) rotate(${angle}deg)` }}
-                    >
-                      <DieFace
-                        face={die.face}
-                        medium
-                        selected={selected.includes(i)}
-                        interactive={myTurn && state.rolled && !state.farkled}
-                        onClick={() => toggle(i)}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-              {diceLeft === 0 && state.rolled && (
-                <p className="mt-3 text-center text-sm text-ivory/60">Hot dice — throw all six again.</p>
-              )}
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* Player — bottom of the table */}
-        <div className="rounded-2xl border border-gold/15 bg-brand/50 p-4 sm:px-7 sm:py-[49px]">
+        <div className="mt-3 rounded-2xl border border-gold/15 bg-brand/50 p-4 sm:px-7 sm:py-[49px]">
           <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-4">
               <PlayerAvatar
@@ -860,6 +890,7 @@ function FarkleTable() {
                 onSelect={setPlayerAvatar}
                 size="size-8 sm:size-10"
                 {...(farkledOut ? { sad: true } : {})}
+                {...(farkledOut ? { crying: true } : {})}
                 {...(playerMessage ? { message: playerMessage } : {})}
               />
               <div>
@@ -869,7 +900,9 @@ function FarkleTable() {
                 </p>
               </div>
               <div className="rounded-lg border border-gold/20 bg-surface/60 px-3 py-1.5 text-center sm:px-6 sm:py-2.5">
-                <p className="text-[10px] uppercase tracking-[0.2em] text-ivory/50 sm:text-xs">Score</p>
+                <p className="text-[10px] uppercase tracking-[0.2em] text-ivory/50 sm:text-xs">
+                  Score
+                </p>
                 <p className="font-display text-xl font-bold text-gold sm:text-3xl">
                   {state.scores.human.toLocaleString()}
                 </p>
@@ -886,7 +919,14 @@ function FarkleTable() {
                     {setAsideDice.map((die) => {
                       const realIndex = state.dice.indexOf(die);
                       return (
-                        <span key={`s${realIndex}`} className="animate-die-to-player sm:scale-[1.2]">
+                        <span
+                          key={`s${realIndex}`}
+                          className={
+                            state.farkled
+                              ? "animate-rattle sm:scale-[1.2]"
+                              : "animate-die-to-player sm:scale-[1.2]"
+                          }
+                        >
                           <DieFace face={die.face} small />
                         </span>
                       );
@@ -895,14 +935,10 @@ function FarkleTable() {
                 )}
               </div>
 
-              <div className="flex min-h-9 flex-wrap items-center justify-center gap-3">
-                {state.phase === "play" && myTurn && (
+              <div className="flex min-h-9 flex-wrap items-center justify-center gap-3 sm:min-w-[300px]">
+                {state.phase === "play" && myTurn && !state.farkled && (
                   <>
-                    {state.farkled ? (
-                      <Button variant="parlor" onClick={endFarkledTurn}>
-                        Pass the dice
-                      </Button>
-                    ) : !state.rolled ? (
+                    {!state.rolled ? (
                       <Button variant="parlor" onClick={roll}>
                         Throw the dice
                       </Button>
@@ -973,7 +1009,7 @@ function DieFace({
       disabled={!interactive}
       onClick={onClick}
       className={`grid rounded-xl border-2 bg-cream p-1.5 transition-all ${
-        medium ? "size-10" : small ? "size-9" : "size-16"
+        medium ? "size-14" : small ? "size-9" : "size-16"
       } ${selected ? "-translate-y-1.5 border-gold shadow-lg shadow-black/40" : "border-cream/40"} ${
         dim ? "opacity-40" : ""
       } ${interactive ? "cursor-pointer hover:-translate-y-1 hover:border-gold" : "cursor-default"}`}
@@ -982,7 +1018,7 @@ function DieFace({
         {Array.from({ length: 9 }, (_, cell) => (
           <span
             key={cell}
-            className={`m-auto rounded-full ${medium ? "size-1.5" : small ? "size-1" : "size-2"} ${
+            className={`m-auto rounded-full ${medium ? "size-2" : small ? "size-1" : "size-2"} ${
               pips.includes(cell) ? "bg-brand" : ""
             }`}
           />

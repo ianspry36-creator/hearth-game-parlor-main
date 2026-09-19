@@ -7,8 +7,8 @@ export type EffectOption = {
 
 export const EFFECT_OPTIONS: EffectOption[] = [
   { id: "none", label: "None" },
-  { id: "wooden", label: "Wooden" },
-  { id: "metallic", label: "Metallic" },
+  { id: "wooden", label: "Suits" },
+  { id: "metallic", label: "Ace" },
   { id: "space", label: "Space" },
   { id: "check", label: "Check" },
 ];

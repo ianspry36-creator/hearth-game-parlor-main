@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -509,6 +509,8 @@ function CribbageTable() {
   const fanEls = useRef(new Map<string, HTMLButtonElement>());
   const playerSeatRef = useRef<HTMLDivElement>(null);
   const cpuSeatRef = useRef<HTMLDivElement>(null);
+  /** Last recorded on-screen position of each player hand card, for FLIP reflow. */
+  const handPositions = useRef(new Map<string, { left: number; top: number }>());
 
   // Stable across the sort animation so the deal only plays once per hand.
   const handKey = [...state.playerHand.map((c) => c.id)].sort().join("-");
@@ -581,14 +583,14 @@ function CribbageTable() {
         card,
         from: { x: rect.left, y: rect.top },
         // The pile grows left-to-right inside a fixed-width slot, each card
-        // advancing 29px (53px card minus the 24px overlap). Land with the
+        // advancing 36px (66px card minus the 30px overlap). Land with the
         // card's left edge exactly on the next empty slot.
         to: {
-          x: pileRect.left + state.pile.length * 29,
+          x: pileRect.left + state.pile.length * 36,
           y: pileRect.top,
         },
-        fromScale: 58 / 64, // medium hand card (flying card base is full-size)
-        toScale: 53 / 64, // small pile card
+        fromScale: 72 / 64, // medium hand card (flying card base is full-size)
+        toScale: 66 / 64, // table pile card
       };
       setFlying((current) => [...current, flight]);
       window.setTimeout(() => {
@@ -606,6 +608,41 @@ function CribbageTable() {
     setLayingId(null);
   };
 
+  /** Lay a card from the opponent's hand, animating it from the hand to the pile. */
+  const layCpuCard = (card: Card) => {
+    if (layingId) return;
+    pendingLay.current = "cpu";
+    const pileRect = pileRef.current?.getBoundingClientRect();
+    const el = cpuHandEls.current.get(card.id);
+    const rect = el?.getBoundingClientRect();
+    setLayingId(card.id);
+    if (pileRect && rect) {
+      const flight: FlyingCard = {
+        key: Date.now(),
+        card,
+        from: { x: rect.left, y: rect.top },
+        // Land on the next empty pile slot, matching the player-side animation.
+        to: {
+          x: pileRect.left + stateRef.current.pile.length * 36,
+          y: pileRect.top,
+        },
+        fromScale: 72 / 64, // medium face-down hand card
+        toScale: 66 / 64, // table pile card
+      };
+      setFlying((current) => [...current, flight]);
+      window.setTimeout(() => {
+        setFlying((current) => current.filter((f) => f.key !== flight.key));
+      }, 600);
+      window.setTimeout(() => {
+        apply((current) => playCard(current, "cpu", card));
+        setLayingId(null);
+      }, 500);
+      return;
+    }
+    apply((current) => playCard(current, "cpu", card));
+    setLayingId(null);
+  };
+
   /** Fly a cut card from the spread deck to its seat during the cut for deal. */
   const flyCutCard = (card: Card, side: Side) => {
     const fan = fanEls.current.get(card.id);
@@ -618,8 +655,8 @@ function CribbageTable() {
       card,
       from: { x: fanRect.left, y: fanRect.top },
       to: { x: seatRect.left, y: seatRect.top },
-      fromScale: 53 / 64, // w-[53px] (small) over w-16 (full)
-      toScale: 53 / 64, // land at the small size so it matches the seat card
+      fromScale: 66 / 64, // w-[66px] (table) over w-16 (full)
+      toScale: 66 / 64, // land at the table size so it matches the seat card
     };
     setFlying((current) => [...current, flight]);
     window.setTimeout(() => {
@@ -697,8 +734,9 @@ function CribbageTable() {
     const nextStage =
       cutStage === "flipMine" ? "seatMine" : cutStage === "seatMine" ? "flipTheirs" : "seated";
     const delay = cutStage === "flipMine" ? 800 : cutStage === "seatMine" ? 1200 : 800;
-    // Against a live opponent their card flies on their own device, so only my
-    // own card is animated locally; the opponent's appears via the reveal effect.
+    // Against a live opponent their card is flown by the reveal effect below
+    // (it arrives through the shared state rather than the local ceremony), so
+    // only my own card flies from here in a live match.
     const flySide: Side | null =
       nextStage === "seatMine" ? "player" : nextStage === "seated" && !isMulti ? "cpu" : null;
     const timer = setTimeout(() => {
@@ -747,11 +785,21 @@ function CribbageTable() {
     return () => clearTimeout(timer);
   }, [state.phase, state.playerCut, state.cpuCut, cutStage, isMulti, isHost]);
 
-  // In a live match, reveal the opponent's cut at their seat as soon as it
-  // lands, and clear it again when a fresh cut-for-deal begins.
+  // In a live match, the opponent draws their cut on their own device, so fly
+  // it here from the fan to their seat (the same way Ada's card flies in solo
+  // play) instead of letting it pop in, and clear the seat when a fresh
+  // cut-for-deal begins.
   useEffect(() => {
     if (!isMulti) return;
-    setCutSeated((s) => (state.cpuCut ? { ...s, cpu: true } : { ...s, cpu: false }));
+    if (state.cpuCut) {
+      flyCutCard(state.cpuCut, "cpu");
+      const timer = window.setTimeout(
+        () => setCutSeated((s) => ({ ...s, cpu: true })),
+        500,
+      );
+      return () => clearTimeout(timer);
+    }
+    setCutSeated((s) => ({ ...s, cpu: false }));
   }, [isMulti, state.cpuCut]);
 
   // Reset the cut ceremony whenever a fresh cut-for-deal begins (e.g. a tie or a
@@ -773,6 +821,50 @@ function CribbageTable() {
     }
     pileLength.current = state.pile.length;
   }, [state.pile.length]);
+
+  // Slide the remaining hand cards into their new fan positions when a card
+  // leaves the hand, instead of letting them jump. The deal and sort animations
+  // handle their own reflow, so this only kicks in when the hand shrinks.
+  useLayoutEffect(() => {
+    const prev = handPositions.current;
+    const next = new Map<string, { left: number; top: number }>();
+    const moves: { el: HTMLElement; dx: number; dy: number }[] = [];
+
+    state.playerHand.forEach((card) => {
+      const el = handEls.current.get(card.id);
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const before = prev.get(card.id);
+      next.set(card.id, { left: rect.left, top: rect.top });
+      if (before && (before.left !== rect.left || before.top !== rect.top)) {
+        moves.push({ el, dx: before.left - rect.left, dy: before.top - rect.top });
+      }
+    });
+
+    handPositions.current = next;
+
+    if (state.playerHand.length >= prev.size || moves.length === 0) return;
+
+    // Invert: snap each moved card back to its old spot before transitioning.
+    moves.forEach(({ el, dx, dy }) => {
+      el.style.transition = "none";
+      el.style.transform = `translate(${dx}px, ${dy}px)`;
+    });
+    // Force a reflow so the browser registers the inverted positions.
+    void document.body.offsetHeight;
+    // Play: transition back to the natural position.
+    moves.forEach(({ el }) => {
+      el.style.transition = "transform 0.3s ease";
+      el.style.transform = "translate(0, 0)";
+    });
+    const cleanup = window.setTimeout(() => {
+      moves.forEach(({ el }) => {
+        el.style.transition = "";
+        el.style.transform = "";
+      });
+    }, 320);
+    return () => clearTimeout(cleanup);
+  }, [state.playerHand]);
 
   // The host seeds the first deal for a fresh live table.
   useEffect(() => {
@@ -814,19 +906,18 @@ function CribbageTable() {
     if (isMulti) return;
     if (state.phase !== "play" || state.turn !== "cpu" || state.winner) return;
     const timer = setTimeout(() => {
-      setState((current) => {
-        if (current.phase !== "play" || current.turn !== "cpu") return current;
-        const card = choosePeggingCard(current.cpuHand, current.pile);
-        if (!card) {
-          const next = { ...current };
+      const current = stateRef.current;
+      if (current.phase !== "play" || current.turn !== "cpu" || current.winner) return;
+      const card = choosePeggingCard(current.cpuHand, current.pile);
+      if (!card) {
+        apply((cur) => {
+          const next = { ...cur };
           resolveAfterPlay(next, "player");
-          stateRef.current = next;
           return next;
-        }
-        const next = playCard(current, "cpu", card);
-        stateRef.current = next;
-        return next;
-      });
+        });
+        return;
+      }
+      layCpuCard(card);
     }, 850);
     return () => clearTimeout(timer);
   }, [isMulti, state.phase, state.turn, state.pile.length, state.winner]);
@@ -846,18 +937,9 @@ function CribbageTable() {
     return () => clearTimeout(timer);
   }, [state.phase, state.winner]);
 
-  // Brief pause at the end of the play before showing the hands.
-  useEffect(() => {
-    if (state.phase !== "pause" || state.winner) return;
-    const timer = setTimeout(() => {
-      apply((current) => {
-        const s = { ...current };
-        runShow(s);
-        return s;
-      });
-    }, 2000);
-    return () => clearTimeout(timer);
-  }, [state.phase, state.winner]);
+  // The show is revealed by the player's "Display Show" button (rendered in the
+  // player seat) rather than an automatic timer, so the crib stays turned over
+  // until the player is ready.
 
   // Deal the next hand once both seats have dismissed their "show" dialogs.
   useEffect(() => {
@@ -885,11 +967,11 @@ function CribbageTable() {
           key: Date.now() + index,
           card,
           from: { x: rect.left, y: rect.top },
-          // Each crib card advances 22.4px (40px card less the 17.6px overlap), so
+          // Each crib card advances 48px (72px card less the 24px overlap), so
           // the pair lands side by side instead of stacked on the first slot.
-          to: { x: cribRect.left + index * 22.4, y: cribRect.top },
-          fromScale: 58 / 64, // medium hand card (flying card base is full-size)
-          toScale: 5 / 8, // xs crib card (40px / 64px full width)
+          to: { x: cribRect.left + index * 48, y: cribRect.top },
+          fromScale: 72 / 64, // medium hand card (flying card base is full-size)
+          toScale: 72 / 64, // medium crib card
           faceDown: true,
         });
       });
@@ -939,9 +1021,9 @@ function CribbageTable() {
           key: Date.now() + index,
           card,
           from: { x: rect.left, y: rect.top },
-          to: { x: cribRect.left + (offset + index) * 22.4, y: cribRect.top },
-          fromScale: 53 / 64, // CPU hand shows small face-down cards
-          toScale: 5 / 8,
+          to: { x: cribRect.left + (offset + index) * 48, y: cribRect.top },
+          fromScale: 72 / 64, // CPU hand shows medium face-down cards
+          toScale: 72 / 64,
           faceDown: true,
         });
       });
@@ -986,7 +1068,7 @@ function CribbageTable() {
     });
 
   const count = peggingCount(state.pile);
-  const revealed = state.phase === "show" || state.phase === "over";
+  const revealed = state.phase === "pause" || state.phase === "show" || state.phase === "over";
   const waitingForDiscard = state.phase === "discard" && Boolean(state.playerDiscards);
   const blockLabel = (block: ShowBlock) =>
     block.kind === "crib"
@@ -1037,7 +1119,7 @@ function CribbageTable() {
             : state.phase === "between"
               ? "End of the play — clearing the board next"
               : state.phase === "pause"
-                ? "End of the play — showing the hands next"
+                ? "The crib is turned over — click Display Show to score"
                 : state.phase === "show"
                   ? "Hands are shown — check the scores, then deal the next hand"
                   : state.turn === "player"
@@ -1049,16 +1131,14 @@ function CribbageTable() {
       <p className="mb-2 text-[10px] uppercase tracking-[0.2em] text-gold">Crib</p>
       <div
         ref={cribRef}
-        className="flex w-[128px] justify-start [&>*:not(:first-child)]:-ml-[17.6px]"
+        className="flex w-[216px] justify-start [&>*:not(:first-child)]:-ml-6"
       >
         {state.crib.length === 0 ? (
-          <div className="grid h-[58px] w-10 place-items-center rounded-lg border border-dashed border-gold/30 text-[10px] text-ivory/40">
-            empty
-          </div>
+          <div className="h-[105px] w-[72px]" aria-hidden="true" />
         ) : revealed ? (
-          state.crib.map((card) => <PlayingCard key={card.id} card={card} xs />)
+          state.crib.map((card) => <PlayingCard key={card.id} card={card} medium />)
         ) : (
-          state.crib.map((card) => <FaceDownCard key={card.id} xs />)
+          state.crib.map((card) => <FaceDownCard key={card.id} medium />)
         )}
       </div>
     </div>
@@ -1092,6 +1172,9 @@ function CribbageTable() {
       onNewGame={() => reset(freshGame())}
       menuExtra={<CribBoardOptionsDialog boardGraphic={boardGraphic} onSelect={setBoardGraphic} />}
       containerClassName="px-3 sm:px-6"
+      boxClassName="py-2.5 sm:py-4"
+      gridClassName="grid gap-1.5"
+      containerMaxWidth="max-w-7xl"
       below={
         <div className="space-y-3">
           <ScoreGrid
@@ -1183,10 +1266,14 @@ function CribbageTable() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      <div className="space-y-6">
-        {/* Opponent seat */}
-        <div className="flex flex-wrap items-start justify-center gap-8">
-          {state.dealer === "cpu" && state.phase !== "cut" ? <CribPile /> : null}
+      <div className="space-y-[18px]">
+        {/* Opponent seat: crib sits top-left when the opponent deals */}
+        <div className="relative flex flex-wrap items-start justify-center gap-8">
+          {state.dealer === "cpu" && state.phase !== "cut" ? (
+            <div className="absolute left-0 top-0">
+              <CribPile />
+            </div>
+          ) : null}
           <div className="flex flex-col items-center gap-2">
             <Seat
               name={opponentName}
@@ -1204,35 +1291,36 @@ function CribbageTable() {
                 </span>
               }
             />
-            <div className="flex justify-center [&>*:not(:first-child)]:-ml-6">
-              {(revealed ? state.cpuKept : state.cpuHand).length === 0 ? (
-                <p className="text-xs text-ivory/40">No cards in hand.</p>
-              ) : (
-                (revealed ? state.cpuKept : state.cpuHand).map((card, index) => {
-                  if (!revealed && discardingIds.includes(card.id)) {
-                    return (
-                      <span key={card.id} className="invisible block">
-                        <FaceDownCard opp />
-                      </span>
-                    );
-                  }
-                  return revealed ? (
-                    <PlayingCard key={card.id} card={card} opp />
-                  ) : (
-                    <span
-                      key={card.id}
-                      ref={(el) => {
-                        if (el) cpuHandEls.current.set(card.id, el);
-                        else cpuHandEls.current.delete(card.id);
-                      }}
-                      className="animate-deal-out block"
-                      style={{ animationDelay: `${index * 90}ms` }}
-                    >
-                      <FaceDownCard opp />
+            <div className={`flex justify-center [&>*:not(:first-child)]:-ml-6${state.phase === "cut" ? "" : " min-h-[105px]"}`}>
+              {state.cpuHand.map((card, index) => {
+                if (layingId === card.id) {
+                  return (
+                    <span key={card.id} className="invisible block">
+                      <FaceDownCard medium />
                     </span>
                   );
-                })
-              )}
+                }
+                if (!revealed && discardingIds.includes(card.id)) {
+                  return (
+                    <span key={card.id} className="invisible block">
+                      <FaceDownCard medium />
+                    </span>
+                  );
+                }
+                return (
+                  <span
+                    key={card.id}
+                    ref={(el) => {
+                      if (el) cpuHandEls.current.set(card.id, el);
+                      else cpuHandEls.current.delete(card.id);
+                    }}
+                    className="animate-deal-out block"
+                    style={{ animationDelay: `${index * 90}ms` }}
+                  >
+                    <FaceDownCard medium />
+                  </span>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -1253,7 +1341,7 @@ function CribbageTable() {
               />
             </div>
             <div className="overflow-x-auto pt-4">
-              <div className="mx-auto flex w-max flex-nowrap justify-center px-2 [&>*:not(:first-child)]:-ml-[48px]">
+              <div className="mx-auto flex w-max flex-nowrap justify-center px-2 [&>*:not(:first-child)]:-ml-[58px]">
                 {state.cutFan.map((card, index) => {
                   const isMine = state.playerCut?.id === card.id;
                   const isTheirs = state.cpuCut?.id === card.id;
@@ -1287,10 +1375,10 @@ function CribbageTable() {
                     >
                       {flipping ? (
                         <span className="animate-turn-over block">
-                          <PlayingCard card={card} small />
+                          <PlayingCard card={card} table />
                         </span>
                       ) : (
-                        <FaceDownCard small />
+                        <FaceDownCard table />
                       )}
                     </button>
                   );
@@ -1304,7 +1392,7 @@ function CribbageTable() {
             <div className="flex items-center gap-3">
               <div
                 ref={pileRef}
-                className="relative flex h-[77px] w-52 items-center justify-start [&>*:not(:first-child)]:-ml-6 sm:w-64"
+                className="relative flex h-[96px] w-[260px] items-center justify-start [&>*:not(:first-child)]:-ml-[30px] sm:w-80"
               >
                 {state.pile.map((card, index) => {
                   const isLast = index === state.pile.length - 1;
@@ -1315,11 +1403,13 @@ function CribbageTable() {
                         isLast && laidBy
                           ? laidBy === "player"
                             ? "block"
-                            : "animate-lay-cpu block"
+                            : isMulti
+                              ? "animate-lay-cpu block"
+                              : "block"
                           : "block"
                       }`}
                     >
-                      <PlayingCard card={card} small />
+                      <PlayingCard card={card} table />
                       {isLast && state.lastPeg ? (
                         <span
                           className="animate-scale-in pointer-events-none absolute -top-3 right-0 z-20 -translate-y-full select-none"
@@ -1419,7 +1509,7 @@ function CribbageTable() {
           ) : null}
 
           <div className="text-center">
-            <div className="flex justify-center [&>*:not(:first-child)]:-ml-6">
+            <div className={`flex justify-center [&>*:not(:first-child)]:-ml-6${state.phase === "cut" ? "" : " min-h-[105px]"}`}>
               {state.playerHand.map((card, index) => {
                 const isSelected = selected.includes(card.id);
                 const faceDown = isFreshDeal && index >= faceUpCount;
@@ -1461,12 +1551,12 @@ function CribbageTable() {
                       if (el) handEls.current.set(card.id, el);
                       else handEls.current.delete(card.id);
                     }}
-                    className={`relative hover:z-10 focus-visible:z-10 disabled:opacity-40 ${
+                    className={`relative hover:z-10 focus-visible:z-10 ${
                       sorting ? "animate-sort" : isFreshDeal ? "animate-turn-over" : "animate-deal"
                     }`}
                     style={sorting ? { animationDelay: `${index * 70}ms` } : undefined}
-                    disabled={!playable}
                     onClick={() => {
+                      if (!playable) return;
                       if (state.phase === "discard") {
                         setSelected((current) =>
                           current.includes(card.id)
@@ -1498,6 +1588,20 @@ function CribbageTable() {
                     Send to crib
                   </Button>
                 )}
+                {state.phase === "pause" && (
+                  <Button
+                    variant="parlor"
+                    onClick={() =>
+                      apply((current) => {
+                        const s = { ...current };
+                        runShow(s);
+                        return s;
+                      })
+                    }
+                  >
+                    Display Show
+                  </Button>
+                )}
                 {state.phase === "play" &&
                   state.turn === "player" &&
                   !canPlay(state.playerHand, state.pile) && (
@@ -1515,19 +1619,11 @@ function CribbageTable() {
                     </Button>
                   )}
               </div>
-              <div
-                className={`transition-transform duration-300 ${
-                  state.dealer === "player" && state.phase !== "cut"
-                    ? "translate-x-16"
-                    : "translate-x-0"
-                }`}
-              >
-                <Seat
-                  name={playerName}
-                  isDealer={state.dealer === "player"}
-                  avatar={<PlayerAvatar avatar={avatar} onSelect={setAvatar} size="size-16" />}
-                />
-              </div>
+              <Seat
+                name={playerName}
+                isDealer={state.dealer === "player"}
+                avatar={<PlayerAvatar avatar={avatar} onSelect={setAvatar} size="size-16" />}
+              />
             </div>
           </div>
         </div>
@@ -1573,22 +1669,22 @@ function DeckStack({ remaining, starter }: { remaining: number; starter: Card | 
   const layers = Math.min(4, Math.max(1, Math.ceil(remaining / 10)));
   return (
     <div className="text-center">
-      <div className="relative h-[77px] w-[53px]">
+      <div className="relative h-[96px] w-[66px]">
         {Array.from({ length: layers }).map((_, index) => (
           <span
             key={index}
             className="absolute inset-0"
             style={{ transform: `translate(${index * 2}px, ${-index * 2}px)` }}
           >
-            <FaceDownCard small />
+            <FaceDownCard table />
           </span>
         ))}
         {starter ? (
           <span
             className="animate-turn-over absolute inset-0"
-            style={{ transform: "translate(8px, -8px)" }}
+            style={{ transform: "translate(10px, -10px)" }}
           >
-            <PlayingCard card={starter} small />
+            <PlayingCard card={starter} table />
           </span>
         ) : null}
       </div>
@@ -1609,10 +1705,10 @@ function CutSeat({
   return (
     <div className="text-center">
       <p className="mb-1 text-[10px] uppercase tracking-[0.2em] text-gold">{label}</p>
-      <div ref={seatRef} className="grid h-[77px] w-[53px] place-items-center">
+      <div ref={seatRef} className="grid h-[96px] w-[66px] place-items-center">
         {card ? (
           <span className="block">
-            <PlayingCard card={card} small />
+            <PlayingCard card={card} table />
           </span>
         ) : (
           <div className="grid size-full place-items-center rounded-lg border border-dashed border-gold/30 text-[10px] text-ivory/40">
@@ -1635,17 +1731,19 @@ function Seat({
 }) {
   return (
     <div className="flex items-center justify-center gap-2">
-      {avatar ?? (
-        <span className="grid size-8 place-items-center rounded-full bg-gold/20 font-display text-sm text-gold ring-1 ring-gold/40">
-          {name.charAt(0).toUpperCase()}
-        </span>
-      )}
+      <div className="relative">
+        {avatar ?? (
+          <span className="grid size-8 place-items-center rounded-full bg-gold/20 font-display text-sm text-gold ring-1 ring-gold/40">
+            {name.charAt(0).toUpperCase()}
+          </span>
+        )}
+        {isDealer && (
+          <span className="absolute bottom-0 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-gold px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-[0.14em] text-brand ring-1 ring-brand/30">
+            Dealer
+          </span>
+        )}
+      </div>
       <span className="text-sm text-cream">{name}</span>
-      {isDealer && (
-        <span className="rounded-full bg-gold px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.14em] text-brand">
-          Dealer
-        </span>
-      )}
     </div>
   );
 }
@@ -1656,12 +1754,14 @@ function FaceDownCard({
   medium = false,
   xs = false,
   opp = false,
+  table = false,
 }: {
   small?: boolean;
   tiny?: boolean;
   medium?: boolean;
   xs?: boolean;
   opp?: boolean;
+  table?: boolean;
 }) {
   return (
     <img
@@ -1678,9 +1778,11 @@ function FaceDownCard({
               ? "h-[62px] w-[42px]"
               : small
                 ? "h-[77px] w-[53px]"
-                : medium
-                  ? "h-[84px] w-[58px]"
-                  : "h-24 w-16"
+                : table
+                  ? "h-[96px] w-[66px]"
+                  : medium
+                    ? "h-[105px] w-[72px]"
+                    : "h-24 w-16"
       }`}
     />
   );
@@ -1705,6 +1807,7 @@ function PlayingCard({
   medium = false,
   xs = false,
   opp = false,
+  table = false,
   selected = false,
 }: {
   card: Card;
@@ -1713,6 +1816,7 @@ function PlayingCard({
   medium?: boolean;
   xs?: boolean;
   opp?: boolean;
+  table?: boolean;
   selected?: boolean;
 }) {
   const red = card.suit === "H" || card.suit === "D";
@@ -1730,9 +1834,11 @@ function PlayingCard({
               ? "h-[62px] w-[42px]"
               : small
                 ? "h-[77px] w-[53px]"
-                : medium
-                  ? "h-[84px] w-[58px]"
-                  : "h-24 w-16 hover:-translate-y-1"
+                : table
+                  ? "h-[96px] w-[66px]"
+                  : medium
+                    ? "h-[105px] w-[72px]"
+                    : "h-24 w-16 hover:-translate-y-1"
       } ${selected ? "animate-float-selected border-gold ring-2 ring-gold" : "border-black/10"} ${
         red ? "text-destructive" : "text-brand"
       }`}
@@ -1748,9 +1854,11 @@ function PlayingCard({
                 ? "text-[10px]"
                 : small
                   ? "text-xs"
-                  : medium
-                    ? "text-[13px]"
-                    : "text-xs"
+                  : table
+                    ? "text-[15px]"
+                    : medium
+                      ? "text-[16px]"
+                      : "text-xs"
         }`}
       >
         <span>{rank}</span>
@@ -1764,9 +1872,11 @@ function PlayingCard({
                   ? "text-[9px]"
                   : small
                     ? "text-[11px]"
-                    : medium
-                      ? "text-xs"
-                      : "text-[11px]"
+                    : table
+                      ? "text-[14px]"
+                      : medium
+                        ? "text-[15px]"
+                        : "text-[11px]"
           }
         >
           {suit}
@@ -1785,9 +1895,11 @@ function PlayingCard({
                 ? "text-[22px]"
                 : small
                   ? "text-[28px]"
-                  : medium
-                    ? "text-[31px]"
-                    : "text-4xl"
+                  : table
+                    ? "text-[35px]"
+                    : medium
+                      ? "text-[39px]"
+                      : "text-4xl"
         } ${isFace ? "opacity-90" : "opacity-80"}`}
       >
         {isFace ? (
@@ -1802,9 +1914,11 @@ function PlayingCard({
                       ? "text-[14px]"
                       : small
                         ? "text-lg"
-                        : medium
-                          ? "text-[22px]"
-                          : "text-xl"
+                        : table
+                          ? "text-[23px]"
+                          : medium
+                            ? "text-[28px]"
+                            : "text-xl"
               }
             >
               {rank}
@@ -1819,9 +1933,11 @@ function PlayingCard({
                       ? "text-[18px]"
                       : small
                         ? "text-[22px]"
-                        : medium
-                          ? "text-2xl"
-                          : "text-2xl"
+                        : table
+                          ? "text-[28px]"
+                          : medium
+                            ? "text-[30px]"
+                            : "text-2xl"
               }
             >
               {suit}
@@ -1843,9 +1959,11 @@ function PlayingCard({
                 ? "text-[10px]"
                 : small
                   ? "text-xs"
-                  : medium
-                    ? "text-[13px]"
-                    : "text-xs"
+                  : table
+                    ? "text-[15px]"
+                    : medium
+                      ? "text-[16px]"
+                      : "text-xs"
         }`}
       >
         <span>{rank}</span>
@@ -1859,9 +1977,11 @@ function PlayingCard({
                   ? "text-[9px]"
                   : small
                     ? "text-[11px]"
-                    : medium
-                      ? "text-xs"
-                      : "text-[11px]"
+                    : table
+                      ? "text-[14px]"
+                      : medium
+                        ? "text-[15px]"
+                        : "text-[11px]"
           }
         >
           {suit}

@@ -72,6 +72,7 @@ type State = {
   turn: Seat;
   rolloff: { human: number | null; cpu: number | null };
   pendingFirst: Seat | null;
+  rolloffSettled: { human: boolean; cpu: boolean };
   dice: YDie[];
   rolls: number;
   cards: { human: Card; cpu: Card };
@@ -103,6 +104,7 @@ const freshState = (): State => ({
   turn: "human",
   rolloff: { human: null, cpu: null },
   pendingFirst: null,
+  rolloffSettled: { human: false, cpu: false },
   dice: blankDice(),
   rolls: 0,
   cards: { human: {}, cpu: {} },
@@ -135,6 +137,7 @@ function mirror(state: State): State {
   return {
     ...state,
     rolloff: { human: state.rolloff.cpu, cpu: state.rolloff.human },
+    rolloffSettled: { human: state.rolloffSettled.cpu, cpu: state.rolloffSettled.human },
     cards: { human: state.cards.cpu, cpu: state.cards.human },
     turn: flip(state.turn),
     pendingFirst: state.pendingFirst ? flip(state.pendingFirst) : null,
@@ -312,12 +315,10 @@ function YahtzeeTable() {
     [],
   );
 
-  // Before the opening roll-off, prompt the player to throw.
-  useEffect(() => {
-    if (state.phase === "rolloff" && state.rolloff.human === null) {
-      showBubble("human", "Throw dice to decide who goes first");
-    }
-  }, [state.phase, state.rolloff.human]);
+  // Who rolls first in the opening roll-off: the host (or the local player in
+  // solo play) throws first, the opponent second.
+  const rolloffFirst: Seat = isMulti && !isHost ? "cpu" : "human";
+  const rolloffSecond: Seat = flip(rolloffFirst);
 
   const rolloffWinner: Seat | null =
     state.rolloff.human !== null && state.rolloff.cpu !== null && state.rolloff.human !== state.rolloff.cpu
@@ -326,77 +327,110 @@ function YahtzeeTable() {
         : "cpu"
       : null;
 
+  // Whose die is up: the first roller until their die flies to their seat, then
+  // the second roller until they throw.
+  const rolloffTurn: Seat | null =
+    state.phase !== "rolloff"
+      ? null
+      : !state.rolloffSettled[rolloffFirst]
+        ? rolloffFirst
+        : (rolloffSecond === "human" ? state.rolloff.human : state.rolloff.cpu) === null
+          ? rolloffSecond
+          : null;
+
+  // The local player may throw when it is their turn and their die is still blank.
   const canRollOff =
-    state.phase === "rolloff" &&
-    state.rolloff.human === null &&
-    (!isMulti || isHost || state.rolloff.cpu !== null);
-  // Label for the rolloff button: prompt the active player, and show a waiting
-  // state for whoever rolls second (or while the opponent rolls).
+    state.phase === "rolloff" && rolloffTurn === "human" && state.rolloff.human === null;
+
+  // Before the opening roll-off, prompt the active player to throw.
+  useEffect(() => {
+    if (state.phase === "rolloff" && canRollOff) {
+      showBubble("human", "Throw dice to decide who goes first");
+    }
+  }, [state.phase, canRollOff]);
+
+  // Label for the rolloff button: prompt the active player, show their die in
+  // flight, and a waiting state while the opponent throws.
   const rolloffLabel =
-    state.rolloff.human === null
-      ? canRollOff
+    state.rolloff.human !== null && !state.rolloffSettled.human
+      ? "Rolling…"
+      : canRollOff
         ? "Roll for first turn"
-        : "Waiting…"
-      : state.rolloff.cpu === null
-        ? "Rolling…"
-        : "Roll again";
+        : "Waiting…";
   const rollForFirst = () => {
     if (!canRollOff) return;
     apply(rollOff);
   };
 
-  // Ada's rolloff die (solo play) lands two seconds after the player rolls their own.
+  // Ada's rolloff die (solo play) lands once the player's own die has flown to
+  // their seat, so the two throws happen one at a time.
   useEffect(() => {
     if (isMulti) return;
     if (state.phase !== "rolloff") return;
-    if (state.rolloff.human === null || state.rolloff.cpu !== null) return;
+    if (!state.rolloffSettled.human || state.rolloff.cpu !== null) return;
     const timer = setTimeout(() => {
       apply((current) => {
         if (current.phase !== "rolloff") return current;
-        if (current.rolloff.human === null || current.rolloff.cpu !== null) return current;
+        if (!current.rolloffSettled.human || current.rolloff.cpu !== null) return current;
+        const face = rollFace();
         return {
           ...current,
-          rolloff: { ...current.rolloff, cpu: rollFace() },
+          rolloff: { ...current.rolloff, cpu: face },
+          log: note(current.log, { side: "cpu", text: `throw a ${face} for the first turn.` }),
         };
       });
-    }, 2000);
+    }, 1000);
     return () => clearTimeout(timer);
-  }, [isMulti, state.phase, state.rolloff.human, state.rolloff.cpu]);
+  }, [isMulti, state.phase, state.rolloffSettled.human, state.rolloff.cpu]);
 
-  // Once both dice have landed, resolve the rolloff: a tie re-rolls, otherwise
-  // the higher roller takes the first turn.
+  // Each rolloff die lands scattered in the throwing area, then after a beat flies
+  // to its owner's seat. Once the second die has flown, the rolloff resolves: a
+  // tie clears both dice for a re-roll, otherwise the higher roller goes first.
   useEffect(() => {
     if (isMulti && !isHost) return;
     if (state.phase !== "rolloff") return;
-    const h = state.rolloff.human;
-    const c = state.rolloff.cpu;
-    if (h === null || c === null) return;
+    const pending: Seat | null =
+      state.rolloff.human !== null && !state.rolloffSettled.human
+        ? "human"
+        : state.rolloff.cpu !== null && !state.rolloffSettled.cpu
+          ? "cpu"
+          : null;
+    if (pending === null) return;
     const timer = setTimeout(() => {
       apply((current) => {
         if (current.phase !== "rolloff") return current;
+        const value = pending === "human" ? current.rolloff.human : current.rolloff.cpu;
+        const alreadySettled =
+          pending === "human" ? current.rolloffSettled.human : current.rolloffSettled.cpu;
+        if (value === null || alreadySettled) return current;
+        const settled = { ...current.rolloffSettled, [pending]: true };
         const hh = current.rolloff.human;
         const cc = current.rolloff.cpu;
-        if (hh === null || cc === null) return current;
-        if (hh === cc) {
+        if (settled.human && settled.cpu && hh !== null && cc !== null) {
+          if (hh === cc) {
+            return {
+              ...current,
+              rolloff: { human: null, cpu: null },
+              rolloffSettled: { human: false, cpu: false },
+              log: note(current.log, { side: null, text: `Tie at ${hh} — roll again.` }),
+            };
+          }
+          const first: Seat = hh > cc ? "human" : "cpu";
           return {
             ...current,
-            rolloff: { human: null, cpu: null },
-            log: note(current.log, { side: null, text: `Tie at ${hh} — roll again.` }),
+            rolloffSettled: settled,
+            pendingFirst: first,
+            log: note(current.log, {
+              side: first,
+              text: `win the rolloff ${hh}-${cc} and take the first turn.`,
+            }),
           };
         }
-        const first: Seat = hh > cc ? "human" : "cpu";
-        return {
-          ...current,
-          pendingFirst: first,
-          log: note(current.log, {
-            side: first,
-            text: `win the rolloff ${hh}-${cc} and take the first turn.`,
-          }),
-        };
+        return { ...current, rolloffSettled: settled };
       });
-    }, 2000);
+    }, 1500);
     return () => clearTimeout(timer);
-  }, [isMulti, isHost, state.phase, state.rolloff.human, state.rolloff.cpu]);
+  }, [isMulti, isHost, state.phase, state.rolloffSettled, state.rolloff.human, state.rolloff.cpu]);
 
   // The rolloff winner announces they go first, then main play begins after a pause.
   useEffect(() => {
@@ -411,7 +445,7 @@ function YahtzeeTable() {
     const timer = setTimeout(() => {
       apply((current) => {
         if (current.phase !== "rolloff" || current.pendingFirst !== first) return current;
-        return { ...current, phase: "play", turn: first, pendingFirst: null };
+        return { ...current, phase: "play", turn: first, pendingFirst: null, rolloffSettled: { human: false, cpu: false } };
       });
     }, 3000);
     return () => clearTimeout(timer);
@@ -512,15 +546,15 @@ function YahtzeeTable() {
     isMulti && !match
       ? "Opening the shared table…"
       : state.phase === "rolloff"
-        ? state.rolloff.human === null
-          ? "Highest roll goes first"
-          : state.rolloff.cpu === null
-            ? `Waiting for ${opponentName}…`
-            : rolloffWinner === null
-              ? "Tie — roll again"
-              : rolloffWinner === "human"
-                ? "You go first"
-                : `${opponentName} goes first`
+        ? rolloffWinner !== null
+          ? rolloffWinner === "human"
+            ? "You go first"
+            : `${opponentName} goes first`
+          : state.rolloff.human !== null && state.rolloff.cpu !== null
+            ? "Tie — roll again"
+            : rolloffTurn === "human"
+              ? "Highest roll goes first"
+              : `Waiting for ${opponentName}…`
         : state.phase === "over"
           ? state.draw
           ? "A dead heat — honours shared"
@@ -668,13 +702,10 @@ function YahtzeeTable() {
   const centreDice = showDice ? indexes.filter((i) => !state.dice[i]!.held) : [];
   const keptDice = showDice ? indexes.filter((i) => state.dice[i]!.held) : [];
 
-  // The host opens the roll-off (in solo play the local player does), so that
-  // seat shows "Rolling Dice" while whoever rolls second is still waiting.
-  const rolloffFirst: Seat = isMulti && !isHost ? "cpu" : "human";
-
   const seatBox = (side: Seat) => {
     const mine = side === "human";
     const active = state.turn === side && state.phase === "play";
+    const rolloffValue = side === "human" ? state.rolloff.human : state.rolloff.cpu;
     const kept = active
       ? [
           ...heldOrderRef.current.filter((i) => state.dice[i]!.held),
@@ -720,11 +751,17 @@ function YahtzeeTable() {
             <div className="flex flex-wrap justify-center gap-3">
               {kept.map((i) => dieAt(i, false))}
             </div>
+          ) : state.phase === "rolloff" && state.rolloffSettled[side] && rolloffValue !== null ? (
+            <div>
+              <span className={`inline-block ${mine ? "animate-die-to-player" : "animate-die-to-cpu"}`}>
+                <DieFace face={rolloffValue} />
+              </span>
+            </div>
           ) : (
             <p className="text-xs text-ivory/40">
               {active
                 ? "Dice you keep will sit here"
-                : state.phase === "rolloff" && side === rolloffFirst
+                : state.phase === "rolloff" && rolloffTurn === side
                   ? "Rolling Dice"
                   : "Waiting"}
             </p>
@@ -761,28 +798,30 @@ function YahtzeeTable() {
         ? scoreMove(category, faces, myCard).score
         : null;
     return (
-      <tr className="border-t border-gold/10">
-        <td className="py-0.5 pr-0 text-ivory/75 lg:py-1.5">{CATEGORY_LABELS[category]}</td>
-        <td className="h-6 text-right lg:h-8">
+      <tr>
+        <td className="border-b border-r border-gold/40 py-0.5 pr-2 font-bold text-neutral-700 lg:py-2">
+          {CATEGORY_LABELS[category]}
+        </td>
+        <td className="h-6 border-b border-r border-gold/40 px-2 text-right lg:h-8">
           {taken ? (
-            <span className="font-display text-[13px] text-gold lg:text-[15px]">{myCard[category]}</span>
+            <span className="font-display text-[13px] font-bold text-neutral-900 lg:text-[16px]">{myCard[category]}</span>
           ) : preview !== null ? (
             <button
               type="button"
               onClick={() => take(category)}
-              className="rounded-md border border-gold/40 px-2 py-0.5 text-xs text-ivory/80 transition-colors hover:bg-gold/20 hover:text-ivory"
+              className="rounded-md border border-gold/40 px-2 py-0.5 text-xs font-bold text-red-600 transition-colors hover:bg-gold/20 hover:text-red-700 lg:text-[13px]"
             >
               {preview}
             </button>
           ) : (
-            <span className="text-ivory/25">—</span>
+            <span className="text-neutral-400">—</span>
           )}
         </td>
-        <td className="h-6 pl-3 text-right lg:h-8">
+        <td className="h-6 border-b border-gold/40 pl-2 text-right lg:h-8">
           {theirCard[category] !== undefined ? (
-            <span className="font-display text-[13px] text-ivory lg:text-[15px]">{theirCard[category]}</span>
+            <span className="font-display text-[13px] font-bold text-neutral-700 lg:text-[16px]">{theirCard[category]}</span>
           ) : (
-            <span className="text-ivory/25">—</span>
+            <span className="text-neutral-400">—</span>
           )}
         </td>
       </tr>
@@ -790,22 +829,28 @@ function YahtzeeTable() {
   };
 
   const Totals = ({ label, mine, theirs }: { label: string; mine: number; theirs: number }) => (
-    <tr className="border-t border-gold/25 bg-gold/5">
-      <td className="py-0.5 pr-0 text-[11px] uppercase tracking-[0.16em] text-ivory/60 lg:py-1.5">{label}</td>
-      <td className="py-0.5 text-right font-display text-[13px] text-gold lg:py-1.5 lg:text-[15px]">{mine}</td>
-      <td className="py-0.5 pl-3 text-right font-display text-[13px] text-ivory lg:py-1.5 lg:text-[15px]">{theirs}</td>
+    <tr className="bg-gold/5">
+      <td className="border-b border-r border-gold/50 py-0.5 pr-2 text-[11px] font-bold uppercase tracking-[0.16em] text-neutral-500 lg:py-2 lg:text-[12px]">
+        {label}
+      </td>
+      <td className="border-b border-r border-gold/50 px-2 py-0.5 text-right font-display text-[13px] font-bold text-neutral-900 lg:py-2 lg:text-[16px]">
+        {mine}
+      </td>
+      <td className="border-b border-gold/50 py-0.5 pl-2 text-right font-display text-[13px] font-bold text-neutral-700 lg:py-2 lg:text-[16px]">
+        {theirs}
+      </td>
     </tr>
   );
 
   const scorecard = (
-    <div className="rounded-xl border border-gold/20 bg-brand/50 p-4">
-      <p className="mb-2 text-[11px] uppercase tracking-[0.22em] text-ivory/60">Scorecard</p>
-      <table className="w-full table-fixed text-[11px] lg:table-auto lg:text-[13px]">
+    <div className="rounded-xl border border-gold/20 bg-white p-4 lg:p-5">
+      <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.22em] text-brand/70 lg:text-[12px]">Scorecard</p>
+      <table className="w-full border-collapse table-fixed text-[11px] lg:table-auto lg:text-[14px]">
         <thead>
-          <tr className="text-[10px] uppercase tracking-[0.18em] text-ivory/40">
-            <th className="w-[55%] lg:w-auto pb-1 text-left font-normal" />
-            <th className="w-[20%] lg:w-auto pb-1 text-right font-normal">{shortName(playerName)}</th>
-            <th className="w-[25%] lg:w-auto pb-1 pl-3 text-right font-normal">{shortName(opponentName)}</th>
+          <tr className="text-[10px] uppercase tracking-[0.18em] text-neutral-500 lg:text-[11px]">
+            <th className="w-[55%] border-b border-r border-gold/50 pb-1 pr-2 text-left font-bold lg:w-auto" />
+            <th className="w-[20%] border-b border-r border-gold/50 px-2 pb-1 text-right font-bold lg:w-auto">{shortName(playerName)}</th>
+            <th className="w-[25%] border-b border-gold/50 pb-1 pl-2 text-right font-bold lg:w-auto">{shortName(opponentName)}</th>
           </tr>
         </thead>
         <tbody>
@@ -927,33 +972,34 @@ function YahtzeeTable() {
             <section className="grid h-[14.66rem] place-items-center rounded-2xl border border-dashed border-gold/20 bg-brand/20 p-3 lg:h-[10.67rem] lg:p-6">
               {state.phase === "rolloff" ? (
                 <div className="text-center">
-                  <p className="mt-1 font-display text-xs font-bold">Highest roll starts game</p>
-                  <div className="mt-2 flex items-center justify-center gap-8">
-                    <div className="flex flex-col items-center gap-2">
-                      <PlayerAvatar avatar={playerAvatar} onSelect={setPlayerAvatar} size="size-12" />
-                      {state.rolloff.human !== null && (
-                        <DieFace
-                          face={state.rolloff.human}
-                          rotate={scatterFor(0, state.rolloff.human).angle}
-                        />
-                      )}
-                    </div>
-                    <p className="font-display text-2xl text-gold">vs</p>
-                    <div className="flex flex-col items-center gap-2">
-                      <img
-                        src={opponentAvatar ?? ADA_AVATAR}
-                        alt={`${opponentName}'s avatar`}
-                        width={64}
-                        height={64}
-                        className="size-12 rounded-full border-2 border-gold/40 object-cover"
-                      />
-                      {state.rolloff.cpu !== null && (
-                        <DieFace
-                          face={state.rolloff.cpu}
-                          rotate={scatterFor(1, state.rolloff.cpu).angle}
-                        />
-                      )}
-                    </div>
+                  <p className="mt-1 font-display text-xs font-bold">Highest roll goes first</p>
+                  <div className="mt-3 flex items-center justify-center gap-10">
+                    {state.rolloff.human !== null && !state.rolloffSettled.human && (
+                      <div
+                        style={{
+                          transform: `translate(${scatterFor(0, state.rolloff.human).dx}px, ${
+                            scatterFor(0, state.rolloff.human).dy
+                          }px) rotate(${scatterFor(0, state.rolloff.human).angle}deg)`,
+                        }}
+                      >
+                        <span className="inline-block animate-die-to-center-from-below">
+                          <DieFace face={state.rolloff.human} />
+                        </span>
+                      </div>
+                    )}
+                    {state.rolloff.cpu !== null && !state.rolloffSettled.cpu && (
+                      <div
+                        style={{
+                          transform: `translate(${scatterFor(1, state.rolloff.cpu).dx}px, ${
+                            scatterFor(1, state.rolloff.cpu).dy
+                          }px) rotate(${scatterFor(1, state.rolloff.cpu).angle}deg)`,
+                        }}
+                      >
+                        <span className="inline-block animate-die-to-center-from-above">
+                          <DieFace face={state.rolloff.cpu} />
+                        </span>
+                      </div>
+                    )}
                   </div>
                   {state.rolloff.human !== null && state.rolloff.cpu !== null && rolloffWinner === null && (
                     <p className="mt-2 text-sm text-ivory/55">Tie at {state.rolloff.human} — roll again.</p>

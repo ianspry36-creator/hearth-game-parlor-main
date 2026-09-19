@@ -44,6 +44,8 @@ export function TableShell({
   below,
   containerClassName = "px-6",
   boxClassName = "",
+  gridClassName = "grid gap-6",
+  containerMaxWidth = "max-w-6xl",
 }: {
   game: GameMeta;
   opponentName: string;
@@ -67,6 +69,8 @@ export function TableShell({
   below?: ReactNode;
   containerClassName?: string;
   boxClassName?: string;
+  gridClassName?: string;
+  containerMaxWidth?: string;
 }) {
   const navigate = useNavigate();
   const [confirming, setConfirming] = useState<"new" | "human" | "home" | "2" | "3" | "4" | null>(null);
@@ -103,7 +107,7 @@ export function TableShell({
         expired={disconnectExpired}
         opponentName={opponentName}
       />
-      <div className={`mx-auto max-w-6xl py-8 ${containerClassName}`}>
+      <div className={`mx-auto ${containerMaxWidth} py-8 ${containerClassName}`}>
         <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <Link
@@ -131,7 +135,7 @@ export function TableShell({
           </div>
         </header>
 
-        <div className={`grid gap-6 ${middle ? "lg:grid-cols-[1fr_230px_260px]" : "lg:grid-cols-[1fr_260px]"}`}>
+        <div className={`${gridClassName} ${middle ? "lg:grid-cols-[1fr_219px_260px]" : "lg:grid-cols-[1fr_260px]"}`}>
           <div className={`rounded-2xl border border-gold/20 bg-surface/40 p-5 sm:p-8 ${boxClassName}`}>
             <ChatContext.Provider value={chatMessage}>{children}</ChatContext.Provider>
           </div>

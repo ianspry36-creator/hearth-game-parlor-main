@@ -78,9 +78,9 @@ type DragSource =
   | { type: "tableau"; index: number; cardIndex: number }
   | { type: "foundation"; index: number };
 
-const CARD_H = 90; // px — matches h-[90px]
-const FACE_DOWN_VISIBLE = 15;
-const FACE_UP_VISIBLE = 15;
+const CARD_H = 135; // px — matches h-[135px]
+const FACE_DOWN_VISIBLE = 22;
+const FACE_UP_VISIBLE = 22;
 
 function SolitaireTable() {
   const navigate = useNavigate();
@@ -492,7 +492,7 @@ function SolitaireTable() {
       {dragGhost && (
         <div
           className="pointer-events-none fixed z-50"
-          style={{ left: dragGhost.x - 32, top: dragGhost.y - 45 }}
+          style={{ left: dragGhost.x - 48, top: dragGhost.y - 67.5 }}
         >
           <div className="flex flex-col items-stretch">
             {dragGhost.cards.map((card, i) => (
@@ -538,15 +538,15 @@ function CardFace({
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       aria-label={cardLabel(card)}
-      className={`relative block h-[90px] w-16 touch-none select-none rounded-md border border-black/10 bg-white text-left shadow-md shadow-black/30 transition-transform ${
+      className={`relative block h-[135px] w-24 touch-none select-none rounded-md border border-black/10 bg-white text-left shadow-md shadow-black/30 transition-transform ${
         red ? "text-[#c0392b]" : "text-brand"
       } ${selected ? "-translate-y-1 ring-2 ring-gold" : ""}`}
     >
-      <span className="absolute left-0.5 top-0.5 flex flex-col items-center font-display text-sm font-bold leading-none">
+      <span className="absolute left-0.5 top-0.5 flex flex-col items-center font-display text-xl font-bold leading-none">
         <span>{RANK_LABEL[card.rank]}</span>
-        <span className="text-xs">{SUIT_SYMBOL[card.suit]}</span>
+        <span className="text-lg">{SUIT_SYMBOL[card.suit]}</span>
       </span>
-      <span className="absolute inset-0 grid place-items-center text-2xl">
+      <span className="absolute inset-0 grid place-items-center text-4xl">
         {isFace ? RANK_LABEL[card.rank] : SUIT_SYMBOL[card.suit]}
       </span>
     </button>
@@ -559,7 +559,7 @@ function CardBack({ onClick }: { onClick?: () => void }) {
       type="button"
       onClick={onClick}
       aria-label="Face-down card"
-      className="relative block h-[90px] w-16 overflow-hidden rounded-md shadow-md shadow-black/30"
+      className="relative block h-[135px] w-24 overflow-hidden rounded-md shadow-md shadow-black/30"
     >
       <img src={cardBackAsset} alt="" aria-hidden className="h-full w-full object-cover" />
     </button>
@@ -572,7 +572,7 @@ function EmptySlot({ onClick, symbol }: { onClick?: () => void; symbol?: string 
       type="button"
       onClick={onClick}
       aria-label="Empty pile"
-      className="grid h-[90px] w-16 place-items-center rounded-md border border-dashed border-gold/30 text-lg text-gold/30"
+      className="grid h-[135px] w-24 place-items-center rounded-md border border-dashed border-gold/30 text-2xl text-gold/30"
     >
       {symbol ?? ""}
     </button>

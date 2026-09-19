@@ -77,7 +77,7 @@ type State = {
 const SSR_SEED = 20260829;
 
 // A drag must finish within this many board units of a spot to draw the line.
-const DROP_RADIUS = 36;
+const DROP_RADIUS = 18;
 
 const freshState = (seed = newSeed()): State => ({
   phase: "play",
@@ -584,7 +584,7 @@ function TrianglesTable() {
                 {myTurn && dragFrom === index && (
                   <circle cx={p.x} cy={p.y} r={22} className="fill-player-coral/40" />
                 )}
-                <circle cx={p.x} cy={p.y} r={12} className="fill-cream" />
+                <circle cx={p.x} cy={p.y} r={10.2} className="fill-cream" />
                 {myTurn && (
                   <circle
                     cx={p.x}

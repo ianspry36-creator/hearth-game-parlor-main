@@ -37,7 +37,7 @@ function best(c: number[]): number | null {
   const options: number[] = [];
 
   // Straight 1-6
-  if (total === 6 && c.slice(1).every((n) => n === 1)) options.push(1500);
+  if (total === 6 && c.slice(1).every((n) => n === 1)) options.push(2500);
 
   // Three pairs
   if (total === 6 && c.slice(1).filter((n) => n === 2).length === 3) options.push(1500);

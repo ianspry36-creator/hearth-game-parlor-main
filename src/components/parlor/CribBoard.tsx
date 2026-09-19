@@ -259,28 +259,28 @@ export function ScoreGrid({
   cpuScore: number;
 }) {
   return (
-    <div className="overflow-hidden rounded-lg border border-gold/20">
-      <div className="flex items-center justify-between gap-2 border-b border-gold/15 bg-brand/60 px-3 py-2">
+    <div className="overflow-hidden rounded-lg border border-black/10 bg-white text-black">
+      <div className="flex items-center justify-between gap-2 border-b border-black/10 bg-white px-3 py-2">
         <span className="flex min-w-0 items-center gap-2 text-sm">
           <img
             src={playerAvatar}
             alt=""
-            className="size-7 shrink-0 rounded-full object-cover ring-1 ring-gold/40"
+            className="size-7 shrink-0 rounded-full object-cover ring-1 ring-black/15"
           />
           <span className="truncate">{playerName}</span>
           <span className="size-2.5 shrink-0 rounded-full bg-gold" />
         </span>
-        <span className="shrink-0 font-display text-lg text-gold">{playerScore}</span>
+        <span className="shrink-0 font-display text-lg text-black">{playerScore}</span>
       </div>
-      <div className="flex items-center justify-between gap-2 bg-brand/40 px-3 py-2">
+      <div className="flex items-center justify-between gap-2 bg-white px-3 py-2">
         <span className="flex min-w-0 items-center gap-2 text-sm">
           <img
             src={cpuAvatar}
             alt=""
-            className="size-7 shrink-0 rounded-full object-cover ring-1 ring-ivory/40"
+            className="size-7 shrink-0 rounded-full object-cover ring-1 ring-black/15"
           />
           <span className="truncate">{opponentName}</span>
-          <span className="size-2.5 shrink-0 rounded-full bg-ivory" />
+          <span className="size-2.5 shrink-0 rounded-full bg-ivory ring-1 ring-black/25" />
         </span>
         <span className="shrink-0 font-display text-lg">{cpuScore}</span>
       </div>
@@ -322,7 +322,7 @@ export function CribBoard({
         <Peg side="cpu" score={cpuScore} tone="ivory" />
         <Peg side="cpu" score={cpuBack} tone="ivory" lag />
       </div>
-      <div className="mt-4">
+      <div className="mx-auto mt-4 w-full max-w-[168px]">
         <ScoreGrid
           playerName={playerName}
           opponentName={opponentName}
