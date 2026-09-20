@@ -248,7 +248,7 @@ function AddictionTable() {
         </header>
 
         <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_260px]">
-          <div className="relative rounded-2xl border border-gold/20 bg-surface/40 p-4 sm:p-8">
+          <div className="select-none relative rounded-2xl border border-gold/20 bg-surface/40 p-4 sm:p-8">
             <div className="space-y-8">
               <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-center">
                 <Stat label="Moves" value={String(state.moves)} />

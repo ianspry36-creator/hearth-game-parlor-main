@@ -14,8 +14,6 @@ import {
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { TableShell } from "@/components/parlor/TableShell";
@@ -583,14 +581,14 @@ function CribbageTable() {
         card,
         from: { x: rect.left, y: rect.top },
         // The pile grows left-to-right inside a fixed-width slot, each card
-        // advancing 36px (66px card minus the 30px overlap). Land with the
+        // advancing 32px (59px card minus the 27px overlap). Land with the
         // card's left edge exactly on the next empty slot.
         to: {
-          x: pileRect.left + state.pile.length * 36,
+          x: pileRect.left + state.pile.length * 32,
           y: pileRect.top,
         },
         fromScale: 72 / 64, // medium hand card (flying card base is full-size)
-        toScale: 66 / 64, // table pile card
+        toScale: 59 / 64, // table pile card
       };
       setFlying((current) => [...current, flight]);
       window.setTimeout(() => {
@@ -623,11 +621,11 @@ function CribbageTable() {
         from: { x: rect.left, y: rect.top },
         // Land on the next empty pile slot, matching the player-side animation.
         to: {
-          x: pileRect.left + stateRef.current.pile.length * 36,
+          x: pileRect.left + stateRef.current.pile.length * 32,
           y: pileRect.top,
         },
         fromScale: 72 / 64, // medium face-down hand card
-        toScale: 66 / 64, // table pile card
+        toScale: 59 / 64, // table pile card
       };
       setFlying((current) => [...current, flight]);
       window.setTimeout(() => {
@@ -655,8 +653,8 @@ function CribbageTable() {
       card,
       from: { x: fanRect.left, y: fanRect.top },
       to: { x: seatRect.left, y: seatRect.top },
-      fromScale: 66 / 64, // w-[66px] (table) over w-16 (full)
-      toScale: 66 / 64, // land at the table size so it matches the seat card
+      fromScale: 59 / 64, // w-[59px] (table) over w-16 (full)
+      toScale: 59 / 64, // land at the table size so it matches the seat card
     };
     setFlying((current) => [...current, flight]);
     window.setTimeout(() => {
@@ -1172,7 +1170,7 @@ function CribbageTable() {
       onNewGame={() => reset(freshGame())}
       menuExtra={<CribBoardOptionsDialog boardGraphic={boardGraphic} onSelect={setBoardGraphic} />}
       containerClassName="px-3 sm:px-6"
-      boxClassName="py-2.5 sm:py-4"
+      boxClassName="py-0.5 sm:py-1"
       gridClassName="grid gap-1.5"
       containerMaxWidth="max-w-7xl"
       below={
@@ -1192,9 +1190,6 @@ function CribbageTable() {
               </Button>
             </DialogTrigger>
             <DialogContent className="max-h-[85vh] overflow-y-auto border-gold/30 bg-brand text-cream sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle className="font-display text-xl">Peg board</DialogTitle>
-              </DialogHeader>
               <CribBoard
                 graphic={boardGraphic}
                 playerScore={state.scores.player}
@@ -1314,10 +1309,10 @@ function CribbageTable() {
                       if (el) cpuHandEls.current.set(card.id, el);
                       else cpuHandEls.current.delete(card.id);
                     }}
-                    className="animate-deal-out block"
+                    className={`${revealed ? "animate-turn-over" : "animate-deal-out"} block`}
                     style={{ animationDelay: `${index * 90}ms` }}
                   >
-                    <FaceDownCard medium />
+                    {revealed ? <PlayingCard card={card} medium /> : <FaceDownCard medium />}
                   </span>
                 );
               })}
@@ -1341,7 +1336,7 @@ function CribbageTable() {
               />
             </div>
             <div className="overflow-x-auto pt-4">
-              <div className="mx-auto flex w-max flex-nowrap justify-center px-2 [&>*:not(:first-child)]:-ml-[58px]">
+              <div className="mx-auto flex w-max flex-nowrap justify-center px-2 [&>*:not(:first-child)]:-ml-[52px]">
                 {state.cutFan.map((card, index) => {
                   const isMine = state.playerCut?.id === card.id;
                   const isTheirs = state.cpuCut?.id === card.id;
@@ -1392,7 +1387,7 @@ function CribbageTable() {
             <div className="flex items-center gap-3">
               <div
                 ref={pileRef}
-                className="relative flex h-[96px] w-[260px] items-center justify-start [&>*:not(:first-child)]:-ml-[30px] sm:w-80"
+                className="relative flex h-[86px] w-[234px] items-center justify-start [&>*:not(:first-child)]:-ml-[27px] sm:w-72"
               >
                 {state.pile.map((card, index) => {
                   const isLast = index === state.pile.length - 1;
@@ -1669,7 +1664,7 @@ function DeckStack({ remaining, starter }: { remaining: number; starter: Card | 
   const layers = Math.min(4, Math.max(1, Math.ceil(remaining / 10)));
   return (
     <div className="text-center">
-      <div className="relative h-[96px] w-[66px]">
+      <div className="relative h-[86px] w-[59px]">
         {Array.from({ length: layers }).map((_, index) => (
           <span
             key={index}
@@ -1705,7 +1700,7 @@ function CutSeat({
   return (
     <div className="text-center">
       <p className="mb-1 text-[10px] uppercase tracking-[0.2em] text-gold">{label}</p>
-      <div ref={seatRef} className="grid h-[96px] w-[66px] place-items-center">
+      <div ref={seatRef} className="grid h-[86px] w-[59px] place-items-center">
         {card ? (
           <span className="block">
             <PlayingCard card={card} table />
@@ -1779,7 +1774,7 @@ function FaceDownCard({
               : small
                 ? "h-[77px] w-[53px]"
                 : table
-                  ? "h-[96px] w-[66px]"
+                  ? "h-[86px] w-[59px]"
                   : medium
                     ? "h-[105px] w-[72px]"
                     : "h-24 w-16"
@@ -1835,7 +1830,7 @@ function PlayingCard({
               : small
                 ? "h-[77px] w-[53px]"
                 : table
-                  ? "h-[96px] w-[66px]"
+                  ? "h-[86px] w-[59px]"
                   : medium
                     ? "h-[105px] w-[72px]"
                     : "h-24 w-16 hover:-translate-y-1"

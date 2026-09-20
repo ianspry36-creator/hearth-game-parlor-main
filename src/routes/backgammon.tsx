@@ -1064,7 +1064,7 @@ function Board({
       // down from the top. Bottom points pack up from the bottom (justify-end),
       // so the newest checker lands `count-1` steps above the base — i.e. above
       // the highest piece already sitting on the triangle.
-      const stackIndex = Math.max(0, Math.min(count - 1, 4));
+      const stackIndex = Math.max(0, Math.min(count - 1, 7));
       const y = top
         ? r.top + pad + stackIndex * (size + gap) + size / 2 - boardRect.top - borderTop
         : r.bottom - pad - size / 2 - stackIndex * (size + gap) - boardRect.top - borderTop;
@@ -1237,9 +1237,9 @@ function Board({
               : "polygon(50% 0, 100% 100%, 0 100%)",
           }}
         />
-        {Array.from({ length: Math.min(Math.abs(shown), 5) }, (_, i) => {
-          const overflow = Math.abs(shown) - 5;
-          const isLast = i === Math.min(Math.abs(shown), 5) - 1;
+        {Array.from({ length: Math.min(Math.abs(shown), 8) }, (_, i) => {
+          const overflow = Math.abs(shown) - 8;
+          const isLast = i === Math.min(Math.abs(shown), 8) - 1;
           return (
             <span
               key={i}
@@ -1293,7 +1293,7 @@ function Board({
                 title="Your piece — click to re-enter"
                 onClick={() => (selectable.includes("bar") ? onSelect("bar") : undefined)}
                 className={`relative flex size-4 sm:size-5 items-center justify-center rounded-full border p-0 transition-colors ${
-                  selected === "bar" ? "border-gold bg-gold/30" : "border-[#6b5233] bg-cream"
+                  selected === "bar" ? "border-gold bg-cream" : "border-[#6b5233] bg-cream"
                 } ${
                   selectable.includes("bar") ? "cursor-pointer" : "cursor-default"
                 }`}

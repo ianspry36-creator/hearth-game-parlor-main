@@ -403,7 +403,7 @@ function FreeCellTable() {
         </header>
 
         <div className="grid items-start gap-6 lg:grid-cols-[1fr_260px]">
-          <div className="relative rounded-2xl border border-gold/20 bg-surface/40 p-1.5 sm:p-8">
+          <div className="select-none relative rounded-2xl border border-gold/20 bg-surface/40 p-1.5 sm:p-8">
             <div className="space-y-8">
               <div className="flex items-start gap-1 sm:gap-2">
                 <div className="flex gap-1 sm:gap-2">

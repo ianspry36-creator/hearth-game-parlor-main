@@ -843,7 +843,7 @@ function YahtzeeTable() {
   );
 
   const scorecard = (
-    <div className="rounded-xl border border-gold/20 bg-white p-4 lg:p-5">
+    <div className="rounded-xl border border-gold/20 bg-white px-1 py-4 lg:p-5">
       <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.22em] text-brand/70 lg:text-[12px]">Scorecard</p>
       <table className="w-full border-collapse table-fixed text-[11px] lg:table-auto lg:text-[14px]">
         <thead>

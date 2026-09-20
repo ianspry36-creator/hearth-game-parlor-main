@@ -13,6 +13,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { applyTheme, readTheme, THEME_INIT_SCRIPT } from "../lib/theme";
 import { applyEffect, readEffect, EFFECT_INIT_SCRIPT } from "../lib/effects";
+import { applyPalette, readPalette, PALETTE_INIT_SCRIPT } from "../lib/palette";
 
 function NotFoundComponent() {
   return (
@@ -121,6 +122,7 @@ function RootShell({ children }: { children: ReactNode }) {
         <HeadContent />
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         <script dangerouslySetInnerHTML={{ __html: EFFECT_INIT_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: PALETTE_INIT_SCRIPT }} />
       </head>
       <body>
         {children}
@@ -136,6 +138,7 @@ function RootComponent() {
   useEffect(() => {
     applyTheme(readTheme());
     applyEffect(readEffect());
+    applyPalette(readPalette());
   }, []);
 
   return (

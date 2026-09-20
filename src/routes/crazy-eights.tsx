@@ -876,7 +876,7 @@ function CrazyEightsTable() {
   // Overlap grows as cards are added and shrinks as cards leave. Cards that fit
   // keep a few pixels between them (never touching); otherwise they overlap to
   // fill the row. `CARD_W - 1` keeps at least 1px of every card visible.
-  const CARD_W = 90;
+  const CARD_W = isMobile ? 72 : 81;
   const MIN_GAP = 5;
   const handOverlap = (() => {
     const n = myHand.length;
@@ -920,6 +920,7 @@ function CrazyEightsTable() {
       onNewGame={() => startGame(2)}
       rail={null}
       containerClassName="px-1.5 sm:px-3"
+      boxClassName="px-[5px] py-[5px] sm:px-2 sm:py-2"
     >
       <GameOverDialog
         open={state.phase === "over" && !viewingHand}
@@ -971,7 +972,7 @@ function CrazyEightsTable() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      <div className="space-y-4 sm:space-y-8">
+      <div className="space-y-2 sm:space-y-4">
         <section className="flex flex-wrap items-end justify-between gap-4">
           {state.phase === "over" && (
             <Button
@@ -1216,7 +1217,7 @@ function OpponentSeat({
   layingIds?: string[];
 }) {
   return (
-    <div className={vertical ? `flex items-center gap-4 ${avatarSide === "right" ? "flex-row-reverse" : ""}` : ""}>
+    <div className={vertical ? `flex items-center gap-2 md:gap-4 ${avatarSide === "right" ? "flex-row-reverse" : ""}` : ""}>
       <div className={`flex items-center gap-3 ${vertical ? "flex-col gap-1" : "mb-2 justify-center"}`}>
         <div className="relative">
           <img
@@ -1224,7 +1225,7 @@ function OpponentSeat({
             alt=""
             aria-hidden="true"
             className={`rounded-full border object-cover ${
-              vertical ? "size-[90px]" : "size-[75px]"
+              vertical ? "size-[54px] md:size-[90px]" : "size-[54px] md:size-[75px]"
             } ${active ? "border-gold ring-2 ring-gold/40" : "border-gold/40"}`}
           />
           {bubble && (
@@ -1240,14 +1241,14 @@ function OpponentSeat({
             </div>
           )}
         </div>
-        <p className="text-[12.5px] uppercase tracking-[0.22em] text-ivory/45">
+        <p className="text-[11px] uppercase tracking-[0.22em] text-ivory/45">
           {name}
         </p>
       </div>
-      {/* Reserve vertical space for up to 10 stacked cards (h-[135px] minus -mt-[110px]
-          overlap = 25px each, so 135 + 9*25 = 360px) so the side seats don't
+      {/* Reserve vertical space for up to 10 stacked cards (h-[63px] minus -mt-[47px]
+          overlap = 16px each, so 63 + 9*16 = 207px) so the side seats don't
           make the screen grow deeper card-by-card while dealing. */}
-      <div className={vertical ? "flex min-h-[360px] flex-col items-center" : "flex"}>
+      <div className={vertical ? "flex min-h-[207px] flex-col items-center md:min-h-[335px]" : "flex"}>
         {cards.map((card, index) => {
           const arrived = !dealing || dealt > index * playerCount + seatIndex;
           if (!arrived) return null;
@@ -1258,7 +1259,7 @@ function OpponentSeat({
                 if (el) handEls.set(card.id, el);
                 else handEls.delete(card.id);
               }}
-              className={`${vertical ? "-mt-[110px] first:mt-0" : "-ml-[65px] first:ml-0"} ${
+              className={`${vertical ? "-mt-[47px] first:mt-0 md:-mt-[85px]" : "-ml-[26px] first:ml-0 md:-ml-[48px]"} ${
                 dealing ? "animate-deal-out" : ""
               } ${hiddenId === card.id || layingIds.includes(card.id) ? "invisible" : ""}`}
             >
@@ -1319,7 +1320,7 @@ function FaceDownCard({
       aria-hidden="true"
       loading="lazy"
       className={`block rounded-lg object-cover shadow-md shadow-black/30 ${
-        small ? "h-[135px] w-[90px]" : table ? "h-[120px] w-[82px]" : "h-[120px] w-20"
+        small ? "h-[63px] w-[41px] md:h-[110px] md:w-[73px]" : table ? "h-[95px] w-[65px] md:h-[108px] md:w-[74px]" : "h-[96px] w-16 md:h-[108px] md:w-[72px]"
       } ${className}`}
     />
   );
@@ -1348,14 +1349,14 @@ function PlayingCard({
     <span
       className={`relative block overflow-hidden rounded-lg border bg-cream shadow-md shadow-black/30 transition-transform ${
         tiny
-          ? "h-20 w-[55px]"
+          ? "h-16 w-[44px] md:h-[72px] md:w-[50px]"
           : small
-            ? "h-[90px] w-15"
+            ? "h-[72px] w-12 md:h-[81px] md:w-[54px]"
             : medium
-              ? "h-[135px] w-[90px]"
+              ? "h-[108px] w-[72px] md:h-[122px] md:w-[81px]"
               : table
-                ? "h-[120px] w-[82px]"
-                : "h-[140px] w-[95px]"
+                ? "h-[95px] w-[65px] md:h-[108px] md:w-[74px]"
+                : "h-[112px] w-[76px] md:h-[126px] md:w-[86px]"
       } ${highlighted ? "border-gold ring-2 ring-gold" : "border-black/10"} ${
         red ? "text-destructive" : "text-brand"
       }`}

@@ -11,6 +11,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { THEME_OPTIONS, readTheme, writeTheme, type ThemeId } from "@/lib/theme";
 import { EFFECT_OPTIONS, readEffect, writeEffect, type EffectId } from "@/lib/effects";
+import {
+  PALETTE_CHANNELS,
+  channelHex,
+  readPalette,
+  writePalette,
+  type CustomPalette,
+} from "@/lib/palette";
 import { useBlockedUsers } from "@/lib/blockedUsers";
 
 type Props = {
@@ -24,6 +31,8 @@ export function SettingsDialog({ className }: Props) {
   const [candidate, setCandidate] = useState<ThemeId>(theme);
   const [effect, setEffect] = useState<EffectId>(() => readEffect());
   const [effectCandidate, setEffectCandidate] = useState<EffectId>(effect);
+  const [palette, setPalette] = useState<CustomPalette>(() => readPalette());
+  const [paletteCandidate, setPaletteCandidate] = useState<CustomPalette>(palette);
   const { blockedUsers, addBlockedUser, removeBlockedUser } = useBlockedUsers();
   const [blockDraft, setBlockDraft] = useState("");
 
@@ -43,6 +52,21 @@ export function SettingsDialog({ className }: Props) {
     setEffectCandidate(id);
     writeEffect(id);
     setOpen(false);
+  };
+
+  const paletteDirty = JSON.stringify(paletteCandidate) !== JSON.stringify(palette);
+
+  const applyPaletteOption = () => {
+    setPalette(paletteCandidate);
+    writePalette(paletteCandidate);
+    setOpen(false);
+  };
+
+  const resetPalette = () => {
+    const empty: CustomPalette = {};
+    setPalette(empty);
+    setPaletteCandidate(empty);
+    writePalette(empty);
   };
 
   return (
@@ -66,7 +90,7 @@ export function SettingsDialog({ className }: Props) {
         </DialogHeader>
 
         <Tabs defaultValue="colours">
-          <TabsList className="grid w-full grid-cols-3 rounded-xl border border-gold/25 bg-surface p-1">
+          <TabsList className="grid w-full grid-cols-4 rounded-xl border border-gold/25 bg-surface p-1">
             <TabsTrigger value="colours" className="data-[state=active]:bg-gold data-[state=active]:text-brand">
               Colours
             </TabsTrigger>
@@ -75,6 +99,9 @@ export function SettingsDialog({ className }: Props) {
             </TabsTrigger>
             <TabsTrigger value="blocked" className="data-[state=active]:bg-gold data-[state=active]:text-brand">
               Block Users
+            </TabsTrigger>
+            <TabsTrigger value="palette" className="data-[state=active]:bg-gold data-[state=active]:text-brand">
+              Palette
             </TabsTrigger>
           </TabsList>
 
@@ -225,6 +252,79 @@ export function SettingsDialog({ className }: Props) {
                 ))}
               </ul>
             )}
+          </TabsContent>
+
+          <TabsContent value="palette" className="min-h-[33rem]">
+            <p className="text-sm text-ivory/70">
+              Tune the three background tones used across the site. Pick a colour for each and it
+              becomes part of the main page backdrop.
+            </p>
+
+            <div className="mt-4 space-y-3">
+              {PALETTE_CHANNELS.map(({ id, label, hint, cssVar }) => (
+                <div
+                  key={id}
+                  className="flex flex-wrap items-center gap-4 rounded-xl border border-gold/20 bg-surface/40 p-4"
+                >
+                  <span
+                    aria-hidden
+                    className="grid size-12 shrink-0 place-items-center rounded-full border border-white/10"
+                    style={{ background: `var(${cssVar})` }}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-display text-base font-semibold">{label}</p>
+                    <p className="text-xs text-ivory/50">{hint}</p>
+                  </div>
+                  <input
+                    type="color"
+                    value={channelHex(paletteCandidate, id)}
+                    onChange={(event) =>
+                      setPaletteCandidate((prev) => ({ ...prev, [id]: event.target.value }))
+                    }
+                    aria-label={`${label} colour`}
+                    className="h-11 w-16 shrink-0 cursor-pointer rounded-lg border border-gold/25 bg-surface p-1"
+                  />
+                  {paletteCandidate[id] && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setPaletteCandidate((prev) => {
+                          const next = { ...prev };
+                          delete next[id];
+                          return next;
+                        })
+                      }
+                      aria-label={`Reset ${label}`}
+                      title={`Reset ${label}`}
+                      className="grid size-8 shrink-0 place-items-center rounded-full text-ivory/50 transition-colors hover:bg-gold/15 hover:text-gold"
+                    >
+                      <X className="size-4" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-4 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={resetPalette}
+                disabled={
+                  Object.keys(palette).length === 0 && Object.keys(paletteCandidate).length === 0
+                }
+                className="rounded-lg border border-gold/25 px-5 py-2 text-sm font-semibold text-ivory/80 transition-colors hover:border-gold/60 hover:text-gold disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Reset
+              </button>
+              <button
+                type="button"
+                onClick={applyPaletteOption}
+                disabled={!paletteDirty}
+                className="rounded-lg bg-gold px-5 py-2 text-sm font-semibold text-brand transition-colors hover:bg-gold-bright disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Apply
+              </button>
+            </div>
           </TabsContent>
 
         </Tabs>

@@ -385,7 +385,7 @@ function CanfieldTable() {
         </div>
 
         <div className="mt-8 grid items-start gap-6 lg:grid-cols-[1fr_260px]">
-          <div className="relative rounded-2xl border border-gold/15 bg-surface/40 p-4 sm:p-6">
+          <div className="select-none relative rounded-2xl border border-gold/15 bg-surface/40 p-4 sm:p-6">
             <div className="mb-6 flex flex-wrap items-start justify-between gap-6">
               <div className="flex items-start gap-2">
                 <StockPile count={state.stock.length} onClick={clickStock} />

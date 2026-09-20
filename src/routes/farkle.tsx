@@ -99,9 +99,15 @@ const jitter = (n: number) => {
 
 const scatterFor = (index: number, face: number) => {
   const angle = (jitter(index * 7.31 + face * 3.73) - 0.5) * 44; // ±22°
-  const dx = (jitter(index * 11.17 + face * 5.11) - 0.5) * 28; // ±14px
-  const dy = (jitter(index * 13.9 + face * 7.9) - 0.5) * 24; // ±12px
-  return { angle: Math.round(angle), dx: Math.round(dx), dy: Math.round(dy) };
+  // Settle dice on a jittered three-column by two-row grid (percent of the box)
+  // so they scatter across the box rather than landing in a single line.
+  const col = index % 3;
+  const row = Math.floor(index / 3);
+  const jx = (jitter(index * 11.17 + face * 5.11) - 0.5) * 16; // ±8%
+  const jy = (jitter(index * 13.9 + face * 7.9) - 0.5) * 14; // ±7%
+  const x = 18 + col * 32 + jx;
+  const y = 28 + row * 44 + jy;
+  return { angle: Math.round(angle), x: Math.round(x), y: Math.round(y) };
 };
 
 const freshState = (): State => ({
@@ -848,17 +854,22 @@ function FarkleTable() {
                 </div>
               </div>
             ) : (
-              <div className="rounded-2xl border border-gold/25 bg-surface/60 p-6 shadow-2xl shadow-black/40 sm:px-10 sm:py-[90px]">
-                <div className="flex flex-wrap justify-center gap-3 sm:gap-4">
+              <div className="rounded-2xl border border-gold/25 bg-surface/60 p-6 shadow-2xl shadow-black/40 sm:px-10 sm:py-8">
+                <div className="relative mx-auto h-52 w-full max-w-md sm:h-56">
                   {state.dice.map((die, i) => {
                     if (!state.rolled || die.set) {
-                      return <div key={i} className="size-14" aria-hidden />;
+                      return null;
                     }
-                    const { angle, dx, dy } = scatterFor(i, die.face);
+                    const { angle, x, y } = scatterFor(i, die.face);
                     return (
                       <div
                         key={i}
-                        style={{ transform: `translate(${dx}px, ${dy}px) rotate(${angle}deg)` }}
+                        className="absolute"
+                        style={{
+                          left: `${x}%`,
+                          top: `${y}%`,
+                          transform: `translate(-50%, -50%) rotate(${angle}deg)`,
+                        }}
                       >
                         <DieFace
                           face={die.face}
