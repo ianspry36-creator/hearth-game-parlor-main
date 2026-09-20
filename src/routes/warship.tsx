@@ -366,7 +366,7 @@ function WarshipTable() {
             ? `Waiting for ${opponentName} to place their fleet…`
             : "Place your fleet"
           : state.turn === "human"
-            ? "Call your shot"
+            ? (state.log[0]?.text ?? "Call your shot")
             : isMulti
               ? `Waiting for ${opponentName}…`
               : "Taking aim…";
@@ -507,16 +507,6 @@ function WarshipTable() {
           </section>
         </div>
 
-        {state.log.length > 0 && (
-          <div className="rounded-2xl border border-gold/25 bg-brand/70 p-4">
-            <p className="mb-2 text-[11px] uppercase tracking-[0.3em] text-gold">Action log</p>
-            <ol className="space-y-1 text-sm text-ivory/85">
-              {state.log.map((entry, i) => (
-                <li key={`${i}-${entry.text}`}>{entry.text}</li>
-              ))}
-            </ol>
-          </div>
-        )}
       </div>
     </TableShell>
   );

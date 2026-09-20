@@ -596,23 +596,25 @@ function BackgammonTable() {
     return hit;
   };
 
-  // Play a move, splitting combined (two-dice) moves into separate legs so each
-  // die is animated as its own flight with a short pause in between.
+  // Play a move, splitting combined moves (two or more dice on one checker) into
+  // separate legs so each die is animated as its own flight with a short pause in
+  // between. A double (four dice) becomes four separate single-pip flights.
   const play = (move: Move) => {
     setSelected(null);
     const legs = splitMove(move);
-    // If the first leg knocks a checker to the bar, hold the second leg long
-    // enough for that piece's flight (which is itself delayed until the hitter
-    // lands) to finish, so it isn't cancelled and left stranded on the bar.
+    // If the first leg knocks a checker to the bar, hold the next leg long enough
+    // for that piece's flight (which is itself delayed until the hitter lands) to
+    // finish, so it isn't cancelled and left stranded on the bar.
     const hitFirst = applyHumanLeg(legs[0]!);
     if (legs.length > 1) setMoving(true);
+    const gap = (hitFirst ? 2 * FLIGHT_MS : FLIGHT_MS) + LEG_PAUSE_MS;
     for (let i = 1; i < legs.length; i++) {
       const leg = legs[i]!;
-      const gap = (hitFirst ? 2 * FLIGHT_MS : FLIGHT_MS) + LEG_PAUSE_MS;
+      // Stagger each leg so they animate one at a time rather than all at once.
       const timer = window.setTimeout(() => {
         applyHumanLeg(leg);
         if (i === legs.length - 1) setMoving(false);
-      }, gap);
+      }, gap * i);
       moveTimersRef.current.push(timer);
     }
   };
@@ -1358,7 +1360,7 @@ function Board({
               key={f.key}
               className={`absolute flex size-4 sm:size-5 items-center justify-center -translate-x-1/2 -translate-y-1/2 rounded-full border-2 transition-all duration-1000 ease-in-out ${
                 f.side === "human" ? "border-[#6b5233] bg-cream" : "border-[var(--opp-piece-border)] bg-[var(--opp-piece)]"
-              } ${f.arrived && f.settled ? "scale-50 opacity-0" : "opacity-100"}`}
+              } ${f.arrived && f.settled ? "opacity-0" : "opacity-100"}`}
               style={{
                 left: f.arrived ? f.tx : f.x,
                 top: f.arrived ? f.ty : f.y,

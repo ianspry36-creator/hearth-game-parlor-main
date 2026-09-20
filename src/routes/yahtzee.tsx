@@ -99,6 +99,43 @@ const scatterFor = (index: number, face: number) => {
   return { angle: Math.round(angle), dx: Math.round(dx), dy: Math.round(dy) };
 };
 
+// Fixed, well-separated landing slots (percent of the throwing area) so thrown
+// dice never overlap, regardless of their faces.
+const DICE_SLOTS = [
+  { left: 16, top: 30 },
+  { left: 50, top: 20 },
+  { left: 84, top: 32 },
+  { left: 33, top: 76 },
+  { left: 67, top: 76 },
+];
+
+// Deterministically shuffle the slot indices for a given roll seed so each
+// throw scatters the dice into a fresh, still non-overlapping arrangement.
+// The seed is the throw number, so a re-roll (2nd/3rd throw) lands the dice in
+// different slots, while holding a die (which doesn't change the throw number)
+// never disturbs its neighbours.
+const shuffledSlots = (seed: number): number[] => {
+  const order = DICE_SLOTS.map((_, i) => i);
+  for (let i = order.length - 1; i > 0; i--) {
+    const r = Math.floor(jitter(seed * 31.7 + i * 7.13) * (i + 1));
+    const tmp = order[i]!;
+    order[i] = order[r]!;
+    order[r] = tmp;
+  }
+  return order;
+};
+
+// Landing spot for a die: a given slot plus a small face-based jitter and
+// rotation. Slots are far enough apart that jittered dice never overlap.
+// Deterministic per (index, face, slotIndex).
+const scatterSpot = (index: number, face: number, slotIndex: number) => {
+  const slot = DICE_SLOTS[slotIndex % DICE_SLOTS.length]!;
+  const jx = (jitter(index * 19.73 + face * 3.07) - 0.5) * 10; // ±5%
+  const jy = (jitter(index * 27.61 + face * 5.53) - 0.5) * 10; // ±5%
+  const angle = (jitter(index * 7.31 + face * 3.73) - 0.5) * 44; // ±22°
+  return { left: slot.left + jx, top: slot.top + jy, angle: Math.round(angle) };
+};
+
 const freshState = (): State => ({
   phase: "rolloff",
   turn: "human",
@@ -592,6 +629,11 @@ function YahtzeeTable() {
   const seatDieElsRef = useRef<Map<number, HTMLElement>>(new Map());
   const centerRectsRef = useRef<Map<number, DOMRect>>(new Map());
   const justHeldRef = useRef<number[]>([]);
+  const rolloffCenterElsRef = useRef<Map<Seat, HTMLElement>>(new Map());
+  const rolloffSeatElsRef = useRef<Map<Seat, HTMLElement>>(new Map());
+  const rolloffCenterRectsRef = useRef<Map<Seat, DOMRect>>(new Map());
+  const justSettledRef = useRef<Seat[]>([]);
+  const prevRolloffSettledRef = useRef(state.rolloffSettled);
 
   const heldNow = new Set<number>();
   const releasedNow = new Set<number>();
@@ -617,6 +659,14 @@ function YahtzeeTable() {
     }, 1900);
   }
   prevDiceRef.current = state.dice;
+
+  // Which rolloff dice just finished scattering and are flying to their seat.
+  const settledNow: Seat[] = [];
+  (["human", "cpu"] as const).forEach((side) => {
+    if (!prevRolloffSettledRef.current[side] && state.rolloffSettled[side]) settledNow.push(side);
+  });
+  if (settledNow.length) justSettledRef.current = settledNow;
+  prevRolloffSettledRef.current = state.rolloffSettled;
 
   const animReleased = animating.current.released;
 
@@ -657,6 +707,45 @@ function YahtzeeTable() {
     justHeldRef.current = [];
   });
 
+  useLayoutEffect(() => {
+    // Record where each rolloff die currently sits in the throwing area so it
+    // can fly from that exact landed spot into its owner's seat once settled.
+    rolloffCenterElsRef.current.forEach((el, side) => {
+      rolloffCenterRectsRef.current.set(side, el.getBoundingClientRect());
+    });
+
+    // Fly freshly settled rolloff dice from their throwing-area spot to the seat.
+    justSettledRef.current.forEach((side) => {
+      const el = rolloffSeatElsRef.current.get(side);
+      const from = rolloffCenterRectsRef.current.get(side);
+      if (!el || !from) return;
+      const to = el.getBoundingClientRect();
+      const dx = from.left + from.width / 2 - (to.left + to.width / 2);
+      const dy = from.top + from.height / 2 - (to.top + to.height / 2);
+      const spot =
+        side === "human"
+          ? state.rolloff.human !== null
+            ? scatterSpot(4, state.rolloff.human, 4)
+            : null
+          : state.rolloff.cpu !== null
+            ? scatterSpot(0, state.rolloff.cpu, 0)
+            : null;
+      const rot = spot?.angle ?? 0;
+      el.animate(
+        [
+          { opacity: 0, transform: `translate(${dx}px, ${dy}px) rotate(${rot}deg) scale(0.55)` },
+          { opacity: 1, transform: `translate(${dx * 0.1}px, ${dy * 0.1}px) rotate(${rot * 0.1}deg) scale(1.06)`, offset: 0.7 },
+          { opacity: 1, transform: "translate(0px, 0px) rotate(0deg) scale(1)" },
+        ],
+        { duration: 600, easing: "cubic-bezier(0.33, 0, 0.25, 1)", fill: "both" },
+      );
+    });
+    justSettledRef.current = [];
+  });
+
+  // Slots are shuffled per throw so a re-roll lands the dice in fresh spots.
+  const slotOrder = shuffledSlots(state.rolls);
+
   const dieAt = (index: number, scatter = false, animClass?: string) => {
     const die = state.dice[index]!;
     const face = (
@@ -682,7 +771,7 @@ function YahtzeeTable() {
         </div>
       );
     }
-    const { angle, dx, dy } = scatterFor(index, die.face);
+    const { left, top, angle } = scatterSpot(index, die.face, slotOrder[index]!);
     return (
       <div
         key={index}
@@ -690,7 +779,12 @@ function YahtzeeTable() {
           if (el) centerDieElsRef.current.set(index, el);
           else centerDieElsRef.current.delete(index);
         }}
-        style={{ transform: `translate(${dx}px, ${dy}px) rotate(${angle}deg)` }}
+        style={{
+          position: "absolute",
+          left: `${left}%`,
+          top: `${top}%`,
+          transform: `translate(-50%, -50%) rotate(${angle}deg)`,
+        }}
       >
         {animClass ? <span className={`inline-block ${animClass}`}>{face}</span> : face}
       </div>
@@ -701,6 +795,9 @@ function YahtzeeTable() {
   const indexes = state.dice.map((_, i) => i);
   const centreDice = showDice ? indexes.filter((i) => !state.dice[i]!.held) : [];
   const keptDice = showDice ? indexes.filter((i) => state.dice[i]!.held) : [];
+
+  const rolloffHumanSpot = state.rolloff.human !== null ? scatterSpot(4, state.rolloff.human, 4) : null;
+  const rolloffCpuSpot = state.rolloff.cpu !== null ? scatterSpot(0, state.rolloff.cpu, 0) : null;
 
   const seatBox = (side: Seat) => {
     const mine = side === "human";
@@ -753,7 +850,13 @@ function YahtzeeTable() {
             </div>
           ) : state.phase === "rolloff" && state.rolloffSettled[side] && rolloffValue !== null ? (
             <div>
-              <span className={`inline-block ${mine ? "animate-die-to-player" : "animate-die-to-cpu"}`}>
+              <span
+                ref={(el) => {
+                  if (el) rolloffSeatElsRef.current.set(side, el);
+                  else rolloffSeatElsRef.current.delete(side);
+                }}
+                className="inline-block"
+              >
                 <DieFace face={rolloffValue} />
               </span>
             </div>
@@ -802,7 +905,7 @@ function YahtzeeTable() {
         <td className="border-b border-r border-gold/40 py-0.5 pr-2 font-bold text-neutral-700 lg:py-2">
           {CATEGORY_LABELS[category]}
         </td>
-        <td className="h-6 border-b border-r border-gold/40 px-2 text-right lg:h-8">
+        <td className="h-6 border-b border-r border-gold/40 px-2 text-center lg:h-8">
           {taken ? (
             <span className="font-display text-[13px] font-bold text-neutral-900 lg:text-[16px]">{myCard[category]}</span>
           ) : preview !== null ? (
@@ -817,7 +920,7 @@ function YahtzeeTable() {
             <span className="text-neutral-400">—</span>
           )}
         </td>
-        <td className="h-6 border-b border-gold/40 pl-2 text-right lg:h-8">
+        <td className="h-6 border-b border-gold/40 pl-2 text-center lg:h-8">
           {theirCard[category] !== undefined ? (
             <span className="font-display text-[13px] font-bold text-neutral-700 lg:text-[16px]">{theirCard[category]}</span>
           ) : (
@@ -833,24 +936,24 @@ function YahtzeeTable() {
       <td className="border-b border-r border-gold/50 py-0.5 pr-2 text-[11px] font-bold uppercase tracking-[0.16em] text-neutral-500 lg:py-2 lg:text-[12px]">
         {label}
       </td>
-      <td className="border-b border-r border-gold/50 px-2 py-0.5 text-right font-display text-[13px] font-bold text-neutral-900 lg:py-2 lg:text-[16px]">
+      <td className="border-b border-r border-gold/50 px-2 py-0.5 text-center font-display text-[13px] font-bold text-neutral-900 lg:py-2 lg:text-[16px]">
         {mine}
       </td>
-      <td className="border-b border-gold/50 py-0.5 pl-2 text-right font-display text-[13px] font-bold text-neutral-700 lg:py-2 lg:text-[16px]">
+      <td className="border-b border-gold/50 py-0.5 pl-2 text-center font-display text-[13px] font-bold text-neutral-700 lg:py-2 lg:text-[16px]">
         {theirs}
       </td>
     </tr>
   );
 
   const scorecard = (
-    <div className="rounded-xl border border-gold/20 bg-white px-1 py-4 lg:p-5">
+    <div className="origin-top rounded-xl border border-gold/20 bg-white px-1 py-4 lg:scale-90 lg:p-5">
       <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.22em] text-brand/70 lg:text-[12px]">Scorecard</p>
       <table className="w-full border-collapse table-fixed text-[11px] lg:table-auto lg:text-[14px]">
         <thead>
           <tr className="text-[10px] uppercase tracking-[0.18em] text-neutral-500 lg:text-[11px]">
             <th className="w-[55%] border-b border-r border-gold/50 pb-1 pr-2 text-left font-bold lg:w-auto" />
-            <th className="w-[20%] border-b border-r border-gold/50 px-2 pb-1 text-right font-bold lg:w-auto">{shortName(playerName)}</th>
-            <th className="w-[25%] border-b border-gold/50 pb-1 pl-2 text-right font-bold lg:w-auto">{shortName(opponentName)}</th>
+            <th className="w-[20%] border-b border-r border-gold/50 px-2 pb-1 text-center font-bold lg:w-auto">{shortName(playerName)}</th>
+            <th className="w-[25%] border-b border-gold/50 pb-1 pl-2 text-center font-bold lg:w-auto">{shortName(opponentName)}</th>
           </tr>
         </thead>
         <tbody>
@@ -969,59 +1072,60 @@ function YahtzeeTable() {
           <div className="min-w-0 space-y-2.5">
             {seatBox("cpu")}
 
-            <section className="grid h-[14.66rem] place-items-center rounded-2xl border border-dashed border-gold/20 bg-brand/20 p-3 lg:h-[10.67rem] lg:p-6">
+            <section className="relative grid h-[14.66rem] place-items-center rounded-2xl border border-dashed border-gold/20 bg-brand/20 p-3 lg:h-[18.67rem] lg:p-6">
               {state.phase === "rolloff" ? (
-                <div className="text-center">
-                  <p className="mt-1 font-display text-xs font-bold">Highest roll goes first</p>
-                  <div className="mt-3 flex items-center justify-center gap-10">
-                    {state.rolloff.human !== null && !state.rolloffSettled.human && (
-                      <div
-                        style={{
-                          transform: `translate(${scatterFor(0, state.rolloff.human).dx}px, ${
-                            scatterFor(0, state.rolloff.human).dy
-                          }px) rotate(${scatterFor(0, state.rolloff.human).angle}deg)`,
-                        }}
-                      >
-                        <span className="inline-block animate-die-to-center-from-below">
-                          <DieFace face={state.rolloff.human} />
-                        </span>
-                      </div>
-                    )}
-                    {state.rolloff.cpu !== null && !state.rolloffSettled.cpu && (
-                      <div
-                        style={{
-                          transform: `translate(${scatterFor(1, state.rolloff.cpu).dx}px, ${
-                            scatterFor(1, state.rolloff.cpu).dy
-                          }px) rotate(${scatterFor(1, state.rolloff.cpu).angle}deg)`,
-                        }}
-                      >
-                        <span className="inline-block animate-die-to-center-from-above">
-                          <DieFace face={state.rolloff.cpu} />
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                  {state.rolloff.human !== null && state.rolloff.cpu !== null && rolloffWinner === null && (
-                    <p className="mt-2 text-sm text-ivory/55">Tie at {state.rolloff.human} — roll again.</p>
+                <>
+                  {state.rolloff.human !== null && !state.rolloffSettled.human && rolloffHumanSpot && (
+                    <div
+                      ref={(el) => {
+                        if (el) rolloffCenterElsRef.current.set("human", el);
+                        else rolloffCenterElsRef.current.delete("human");
+                      }}
+                      style={{
+                        position: "absolute",
+                        left: `${rolloffHumanSpot.left}%`,
+                        top: `${rolloffHumanSpot.top}%`,
+                        transform: `translate(-50%, -50%) rotate(${rolloffHumanSpot.angle}deg)`,
+                      }}
+                    >
+                      <span className="inline-block animate-die-to-center-from-below">
+                        <DieFace face={state.rolloff.human} />
+                      </span>
+                    </div>
                   )}
-                </div>
+                  {state.rolloff.cpu !== null && !state.rolloffSettled.cpu && rolloffCpuSpot && (
+                    <div
+                      ref={(el) => {
+                        if (el) rolloffCenterElsRef.current.set("cpu", el);
+                        else rolloffCenterElsRef.current.delete("cpu");
+                      }}
+                      style={{
+                        position: "absolute",
+                        left: `${rolloffCpuSpot.left}%`,
+                        top: `${rolloffCpuSpot.top}%`,
+                        transform: `translate(-50%, -50%) rotate(${rolloffCpuSpot.angle}deg)`,
+                      }}
+                    >
+                      <span className="inline-block animate-die-to-center-from-above">
+                        <DieFace face={state.rolloff.cpu} />
+                      </span>
+                    </div>
+                  )}
+                  {state.rolloff.human !== null && state.rolloff.cpu !== null && rolloffWinner === null && (
+                    <p className="text-sm text-ivory/55">Tie at {state.rolloff.human} — roll again.</p>
+                  )}
+                </>
               ) : centreDice.length > 0 ? (
-                <div className="flex flex-wrap justify-center gap-3">
-                  {indexes.map((i) =>
-                    state.dice[i]!.held ? (
-                      <div key={`${i}-held`} className="invisible" aria-hidden="true">
-                        {dieAt(i, true)}
-                      </div>
-                    ) : (
-                      dieAt(
-                        i,
-                        true,
-                        animReleased.has(i)
-                          ? state.turn === "human"
-                            ? "animate-die-to-center-from-below"
-                            : "animate-die-to-center-from-above"
-                          : undefined,
-                      )
+                <div className="absolute inset-0">
+                  {centreDice.map((i) =>
+                    dieAt(
+                      i,
+                      true,
+                      animReleased.has(i)
+                        ? state.turn === "human"
+                          ? "animate-die-to-center-from-below"
+                          : "animate-die-to-center-from-above"
+                        : undefined,
                     )
                   )}
                 </div>
