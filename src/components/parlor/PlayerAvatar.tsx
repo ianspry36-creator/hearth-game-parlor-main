@@ -1,5 +1,6 @@
 import { AvatarPicker } from "@/components/parlor/AvatarPicker";
 import { useChatMessage } from "@/components/parlor/ChatContext";
+import { CountdownBadge } from "@/components/parlor/CountdownBadge";
 import { CryingTears } from "@/components/parlor/CryingTears";
 import { SpeechBubble } from "@/components/parlor/SpeechBubble";
 
@@ -11,6 +12,7 @@ export function PlayerAvatar({
   crying = false,
   message,
   size,
+  countdown,
 }: {
   avatar: string;
   onSelect: (url: string) => void;
@@ -18,6 +20,7 @@ export function PlayerAvatar({
   crying?: boolean;
   message?: string;
   size?: string;
+  countdown?: number;
 }) {
   const chatMessage = useChatMessage();
   const bubble = message ?? chatMessage;
@@ -32,6 +35,7 @@ export function PlayerAvatar({
           <SpeechBubble text={bubble} />
         </div>
       )}
+      {countdown != null && countdown > 0 && <CountdownBadge seconds={countdown} />}
     </div>
   );
 }

@@ -85,6 +85,12 @@ export const INVITE_TTL_MS = 60_000;
 /** Seconds a live opponent is given to reconnect before the match is awarded. */
 export const RECONNECT_SECONDS = 10;
 
+/** Seconds a player has to take their turn in a live multiplayer match. */
+export const TURN_SECONDS = 180;
+
+/** When the turn clock drops to this many seconds, the countdown is shown on the avatar. */
+export const TURN_WARNING_SECONDS = 20;
+
 export async function sendInvite(params: {
   game: GameId;
   fromNickname: string;
@@ -518,4 +524,56 @@ export function useMatch<T>(matchId: string | undefined, gameOver = false) {
     remoteState,
     publish,
   };
+}
+
+/**
+ * Counts down a per-turn clock in a live multiplayer table. The clock resets to
+ * `TURN_SECONDS` whenever `turn` changes or the timer becomes enabled, then
+ * ticks down once a second. When it reaches zero, `onTimeout` fires exactly once
+ * so the caller can award the match to the player who did not run out of time.
+ *
+ * Returns the number of seconds remaining, so callers can surface the last
+ * `TURN_WARNING_SECONDS` on the active player's avatar.
+ */
+export function useTurnTimer({
+  enabled,
+  turn,
+  onTimeout,
+}: {
+  /** Whether the clock should be running right now (live game, someone's turn). */
+  enabled: boolean;
+  /** Identifies the current turn; the clock resets whenever this changes. */
+  turn: string;
+  /** Called once when the clock reaches zero. */
+  onTimeout: () => void;
+}): number {
+  const [secondsLeft, setSecondsLeft] = useState(TURN_SECONDS);
+  const onTimeoutRef = useRef(onTimeout);
+  onTimeoutRef.current = onTimeout;
+  const timedOutRef = useRef(false);
+
+  useEffect(() => {
+    timedOutRef.current = false;
+    setSecondsLeft(TURN_SECONDS);
+  }, [enabled, turn]);
+
+  useEffect(() => {
+    if (!enabled) return;
+    const id = setInterval(() => {
+      setSecondsLeft((seconds) => {
+        if (seconds <= 1) {
+          clearInterval(id);
+          if (!timedOutRef.current) {
+            timedOutRef.current = true;
+            onTimeoutRef.current();
+          }
+          return 0;
+        }
+        return seconds - 1;
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, [enabled, turn]);
+
+  return secondsLeft;
 }

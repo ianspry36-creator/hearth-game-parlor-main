@@ -14,12 +14,13 @@ import {
 import { TableShell } from "@/components/parlor/TableShell";
 import { GameOverDialog } from "@/components/parlor/GameOverDialog";
 import { PlayerAvatar } from "@/components/parlor/PlayerAvatar";
+import { CountdownBadge } from "@/components/parlor/CountdownBadge";
 import { SpeechBubble } from "@/components/parlor/SpeechBubble";
 import { TableOptionsDialog } from "@/components/parlor/TableOptionsDialog";
 import { ADA_AVATAR, readAvatar } from "@/lib/avatars";
 import { getGame } from "@/lib/games";
 import { CLASSIC_PALETTE, readTableGraphic, type TablePalette } from "@/lib/backgammonTables";
-import { getNickname, RECONNECT_SECONDS, useMatch } from "@/lib/multiplayer";
+import { getNickname, RECONNECT_SECONDS, TURN_WARNING_SECONDS, useMatch, useTurnTimer } from "@/lib/multiplayer";
 import { useRecordMatchResult } from "@/lib/stats";
 import {
   applyMove,
@@ -272,6 +273,23 @@ function BackgammonTable() {
     setState(next);
     if (isMulti) void publish(isHost ? next : mirror(next));
   };
+
+  // Live matches run a 3-minute clock on the active seat; running out forfeits
+  // the game to the other player.
+  const turnSecondsLeft = useTurnTimer({
+    enabled: isMulti && state.phase === "play" && !state.winner,
+    turn: state.turn,
+    onTimeout: () =>
+      apply((current) => ({
+        ...current,
+        winner: flip(current.turn),
+        log: note(current.log, {
+          side: current.turn,
+          text: `${current.turn === "human" ? playerName : opponentName} ran out of time.`,
+        }),
+      })),
+  });
+  const countdown = turnSecondsLeft > 0 && turnSecondsLeft <= TURN_WARNING_SECONDS ? turnSecondsLeft : 0;
 
   const [playerAvatar, setPlayerAvatar] = useState<string>(readAvatar);
   const [tableGraphic, setTableGraphic] = useState<TablePalette | null>(readTableGraphic);
@@ -756,6 +774,7 @@ function BackgammonTable() {
                 height={64}
                 className="size-14 rounded-full border-2 border-gold/40 bg-surface object-cover"
               />
+              {state.turn === "cpu" && countdown > 0 && <CountdownBadge seconds={countdown} />}
               {passBubble === "cpu" && <CloudChat text="PASS" />}
               {starterBubble === "cpu" && <CloudChat text="I win starter throw. I go first" />}
             </div>
@@ -823,6 +842,7 @@ function BackgammonTable() {
               avatar={playerAvatar}
               onSelect={setPlayerAvatar}
               size="size-14"
+              countdown={state.turn === "human" ? countdown : 0}
               {...(passBubble === "human"
                 ? { message: "PASS" }
                 : starterBubble === "human"

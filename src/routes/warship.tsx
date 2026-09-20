@@ -4,9 +4,10 @@ import { Button } from "@/components/ui/button";
 import { TableShell } from "@/components/parlor/TableShell";
 import { GameOverDialog } from "@/components/parlor/GameOverDialog";
 import { PlayerAvatar } from "@/components/parlor/PlayerAvatar";
+import { CountdownBadge } from "@/components/parlor/CountdownBadge";
 import { getGame } from "@/lib/games";
 import { ADA_AVATAR, readAvatar } from "@/lib/avatars";
-import { getNickname, RECONNECT_SECONDS, useMatch } from "@/lib/multiplayer";
+import { getNickname, RECONNECT_SECONDS, TURN_WARNING_SECONDS, useMatch, useTurnTimer } from "@/lib/multiplayer";
 import { useRecordMatchResult } from "@/lib/stats";
 import { playExplosion, playSinking, playSplash } from "@/lib/warship-sounds";
 import {
@@ -159,6 +160,24 @@ function WarshipTable() {
     setState(next);
     if (isMulti) void publish(isHost ? next : mirror(next));
   };
+
+  // Live matches run a 3-minute clock on the active seat; running out forfeits
+  // the game to the other player.
+  const turnSecondsLeft = useTurnTimer({
+    enabled: isMulti && state.phase === "play" && !state.winner,
+    turn: state.turn,
+    onTimeout: () =>
+      apply((current) => ({
+        ...current,
+        phase: "over",
+        winner: flip(current.turn),
+        log: note(current.log, {
+          side: current.turn,
+          text: `${current.turn === "human" ? playerName : opponentName} ran out of time.`,
+        }),
+      })),
+  });
+  const countdown = turnSecondsLeft > 0 && turnSecondsLeft <= TURN_WARNING_SECONDS ? turnSecondsLeft : 0;
 
   const [playerAvatar, setPlayerAvatar] = useState<string>(readAvatar);
   const [viewingBoard, setViewingBoard] = useState(false);
@@ -460,7 +479,11 @@ function WarshipTable() {
             }
           >
             <div className="mb-2 flex items-center gap-3">
-              <PlayerAvatar avatar={playerAvatar} onSelect={setPlayerAvatar} />
+              <PlayerAvatar
+                avatar={playerAvatar}
+                onSelect={setPlayerAvatar}
+                countdown={state.turn === "human" ? countdown : 0}
+              />
               <p className="text-[11px] uppercase tracking-[0.3em] text-gold">{playerName}&apos;s waters</p>
             </div>
             <Grid
@@ -485,13 +508,16 @@ function WarshipTable() {
             }
           >
             <div className="mb-2 flex items-center gap-3">
-              <img
-                src={opponentAvatar ?? ADA_AVATAR}
-                alt={`${opponentName}'s avatar`}
-                width={64}
-                height={64}
-                className="size-10 rounded-full border-2 border-gold/40 bg-surface object-cover"
-              />
+              <div className="relative inline-block">
+                <img
+                  src={opponentAvatar ?? ADA_AVATAR}
+                  alt={`${opponentName}'s avatar`}
+                  width={64}
+                  height={64}
+                  className="size-10 rounded-full border-2 border-gold/40 bg-surface object-cover"
+                />
+                {state.turn === "cpu" && countdown > 0 && <CountdownBadge seconds={countdown} />}
+              </div>
               <p className="text-[11px] uppercase tracking-[0.3em] text-gold">
                 {opponentName}&apos;s waters
               </p>

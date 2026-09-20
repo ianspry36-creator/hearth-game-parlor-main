@@ -3,9 +3,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { TableShell } from "@/components/parlor/TableShell";
 import { GameOverDialog } from "@/components/parlor/GameOverDialog";
 import { PlayerAvatar } from "@/components/parlor/PlayerAvatar";
+import { CountdownBadge } from "@/components/parlor/CountdownBadge";
 import { getGame } from "@/lib/games";
 import { ADA_AVATAR, readAvatar } from "@/lib/avatars";
-import { getNickname, useMatch } from "@/lib/multiplayer";
+import { getNickname, TURN_WARNING_SECONDS, useMatch, useTurnTimer } from "@/lib/multiplayer";
 import { useRecordMatchResult } from "@/lib/stats";
 import {
   applyStep,
@@ -188,6 +189,24 @@ function CheckersTable() {
     if (isMulti) void publish(isHost ? next : mirror(next));
   };
 
+  // Live matches run a 3-minute clock on the active seat; running out forfeits
+  // the game to the other player.
+  const turnSecondsLeft = useTurnTimer({
+    enabled: isMulti && state.phase === "play" && !state.winner,
+    turn: state.turn,
+    onTimeout: () =>
+      apply((current) => ({
+        ...current,
+        phase: "over",
+        winner: flip(current.turn),
+        log: note(current.log, {
+          side: current.turn,
+          text: `${current.turn === "human" ? playerName : opponentName} ran out of time.`,
+        }),
+      })),
+  });
+  const countdown = turnSecondsLeft > 0 && turnSecondsLeft <= TURN_WARNING_SECONDS ? turnSecondsLeft : 0;
+
   const selectPiece = (index: number | null) => {
     const next = { ...stateRef.current, selected: index };
     stateRef.current = next;
@@ -366,13 +385,16 @@ function CheckersTable() {
       <div className="space-y-8">
         {/* Opponent — top of the table */}
         <section className="flex items-center gap-3 rounded-2xl border border-gold/15 bg-brand/50 p-4">
-          <img
-            src={opponentAvatar ?? ADA_AVATAR}
-            alt={opponentName}
-            width={64}
-            height={64}
-            className="size-14 rounded-full border-2 border-player-teal/50 bg-surface object-cover"
-          />
+          <div className="relative inline-block">
+            <img
+              src={opponentAvatar ?? ADA_AVATAR}
+              alt={opponentName}
+              width={64}
+              height={64}
+              className="size-14 rounded-full border-2 border-player-teal/50 bg-surface object-cover"
+            />
+            {state.turn === "cpu" && countdown > 0 && <CountdownBadge seconds={countdown} />}
+          </div>
           <div className="min-w-0 flex-1">
             <p className="truncate font-display text-lg font-bold">{opponentName}</p>
             <p className="text-xs text-ivory/60">
@@ -475,7 +497,11 @@ function CheckersTable() {
 
         {/* Player — bottom of the table */}
         <section className="flex items-center gap-3 rounded-2xl border border-gold/15 bg-brand/50 p-4">
-          <PlayerAvatar avatar={playerAvatar} onSelect={setPlayerAvatar} />
+          <PlayerAvatar
+            avatar={playerAvatar}
+            onSelect={setPlayerAvatar}
+            countdown={state.turn === "human" ? countdown : 0}
+          />
           <div className="min-w-0 flex-1">
             <p className="truncate font-display text-lg font-bold">{playerName}</p>
             <p className="text-xs text-ivory/60">{myTurn ? "Your turn" : "Waiting"}</p>
