@@ -508,6 +508,7 @@ function WarshipTable() {
               <PlayerAvatar
                 avatar={playerAvatar}
                 onSelect={setPlayerAvatar}
+                size="size-15"
                 countdown={state.turn === "human" ? countdown : 0}
               />
               <p className="text-[11px] uppercase tracking-[0.3em] text-gold">{playerName}&apos;s waters</p>
@@ -540,7 +541,7 @@ function WarshipTable() {
                   alt={`${opponentName}'s avatar`}
                   width={64}
                   height={64}
-                  className="size-10 rounded-full border-2 border-gold/40 bg-surface object-cover"
+                  className="size-15 rounded-full border-2 border-gold/40 bg-surface object-cover"
                 />
                 {state.turn === "cpu" && countdown > 0 && <CountdownBadge seconds={countdown} />}
               </div>

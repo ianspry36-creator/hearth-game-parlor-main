@@ -798,7 +798,7 @@ function FarkleTable() {
                 alt={opponentName}
                 width={64}
                 height={64}
-                className={`size-14 rounded-full border-2 border-gold/40 bg-surface object-cover ${
+                className={`size-14 sm:size-[4.2rem] rounded-full border-2 border-gold/40 bg-surface object-cover ${
                   cpuFarkled ? "animate-cry" : ""
                 }`}
               />
@@ -945,7 +945,7 @@ function FarkleTable() {
               <PlayerAvatar
                 avatar={playerAvatar}
                 onSelect={setPlayerAvatar}
-                size="size-8 sm:size-10"
+                size="size-8 sm:size-[4.2rem]"
                 countdown={state.turn === "human" ? countdown : 0}
                 {...(farkledOut ? { sad: true } : {})}
                 {...(farkledOut ? { crying: true } : {})}

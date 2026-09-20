@@ -357,6 +357,7 @@ function ReversiTable() {
           <PlayerAvatar
             avatar={playerAvatar}
             onSelect={setPlayerAvatar}
+            size="size-14"
             countdown={state.turn === "human" ? countdown : 0}
           />
           <div className="min-w-0 flex-1">
