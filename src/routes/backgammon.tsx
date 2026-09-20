@@ -289,6 +289,7 @@ function BackgammonTable() {
   const turnSecondsLeft = useTurnTimer({
     enabled: isMulti && state.phase === "play" && !state.winner && !state.timerOff,
     turn: state.turn,
+    paused: state.timerRequest !== null,
     onTimeout: () =>
       apply((current) => ({
         ...current,

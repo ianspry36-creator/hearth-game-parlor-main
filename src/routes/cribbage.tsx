@@ -19,8 +19,10 @@ import {
 import { TableShell } from "@/components/parlor/TableShell";
 import { CribBoard, ScoreGrid } from "@/components/parlor/CribBoard";
 import { CribBoardOptionsDialog } from "@/components/parlor/CribBoardOptionsDialog";
+import { CountdownBadge } from "@/components/parlor/CountdownBadge";
+import { TurnOffTimerControl } from "@/components/parlor/TurnOffTimerControl";
 import { getGame } from "@/lib/games";
-import { getNickname, RECONNECT_SECONDS, useMatch } from "@/lib/multiplayer";
+import { getNickname, RECONNECT_SECONDS, TURN_WARNING_SECONDS, useMatch, useTurnTimer } from "@/lib/multiplayer";
 import { useRecordMatchResult } from "@/lib/stats";
 import {
   cardLabel,
@@ -103,6 +105,10 @@ type State = {
   cpuCut: Card | null;
   /** Points just pegged in the play, shown as a bubble over the pile. */
   lastPeg: { side: Side; points: number; label: string } | null;
+  timedOut: boolean;
+  timerOff: boolean;
+  timerRequest: Side | null;
+  timerProposed: boolean;
 };
 
 type FlyingCard = {
@@ -146,6 +152,10 @@ function dealHand(dealer: Side, scores: Record<Side, number>, log: LogEntry[]): 
     showReady: { player: false, cpu: false },
     winner: null,
     rematch: null,
+    timedOut: false,
+    timerOff: false,
+    timerRequest: null,
+    timerProposed: false,
     cutFan: [],
     playerCut: null,
     cpuCut: null,
@@ -179,6 +189,7 @@ function mirror(s: State): State {
     turn: other(s.turn),
     winner: s.winner ? other(s.winner) : null,
     rematch: s.rematch ? other(s.rematch) : null,
+    timerRequest: s.timerRequest ? other(s.timerRequest) : null,
     scores: { player: s.scores.cpu, cpu: s.scores.player },
     pendingScores: s.pendingScores
       ? { player: s.pendingScores.cpu, cpu: s.pendingScores.player }
@@ -352,6 +363,7 @@ function GameOverDialog({
   playAgainLabel = "Play again",
   playAgainDisabled = false,
   detail,
+  timedOut = false,
 }: {
   open: boolean;
   winner: Side;
@@ -365,6 +377,7 @@ function GameOverDialog({
   playAgainLabel?: string;
   playAgainDisabled?: boolean;
   detail?: string;
+  timedOut?: boolean;
 }) {
   const loser = other(winner);
   const margin = scores[winner] - scores[loser];
@@ -377,7 +390,13 @@ function GameOverDialog({
       <AlertDialogContent className="border-gold/30 bg-brand text-cream sm:max-w-md">
         <AlertDialogHeader>
           <AlertDialogTitle className="text-center font-display text-3xl">
-            {winner === "player" ? `${playerName} won!` : `${opponentName} won!`}
+            {timedOut
+              ? winner === "player"
+                ? `You won - ${opponentName} timed out!`
+                : `${opponentName} won - You timed out!`
+              : winner === "player"
+                ? `${playerName} won!`
+                : `${opponentName} won!`}
           </AlertDialogTitle>
           <AlertDialogDescription className="text-center text-ivory/70">
             {detail ??
@@ -536,6 +555,26 @@ function CribbageTable() {
     setState(next);
     if (isMulti) void publish(isHost ? next : mirror(next));
   };
+
+  // Live matches run a 1-minute clock on the active seat; running out forfeits
+  // the game to the other player.
+  const turnSecondsLeft = useTurnTimer({
+    enabled: isMulti && state.phase === "play" && !state.winner && !state.timerOff,
+    turn: state.turn,
+    paused: state.timerRequest !== null,
+    onTimeout: () =>
+      apply((current) => ({
+        ...current,
+        phase: "over",
+        winner: other(current.turn),
+        timedOut: true,
+        log: note(current.log, {
+          side: current.turn,
+          text: `${current.turn === "player" ? playerName : opponentName} ran out of time.`,
+        }),
+      })),
+  });
+  const countdown = turnSecondsLeft > 0 && turnSecondsLeft <= TURN_WARNING_SECONDS ? turnSecondsLeft : 0;
 
   const reset = (fresh: State) => {
     stateRef.current = fresh;
@@ -946,6 +985,8 @@ function CribbageTable() {
     apply((current) => ({
       ...dealHand(other(current.dealer), current.pendingScores ?? current.scores, current.log),
       lastPeg: null,
+      timerOff: current.timerOff,
+      timerProposed: current.timerProposed,
     }));
   }, [isMulti, isHost, state.phase, state.showReady.player, state.showReady.cpu]);
 
@@ -1060,6 +1101,8 @@ function CribbageTable() {
         return {
           ...dealHand(other(current.dealer), current.pendingScores ?? current.scores, current.log),
           lastPeg: null,
+          timerOff: current.timerOff,
+          timerProposed: current.timerProposed,
         };
       }
       return { ...current, showReady: ready };
@@ -1169,7 +1212,21 @@ function CribbageTable() {
         navigate({ to: "/cribbage", search: { opponent: nickname, match: newMatchId } });
       }}
       onNewGame={() => reset(freshGame())}
-      menuExtra={<CribBoardOptionsDialog boardGraphic={boardGraphic} onSelect={setBoardGraphic} />}
+      menuExtra={
+        <>
+          <CribBoardOptionsDialog boardGraphic={boardGraphic} onSelect={setBoardGraphic} />
+          <TurnOffTimerControl
+            showButton={
+              isMulti && state.phase === "play" && !state.winner && !state.timerOff && !state.timerProposed
+            }
+            showPrompt={state.timerRequest === "cpu"}
+            opponentName={opponentName}
+            onRequest={() => apply((current) => ({ ...current, timerProposed: true, timerRequest: "player" }))}
+            onAccept={() => apply((current) => ({ ...current, timerOff: true, timerRequest: null }))}
+            onDecline={() => apply((current) => ({ ...current, timerRequest: null }))}
+          />
+        </>
+      }
       containerClassName="px-3 sm:px-6"
       boxClassName="py-0.5 sm:py-1"
       gridClassName="grid gap-1.5"
@@ -1223,6 +1280,7 @@ function CribbageTable() {
       <GameOverDialog
         open={state.phase === "over" && state.winner !== null && !viewingBoard}
         winner={state.winner ?? "player"}
+        timedOut={state.timedOut}
         scores={state.pendingScores ?? state.scores}
         playerAvatar={avatar}
         opponentName={opponentName}
@@ -1275,7 +1333,7 @@ function CribbageTable() {
               name={opponentName}
               isDealer={state.dealer === "cpu"}
               avatar={
-                <span className="grid size-16 place-items-center overflow-hidden rounded-full bg-gold/20 ring-1 ring-gold/40">
+                <span className="relative grid size-16 place-items-center overflow-hidden rounded-full bg-gold/20 ring-1 ring-gold/40">
                   <img
                     src={opponentAvatar ?? ADA_AVATAR}
                     alt={`${opponentName}'s avatar`}
@@ -1284,6 +1342,7 @@ function CribbageTable() {
                     loading="lazy"
                     className="size-full object-cover"
                   />
+                  {state.turn === "cpu" && countdown > 0 && <CountdownBadge seconds={countdown} />}
                 </span>
               }
             />
@@ -1618,7 +1677,14 @@ function CribbageTable() {
               <Seat
                 name={playerName}
                 isDealer={state.dealer === "player"}
-                avatar={<PlayerAvatar avatar={avatar} onSelect={setAvatar} size="size-16" />}
+                avatar={
+                  <PlayerAvatar
+                    avatar={avatar}
+                    onSelect={setAvatar}
+                    size="size-16"
+                    countdown={state.turn === "player" ? countdown : 0}
+                  />
+                }
               />
             </div>
           </div>

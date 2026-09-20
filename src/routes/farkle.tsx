@@ -21,10 +21,12 @@ import {
 import { TableShell } from "@/components/parlor/TableShell";
 import { GameOverDialog } from "@/components/parlor/GameOverDialog";
 import { PlayerAvatar } from "@/components/parlor/PlayerAvatar";
+import { CountdownBadge } from "@/components/parlor/CountdownBadge";
+import { TurnOffTimerControl } from "@/components/parlor/TurnOffTimerControl";
 import { CryingTears } from "@/components/parlor/CryingTears";
 import { SpeechBubble } from "@/components/parlor/SpeechBubble";
 import { getGame } from "@/lib/games";
-import { getNickname, RECONNECT_SECONDS, useMatch } from "@/lib/multiplayer";
+import { getNickname, RECONNECT_SECONDS, TURN_WARNING_SECONDS, useMatch, useTurnTimer } from "@/lib/multiplayer";
 import { useRecordMatchResult } from "@/lib/stats";
 import { ADA_AVATAR, readAvatar } from "@/lib/avatars";
 import {
@@ -86,6 +88,10 @@ type State = {
   log: LogEntry[];
   winner: Seat | null;
   rematch: Seat | null;
+  timedOut: boolean;
+  timerOff: boolean;
+  timerRequest: Seat | null;
+  timerProposed: boolean;
 };
 
 const blankDice = (): Die[] => Array.from({ length: DICE_COUNT }, () => ({ face: 1, set: false }));
@@ -125,6 +131,10 @@ const freshState = (): State => ({
   log: [{ side: null, text: "Highest roll goes first. Throw the dice." }],
   winner: null,
   rematch: null,
+  timedOut: false,
+  timerOff: false,
+  timerRequest: null,
+  timerProposed: false,
 });
 
 const note = (log: LogEntry[], entry: LogEntry) => [entry, ...log].slice(0, 40);
@@ -147,6 +157,7 @@ function mirror(state: State): State {
     turn: flip(state.turn),
     rematch: state.rematch ? flip(state.rematch) : null,
     winner: state.winner ? flip(state.winner) : null,
+    timerRequest: state.timerRequest ? flip(state.timerRequest) : null,
     log: state.log.map((entry) => ({ ...entry, side: entry.side ? flip(entry.side) : null })),
   };
 }
@@ -253,6 +264,26 @@ function FarkleTable() {
     setState(next);
     if (isMulti) void publish(isHost ? next : mirror(next));
   };
+
+  // Live matches run a 1-minute clock on the active seat; running out forfeits
+  // the game to the other player.
+  const turnSecondsLeft = useTurnTimer({
+    enabled: isMulti && state.phase === "play" && !state.winner && !state.timerOff,
+    turn: state.turn,
+    paused: state.timerRequest !== null,
+    onTimeout: () =>
+      apply((current) => ({
+        ...current,
+        phase: "over",
+        winner: flip(current.turn),
+        timedOut: true,
+        log: note(current.log, {
+          side: current.turn,
+          text: `${current.turn === "human" ? playerName : opponentName} ran out of time.`,
+        }),
+      })),
+  });
+  const countdown = turnSecondsLeft > 0 && turnSecondsLeft <= TURN_WARNING_SECONDS ? turnSecondsLeft : 0;
 
   const reset = () => {
     const fresh = freshState();
@@ -694,6 +725,18 @@ function FarkleTable() {
       onNewGame={reset}
       middle={meldValues}
       middleClassName="self-start"
+      menuExtra={
+        <TurnOffTimerControl
+          showButton={
+            isMulti && state.phase === "play" && !state.winner && !state.timerOff && !state.timerProposed
+          }
+          showPrompt={state.timerRequest === "cpu"}
+          opponentName={opponentName}
+          onRequest={() => apply((current) => ({ ...current, timerProposed: true, timerRequest: "human" }))}
+          onAccept={() => apply((current) => ({ ...current, timerOff: true, timerRequest: null }))}
+          onDecline={() => apply((current) => ({ ...current, timerRequest: null }))}
+        />
+      }
     >
       <GameOverDialog
         open={state.phase === "over" && Boolean(state.winner) && !viewingBoard}
@@ -703,6 +746,7 @@ function FarkleTable() {
         scoreLabel="Final points"
         opponentName={opponentName}
         playerAvatar={playerAvatar}
+        timedOut={state.timedOut}
         onPlayAgain={isMulti ? requestRematch : reset}
         playAgainLabel={isMulti ? "Rematch" : "Play again"}
         playAgainDisabled={isMulti && state.rematch !== null}
@@ -758,6 +802,7 @@ function FarkleTable() {
                   cpuFarkled ? "animate-cry" : ""
                 }`}
               />
+              {state.turn === "cpu" && countdown > 0 && <CountdownBadge seconds={countdown} />}
               {cpuFarkled && <CryingTears />}
               {cpuMessage && (
                 <div className="absolute left-0 top-full z-10 mt-2">
@@ -901,6 +946,7 @@ function FarkleTable() {
                 avatar={playerAvatar}
                 onSelect={setPlayerAvatar}
                 size="size-8 sm:size-10"
+                countdown={state.turn === "human" ? countdown : 0}
                 {...(farkledOut ? { sad: true } : {})}
                 {...(farkledOut ? { crying: true } : {})}
                 {...(playerMessage ? { message: playerMessage } : {})}

@@ -538,12 +538,15 @@ export function useMatch<T>(matchId: string | undefined, gameOver = false) {
 export function useTurnTimer({
   enabled,
   turn,
+  paused = false,
   onTimeout,
 }: {
   /** Whether the clock should be running right now (live game, someone's turn). */
   enabled: boolean;
   /** Identifies the current turn; the clock resets whenever this changes. */
   turn: string;
+  /** Freezes the countdown without resetting it (e.g. while a turn-off-timer request awaits a reply). */
+  paused?: boolean;
   /** Called once when the clock reaches zero. */
   onTimeout: () => void;
 }): number {
@@ -558,7 +561,7 @@ export function useTurnTimer({
   }, [enabled, turn]);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || paused) return;
     const id = setInterval(() => {
       setSecondsLeft((seconds) => {
         if (seconds <= 1) {
@@ -573,7 +576,7 @@ export function useTurnTimer({
       });
     }, 1000);
     return () => clearInterval(id);
-  }, [enabled, turn]);
+  }, [enabled, turn, paused]);
 
   return secondsLeft;
 }

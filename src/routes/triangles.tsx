@@ -14,9 +14,11 @@ import {
 import { TableShell } from "@/components/parlor/TableShell";
 import { GameOverDialog } from "@/components/parlor/GameOverDialog";
 import { PlayerAvatar } from "@/components/parlor/PlayerAvatar";
+import { CountdownBadge } from "@/components/parlor/CountdownBadge";
+import { TurnOffTimerControl } from "@/components/parlor/TurnOffTimerControl";
 import { getGame } from "@/lib/games";
 import { ADA_AVATAR, readAvatar } from "@/lib/avatars";
-import { getNickname, RECONNECT_SECONDS, useMatch } from "@/lib/multiplayer";
+import { getNickname, RECONNECT_SECONDS, TURN_WARNING_SECONDS, useMatch, useTurnTimer } from "@/lib/multiplayer";
 import { useRecordMatchResult } from "@/lib/stats";
 import {
   BOARD_HEIGHT,
@@ -70,6 +72,10 @@ type State = {
   log: LogEntry[];
   winner: Seat | "draw" | null;
   rematch: Seat | null;
+  timedOut: boolean;
+  timerOff: boolean;
+  timerRequest: Seat | null;
+  timerProposed: boolean;
 };
 
 // The first render must match the server, so the opening board uses a fixed
@@ -93,6 +99,10 @@ const freshState = (seed = newSeed()): State => ({
   ],
   winner: null,
   rematch: null,
+  timedOut: false,
+  timerOff: false,
+  timerRequest: null,
+  timerProposed: false,
 });
 
 const note = (log: LogEntry[], entry: LogEntry) => [entry, ...log].slice(0, 40);
@@ -110,6 +120,7 @@ function mirror(state: State): State {
     claimed: flipMap(state.claimed),
     winner: state.winner && state.winner !== "draw" ? flip(state.winner) : state.winner,
     rematch: state.rematch ? flip(state.rematch) : null,
+    timerRequest: state.timerRequest ? flip(state.timerRequest) : null,
     log: state.log.map((entry) => ({ ...entry, side: entry.side ? flip(entry.side) : null })),
   };
 }
@@ -157,6 +168,26 @@ function TrianglesTable() {
     setState(next);
     if (isMulti) void publish(isHost ? next : mirror(next));
   };
+
+  // Live matches run a 1-minute clock on the active seat; running out forfeits
+  // the game to the other player.
+  const turnSecondsLeft = useTurnTimer({
+    enabled: isMulti && state.phase === "play" && !state.winner && !state.timerOff,
+    turn: state.turn,
+    paused: state.timerRequest !== null,
+    onTimeout: () =>
+      apply((current) => ({
+        ...current,
+        phase: "over",
+        winner: flip(current.turn),
+        timedOut: true,
+        log: note(current.log, {
+          side: current.turn,
+          text: `${current.turn === "human" ? playerName : opponentName} ran out of time.`,
+        }),
+      })),
+  });
+  const countdown = turnSecondsLeft > 0 && turnSecondsLeft <= TURN_WARNING_SECONDS ? turnSecondsLeft : 0;
 
   const [playerAvatar, setPlayerAvatar] = useState<string>(readAvatar);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -434,6 +465,18 @@ function TrianglesTable() {
       onNewGame={reset}
       rail={null}
       containerClassName="px-2.5 sm:px-6"
+      menuExtra={
+        <TurnOffTimerControl
+          showButton={
+            isMulti && state.phase === "play" && !state.winner && !state.timerOff && !state.timerProposed
+          }
+          showPrompt={state.timerRequest === "cpu"}
+          opponentName={opponentName}
+          onRequest={() => apply((current) => ({ ...current, timerProposed: true, timerRequest: "human" }))}
+          onAccept={() => apply((current) => ({ ...current, timerOff: true, timerRequest: null }))}
+          onDecline={() => apply((current) => ({ ...current, timerRequest: null }))}
+        />
+      }
       // sm:pt-4 halves the space above the opponent box (p-5/sm:p-8 on the game
       // box puts 32px there from the sm breakpoint on).
       boxClassName="px-2 sm:px-3 sm:pt-4"
@@ -446,6 +489,7 @@ function TrianglesTable() {
         scoreLabel="Triangles claimed"
         opponentName={opponentName}
         playerAvatar={playerAvatar}
+        timedOut={state.timedOut}
         onPlayAgain={isMulti ? requestRematch : reset}
         playAgainLabel={isMulti ? "Rematch" : "Play again"}
         playAgainDisabled={isMulti && state.rematch !== null}
@@ -490,13 +534,16 @@ function TrianglesTable() {
       <div>
         {/* Opponent — top of the table */}
         <section className="flex items-center gap-3 rounded-2xl border border-gold/15 bg-brand/50 px-1.5 py-4 sm:px-2.5">
-          <img
-            src={opponentAvatar ?? ADA_AVATAR}
-            alt={opponentName}
-            width={64}
-            height={64}
-            className="size-14 shrink-0 rounded-full border-2 border-player-teal/50 bg-surface object-cover"
-          />
+          <div className="relative inline-block">
+            <img
+              src={opponentAvatar ?? ADA_AVATAR}
+              alt={opponentName}
+              width={64}
+              height={64}
+              className="size-14 shrink-0 rounded-full border-2 border-player-teal/50 bg-surface object-cover"
+            />
+            {state.turn === "cpu" && countdown > 0 && <CountdownBadge seconds={countdown} />}
+          </div>
           <div className="min-w-0 flex-1">
             <p className="font-display text-lg font-bold">{opponentName}</p>
             <p className="text-xs text-ivory/60">
@@ -610,7 +657,12 @@ function TrianglesTable() {
 
         {/* Player — bottom of the table */}
         <section className="mt-8 flex items-center gap-3 rounded-2xl border border-gold/15 bg-brand/50 px-1.5 py-4 sm:mt-4 sm:px-2.5">
-          <PlayerAvatar avatar={playerAvatar} onSelect={setPlayerAvatar} size="size-14" />
+          <PlayerAvatar
+            avatar={playerAvatar}
+            onSelect={setPlayerAvatar}
+            size="size-14"
+            countdown={state.turn === "human" ? countdown : 0}
+          />
           <div className="min-w-0 flex-1">
             <p className="font-display text-lg font-bold">{playerName}</p>
             <p className="text-xs text-ivory/60">{myTurn ? "Your turn" : "Waiting"}</p>

@@ -14,10 +14,12 @@ import {
 import { TableShell } from "@/components/parlor/TableShell";
 import { GameOverDialog } from "@/components/parlor/GameOverDialog";
 import { PlayerAvatar } from "@/components/parlor/PlayerAvatar";
+import { CountdownBadge } from "@/components/parlor/CountdownBadge";
+import { TurnOffTimerControl } from "@/components/parlor/TurnOffTimerControl";
 import { SpeechBubble } from "@/components/parlor/SpeechBubble";
 import { getGame } from "@/lib/games";
 import { ADA_AVATAR, readAvatar } from "@/lib/avatars";
-import { getNickname, RECONNECT_SECONDS, useMatch } from "@/lib/multiplayer";
+import { getNickname, RECONNECT_SECONDS, TURN_WARNING_SECONDS, useMatch, useTurnTimer } from "@/lib/multiplayer";
 import { useRecordMatchResult } from "@/lib/stats";
 import {
   CATEGORY_LABELS,
@@ -80,6 +82,10 @@ type State = {
   winner: Seat | null;
   rematch: Seat | null;
   draw: boolean;
+  timedOut: boolean;
+  timerOff: boolean;
+  timerRequest: Seat | null;
+  timerProposed: boolean;
 };
 
 const blankDice = (): YDie[] =>
@@ -149,6 +155,10 @@ const freshState = (): State => ({
   winner: null,
   rematch: null,
   draw: false,
+  timedOut: false,
+  timerOff: false,
+  timerRequest: null,
+  timerProposed: false,
 });
 
 const note = (log: LogEntry[], entry: LogEntry) => [entry, ...log].slice(0, 40);
@@ -180,6 +190,7 @@ function mirror(state: State): State {
     pendingFirst: state.pendingFirst ? flip(state.pendingFirst) : null,
     winner: state.winner ? flip(state.winner) : null,
     rematch: state.rematch ? flip(state.rematch) : null,
+    timerRequest: state.timerRequest ? flip(state.timerRequest) : null,
     log: state.log.map((entry) => ({ ...entry, side: entry.side ? flip(entry.side) : null })),
   };
 }
@@ -222,6 +233,26 @@ function YahtzeeTable() {
     setState(next);
     if (isMulti) void publish(isHost ? next : mirror(next));
   };
+
+  // Live matches run a 1-minute clock on the active seat; running out forfeits
+  // the game to the other player.
+  const turnSecondsLeft = useTurnTimer({
+    enabled: isMulti && state.phase === "play" && !state.winner && !state.timerOff,
+    turn: state.turn,
+    paused: state.timerRequest !== null,
+    onTimeout: () =>
+      apply((current) => ({
+        ...current,
+        phase: "over",
+        winner: flip(current.turn),
+        timedOut: true,
+        log: note(current.log, {
+          side: current.turn,
+          text: `${current.turn === "human" ? playerName : opponentName} ran out of time.`,
+        }),
+      })),
+  });
+  const countdown = turnSecondsLeft > 0 && turnSecondsLeft <= TURN_WARNING_SECONDS ? turnSecondsLeft : 0;
 
   const [playerAvatar, setPlayerAvatar] = useState<string>(readAvatar);
   const [viewingScorecard, setViewingScorecard] = useState(false);
@@ -822,6 +853,7 @@ function YahtzeeTable() {
                 avatar={playerAvatar}
                 onSelect={setPlayerAvatar}
                 size="size-12"
+                countdown={state.turn === "human" ? countdown : 0}
                 {...(bubble?.side === "human" ? { message: bubble.text } : {})}
               />
             ) : (
@@ -833,6 +865,7 @@ function YahtzeeTable() {
                   height={64}
                   className="size-[3.75rem] rounded-full border-2 border-gold/40 object-cover"
                 />
+                {state.turn === "cpu" && countdown > 0 && <CountdownBadge seconds={countdown} />}
                 {bubble?.side === "cpu" && (
                   <div className="absolute bottom-full left-full z-10 mb-2 ml-2">
                     <SpeechBubble text={bubble.text} />
@@ -1000,6 +1033,18 @@ function YahtzeeTable() {
       middle={scorecard}
       containerClassName="px-1.5 sm:px-3"
       boxClassName="pt-2.5 pl-1.5 pr-[5px] sm:pt-4 sm:pl-4 sm:pr-2"
+      menuExtra={
+        <TurnOffTimerControl
+          showButton={
+            isMulti && state.phase === "play" && !state.winner && !state.timerOff && !state.timerProposed
+          }
+          showPrompt={state.timerRequest === "cpu"}
+          opponentName={opponentName}
+          onRequest={() => apply((current) => ({ ...current, timerProposed: true, timerRequest: "human" }))}
+          onAccept={() => apply((current) => ({ ...current, timerOff: true, timerRequest: null }))}
+          onDecline={() => apply((current) => ({ ...current, timerRequest: null }))}
+        />
+      }
     >
       <GameOverDialog
         open={state.phase === "over" && !viewingScorecard}
@@ -1009,6 +1054,7 @@ function YahtzeeTable() {
         scoreLabel="Final scorecard total"
         opponentName={opponentName}
         playerAvatar={playerAvatar}
+        timedOut={state.timedOut}
         onPlayAgain={isMulti ? requestRematch : reset}
         playAgainClassName="scale-90"
         playAgainLabel={isMulti ? "Rematch" : "Play again"}
