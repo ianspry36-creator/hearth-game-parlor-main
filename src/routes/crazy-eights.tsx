@@ -894,6 +894,7 @@ function CrazyEightsTable() {
       game={game}
       opponentName={opponentName}
       opponentStatus=""
+      showChat={isMulti}
       opponentDisconnected={opponentDisconnected}
       disconnectSecondsLeft={disconnectSecondsLeft}
       disconnectExpired={disconnectExpired}

@@ -1151,6 +1151,7 @@ function CribbageTable() {
       game={game}
       opponentName={opponentName}
       opponentStatus={turnLabel}
+      showChat={isMulti}
       opponentDisconnected={opponentDisconnected}
       disconnectSecondsLeft={disconnectSecondsLeft}
       disconnectExpired={disconnectExpired}

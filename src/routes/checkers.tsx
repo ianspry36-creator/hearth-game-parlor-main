@@ -360,6 +360,7 @@ function CheckersTable() {
       game={game}
       opponentName={opponentName}
       opponentStatus={status}
+      showChat={isMulti}
       opponentDisconnected={opponentDisconnected}
       disconnectSecondsLeft={disconnectSecondsLeft}
       disconnectExpired={disconnectExpired}

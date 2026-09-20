@@ -33,6 +33,7 @@ export function TableShell({
   middleClassName = "hidden self-start lg:block",
   children,
   hideOpponent = false,
+  showChat = true,
   opponentDisconnected = false,
   disconnectSecondsLeft = 10,
   disconnectExpired = false,
@@ -58,6 +59,7 @@ export function TableShell({
   middleClassName?: string;
   children: ReactNode;
   hideOpponent?: boolean;
+  showChat?: boolean;
   opponentDisconnected?: boolean;
   disconnectSecondsLeft?: number;
   disconnectExpired?: boolean;
@@ -214,11 +216,13 @@ export function TableShell({
                   }
                 />
                 {menuExtra}
-                <Button variant="parlorGhost" size="sm" className="w-full h-6" onClick={() => setChatOpen(true)}>
-                  Chat
-                </Button>
+                {showChat && (
+                  <Button variant="parlorGhost" size="sm" className="w-full h-6" onClick={() => setChatOpen(true)}>
+                    Chat
+                  </Button>
+                )}
                 <FavouriteSwitch gameId={game.id} />
-                <ChatDialog open={chatOpen} onOpenChange={setChatOpen} onSend={sendChat} />
+                {showChat && <ChatDialog open={chatOpen} onOpenChange={setChatOpen} onSend={sendChat} />}
               </div>
 
               <AlertDialog
