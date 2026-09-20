@@ -86,7 +86,7 @@ export const INVITE_TTL_MS = 60_000;
 export const RECONNECT_SECONDS = 10;
 
 /** Seconds a player has to take their turn in a live multiplayer match. */
-export const TURN_SECONDS = 180;
+export const TURN_SECONDS = 60;
 
 /** When the turn clock drops to this many seconds, the countdown is shown on the avatar. */
 export const TURN_WARNING_SECONDS = 20;

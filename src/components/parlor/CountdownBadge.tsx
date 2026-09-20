@@ -1,9 +1,9 @@
-/** A small red badge showing seconds left on a player's turn clock. */
+/** The seconds left on a player's turn clock, shown centred over their avatar. */
 export function CountdownBadge({ seconds }: { seconds: number }) {
   return (
     <div
       aria-label={`${seconds} seconds remaining`}
-      className="pointer-events-none absolute -top-1 -right-1 grid size-7 place-items-center rounded-full bg-red-600 text-xs font-bold text-white shadow-md ring-2 ring-brand"
+      className="pointer-events-none absolute inset-0 z-10 grid place-items-center rounded-full bg-black/60 text-xl font-bold text-white"
     >
       {seconds}
     </div>

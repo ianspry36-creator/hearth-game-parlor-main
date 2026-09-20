@@ -35,6 +35,7 @@ export function GameOverDialog({
   opponentName,
   playerAvatar,
   skunk: isSkunk = false,
+  timedOut = false,
   headline,
   detail,
   onPlayAgain,
@@ -52,6 +53,7 @@ export function GameOverDialog({
   opponentName: string;
   playerAvatar: string;
   skunk?: boolean;
+  timedOut?: boolean;
   headline?: string;
   detail?: string;
   onPlayAgain: () => void;
@@ -63,7 +65,15 @@ export function GameOverDialog({
 }) {
   const title =
     headline ??
-    (result === "draw" ? "An even game" : result === "win" ? "You won!" : `${opponentName} won!`);
+    (result === "draw"
+      ? "An even game"
+      : timedOut
+        ? result === "win"
+          ? `You won - ${opponentName} timed out!`
+          : `${opponentName} won - You timed out!`
+        : result === "win"
+          ? "You won!"
+          : `${opponentName} won!`);
   const description =
     detail ??
     (result === "draw"
