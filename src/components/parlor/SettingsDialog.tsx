@@ -600,7 +600,7 @@ export function SettingsDialog({ className }: Props) {
           <TabsList
             className={cn(
               "grid w-full rounded-xl border border-gold/25 bg-surface p-1",
-              isOwner ? "grid-cols-7" : "grid-cols-4",
+              isOwner ? "grid-cols-7" : "grid-cols-3",
             )}
           >
             <TabsTrigger value="colours" className="data-[state=active]:bg-gold data-[state=active]:text-brand">
@@ -609,9 +609,11 @@ export function SettingsDialog({ className }: Props) {
             <TabsTrigger value="effects" className="data-[state=active]:bg-gold data-[state=active]:text-brand">
               Effects
             </TabsTrigger>
-            <TabsTrigger value="cards" className="data-[state=active]:bg-gold data-[state=active]:text-brand">
-              Cards
-            </TabsTrigger>
+            {isOwner && (
+              <TabsTrigger value="cards" className="data-[state=active]:bg-gold data-[state=active]:text-brand">
+                Cards
+              </TabsTrigger>
+            )}
             <TabsTrigger value="blocked" className="data-[state=active]:bg-gold data-[state=active]:text-brand">
               Block Users
             </TabsTrigger>
