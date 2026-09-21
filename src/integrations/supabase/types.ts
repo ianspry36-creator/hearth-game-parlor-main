@@ -313,6 +313,27 @@ export type Database = {
         }
         Relationships: []
       }
+      blocks: {
+        Row: {
+          blocked_nickname: string
+          blocker_session: string
+          created_at: string
+          id: string
+        }
+        Insert: {
+          blocked_nickname: string
+          blocker_session: string
+          created_at?: string
+          id?: string
+        }
+        Update: {
+          blocked_nickname?: string
+          blocker_session?: string
+          created_at?: string
+          id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

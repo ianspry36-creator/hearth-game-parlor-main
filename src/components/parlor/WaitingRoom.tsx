@@ -101,6 +101,9 @@ export function WaitingRoom({
   // in the room once the invite resolves without a match.
   const hadInviteRef = useRef(false);
   const { blockedUsers } = useBlockedUsers();
+  // Session ids of players who have blocked us (by nickname) — used to hide the
+  // blocker from our room too, so blocking is mutual.
+  const [blockers, setBlockers] = useState<string[]>([]);
 
   useEffect(() => {
     if (open && nickname) setDraft(nickname);
@@ -365,22 +368,53 @@ export function WaitingRoom({
   }, [invites, joined, rejoin]);
 
   // Blocked users are invisible here: drop any invite they sent and keep ourselves
-  // seated so the other players in the room can still see us.
+  // seated so the other players in the room can still see us. Players who have
+  // blocked us are hidden the same way.
   useEffect(() => {
-    if (blockedUsers.length === 0) return;
-    const blockedInvites = invites.filter((invite) =>
-      blockedUsers.includes(invite.from_nickname),
+    const hiddenInvites = invites.filter(
+      (invite) =>
+        blockedUsers.includes(invite.from_nickname) ||
+        blockers.includes(invite.from_session),
     );
-    if (blockedInvites.length === 0) return;
-    for (const invite of blockedInvites) void setInviteStatus(invite.id, "declined");
+    if (hiddenInvites.length === 0) return;
+    for (const invite of hiddenInvites) void setInviteStatus(invite.id, "declined");
     setInvites((current) =>
-      current.filter((invite) => !blockedUsers.includes(invite.from_nickname)),
+      current.filter(
+        (invite) =>
+          !blockedUsers.includes(invite.from_nickname) &&
+          !blockers.includes(invite.from_session),
+      ),
     );
-  }, [invites, blockedUsers]);
+  }, [invites, blockedUsers, blockers]);
+
+  // Find the players who have blocked us (by our nickname) so we can hide them
+  // from our room too — otherwise they would see us but we would not see them.
+  useEffect(() => {
+    if (!open || !joined || !nickname) return;
+    let cancelled = false;
+    const loadBlockers = async () => {
+      const { data, error } = await supabase
+        .from("blocks")
+        .select("blocker_session")
+        .eq("blocked_nickname", nickname);
+      if (cancelled || error) return;
+      const rows = (data ?? []) as { blocker_session: string }[];
+      setBlockers(rows.map((row) => row.blocker_session));
+    };
+    void loadBlockers();
+    const interval = window.setInterval(() => void loadBlockers(), REFRESH_MS);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [open, joined, nickname]);
 
   const mySession = typeof window === "undefined" ? "" : getSessionId();
   const others = players.filter(
-    (player) => player.session_id !== mySession && !blockedUsers.includes(player.nickname),
+    (player) =>
+      player.session_id !== mySession &&
+      !blockedUsers.includes(player.nickname) &&
+      !blockers.includes(player.session_id),
   );
   const me = players.find((player) => player.session_id === mySession);
   const flag = readFlag();

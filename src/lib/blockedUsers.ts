@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { getSessionId } from "@/lib/multiplayer";
 
 const KEY = "cardsandgames.blocked-users";
 
@@ -31,6 +33,38 @@ function writeBlockedUsers(names: string[]) {
 }
 
 /**
+ * Persist a block to the server so the blocked player can be hidden from the
+ * blocker too (mutual invisibility). The local list only hides the blocked
+ * nickname from the blocker's own view; this row lets the other side look up who
+ * blocked them by nickname and hide the blocker in return.
+ */
+function recordBlock(name: string) {
+  if (typeof window === "undefined") return;
+  void supabase
+    .from("blocks")
+    .upsert(
+      { blocker_session: getSessionId(), blocked_nickname: name },
+      { onConflict: "blocker_session,blocked_nickname" },
+    )
+    .then(({ error }) => {
+      if (error) console.error("[blockedUsers] failed to record block:", error);
+    });
+}
+
+/** Remove a server-side block record when the user unblocks a nickname. */
+function removeBlock(name: string) {
+  if (typeof window === "undefined") return;
+  void supabase
+    .from("blocks")
+    .delete()
+    .eq("blocker_session", getSessionId())
+    .eq("blocked_nickname", name)
+    .then(({ error }) => {
+      if (error) console.error("[blockedUsers] failed to remove block:", error);
+    });
+}
+
+/**
  * Blocked nicknames, persisted in localStorage. Starts empty and hydrates on
  * mount to avoid a server/client mismatch before the browser is available.
  */
@@ -52,6 +86,7 @@ export function useBlockedUsers() {
     const next = [...blockedUsers, trimmed];
     setBlockedUsers(next);
     writeBlockedUsers(next);
+    recordBlock(trimmed);
     return true;
   };
 
@@ -59,6 +94,7 @@ export function useBlockedUsers() {
     const next = blockedUsers.filter((n) => n !== name);
     setBlockedUsers(next);
     writeBlockedUsers(next);
+    removeBlock(name);
   };
 
   return { blockedUsers, hydrated, isBlocked, addBlockedUser, removeBlockedUser };
