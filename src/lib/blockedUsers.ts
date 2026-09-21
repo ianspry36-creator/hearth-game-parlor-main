@@ -32,6 +32,12 @@ function writeBlockedUsers(names: string[]) {
   }
 }
 
+/** Case-insensitive check for whether `name` appears in a block list. */
+export function isBlockedName(blockedUsers: string[], name: string): boolean {
+  const needle = name.trim().toLowerCase();
+  return blockedUsers.some((blocked) => blocked.toLowerCase() === needle);
+}
+
 /**
  * Persist a block to the server so the blocked player can be hidden from the
  * blocker too (mutual invisibility). The local list only hides the blocked
@@ -77,12 +83,18 @@ export function useBlockedUsers() {
     setHydrated(true);
   }, []);
 
-  const isBlocked = (name: string) => blockedUsers.includes(name);
+  const isBlocked = (name: string) => {
+    const needle = name.trim().toLowerCase();
+    return blockedUsers.some((blocked) => blocked.toLowerCase() === needle);
+  };
 
   /** Add a nickname to the block list. Returns true when a new name was added. */
   const addBlockedUser = (name: string): boolean => {
     const trimmed = name.trim();
-    if (!trimmed || blockedUsers.includes(trimmed)) return false;
+    const needle = trimmed.toLowerCase();
+    if (!trimmed || blockedUsers.some((blocked) => blocked.toLowerCase() === needle)) {
+      return false;
+    }
     const next = [...blockedUsers, trimmed];
     setBlockedUsers(next);
     writeBlockedUsers(next);
@@ -91,7 +103,8 @@ export function useBlockedUsers() {
   };
 
   const removeBlockedUser = (name: string) => {
-    const next = blockedUsers.filter((n) => n !== name);
+    const needle = name.toLowerCase();
+    const next = blockedUsers.filter((n) => n.toLowerCase() !== needle);
     setBlockedUsers(next);
     writeBlockedUsers(next);
     removeBlock(name);

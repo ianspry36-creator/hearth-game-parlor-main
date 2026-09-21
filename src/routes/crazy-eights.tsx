@@ -277,6 +277,7 @@ function CrazyEightsTable() {
   const {
     match,
     isHost,
+    opponentConnected,
     opponentName: liveOpponent,
     remoteState,
     publish,
@@ -429,7 +430,7 @@ function CrazyEightsTable() {
   // out of time in a 3- or 4-player game they are skipped and the hand
   // continues for the others; once a single player is left they win.
   useTurnTimer({
-    enabled: isLive && !state.winner && (state.phase === "play" || state.phase === "suit"),
+    enabled: isLive && !state.winner && (state.phase === "play" || state.phase === "suit") && (!isMulti || opponentConnected),
     turn: state.turn,
     onTimeout: () =>
       apply((current) => {
@@ -967,7 +968,7 @@ function CrazyEightsTable() {
         });
         reset();
       }}
-      onNewGame={() => startGame(2)}
+      onNewGame={() => (isLive ? navigate({ to: "/crazy-eights" }) : startGame(2))}
       rail={null}
       containerClassName="px-1.5 sm:px-3"
       boxClassName="px-[5px] py-[5px] sm:px-2 sm:py-2"

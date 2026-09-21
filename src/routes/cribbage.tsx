@@ -113,6 +113,7 @@ type State = {
   timerOff: boolean;
   timerRequest: Side | null;
   timerProposed: boolean;
+  timerDeclined: boolean;
 };
 
 type FlyingCard = {
@@ -136,7 +137,7 @@ const sortHand = (cards: Card[]) =>
 const responsiveCardWidth = (variant: "half" | "medium") => {
   const desktop =
     typeof window !== "undefined" && window.matchMedia("(min-width: 640px)").matches;
-  return variant === "half" ? (desktop ? 72 : 30) : desktop ? 72 : 59;
+  return variant === "half" ? (desktop ? 72 : 30) : desktop ? 72 : 56;
 };
 
 function dealHand(dealer: Side, scores: Record<Side, number>, log: LogEntry[]): State {
@@ -167,6 +168,7 @@ function dealHand(dealer: Side, scores: Record<Side, number>, log: LogEntry[]): 
     timerOff: false,
     timerRequest: null,
     timerProposed: false,
+    timerDeclined: false,
     cutFan: [],
     playerCut: null,
     cpuCut: null,
@@ -493,6 +495,7 @@ function CribbageTable() {
     opponentName: liveOpponent,
     opponentAvatar,
     opponentFlag,
+    opponentConnected,
     remoteState,
     publish,
     opponentDisconnected,
@@ -549,6 +552,9 @@ function CribbageTable() {
   const prevScores = useRef(state.scores);
   const stateRef = useRef(state);
   stateRef.current = state;
+  // True once the local player has proposed switching the clock off this hand,
+  // so a later "declined" note is shown only to the player who asked.
+  const proposedTimerOffRef = useRef(false);
   // Defer the "completed" write while the end-of-game dialog is up, so the two
   // players aren't bounced back to the game room before they can see the final
   // score. A rematch resets the winner and cancels the pending write.
@@ -577,6 +583,7 @@ function CribbageTable() {
     // and discarding to the crib, not just once pegging starts.
     enabled:
       isMulti &&
+      opponentConnected &&
       !state.winner &&
       !state.timerOff &&
       (state.phase === "cut" || state.phase === "discard" || state.phase === "play"),
@@ -1231,7 +1238,7 @@ function CribbageTable() {
         // state arrive on its own.
         navigate({ to: "/cribbage", search: { opponent: nickname, match: newMatchId } });
       }}
-      onNewGame={() => reset(freshGame())}
+      onNewGame={() => (isMulti ? navigate({ to: "/cribbage" }) : reset(freshGame()))}
       menuExtra={
         <>
           <CribBoardOptionsDialog boardGraphic={boardGraphic} onSelect={setBoardGraphic} />
@@ -1241,9 +1248,15 @@ function CribbageTable() {
             }
             showPrompt={state.timerRequest === "cpu"}
             opponentName={opponentName}
-            onRequest={() => apply((current) => ({ ...current, timerProposed: true, timerRequest: "player" }))}
+            declined={proposedTimerOffRef.current && state.timerDeclined}
+            onRequest={() => {
+              proposedTimerOffRef.current = true;
+              apply((current) => ({ ...current, timerProposed: true, timerRequest: "player" }));
+            }}
             onAccept={() => apply((current) => ({ ...current, timerOff: true, timerRequest: null }))}
-            onDecline={() => apply((current) => ({ ...current, timerRequest: null }))}
+            onDecline={() =>
+              apply((current) => ({ ...current, timerRequest: null, timerDeclined: true }))
+            }
           />
         </>
       }
@@ -1904,7 +1917,7 @@ function FaceDownCard({
                       : half
                       ? "h-[43px] w-[30px] sm:h-[105px] sm:w-[72px]"
                       : medium
-                      ? "h-[86px] w-[59px] sm:h-[105px] sm:w-[72px]"
+                      ? "h-[82px] w-[56px] sm:h-[105px] sm:w-[72px]"
                       : "h-24 w-16"
       }`}
     />
@@ -1972,7 +1985,7 @@ function PlayingCard({
                       : half
                       ? "h-[43px] w-[30px] sm:h-[105px] sm:w-[72px]"
                       : medium
-                      ? "h-[86px] w-[59px] sm:h-[105px] sm:w-[72px]"
+                      ? "h-[82px] w-[56px] sm:h-[105px] sm:w-[72px]"
                       : "h-24 w-16 hover:-translate-y-1"
       } ${selected ? "animate-float-selected border-gold ring-2 ring-gold" : "border-black/10"} ${
         red ? "text-destructive" : "text-brand"

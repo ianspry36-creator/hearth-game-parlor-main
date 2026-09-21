@@ -213,6 +213,12 @@ export function useMatch<T>(matchId: string | undefined, gameOver = false) {
 
   // Opponent presence / disconnection tracking.
   const [opponentOnline, setOpponentOnline] = useState(true);
+  // Latches true the first time the opponent's client is actually seen at the
+  // table (presence join/sync, or a write to the shared row). Unlike
+  // `opponentOnline` this starts false, so a turn clock can be held back until
+  // both players have connected instead of counting against a peer that is
+  // still loading the table.
+  const [opponentConnected, setOpponentConnected] = useState(false);
   const [opponentDisconnected, setOpponentDisconnected] = useState(false);
   const [disconnectSecondsLeft, setDisconnectSecondsLeft] = useState(RECONNECT_SECONDS);
   const [disconnectExpired, setDisconnectExpired] = useState(false);
@@ -241,6 +247,7 @@ export function useMatch<T>(matchId: string | undefined, gameOver = false) {
   const sawActiveMatchRef = useRef(false);
 
   useEffect(() => {
+    setOpponentConnected(false);
     if (!matchId) {
       setMatch(null);
       setLoading(false);
@@ -383,6 +390,7 @@ export function useMatch<T>(matchId: string | undefined, gameOver = false) {
       setOpponentOnline(true);
       setOpponentDisconnected(false);
       setDisconnectSecondsLeft(RECONNECT_SECONDS);
+      setOpponentConnected(true);
     };
     const markOffline = () => {
       if (!seenOpponentRef.current || expiredRef.current) return;
@@ -420,6 +428,7 @@ export function useMatch<T>(matchId: string | undefined, gameOver = false) {
       setOpponentOnline(true);
       setOpponentDisconnected(false);
       setDisconnectSecondsLeft(RECONNECT_SECONDS);
+      setOpponentConnected(true);
     };
     noteOpponentActivityRef.current = noteOpponentActivity;
 
@@ -527,6 +536,7 @@ export function useMatch<T>(matchId: string | undefined, gameOver = false) {
     opponentAvatar,
     opponentFlag,
     opponentOnline,
+    opponentConnected,
     opponentDisconnected,
     disconnectSecondsLeft,
     disconnectExpired,

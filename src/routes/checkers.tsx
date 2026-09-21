@@ -73,6 +73,7 @@ type State = {
   timerOff: boolean;
   timerRequest: Player | null;
   timerProposed: boolean;
+  timerDeclined: boolean;
 };
 
 const note = (log: LogEntry[], entry: LogEntry) => [entry, ...log].slice(0, 40);
@@ -98,6 +99,7 @@ const freshState = (): State => {
     timerOff: false,
     timerRequest: null,
     timerProposed: false,
+    timerDeclined: false,
   };
 };
 
@@ -179,6 +181,7 @@ function CheckersTable() {
     isHost,
     opponentName: liveOpponent,
     opponentAvatar,
+    opponentConnected,
     remoteState,
     publish,
     opponentDisconnected,
@@ -187,6 +190,7 @@ function CheckersTable() {
   } = useMatch<State>(matchId);
   const [state, setState] = useState<State>(() => freshState());
   const stateRef = useRef(state);
+  const proposedTimerOffRef = useRef(false);
   stateRef.current = state;
   useRecordMatchResult(match, isHost, state.winner);
 
@@ -204,7 +208,7 @@ function CheckersTable() {
   // Live matches run a 1-minute clock on the active seat; running out forfeits
   // the game to the other player.
   const turnSecondsLeft = useTurnTimer({
-    enabled: isMulti && state.phase === "play" && !state.winner && !state.timerOff,
+    enabled: isMulti && opponentConnected && state.phase === "play" && !state.winner && !state.timerOff,
     turn: state.turn,
     paused: state.timerRequest !== null,
     onTimeout: () =>
@@ -384,7 +388,7 @@ function CheckersTable() {
         navigate({ to: "/checkers", search: { opponent: nickname, match: newMatchId } });
         reset();
       }}
-      onNewGame={reset}
+      onNewGame={() => (isMulti ? navigate({ to: "/checkers" }) : reset())}
       rail={null}
       menuExtra={
         <TurnOffTimerControl
@@ -393,9 +397,13 @@ function CheckersTable() {
           }
           showPrompt={state.timerRequest === "cpu"}
           opponentName={opponentName}
-          onRequest={() => apply((current) => ({ ...current, timerProposed: true, timerRequest: "human" }))}
+          declined={proposedTimerOffRef.current && state.timerDeclined}
+          onRequest={() => {
+            proposedTimerOffRef.current = true;
+            apply((current) => ({ ...current, timerProposed: true, timerRequest: "human" }));
+          }}
           onAccept={() => apply((current) => ({ ...current, timerOff: true, timerRequest: null }))}
-          onDecline={() => apply((current) => ({ ...current, timerRequest: null }))}
+          onDecline={() => apply((current) => ({ ...current, timerRequest: null, timerDeclined: true }))}
         />
       }
     >

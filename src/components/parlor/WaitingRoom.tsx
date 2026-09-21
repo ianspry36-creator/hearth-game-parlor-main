@@ -29,12 +29,13 @@ import {
 } from "@/lib/nickname";
 import { moderateNickname } from "@/lib/moderation";
 import { readAvatar } from "@/lib/avatars";
-import { flagName, flagUrl, readFlag } from "@/lib/flags";
+import { readFlag } from "@/lib/flags";
 import { NicknameDialog } from "@/components/parlor/NicknameDialog";
 import { logConnectionError } from "@/lib/connection-errors";
 import { getStreak } from "@/lib/medals";
 import { MedalBadge } from "@/components/parlor/MedalBadge";
-import { useBlockedUsers } from "@/lib/blockedUsers";
+import { PlayerFlag } from "@/components/parlor/PlayerFlag";
+import { isBlockedName, useBlockedUsers } from "@/lib/blockedUsers";
 
 /** Players not seen for this long are treated as having left the room. */
 const STALE_MS = 45_000;
@@ -46,6 +47,7 @@ type WaitingPlayer = {
   session_id: string;
   nickname: string;
   avatar: string | null;
+  flag: string | null;
   last_seen_at: string;
   streak: number | null;
 };
@@ -116,7 +118,7 @@ export function WaitingRoom({
     const cutoff = new Date(Date.now() - STALE_MS).toISOString();
     const { data, error: queryError } = await supabase
       .from("waiting_players")
-      .select("id, session_id, nickname, avatar, last_seen_at, created_at, streak")
+      .select("id, session_id, nickname, avatar, flag, last_seen_at, created_at, streak")
       .eq("game", game.id)
       .gte("last_seen_at", cutoff)
       .order("created_at", { ascending: true });
@@ -142,6 +144,7 @@ export function WaitingRoom({
             game: game.id,
             nickname: value,
             avatar: readAvatar(),
+            flag: readFlag(),
             streak,
             last_seen_at: new Date().toISOString(),
           },
@@ -381,7 +384,7 @@ export function WaitingRoom({
   useEffect(() => {
     const hiddenInvites = invites.filter(
       (invite) =>
-        blockedUsers.includes(invite.from_nickname) ||
+        isBlockedName(blockedUsers, invite.from_nickname) ||
         blockers.includes(invite.from_session),
     );
     if (hiddenInvites.length === 0) return;
@@ -389,7 +392,7 @@ export function WaitingRoom({
     setInvites((current) =>
       current.filter(
         (invite) =>
-          !blockedUsers.includes(invite.from_nickname) &&
+          !isBlockedName(blockedUsers, invite.from_nickname) &&
           !blockers.includes(invite.from_session),
       ),
     );
@@ -421,7 +424,7 @@ export function WaitingRoom({
   const others = players.filter(
     (player) =>
       player.session_id !== mySession &&
-      !blockedUsers.includes(player.nickname) &&
+      !isBlockedName(blockedUsers, player.nickname) &&
       !blockers.includes(player.session_id),
   );
   const me = players.find((player) => player.session_id === mySession);
@@ -515,14 +518,7 @@ export function WaitingRoom({
                         </button>
                       }
                     />
-                    {flag && (
-                      <img
-                        src={flagUrl(flag)}
-                        alt={flagName(flag) ?? ""}
-                        title={flagName(flag) ?? ""}
-                        className="size-5 shrink-0 rounded-sm border border-black/20 object-cover shadow-sm shadow-black/30"
-                      />
-                    )}
+                    <PlayerFlag flag={flag} className="size-5" />
                   </div>
                   <p className="text-xs text-ivory/55">Seated in the room</p>
                 </div>
@@ -598,7 +594,10 @@ export function WaitingRoom({
                     <MedalBadge streak={player.streak ?? 0} />
                   </div>
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">{player.nickname}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="truncate text-sm font-medium">{player.nickname}</p>
+                      <PlayerFlag flag={player.flag} className="size-4" />
+                    </div>
                     <p className="text-xs text-ivory/55">
                       Waiting {waitingLabel(player.last_seen_at, player.last_seen_at)}
                     </p>

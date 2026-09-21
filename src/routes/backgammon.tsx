@@ -79,6 +79,7 @@ type State = {
   timerOff: boolean;
   timerRequest: Seat | null;
   timerProposed: boolean;
+  timerDeclined: boolean;
 };
 
 const freshState = (): State => ({
@@ -96,6 +97,7 @@ const freshState = (): State => ({
   timerOff: false,
   timerRequest: null,
   timerProposed: false,
+  timerDeclined: false,
 });
 
 const note = (log: LogEntry[], entry: LogEntry) => [entry, ...log].slice(0, 40);
@@ -204,11 +206,12 @@ function BackgammonTable() {
   const navigate = useNavigate();
   const { opponent, match: matchId } = Route.useSearch();
   const [state, setState] = useState<State>(freshState);
-  const { match, isHost, opponentName: liveOpponent, opponentAvatar, opponentFlag, remoteState, publish, opponentDisconnected, disconnectSecondsLeft, disconnectExpired } = useMatch<State>(matchId, Boolean(state.winner));
+  const { match, isHost, opponentName: liveOpponent, opponentAvatar, opponentFlag, opponentConnected, remoteState, publish, opponentDisconnected, disconnectSecondsLeft, disconnectExpired } = useMatch<State>(matchId, Boolean(state.winner));
   const [selected, setSelected] = useState<number | "bar" | null>(null);
   // Whether the end-of-game dialog has been dismissed to inspect the board.
   const [viewingBoard, setViewingBoard] = useState(false);
   const stateRef = useRef(state);
+  const proposedTimerOffRef = useRef(false);
   stateRef.current = state;
   // DOM refs for the borne-off trays (the opponent's, and the player's desktop
   // and mobile trays) so a borne-off checker flies to the slot it lands in.
@@ -294,7 +297,7 @@ function BackgammonTable() {
   const turnOver =
     state.phase === "play" && !state.winner && state.rolled && state.dice.length === 0;
   const turnSecondsLeft = useTurnTimer({
-    enabled: isMulti && state.phase === "play" && !state.winner && !state.timerOff,
+    enabled: isMulti && opponentConnected && state.phase === "play" && !state.winner && !state.timerOff,
     turn: state.turn,
     paused: state.timerRequest !== null || turnOver,
     onTimeout: () =>
@@ -726,7 +729,7 @@ function BackgammonTable() {
         setSelected(null);
         setViewingBoard(false);
       }}
-      onNewGame={reset}
+      onNewGame={() => (isMulti ? navigate({ to: "/backgammon" }) : reset())}
       rail={null}
       containerClassName="px-3 sm:px-6"
       boxClassName="px-2.5 sm:px-8"
@@ -739,9 +742,13 @@ function BackgammonTable() {
             }
             showPrompt={state.timerRequest === "cpu"}
             opponentName={opponentName}
-            onRequest={() => apply((current) => ({ ...current, timerProposed: true, timerRequest: "human" }))}
+            declined={proposedTimerOffRef.current && state.timerDeclined}
+            onRequest={() => {
+              proposedTimerOffRef.current = true;
+              apply((current) => ({ ...current, timerProposed: true, timerRequest: "human" }));
+            }}
             onAccept={() => apply((current) => ({ ...current, timerOff: true, timerRequest: null }))}
-            onDecline={() => apply((current) => ({ ...current, timerRequest: null }))}
+            onDecline={() => apply((current) => ({ ...current, timerRequest: null, timerDeclined: true }))}
           />
         </>
       }

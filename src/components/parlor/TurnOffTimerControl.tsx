@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -14,12 +15,14 @@ import {
  * Menu control for agreeing to switch off the per-turn clock in a live match.
  * The local player proposes it (showing the button); their opponent is then
  * prompted to accept or decline. Once the proposal is answered the button is
- * gone for good either way.
+ * gone for good either way. When the proposal is declined, the player who made
+ * it is told so (`declined`).
  */
 export function TurnOffTimerControl({
   showButton,
   showPrompt,
   opponentName,
+  declined = false,
   onRequest,
   onAccept,
   onDecline,
@@ -27,16 +30,31 @@ export function TurnOffTimerControl({
   showButton: boolean;
   showPrompt: boolean;
   opponentName: string;
+  /** Our own request was declined — surface a short notice to the instigator. */
+  declined?: boolean;
   onRequest: () => void;
   onAccept: () => void;
   onDecline: () => void;
 }) {
+  const [showDeclined, setShowDeclined] = useState(false);
+  useEffect(() => {
+    if (!declined) return;
+    setShowDeclined(true);
+    const timer = setTimeout(() => setShowDeclined(false), 6000);
+    return () => clearTimeout(timer);
+  }, [declined]);
+
   return (
     <>
       {showButton && (
         <Button variant="parlorGhost" size="sm" className="w-full h-6" onClick={onRequest}>
           Turn Off Timer
         </Button>
+      )}
+      {showDeclined && (
+        <p className="text-xs leading-snug text-ivory/60">
+          {opponentName} declined to turn off the timer.
+        </p>
       )}
       <AlertDialog open={showPrompt}>
         <AlertDialogContent className="border-gold/25 bg-brand text-cream">

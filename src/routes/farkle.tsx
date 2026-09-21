@@ -94,6 +94,7 @@ type State = {
   timerOff: boolean;
   timerRequest: Seat | null;
   timerProposed: boolean;
+  timerDeclined: boolean;
 };
 
 const blankDice = (): Die[] => Array.from({ length: DICE_COUNT }, () => ({ face: 1, set: false }));
@@ -137,6 +138,7 @@ const freshState = (): State => ({
   timerOff: false,
   timerRequest: null,
   timerProposed: false,
+  timerDeclined: false,
 });
 
 const note = (log: LogEntry[], entry: LogEntry) => [entry, ...log].slice(0, 40);
@@ -196,6 +198,7 @@ function FarkleTable() {
     isHost,
     opponentName: liveOpponent,
     opponentAvatar,
+    opponentConnected,
     remoteState,
     publish,
     opponentDisconnected,
@@ -203,6 +206,7 @@ function FarkleTable() {
     disconnectExpired,
   } = useMatch<State>(matchId, Boolean(state.winner));
   const stateRef = useRef(state);
+  const proposedTimerOffRef = useRef(false);
   stateRef.current = state;
   // While a rematch is being negotiated the match row must stay open: treat the
   // game as unfinished so the delayed "completed" write doesn't fire and bounce
@@ -271,7 +275,7 @@ function FarkleTable() {
   // Live matches run a 1-minute clock on the active seat; running out forfeits
   // the game to the other player.
   const turnSecondsLeft = useTurnTimer({
-    enabled: isMulti && state.phase === "play" && !state.winner && !state.timerOff,
+    enabled: isMulti && opponentConnected && state.phase === "play" && !state.winner && !state.timerOff,
     turn: state.turn,
     paused: state.timerRequest !== null,
     onTimeout: () =>
@@ -725,7 +729,7 @@ function FarkleTable() {
         navigate({ to: "/farkle", search: { opponent: nickname, match: newMatchId } });
         reset();
       }}
-      onNewGame={reset}
+      onNewGame={() => (isMulti ? navigate({ to: "/farkle" }) : reset())}
       middle={meldValues}
       middleClassName="self-start"
       menuExtra={
@@ -735,9 +739,13 @@ function FarkleTable() {
           }
           showPrompt={state.timerRequest === "cpu"}
           opponentName={opponentName}
-          onRequest={() => apply((current) => ({ ...current, timerProposed: true, timerRequest: "human" }))}
+          declined={proposedTimerOffRef.current && state.timerDeclined}
+          onRequest={() => {
+            proposedTimerOffRef.current = true;
+            apply((current) => ({ ...current, timerProposed: true, timerRequest: "human" }));
+          }}
           onAccept={() => apply((current) => ({ ...current, timerOff: true, timerRequest: null }))}
-          onDecline={() => apply((current) => ({ ...current, timerRequest: null }))}
+          onDecline={() => apply((current) => ({ ...current, timerRequest: null, timerDeclined: true }))}
         />
       }
     >

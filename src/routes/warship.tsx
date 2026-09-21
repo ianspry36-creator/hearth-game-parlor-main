@@ -75,6 +75,7 @@ type State = {
   timerOff: boolean;
   timerRequest: Seat | null;
   timerProposed: boolean;
+  timerDeclined: boolean;
 };
 
 // The opening fleet must match the server, so the first render uses a fixed
@@ -93,6 +94,7 @@ const freshState = (random: () => number = Math.random): State => ({
   timerOff: false,
   timerRequest: null,
   timerProposed: false,
+  timerDeclined: false,
 });
 
 const note = (log: LogEntry[], entry: LogEntry) => [entry, ...log].slice(0, 40);
@@ -140,6 +142,7 @@ function WarshipTable() {
     isHost,
     opponentName: liveOpponent,
     opponentAvatar,
+    opponentConnected,
     remoteState,
     publish,
     opponentDisconnected,
@@ -148,6 +151,7 @@ function WarshipTable() {
   } = useMatch<State>(matchId, Boolean(state.winner));
   const [grab, setGrab] = useState<{ name: string; cell: number } | null>(null);
   const stateRef = useRef(state);
+  const proposedTimerOffRef = useRef(false);
   stateRef.current = state;
   useRecordMatchResult(match, isHost, state.winner, matchId ? RECONNECT_SECONDS * 1000 : 0);
 
@@ -176,7 +180,7 @@ function WarshipTable() {
   // Live matches run a 1-minute clock on the active seat; running out forfeits
   // the game to the other player.
   const turnSecondsLeft = useTurnTimer({
-    enabled: isMulti && state.phase === "play" && !state.winner && !state.timerOff,
+    enabled: isMulti && opponentConnected && state.phase === "play" && !state.winner && !state.timerOff,
     turn: state.turn,
     paused: state.timerRequest !== null,
     onTimeout: () =>
@@ -420,7 +424,7 @@ function WarshipTable() {
         setState(freshState());
         setViewingBoard(false);
       }}
-      onNewGame={reset}
+      onNewGame={() => (isMulti ? navigate({ to: "/warship" }) : reset())}
       rail={null}
       boxClassName="min-h-[32rem]"
       menuExtra={
@@ -430,9 +434,13 @@ function WarshipTable() {
           }
           showPrompt={state.timerRequest === "cpu"}
           opponentName={opponentName}
-          onRequest={() => apply((current) => ({ ...current, timerProposed: true, timerRequest: "human" }))}
+          declined={proposedTimerOffRef.current && state.timerDeclined}
+          onRequest={() => {
+            proposedTimerOffRef.current = true;
+            apply((current) => ({ ...current, timerProposed: true, timerRequest: "human" }));
+          }}
           onAccept={() => apply((current) => ({ ...current, timerOff: true, timerRequest: null }))}
-          onDecline={() => apply((current) => ({ ...current, timerRequest: null }))}
+          onDecline={() => apply((current) => ({ ...current, timerRequest: null, timerDeclined: true }))}
         />
       }
     >
