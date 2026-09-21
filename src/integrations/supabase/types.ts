@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           created_at: string
           from_avatar: string | null
+          from_flag: string | null
           from_nickname: string
           from_session: string
           game: string
@@ -30,6 +31,7 @@ export type Database = {
         Insert: {
           created_at?: string
           from_avatar?: string | null
+          from_flag?: string | null
           from_nickname: string
           from_session: string
           game: string
@@ -42,6 +44,7 @@ export type Database = {
         Update: {
           created_at?: string
           from_avatar?: string | null
+          from_flag?: string | null
           from_nickname?: string
           from_session?: string
           game?: string
@@ -66,9 +69,11 @@ export type Database = {
           created_at: string
           game: string
           guest_avatar: string | null
+          guest_flag: string | null
           guest_nickname: string
           guest_session: string
           host_avatar: string | null
+          host_flag: string | null
           host_nickname: string
           host_session: string
           id: string
@@ -82,9 +87,11 @@ export type Database = {
           created_at?: string
           game: string
           guest_avatar?: string | null
+          guest_flag?: string | null
           guest_nickname: string
           guest_session: string
           host_avatar?: string | null
+          host_flag?: string | null
           host_nickname: string
           host_session: string
           id?: string
@@ -98,9 +105,11 @@ export type Database = {
           created_at?: string
           game?: string
           guest_avatar?: string | null
+          guest_flag?: string | null
           guest_nickname?: string
           guest_session?: string
           host_avatar?: string | null
+          host_flag?: string | null
           host_nickname?: string
           host_session?: string
           id?: string

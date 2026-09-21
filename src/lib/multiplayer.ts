@@ -5,6 +5,7 @@ import type { GameId } from "@/lib/games";
 import { recordMatchResult } from "@/lib/stats";
 import { recordDisconnect } from "@/lib/medals";
 import { readAvatar } from "@/lib/avatars";
+import { readFlag } from "@/lib/flags";
 import { logConnectionError } from "@/lib/connection-errors";
 
 export const NICKNAME_KEY = "green-cardroom-nickname";
@@ -38,6 +39,7 @@ export type InviteRow = {
   from_session: string;
   from_nickname: string;
   from_avatar: string | null;
+  from_flag: string | null;
   to_session: string;
   to_nickname: string;
   status: string;
@@ -51,9 +53,11 @@ export type MatchRow = {
   host_session: string;
   host_nickname: string;
   host_avatar: string | null;
+  host_flag: string | null;
   guest_session: string;
   guest_nickname: string;
   guest_avatar: string | null;
+  guest_flag: string | null;
   state: unknown;
   version: number;
   status: string;
@@ -77,7 +81,7 @@ export function matchRowWriteKey(row: { version: number; updated_at: string }): 
 }
 
 const INVITE_COLUMNS =
-  "id, game, from_session, from_nickname, from_avatar, to_session, to_nickname, status, match_id, created_at";
+  "id, game, from_session, from_nickname, from_avatar, from_flag, to_session, to_nickname, status, match_id, created_at";
 
 /** Invites older than this are treated as expired. */
 export const INVITE_TTL_MS = 60_000;
@@ -104,6 +108,7 @@ export async function sendInvite(params: {
       from_session: getSessionId(),
       from_nickname: params.fromNickname,
       from_avatar: readAvatar(),
+      from_flag: readFlag(),
       to_session: params.toSession,
       to_nickname: params.toNickname,
     })
@@ -142,9 +147,11 @@ export async function acceptInvite(
       host_session: invite.from_session,
       host_nickname: invite.from_nickname,
       host_avatar: invite.from_avatar ?? null,
+      host_flag: invite.from_flag ?? null,
       guest_session: getSessionId(),
       guest_nickname: myNickname,
       guest_avatar: readAvatar(),
+      guest_flag: readFlag(),
       state: null,
       version: 0,
     })

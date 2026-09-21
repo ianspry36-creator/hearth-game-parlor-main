@@ -25,11 +25,25 @@ export type LeaderboardEntry = {
   lost: number;
 };
 
+export type OpponentStats = {
+  opponentSession: string;
+  nickname: string;
+  avatar: string | null;
+  flag: string | null;
+  played: number;
+  won: number;
+  lost: number;
+};
+
 type MatchResultRow = {
   host_nickname: string;
   host_session: string;
+  host_avatar: string | null;
+  host_flag: string | null;
   guest_nickname: string;
   guest_session: string;
+  guest_avatar: string | null;
+  guest_flag: string | null;
   winner_session: string | null;
   status: string;
 };
@@ -108,6 +122,74 @@ export async function fetchLeaderboard(
         b.won - a.won || b.played - a.played || a.nickname.localeCompare(b.nickname),
     )
     .slice(0, limit);
+}
+
+/**
+ * The current player's head-to-head record against every opponent they have
+ * completed a match with, for a given game. A draw counts as a game played but
+ * neither a win nor a loss. Rows are ordered by games played, then wins.
+ */
+export async function fetchOpponentStats(
+  game: GameId,
+  sessionId: string,
+): Promise<OpponentStats[]> {
+  const { data } = await supabase
+    .from("matches")
+    .select(
+      "host_nickname, host_session, host_avatar, host_flag, guest_nickname, guest_session, guest_avatar, guest_flag, winner_session, status",
+    )
+    .eq("game", game)
+    .eq("status", "completed");
+
+  const counts = new Map<string, OpponentStats>();
+  for (const m of (data ?? []) as MatchResultRow[]) {
+    let opponent:
+      | { session: string; nickname: string; avatar: string | null; flag: string | null }
+      | null = null;
+
+    if (m.host_session === sessionId) {
+      opponent = {
+        session: m.guest_session,
+        nickname: m.guest_nickname,
+        avatar: m.guest_avatar,
+        flag: m.guest_flag,
+      };
+    } else if (m.guest_session === sessionId) {
+      opponent = {
+        session: m.host_session,
+        nickname: m.host_nickname,
+        avatar: m.host_avatar,
+        flag: m.host_flag,
+      };
+    }
+    if (!opponent) continue;
+
+    const entry =
+      counts.get(opponent.session) ??
+      {
+        opponentSession: opponent.session,
+        nickname: opponent.nickname,
+        avatar: opponent.avatar,
+        flag: opponent.flag,
+        played: 0,
+        won: 0,
+        lost: 0,
+      };
+    entry.played += 1;
+    if (m.winner_session != null) {
+      if (m.winner_session === sessionId) entry.won += 1;
+      else entry.lost += 1;
+    }
+    // Refresh display fields in case they changed between matches.
+    entry.nickname = opponent.nickname;
+    entry.avatar = opponent.avatar;
+    entry.flag = opponent.flag;
+    counts.set(opponent.session, entry);
+  }
+
+  return Array.from(counts.values()).sort(
+    (a, b) => b.played - a.played || b.won - a.won || a.nickname.localeCompare(b.nickname),
+  );
 }
 
 /**
