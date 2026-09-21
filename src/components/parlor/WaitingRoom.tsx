@@ -97,6 +97,9 @@ export function WaitingRoom({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const entryId = useRef<string | null>(null);
+  // Re-entrancy guard so a fast double-click can't send two invitations before
+  // the first `sendInvite` round-trip completes and `outgoing` is set.
+  const invitingRef = useRef(false);
   // True while we had at least one pending incoming invite; used to put us back
   // in the room once the invite resolves without a match.
   const hadInviteRef = useRef(false);
@@ -291,6 +294,8 @@ export function WaitingRoom({
   }, [open, joined, nickname, join]);
 
   const invitePlayer = async (player: WaitingPlayer) => {
+    if (invitingRef.current) return; // a double-click fired while an invite is in flight
+    invitingRef.current = true;
     setError(null);
     let invite: InviteRow | null = null;
     try {
@@ -301,12 +306,14 @@ export function WaitingRoom({
         toNickname: player.nickname,
       });
     } catch (err) {
+      invitingRef.current = false;
       setError(
         `Could not send the invitation: ${err instanceof Error ? err.message : "unknown error"}`,
       );
       return;
     }
     if (!invite) {
+      invitingRef.current = false;
       logConnectionError("send_invite", new Error("sendInvite returned no row"), {
         game: game.id,
         to_session: player.session_id,
@@ -326,6 +333,7 @@ export function WaitingRoom({
       .eq("session_id", player.session_id)
       .eq("game", game.id);
     setOutgoing(invite);
+    invitingRef.current = false;
   };
 
   const accept = async (invite: InviteRow) => {

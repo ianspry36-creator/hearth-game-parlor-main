@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { flagName, flagUrl } from "@/lib/flags";
+import { PlayerFlag } from "@/components/parlor/PlayerFlag";
 
 const WIN = 121;
 
@@ -273,14 +273,7 @@ export function ScoreGrid({
             className="size-7 shrink-0 rounded-full object-cover ring-1 ring-black/15"
           />
           <span className="truncate">{playerName}</span>
-          {playerFlag && (
-            <img
-              src={flagUrl(playerFlag)}
-              alt={flagName(playerFlag) ?? ""}
-              title={flagName(playerFlag) ?? ""}
-              className="size-5 shrink-0 rounded-sm border border-black/20 object-cover shadow-sm shadow-black/30"
-            />
-          )}
+          <PlayerFlag flag={playerFlag} />
           <span className="size-2.5 shrink-0 rounded-full bg-gold" />
         </span>
         <span className="shrink-0 font-display text-lg text-black">{playerScore}</span>
@@ -293,14 +286,7 @@ export function ScoreGrid({
             className="size-7 shrink-0 rounded-full object-cover ring-1 ring-black/15"
           />
           <span className="truncate">{opponentName}</span>
-          {cpuFlag && (
-            <img
-              src={flagUrl(cpuFlag)}
-              alt={flagName(cpuFlag) ?? ""}
-              title={flagName(cpuFlag) ?? ""}
-              className="size-5 shrink-0 rounded-sm border border-black/20 object-cover shadow-sm shadow-black/30"
-            />
-          )}
+          <PlayerFlag flag={cpuFlag} />
           <span className="size-2.5 shrink-0 rounded-full bg-ivory ring-1 ring-black/25" />
         </span>
         <span className="shrink-0 font-display text-lg">{cpuScore}</span>
@@ -336,7 +322,7 @@ export function CribBoard({
 }) {
   return (
     <div className="rounded-xl border border-gold/20 bg-surface/60 p-4">
-      <div className="relative mx-auto w-full max-w-[168px]">
+      <div className="relative mx-auto w-full max-w-[160px]">
         <img
           src={graphic}
           alt="Cribbage peg board"
@@ -347,7 +333,7 @@ export function CribBoard({
         <Peg side="cpu" score={cpuScore} tone="ivory" />
         <Peg side="cpu" score={cpuBack} tone="ivory" lag />
       </div>
-      <div className="mx-auto mt-4 w-full max-w-[168px]">
+      <div className="mx-auto mt-4 w-full max-w-[160px]">
         <ScoreGrid
           playerName={playerName}
           opponentName={opponentName}

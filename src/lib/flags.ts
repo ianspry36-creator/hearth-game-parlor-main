@@ -30,6 +30,14 @@ export function flagUrl(code: string): string {
   return `https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/${codepoints.join("-")}.svg`;
 }
 
+/**
+ * A globe rendered in place of a flag for players who have not chosen a country
+ * yet. Twemoji matches the flag SVGs so it renders identically on Windows.
+ */
+export function earthUrl(): string {
+  return "https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f30d.svg";
+}
+
 /** Countries and territories, alphabetised by common English name. */
 export const FLAGS: Country[] = [
   { code: "AF", name: "Afghanistan" },

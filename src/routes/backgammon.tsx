@@ -288,10 +288,15 @@ function BackgammonTable() {
 
   // Live matches run a 1-minute clock on the active seat; running out forfeits
   // the game to the other player.
+  // Stop the clock the moment the active player has finished moving (all dice
+  // consumed) so it doesn't keep ticking through the 2s handover to the next
+  // turn — a player who moved on their last second would otherwise time out.
+  const turnOver =
+    state.phase === "play" && !state.winner && state.rolled && state.dice.length === 0;
   const turnSecondsLeft = useTurnTimer({
     enabled: isMulti && state.phase === "play" && !state.winner && !state.timerOff,
     turn: state.turn,
-    paused: state.timerRequest !== null,
+    paused: state.timerRequest !== null || turnOver,
     onTimeout: () =>
       apply((current) => ({
         ...current,

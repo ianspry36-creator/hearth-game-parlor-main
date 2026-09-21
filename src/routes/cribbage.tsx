@@ -43,7 +43,9 @@ import cardBackAsset from "@/assets/card-back.png";
 import skunk from "@/assets/skunk.png";
 import { PlayerAvatar } from "@/components/parlor/PlayerAvatar";
 import { AVATAR_OPTIONS, ADA_AVATAR, ADA_HAPPY, ADA_SAD, readAvatar } from "@/lib/avatars";
-import { flagName, flagUrl, readFlag } from "@/lib/flags";
+import { readFlag } from "@/lib/flags";
+import { FlagPicker } from "@/components/parlor/FlagPicker";
+import { PlayerFlag } from "@/components/parlor/PlayerFlag";
 import { NicknameDialog } from "@/components/parlor/NicknameDialog";
 import { readCribBoardGraphic } from "@/lib/cribbageBoards";
 
@@ -503,7 +505,8 @@ function CribbageTable() {
   const [selected, setSelected] = useState<string[]>([]);
   const [back, setBack] = useState<Record<Side, number>>({ player: 0, cpu: 0 });
   const [avatar, setAvatar] = useState<string>(AVATAR_OPTIONS[0]!.url);
-  const [flag] = useState<string | null>(readFlag);
+  const [flag, setFlag] = useState<string | null>(readFlag);
+  const [flagOpen, setFlagOpen] = useState(false);
   const [boardGraphic, setBoardGraphic] = useState<string>(readCribBoardGraphic);
   const [viewingBoard, setViewingBoard] = useState(false);
   const [boardOpen, setBoardOpen] = useState(false);
@@ -570,7 +573,13 @@ function CribbageTable() {
   // Live matches run a 1-minute clock on the active seat; running out forfeits
   // the game to the other player.
   const turnSecondsLeft = useTurnTimer({
-    enabled: isMulti && state.phase === "play" && !state.winner && !state.timerOff,
+    // The clock starts the moment the hand begins — while cutting for the deal
+    // and discarding to the crib, not just once pegging starts.
+    enabled:
+      isMulti &&
+      !state.winner &&
+      !state.timerOff &&
+      (state.phase === "cut" || state.phase === "discard" || state.phase === "play"),
     turn: state.turn,
     paused: state.timerRequest !== null,
     onTimeout: () =>
@@ -1241,7 +1250,7 @@ function CribbageTable() {
       containerClassName="px-3 sm:px-6"
       boxClassName="py-[2.4px] sm:py-[4.8px]"
       gridClassName="grid gap-1.5"
-      containerMaxWidth="max-w-7xl"
+      containerMaxWidth="max-w-[76rem]"
       below={
         <div className="space-y-3">
           <ScoreGrid
@@ -1294,6 +1303,7 @@ function CribbageTable() {
         />
       }
     >
+      <FlagPicker open={flagOpen} onOpenChange={setFlagOpen} onSelect={setFlag} />
       <GameOverDialog
         open={state.phase === "over" && state.winner !== null && !viewingBoard}
         winner={state.winner ?? "player"}
@@ -1349,6 +1359,7 @@ function CribbageTable() {
             <Seat
               name={opponentName}
               isDealer={state.dealer === "cpu" && state.phase !== "cut"}
+              flag={opponentFlag}
               avatar={
                 <span className="relative grid size-10 place-items-center overflow-hidden rounded-full bg-gold/20 ring-1 ring-gold/40 sm:size-16">
                   <img
@@ -1695,6 +1706,7 @@ function CribbageTable() {
                 name={playerName}
                 isDealer={state.dealer === "player" && state.phase !== "cut"}
                 flag={flag}
+                onFlagClick={() => setFlagOpen(true)}
                 nameTrigger={
                   <NicknameDialog
                     onSaved={setPlayerName}
@@ -1816,12 +1828,14 @@ function Seat({
   avatar,
   flag,
   nameTrigger,
+  onFlagClick,
 }: {
   name: string;
   isDealer: boolean;
   avatar?: React.ReactNode;
   flag?: string | null;
   nameTrigger?: React.ReactNode;
+  onFlagClick?: () => void;
 }) {
   return (
     <div className="flex items-center justify-center gap-2">
@@ -1839,14 +1853,7 @@ function Seat({
       </div>
       <div className="flex items-center gap-1.5">
         {nameTrigger ?? <span className="text-sm text-cream">{name}</span>}
-        {flag && (
-          <img
-            src={flagUrl(flag)}
-            alt={flagName(flag) ?? ""}
-            title={flagName(flag) ?? ""}
-            className="size-5 shrink-0 rounded-sm border border-black/20 object-cover shadow-sm shadow-black/30"
-          />
-        )}
+        <PlayerFlag flag={flag} onClick={onFlagClick} />
       </div>
     </div>
   );

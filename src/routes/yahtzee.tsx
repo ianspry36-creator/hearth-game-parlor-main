@@ -876,7 +876,7 @@ function YahtzeeTable() {
                 )}
               </div>
             )}
-            <div>
+            <div className="flex items-center gap-2">
               {mine ? (
                 <NicknameDialog
                   onSaved={setPlayerName}
@@ -894,7 +894,7 @@ function YahtzeeTable() {
                   src={flagUrl(flag)}
                   alt={flagName(flag) ?? ""}
                   title={flagName(flag) ?? ""}
-                  className="mt-1 size-6 shrink-0 rounded-sm border border-black/20 object-cover shadow-md shadow-black/30"
+                  className="size-5 shrink-0 rounded-sm border border-black/20 object-cover shadow-md shadow-black/30"
                 />
               )}
             </div>
