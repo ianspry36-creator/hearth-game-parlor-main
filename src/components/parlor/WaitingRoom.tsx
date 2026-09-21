@@ -29,6 +29,7 @@ import {
 } from "@/lib/nickname";
 import { moderateNickname } from "@/lib/moderation";
 import { readAvatar } from "@/lib/avatars";
+import { flagUrl, readFlag } from "@/lib/flags";
 import { logConnectionError } from "@/lib/connection-errors";
 import { getStreak } from "@/lib/medals";
 import { MedalBadge } from "@/components/parlor/MedalBadge";
@@ -381,6 +382,7 @@ export function WaitingRoom({
     (player) => player.session_id !== mySession && !blockedUsers.includes(player.nickname),
   );
   const me = players.find((player) => player.session_id === mySession);
+  const flag = readFlag();
 
   return (
     <Dialog
@@ -458,6 +460,14 @@ export function WaitingRoom({
                     height={72}
                     className="size-[4.5rem] shrink-0 rounded-full border border-gold/40 object-cover"
                   />
+                  {flag && (
+                    <img
+                      src={flagUrl(flag)}
+                      alt="Your flag"
+                      title="Your flag"
+                      className="absolute -bottom-1 left-1/2 z-10 size-6 -translate-x-1/2 rounded-sm border border-black/20 object-cover shadow-md shadow-black/30"
+                    />
+                  )}
                   <MedalBadge streak={me?.streak ?? 0} />
                 </div>
                 <div>

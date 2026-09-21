@@ -19,6 +19,7 @@ import { TurnOffTimerControl } from "@/components/parlor/TurnOffTimerControl";
 import { SpeechBubble } from "@/components/parlor/SpeechBubble";
 import { TableOptionsDialog } from "@/components/parlor/TableOptionsDialog";
 import { ADA_AVATAR, readAvatar } from "@/lib/avatars";
+import { flagUrl, readFlag } from "@/lib/flags";
 import { getGame } from "@/lib/games";
 import { CLASSIC_PALETTE, readTableGraphic, type TablePalette } from "@/lib/backgammonTables";
 import { getNickname, RECONNECT_SECONDS, TURN_WARNING_SECONDS, useMatch, useTurnTimer } from "@/lib/multiplayer";
@@ -304,6 +305,7 @@ function BackgammonTable() {
   const countdown = turnSecondsLeft > 0 && turnSecondsLeft <= TURN_WARNING_SECONDS ? turnSecondsLeft : 0;
 
   const [playerAvatar, setPlayerAvatar] = useState<string>(readAvatar);
+  const [flag] = useState<string | null>(readFlag);
   const [tableGraphic, setTableGraphic] = useState<TablePalette | null>(readTableGraphic);
 
   const reset = () => {
@@ -864,17 +866,27 @@ function BackgammonTable() {
         {/* Player — bottom of the table */}
         <div className="flex items-center gap-4 rounded-2xl border border-gold/15 bg-brand/50 p-4">
           <div className="flex shrink-0 items-center gap-3">
-            <PlayerAvatar
-              avatar={playerAvatar}
-              onSelect={setPlayerAvatar}
-              size="size-14"
-              countdown={state.turn === "human" ? countdown : 0}
-              {...(passBubble === "human"
-                ? { message: "PASS" }
-                : starterBubble === "human"
-                  ? { message: "I win starter throw. I go first" }
-                  : {})}
-            />
+            <div className="flex flex-col items-center gap-1.5">
+              <PlayerAvatar
+                avatar={playerAvatar}
+                onSelect={setPlayerAvatar}
+                size="size-14"
+                countdown={state.turn === "human" ? countdown : 0}
+                {...(passBubble === "human"
+                  ? { message: "PASS" }
+                  : starterBubble === "human"
+                    ? { message: "I win starter throw. I go first" }
+                    : {})}
+              />
+              {flag && (
+                <img
+                  src={flagUrl(flag)}
+                  alt="Your flag"
+                  title="Your flag"
+                  className="size-6 shrink-0 rounded-sm border border-black/20 object-cover shadow-md shadow-black/30"
+                />
+              )}
+            </div>
             <div>
               <p className="font-display text-lg font-bold">{playerName}</p>
               <p className="min-w-[9rem] whitespace-nowrap text-xs text-ivory/60">

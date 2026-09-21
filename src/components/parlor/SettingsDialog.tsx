@@ -19,6 +19,7 @@ import {
   type CustomPalette,
 } from "@/lib/palette";
 import { useBlockedUsers } from "@/lib/blockedUsers";
+import { FLAGS, flagUrl, readFlag, writeFlag } from "@/lib/flags";
 import { getNickname } from "@/lib/multiplayer";
 import cardBackAsset from "@/assets/card-back.png";
 import {
@@ -424,7 +425,21 @@ export function SettingsDialog({ className }: Props) {
   const [customDeck, setCustomDeck] = useState<CustomDeck>(() => readCustomDeck());
   const { blockedUsers, addBlockedUser, removeBlockedUser } = useBlockedUsers();
   const [blockDraft, setBlockDraft] = useState("");
+  const [flag, setFlag] = useState<string | null>(() => readFlag());
+  const [flagSearch, setFlagSearch] = useState("");
   const isOwner = (getNickname() ?? "").toLowerCase() === "spry123456";
+
+  const filteredFlags = FLAGS.filter((country) =>
+    country.name.toLowerCase().includes(flagSearch.trim().toLowerCase()),
+  );
+  const selectFlag = (code: string | null) => {
+    setFlag(code);
+    writeFlag(code);
+  };
+  const chooseFlag = (code: string) => {
+    selectFlag(code);
+    setOpen(false);
+  };
 
   const frontOptions = allCardFronts(customFronts);
   const backOptions = allCardBacks(customBacks);
@@ -600,7 +615,7 @@ export function SettingsDialog({ className }: Props) {
           <TabsList
             className={cn(
               "grid w-full rounded-xl border border-gold/25 bg-surface p-1",
-              isOwner ? "grid-cols-7" : "grid-cols-3",
+              isOwner ? "grid-cols-8" : "grid-cols-4",
             )}
           >
             <TabsTrigger value="colours" className="data-[state=active]:bg-gold data-[state=active]:text-brand">
@@ -616,6 +631,9 @@ export function SettingsDialog({ className }: Props) {
             )}
             <TabsTrigger value="blocked" className="data-[state=active]:bg-gold data-[state=active]:text-brand">
               Block Users
+            </TabsTrigger>
+            <TabsTrigger value="flag" className="data-[state=active]:bg-gold data-[state=active]:text-brand">
+              Choose your flag
             </TabsTrigger>
             {isOwner && (
               <TabsTrigger value="palette" className="data-[state=active]:bg-gold data-[state=active]:text-brand">
@@ -850,6 +868,85 @@ export function SettingsDialog({ className }: Props) {
                 ))}
               </ul>
             )}
+          </TabsContent>
+
+          <TabsContent value="flag" className="min-h-[33rem]">
+            <p className="text-sm text-ivory/70">
+              Pick a flag to show next to your avatar at the table. Search to find your country.
+            </p>
+
+            <div className="mt-4 flex items-center gap-2">
+              <input
+                type="text"
+                value={flagSearch}
+                onChange={(event) => setFlagSearch(event.target.value)}
+                placeholder="Search for a country…"
+                aria-label="Search for a country"
+                className="h-10 flex-1 rounded-lg border border-gold/25 bg-surface/60 px-3 text-base text-cream placeholder:text-ivory/40 focus:border-gold/60 focus:outline-none"
+              />
+              {flag && (
+                <button
+                  type="button"
+                  onClick={() => selectFlag(null)}
+                  title="Clear flag"
+                  className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg border border-gold/25 px-3 text-sm font-semibold text-ivory/80 transition-colors hover:border-gold/60 hover:text-gold"
+                >
+                  <X className="size-4" />
+                  Clear
+                </button>
+              )}
+            </div>
+
+            {filteredFlags.length === 0 ? (
+              <div className="mt-6 flex flex-col items-center gap-2 rounded-xl border border-dashed border-gold/20 bg-surface/20 px-6 py-8 text-center">
+                <p className="font-display text-base text-ivory/50">No matches</p>
+                <p className="text-sm text-ivory/40">Try a different search term.</p>
+              </div>
+            ) : (
+              <div className="mt-4 max-h-[26rem] overflow-y-auto rounded-lg pr-1">
+                <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
+                  {filteredFlags.map((country) => {
+                    const active = country.code === flag;
+                    return (
+                      <li key={country.code}>
+                        <button
+                          type="button"
+                          onClick={() => selectFlag(country.code)}
+                          onDoubleClick={() => chooseFlag(country.code)}
+                          aria-pressed={active}
+                          title={country.name}
+                          className={cn(
+                            "flex w-full items-center gap-2.5 rounded-lg border p-2 text-left transition-colors",
+                            active
+                              ? "border-gold bg-gold/10 ring-2 ring-gold"
+                              : "border-gold/20 bg-surface/40 hover:border-gold/50",
+                          )}
+                        >
+                          <img
+                            src={flagUrl(country.code)}
+                            alt=""
+                            aria-hidden
+                            className="size-6 shrink-0 rounded-sm border border-black/10 object-cover"
+                          />
+                          <span className="min-w-0 flex-1 truncate text-sm text-cream">{country.name}</span>
+                          {active && <Check className="size-4 shrink-0 text-gold" />}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
+
+            <div className="mt-4 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="rounded-lg bg-gold px-5 py-2 text-sm font-semibold text-brand transition-colors hover:bg-gold-bright"
+              >
+                OK
+              </button>
+            </div>
           </TabsContent>
 
           <TabsContent value="palette" className="min-h-[33rem]">
