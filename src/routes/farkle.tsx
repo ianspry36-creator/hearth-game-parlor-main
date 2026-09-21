@@ -29,6 +29,8 @@ import { getGame } from "@/lib/games";
 import { getNickname, RECONNECT_SECONDS, TURN_WARNING_SECONDS, useMatch, useTurnTimer } from "@/lib/multiplayer";
 import { useRecordMatchResult } from "@/lib/stats";
 import { ADA_AVATAR, readAvatar } from "@/lib/avatars";
+import { flagName, flagUrl, readFlag } from "@/lib/flags";
+import { NicknameDialog } from "@/components/parlor/NicknameDialog";
 import {
   DICE_COUNT,
   TARGET,
@@ -187,6 +189,7 @@ function FarkleTable() {
   const [state, setState] = useState<State>(freshState);
   const [selected, setSelected] = useState<number[]>([]);
   const [playerAvatar, setPlayerAvatar] = useState<string>(readAvatar);
+  const [flag] = useState<string | null>(readFlag);
   const [viewingBoard, setViewingBoard] = useState(false);
   const {
     match,
@@ -256,7 +259,7 @@ function FarkleTable() {
 
   const isMulti = Boolean(matchId);
   const opponentName = liveOpponent ?? opponent ?? "Ada";
-  const playerName = getNickname() ?? "You";
+  const [playerName, setPlayerName] = useState(() => getNickname() ?? "You");
 
   const apply = (fn: (current: State) => State) => {
     const next = fn(stateRef.current);
@@ -952,7 +955,25 @@ function FarkleTable() {
                 {...(playerMessage ? { message: playerMessage } : {})}
               />
               <div>
-                <p className="font-display text-lg font-bold sm:text-xl">{playerName}</p>
+                <NicknameDialog
+                  onSaved={setPlayerName}
+                  trigger={
+                    <button
+                      type="button"
+                      className="font-display text-lg font-bold hover:text-gold sm:text-xl"
+                    >
+                      {playerName}
+                    </button>
+                  }
+                />
+                {flag && (
+                  <img
+                    src={flagUrl(flag)}
+                    alt={flagName(flag) ?? ""}
+                    title={flagName(flag) ?? ""}
+                    className="mt-1 size-6 shrink-0 rounded-sm border border-black/20 object-cover shadow-md shadow-black/30"
+                  />
+                )}
                 <p className="text-xs text-ivory/60 sm:text-sm">
                   {myTurn && state.phase === "play" ? "Your turn" : "Waiting"}
                 </p>

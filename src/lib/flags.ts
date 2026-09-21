@@ -235,6 +235,11 @@ export const FLAGS: Country[] = [
 
 const KEY = "parlor.flag";
 
+/** Resolve a country code to its display name, or `null` when it is unknown. */
+export function flagName(code: string): string | null {
+  return FLAGS.find((country) => country.code === code)?.name ?? null;
+}
+
 /** Read the saved country code, or `null` when none has been chosen yet. */
 export function readFlag(): string | null {
   if (typeof window === "undefined") return null;

@@ -19,6 +19,8 @@ import { TurnOffTimerControl } from "@/components/parlor/TurnOffTimerControl";
 import { SpeechBubble } from "@/components/parlor/SpeechBubble";
 import { getGame } from "@/lib/games";
 import { ADA_AVATAR, readAvatar } from "@/lib/avatars";
+import { flagName, flagUrl, readFlag } from "@/lib/flags";
+import { NicknameDialog } from "@/components/parlor/NicknameDialog";
 import { getNickname, RECONNECT_SECONDS, TURN_WARNING_SECONDS, useMatch, useTurnTimer } from "@/lib/multiplayer";
 import { useRecordMatchResult } from "@/lib/stats";
 import {
@@ -225,7 +227,7 @@ function YahtzeeTable() {
 
   const isMulti = Boolean(matchId);
   const opponentName = liveOpponent ?? opponent ?? "Ada";
-  const playerName = getNickname() ?? "You";
+  const [playerName, setPlayerName] = useState(() => getNickname() ?? "You");
 
   const apply = (fn: (current: State) => State) => {
     const next = fn(stateRef.current);
@@ -255,6 +257,7 @@ function YahtzeeTable() {
   const countdown = turnSecondsLeft > 0 && turnSecondsLeft <= TURN_WARNING_SECONDS ? turnSecondsLeft : 0;
 
   const [playerAvatar, setPlayerAvatar] = useState<string>(readAvatar);
+  const [flag] = useState<string | null>(readFlag);
   const [viewingScorecard, setViewingScorecard] = useState(false);
 
   const reset = () => {
@@ -873,7 +876,28 @@ function YahtzeeTable() {
                 )}
               </div>
             )}
-            <p className="font-display text-base">{mine ? playerName : opponentName}</p>
+            <div>
+              {mine ? (
+                <NicknameDialog
+                  onSaved={setPlayerName}
+                  trigger={
+                    <button type="button" className="font-display text-base hover:text-gold">
+                      {playerName}
+                    </button>
+                  }
+                />
+              ) : (
+                <p className="font-display text-base">{opponentName}</p>
+              )}
+              {mine && flag && (
+                <img
+                  src={flagUrl(flag)}
+                  alt={flagName(flag) ?? ""}
+                  title={flagName(flag) ?? ""}
+                  className="mt-1 size-6 shrink-0 rounded-sm border border-black/20 object-cover shadow-md shadow-black/30"
+                />
+              )}
+            </div>
           </div>
         </div>
         <div className="mt-4 min-h-[3.2rem] grid place-items-center">

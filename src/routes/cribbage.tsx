@@ -43,6 +43,8 @@ import cardBackAsset from "@/assets/card-back.png";
 import skunk from "@/assets/skunk.png";
 import { PlayerAvatar } from "@/components/parlor/PlayerAvatar";
 import { AVATAR_OPTIONS, ADA_AVATAR, ADA_HAPPY, ADA_SAD, readAvatar } from "@/lib/avatars";
+import { flagName, flagUrl, readFlag } from "@/lib/flags";
+import { NicknameDialog } from "@/components/parlor/NicknameDialog";
 import { readCribBoardGraphic } from "@/lib/cribbageBoards";
 
 export const Route = createFileRoute("/cribbage")({
@@ -493,6 +495,7 @@ function CribbageTable() {
   const [selected, setSelected] = useState<string[]>([]);
   const [back, setBack] = useState<Record<Side, number>>({ player: 0, cpu: 0 });
   const [avatar, setAvatar] = useState<string>(AVATAR_OPTIONS[0]!.url);
+  const [flag] = useState<string | null>(readFlag);
   const [boardGraphic, setBoardGraphic] = useState<string>(readCribBoardGraphic);
   const [viewingBoard, setViewingBoard] = useState(false);
   const [boardOpen, setBoardOpen] = useState(false);
@@ -546,7 +549,7 @@ function CribbageTable() {
   );
 
   const opponentName = liveOpponent ?? opponent ?? "Ada";
-  const playerName = getNickname() ?? "You";
+  const [playerName, setPlayerName] = useState(() => getNickname() ?? "You");
 
   /** Commit a move: locally always, and to the shared table in a live match. */
   const apply = (fn: (current: State) => State) => {
@@ -1677,6 +1680,17 @@ function CribbageTable() {
               <Seat
                 name={playerName}
                 isDealer={state.dealer === "player"}
+                flag={flag}
+                nameTrigger={
+                  <NicknameDialog
+                    onSaved={setPlayerName}
+                    trigger={
+                      <button type="button" className="text-sm text-cream hover:text-gold">
+                        {playerName}
+                      </button>
+                    }
+                  />
+                }
                 avatar={
                   <PlayerAvatar
                     avatar={avatar}
@@ -1786,10 +1800,14 @@ function Seat({
   name,
   isDealer,
   avatar,
+  flag,
+  nameTrigger,
 }: {
   name: string;
   isDealer: boolean;
   avatar?: React.ReactNode;
+  flag?: string | null;
+  nameTrigger?: React.ReactNode;
 }) {
   return (
     <div className="flex items-center justify-center gap-2">
@@ -1805,7 +1823,17 @@ function Seat({
           </span>
         )}
       </div>
-      <span className="text-sm text-cream">{name}</span>
+      <div className="flex flex-col items-center gap-1">
+        {nameTrigger ?? <span className="text-sm text-cream">{name}</span>}
+        {flag && (
+          <img
+            src={flagUrl(flag)}
+            alt={flagName(flag) ?? ""}
+            title={flagName(flag) ?? ""}
+            className="size-5 rounded-sm border border-black/20 object-cover shadow-md shadow-black/30"
+          />
+        )}
+      </div>
     </div>
   );
 }

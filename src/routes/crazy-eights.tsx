@@ -16,6 +16,8 @@ import {
 import { PlayerAvatar } from "@/components/parlor/PlayerAvatar";
 import { SpeechBubble } from "@/components/parlor/SpeechBubble";
 import { ADA_AVATAR, AVATAR_OPTIONS, readAvatar } from "@/lib/avatars";
+import { flagName, flagUrl, readFlag } from "@/lib/flags";
+import { NicknameDialog } from "@/components/parlor/NicknameDialog";
 import { getGame } from "@/lib/games";
 import { getNickname, RECONNECT_SECONDS, useMatch } from "@/lib/multiplayer";
 import { useRecordMatchResult } from "@/lib/stats";
@@ -281,6 +283,7 @@ function CrazyEightsTable() {
   const [playerCount, setPlayerCount] = useState<PlayerCount>(2);
   const [state, setState] = useState<State>(() => freshState(2, mulberry32(SSR_SEED)));
   const [playerAvatar, setPlayerAvatar] = useState<string>(readAvatar);
+  const [flag] = useState<string | null>(readFlag);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [dealt, setDealt] = useState(HAND_SIZE * 2);
   const [flying, setFlying] = useState<FlyingCard[]>([]);
@@ -359,6 +362,8 @@ function CrazyEightsTable() {
     const player = roomPlayers.find((p) => p.seat === canonical);
     return player ? player.nickname : SEAT_NAMES[seat];
   };
+
+  const [, setNicknameVersion] = useState(0);
 
   const opponentName = isRoom
     ? roomPlayers.length > 1
@@ -1114,9 +1119,27 @@ function CrazyEightsTable() {
         <section>
           <div className="mb-2 flex items-center justify-center gap-3">
             <PlayerAvatar avatar={playerAvatar} onSelect={setPlayerAvatar} size="size-15" />
-            <p className="text-[12.5px] uppercase tracking-[0.22em] text-ivory/45">
-              {seatName("you")}
-            </p>
+            <div>
+              <NicknameDialog
+                onSaved={() => setNicknameVersion((v) => v + 1)}
+                trigger={
+                  <button
+                    type="button"
+                    className="text-[12.5px] uppercase tracking-[0.22em] text-ivory/45 hover:text-gold"
+                  >
+                    {seatName("you")}
+                  </button>
+                }
+              />
+              {flag && (
+                <img
+                  src={flagUrl(flag)}
+                  alt={flagName(flag) ?? ""}
+                  title={flagName(flag) ?? ""}
+                  className="mt-1 size-6 shrink-0 rounded-sm border border-black/20 object-cover shadow-md shadow-black/30"
+                />
+              )}
+            </div>
           </div>
           <div ref={handRef} className="flex items-end justify-center">
             {myHand.map((card, index) => {

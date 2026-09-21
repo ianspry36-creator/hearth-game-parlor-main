@@ -29,7 +29,8 @@ import {
 } from "@/lib/nickname";
 import { moderateNickname } from "@/lib/moderation";
 import { readAvatar } from "@/lib/avatars";
-import { flagUrl, readFlag } from "@/lib/flags";
+import { flagName, flagUrl, readFlag } from "@/lib/flags";
+import { NicknameDialog } from "@/components/parlor/NicknameDialog";
 import { logConnectionError } from "@/lib/connection-errors";
 import { getStreak } from "@/lib/medals";
 import { MedalBadge } from "@/components/parlor/MedalBadge";
@@ -463,12 +464,19 @@ export function WaitingRoom({
                   <MedalBadge streak={me?.streak ?? 0} />
                 </div>
                 <div>
-                  <p className="text-sm font-medium">{nickname} (you)</p>
+                  <NicknameDialog
+                    onSaved={save}
+                    trigger={
+                      <button type="button" className="text-sm font-medium hover:text-gold">
+                        {nickname} (you)
+                      </button>
+                    }
+                  />
                   {flag && (
                     <img
                       src={flagUrl(flag)}
-                      alt="Your flag"
-                      title="Your flag"
+                      alt={flagName(flag) ?? ""}
+                      title={flagName(flag) ?? ""}
                       className="mt-1 size-6 rounded-sm border border-black/20 object-cover shadow-md shadow-black/30"
                     />
                   )}

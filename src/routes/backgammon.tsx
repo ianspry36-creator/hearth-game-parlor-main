@@ -19,7 +19,8 @@ import { TurnOffTimerControl } from "@/components/parlor/TurnOffTimerControl";
 import { SpeechBubble } from "@/components/parlor/SpeechBubble";
 import { TableOptionsDialog } from "@/components/parlor/TableOptionsDialog";
 import { ADA_AVATAR, readAvatar } from "@/lib/avatars";
-import { flagUrl, readFlag } from "@/lib/flags";
+import { flagName, flagUrl, readFlag } from "@/lib/flags";
+import { NicknameDialog } from "@/components/parlor/NicknameDialog";
 import { getGame } from "@/lib/games";
 import { CLASSIC_PALETTE, readTableGraphic, type TablePalette } from "@/lib/backgammonTables";
 import { getNickname, RECONNECT_SECONDS, TURN_WARNING_SECONDS, useMatch, useTurnTimer } from "@/lib/multiplayer";
@@ -276,7 +277,7 @@ function BackgammonTable() {
 
   const isMulti = Boolean(matchId);
   const opponentName = liveOpponent ?? opponent ?? "Ada";
-  const playerName = getNickname() ?? "You";
+  const [playerName, setPlayerName] = useState(() => getNickname() ?? "You");
 
   const apply = (fn: (current: State) => State) => {
     const next = fn(stateRef.current);
@@ -878,12 +879,19 @@ function BackgammonTable() {
                   : {})}
             />
             <div>
-              <p className="font-display text-lg font-bold">{playerName}</p>
+              <NicknameDialog
+                onSaved={setPlayerName}
+                trigger={
+                  <button type="button" className="font-display text-lg font-bold hover:text-gold">
+                    {playerName}
+                  </button>
+                }
+              />
               {flag && (
                 <img
                   src={flagUrl(flag)}
-                  alt="Your flag"
-                  title="Your flag"
+                  alt={flagName(flag) ?? ""}
+                  title={flagName(flag) ?? ""}
                   className="mt-1 size-6 shrink-0 rounded-sm border border-black/20 object-cover shadow-md shadow-black/30"
                 />
               )}

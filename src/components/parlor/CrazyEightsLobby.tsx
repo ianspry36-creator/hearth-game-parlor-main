@@ -10,6 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { getSessionId } from "@/lib/multiplayer";
 import { ADA_AVATAR, LEO_AVATAR } from "@/lib/avatars";
+import { flagName, flagUrl, readFlag } from "@/lib/flags";
+import { NicknameDialog } from "@/components/parlor/NicknameDialog";
 import { useNickname } from "@/components/parlor/WaitingRoom";
 import { moderateNickname } from "@/lib/moderation";
 import { useBlockedUsers } from "@/lib/blockedUsers";
@@ -62,6 +64,7 @@ export function CrazyEightsLobby({
   const [joinCode, setJoinCode] = useState("");
   const [createdPassword, setCreatedPassword] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [flag] = useState<string | null>(readFlag);
   const [error, setError] = useState<string | null>(null);
   const playingRef = useRef(false);
 
@@ -464,12 +467,35 @@ export function CrazyEightsLobby({
                     <div className="min-w-0 flex-1">
                       {player ? (
                         <>
-                          <p className="truncate text-sm font-medium">
-                            {player.nickname}
-                            {player.session_id === session ? " (you)" : ""}
-                            {player.seat === 0 ? " · host" : ""}
-                            {player.is_bot ? " · computer" : ""}
-                          </p>
+                          {player.session_id === session ? (
+                            <NicknameDialog
+                              onSaved={save}
+                              trigger={
+                                <button
+                                  type="button"
+                                  className="block w-full truncate text-left text-sm font-medium hover:text-gold"
+                                >
+                                  {player.nickname} (you)
+                                  {player.seat === 0 ? " · host" : ""}
+                                  {player.is_bot ? " · computer" : ""}
+                                </button>
+                              }
+                            />
+                          ) : (
+                            <p className="truncate text-sm font-medium">
+                              {player.nickname}
+                              {player.seat === 0 ? " · host" : ""}
+                              {player.is_bot ? " · computer" : ""}
+                            </p>
+                          )}
+                          {player.session_id === session && flag && (
+                            <img
+                              src={flagUrl(flag)}
+                              alt={flagName(flag) ?? ""}
+                              title={flagName(flag) ?? ""}
+                              className="mt-1 size-5 rounded-sm border border-black/20 object-cover shadow-md shadow-black/30"
+                            />
+                          )}
                           <p className="text-xs text-ivory/55">Seat {seat + 1}</p>
                         </>
                       ) : (

@@ -8,6 +8,8 @@ import { CountdownBadge } from "@/components/parlor/CountdownBadge";
 import { TurnOffTimerControl } from "@/components/parlor/TurnOffTimerControl";
 import { getGame } from "@/lib/games";
 import { ADA_AVATAR, readAvatar } from "@/lib/avatars";
+import { flagName, flagUrl, readFlag } from "@/lib/flags";
+import { NicknameDialog } from "@/components/parlor/NicknameDialog";
 import { getNickname, RECONNECT_SECONDS, TURN_WARNING_SECONDS, useMatch, useTurnTimer } from "@/lib/multiplayer";
 import { useRecordMatchResult } from "@/lib/stats";
 import { playExplosion, playSinking, playSplash } from "@/lib/warship-sounds";
@@ -152,7 +154,7 @@ function WarshipTable() {
 
   const isMulti = Boolean(matchId);
   const opponentName = liveOpponent ?? opponent ?? "Ada";
-  const playerName = getNickname() ?? "You";
+  const [playerName, setPlayerName] = useState(() => getNickname() ?? "You");
 
   // Re-place the opening fleet once we're on the client (avoids an SSR mismatch).
   const didPlace = useRef(false);
@@ -192,6 +194,7 @@ function WarshipTable() {
   const countdown = turnSecondsLeft > 0 && turnSecondsLeft <= TURN_WARNING_SECONDS ? turnSecondsLeft : 0;
 
   const [playerAvatar, setPlayerAvatar] = useState<string>(readAvatar);
+  const [flag] = useState<string | null>(readFlag);
   const [viewingBoard, setViewingBoard] = useState(false);
 
   const reset = () => {
@@ -511,7 +514,27 @@ function WarshipTable() {
                 size="size-15"
                 countdown={state.turn === "human" ? countdown : 0}
               />
-              <p className="text-[11px] uppercase tracking-[0.3em] text-gold">{playerName}&apos;s waters</p>
+              <div>
+                <NicknameDialog
+                  onSaved={setPlayerName}
+                  trigger={
+                    <button
+                      type="button"
+                      className="text-[11px] uppercase tracking-[0.3em] text-gold hover:text-cream"
+                    >
+                      {playerName}&apos;s waters
+                    </button>
+                  }
+                />
+                {flag && (
+                  <img
+                    src={flagUrl(flag)}
+                    alt={flagName(flag) ?? ""}
+                    title={flagName(flag) ?? ""}
+                    className="mt-1 size-6 shrink-0 rounded-sm border border-black/20 object-cover shadow-md shadow-black/30"
+                  />
+                )}
+              </div>
             </div>
             <Grid
               ships={state.ships.human}
