@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getSessionId } from "@/lib/multiplayer";
 import { readAvatar } from "@/lib/avatars";
+import { readFlag } from "@/lib/flags";
 import type { GameId } from "@/lib/games";
 
 export const CRAZY_EIGHTS_GAME_ID = "crazy-eights";
@@ -13,6 +14,8 @@ export type GameRoom = {
   game: string;
   host_session: string;
   host_nickname: string;
+  host_avatar: string | null;
+  host_flag: string | null;
   password: string | null;
   is_public: boolean;
   max_seats: number;
@@ -36,7 +39,7 @@ export type GameRoomPlayer = {
 };
 
 const ROOM_COLUMNS =
-  "id, game, host_session, host_nickname, password, is_public, max_seats, status, state, version, created_at, updated_at";
+  "id, game, host_session, host_nickname, host_avatar, host_flag, password, is_public, max_seats, status, state, version, created_at, updated_at";
 
 const PLAYER_COLUMNS = "id, room_id, session_id, nickname, seat, avatar, is_bot, joined_at, last_seen_at";
 
@@ -220,6 +223,8 @@ export async function createRoom(params: {
       game: params.game,
       host_session: getSessionId(),
       host_nickname: params.nickname,
+      host_avatar: readAvatar(),
+      host_flag: readFlag(),
       password: params.password ?? null,
       is_public: params.isPublic,
       max_seats: params.maxSeats ?? 4,

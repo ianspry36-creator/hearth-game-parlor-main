@@ -147,7 +147,7 @@ export function TableShell({
           {middle ? <div className={middleClassName}>{middle}</div> : null}
 
           <aside className="space-y-4">
-            <div className="rounded-xl border border-gold/20 bg-surface/60 p-3">
+            <div className="select-none rounded-xl border border-gold/20 bg-surface/60 p-3">
               <p className="mb-2 text-[10px] uppercase tracking-[0.22em] text-ivory/60">
                 Table actions
               </p>
