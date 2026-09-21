@@ -205,18 +205,18 @@ function Opponents({ game }: { game: GameMeta }) {
 function OpponentTable({ rows }: { rows: OpponentStats[] }) {
   return (
     <div className="mt-1">
-      <div className="sticky top-0 z-10 grid grid-cols-[1fr_3.5rem_3.5rem_3.5rem_4rem] gap-2 border-b border-gold/15 bg-surface py-2 text-[11px] uppercase tracking-[0.18em] text-ivory/50">
+      <div className="sticky top-0 z-10 grid grid-cols-[1fr_3.5rem_3.5rem_3.5rem] gap-2 border-b border-gold/15 bg-surface py-2 text-[11px] uppercase tracking-[0.18em] text-ivory/50 sm:grid-cols-[1fr_3.5rem_3.5rem_3.5rem_4rem]">
         <span>Opponent</span>
         <span className="text-right">Played</span>
         <span className="text-right">Won</span>
         <span className="text-right">Lost</span>
-        <span className="text-right">Win %</span>
+        <span className="hidden text-right sm:block">Win %</span>
       </div>
       <ul>
         {rows.map((row) => (
           <li
             key={row.opponentSession}
-            className="grid grid-cols-[1fr_3.5rem_3.5rem_3.5rem_4rem] items-center gap-2 border-b border-gold/10 py-2.5 text-sm last:border-0"
+            className="grid grid-cols-[1fr_3.5rem_3.5rem_3.5rem] items-center gap-2 border-b border-gold/10 py-2.5 text-sm last:border-0 sm:grid-cols-[1fr_3.5rem_3.5rem_3.5rem_4rem]"
           >
             <div className="flex min-w-0 items-center gap-2">
               {row.avatar ? (
@@ -230,6 +230,7 @@ function OpponentTable({ rows }: { rows: OpponentStats[] }) {
                   {row.nickname.charAt(0).toUpperCase()}
                 </span>
               )}
+              <span className="truncate font-medium">{row.nickname}</span>
               {row.flag && (
                 <img
                   src={flagUrl(row.flag)}
@@ -238,12 +239,11 @@ function OpponentTable({ rows }: { rows: OpponentStats[] }) {
                   className="size-5 shrink-0 rounded-sm border border-black/20 object-cover shadow-sm shadow-black/30"
                 />
               )}
-              <span className="truncate font-medium">{row.nickname}</span>
             </div>
             <span className="text-right text-ivory/80">{row.played}</span>
             <span className="text-right text-gold">{row.won}</span>
             <span className="text-right text-ivory/60">{row.lost}</span>
-            <span className="text-right text-ivory/80">{winPercent(row)}</span>
+            <span className="hidden text-right text-ivory/80 sm:block">{winPercent(row)}</span>
           </li>
         ))}
       </ul>

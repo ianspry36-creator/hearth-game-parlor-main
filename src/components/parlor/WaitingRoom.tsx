@@ -464,22 +464,24 @@ export function WaitingRoom({
                   <MedalBadge streak={me?.streak ?? 0} />
                 </div>
                 <div>
-                  <NicknameDialog
-                    onSaved={save}
-                    trigger={
-                      <button type="button" className="text-sm font-medium hover:text-gold">
-                        {nickname} (you)
-                      </button>
-                    }
-                  />
-                  {flag && (
-                    <img
-                      src={flagUrl(flag)}
-                      alt={flagName(flag) ?? ""}
-                      title={flagName(flag) ?? ""}
-                      className="mt-1 size-6 rounded-sm border border-black/20 object-cover shadow-md shadow-black/30"
+                  <div className="flex items-center gap-2">
+                    <NicknameDialog
+                      onSaved={save}
+                      trigger={
+                        <button type="button" className="text-sm font-medium hover:text-gold">
+                          {nickname} (you)
+                        </button>
+                      }
                     />
-                  )}
+                    {flag && (
+                      <img
+                        src={flagUrl(flag)}
+                        alt={flagName(flag) ?? ""}
+                        title={flagName(flag) ?? ""}
+                        className="size-5 shrink-0 rounded-sm border border-black/20 object-cover shadow-sm shadow-black/30"
+                      />
+                    )}
+                  </div>
                   <p className="text-xs text-ivory/55">Seated in the room</p>
                 </div>
               </div>

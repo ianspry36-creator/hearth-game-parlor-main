@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { flagName, flagUrl } from "@/lib/flags";
 
 const WIN = 121;
 
@@ -248,6 +249,8 @@ export function ScoreGrid({
   opponentName,
   playerAvatar,
   cpuAvatar,
+  playerFlag,
+  cpuFlag,
   playerScore,
   cpuScore,
 }: {
@@ -255,6 +258,8 @@ export function ScoreGrid({
   opponentName: string;
   playerAvatar: string;
   cpuAvatar: string;
+  playerFlag: string | null;
+  cpuFlag: string | null;
   playerScore: number;
   cpuScore: number;
 }) {
@@ -268,6 +273,14 @@ export function ScoreGrid({
             className="size-7 shrink-0 rounded-full object-cover ring-1 ring-black/15"
           />
           <span className="truncate">{playerName}</span>
+          {playerFlag && (
+            <img
+              src={flagUrl(playerFlag)}
+              alt={flagName(playerFlag) ?? ""}
+              title={flagName(playerFlag) ?? ""}
+              className="size-5 shrink-0 rounded-sm border border-black/20 object-cover shadow-sm shadow-black/30"
+            />
+          )}
           <span className="size-2.5 shrink-0 rounded-full bg-gold" />
         </span>
         <span className="shrink-0 font-display text-lg text-black">{playerScore}</span>
@@ -280,6 +293,14 @@ export function ScoreGrid({
             className="size-7 shrink-0 rounded-full object-cover ring-1 ring-black/15"
           />
           <span className="truncate">{opponentName}</span>
+          {cpuFlag && (
+            <img
+              src={flagUrl(cpuFlag)}
+              alt={flagName(cpuFlag) ?? ""}
+              title={flagName(cpuFlag) ?? ""}
+              className="size-5 shrink-0 rounded-sm border border-black/20 object-cover shadow-sm shadow-black/30"
+            />
+          )}
           <span className="size-2.5 shrink-0 rounded-full bg-ivory ring-1 ring-black/25" />
         </span>
         <span className="shrink-0 font-display text-lg">{cpuScore}</span>
@@ -298,6 +319,8 @@ export function CribBoard({
   playerName,
   playerAvatar,
   cpuAvatar,
+  playerFlag,
+  cpuFlag,
 }: {
   graphic: string;
   playerScore: number;
@@ -308,6 +331,8 @@ export function CribBoard({
   playerName: string;
   playerAvatar: string;
   cpuAvatar: string;
+  playerFlag: string | null;
+  cpuFlag: string | null;
 }) {
   return (
     <div className="rounded-xl border border-gold/20 bg-surface/60 p-4">
@@ -328,6 +353,8 @@ export function CribBoard({
           opponentName={opponentName}
           playerAvatar={playerAvatar}
           cpuAvatar={cpuAvatar}
+          playerFlag={playerFlag}
+          cpuFlag={cpuFlag}
           playerScore={playerScore}
           cpuScore={cpuScore}
         />

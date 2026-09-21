@@ -353,6 +353,7 @@ export function useMatch<T>(matchId: string | undefined, gameOver = false) {
   const opponentName = match ? (isHost ? match.guest_nickname : match.host_nickname) : null;
   const opponentSession = match ? (isHost ? match.guest_session : match.host_session) : null;
   const opponentAvatar = match ? (isHost ? match.guest_avatar : match.host_avatar) : null;
+  const opponentFlag = match ? (isHost ? match.guest_flag : match.host_flag) : null;
   // Keep the final state visible even after the match is marked completed so a
   // rematch negotiated from the game-over screen can still sync across seats.
   // A finished match is still not resumable: the redirect effect below bounces
@@ -524,6 +525,7 @@ export function useMatch<T>(matchId: string | undefined, gameOver = false) {
     isHost,
     opponentName,
     opponentAvatar,
+    opponentFlag,
     opponentOnline,
     opponentDisconnected,
     disconnectSecondsLeft,

@@ -204,7 +204,7 @@ function BackgammonTable() {
   const navigate = useNavigate();
   const { opponent, match: matchId } = Route.useSearch();
   const [state, setState] = useState<State>(freshState);
-  const { match, isHost, opponentName: liveOpponent, opponentAvatar, remoteState, publish, opponentDisconnected, disconnectSecondsLeft, disconnectExpired } = useMatch<State>(matchId, Boolean(state.winner));
+  const { match, isHost, opponentName: liveOpponent, opponentAvatar, opponentFlag, remoteState, publish, opponentDisconnected, disconnectSecondsLeft, disconnectExpired } = useMatch<State>(matchId, Boolean(state.winner));
   const [selected, setSelected] = useState<number | "bar" | null>(null);
   // Whether the end-of-game dialog has been dismissed to inspect the board.
   const [viewingBoard, setViewingBoard] = useState(false);
@@ -808,7 +808,17 @@ function BackgammonTable() {
               {starterBubble === "cpu" && <CloudChat text="I win starter throw. I go first" />}
             </div>
             <div>
-              <p className="font-display text-lg font-bold">{opponentName}</p>
+              <div className="flex items-center gap-2">
+                <p className="font-display text-lg font-bold">{opponentName}</p>
+                {opponentFlag && (
+                  <img
+                    src={flagUrl(opponentFlag)}
+                    alt={flagName(opponentFlag) ?? ""}
+                    title={flagName(opponentFlag) ?? ""}
+                    className="size-5 shrink-0 rounded-sm border border-black/20 object-cover shadow-sm shadow-black/30"
+                  />
+                )}
+              </div>
               <p className="text-xs text-ivory/60">
                 {opponentComment}
               </p>
@@ -879,22 +889,24 @@ function BackgammonTable() {
                   : {})}
             />
             <div>
-              <NicknameDialog
-                onSaved={setPlayerName}
-                trigger={
-                  <button type="button" className="font-display text-lg font-bold hover:text-gold">
-                    {playerName}
-                  </button>
-                }
-              />
-              {flag && (
-                <img
-                  src={flagUrl(flag)}
-                  alt={flagName(flag) ?? ""}
-                  title={flagName(flag) ?? ""}
-                  className="mt-1 size-6 shrink-0 rounded-sm border border-black/20 object-cover shadow-md shadow-black/30"
+              <div className="flex items-center gap-2">
+                <NicknameDialog
+                  onSaved={setPlayerName}
+                  trigger={
+                    <button type="button" className="font-display text-lg font-bold hover:text-gold">
+                      {playerName}
+                    </button>
+                  }
                 />
-              )}
+                {flag && (
+                  <img
+                    src={flagUrl(flag)}
+                    alt={flagName(flag) ?? ""}
+                    title={flagName(flag) ?? ""}
+                    className="size-5 shrink-0 rounded-sm border border-black/20 object-cover shadow-sm shadow-black/30"
+                  />
+                )}
+              </div>
               <p className="min-w-[9rem] whitespace-nowrap text-xs text-ivory/60">
                 {playerComment}
               </p>

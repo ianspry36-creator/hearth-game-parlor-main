@@ -130,6 +130,13 @@ const SUIT_ORDER: Record<Card["suit"], number> = { S: 0, H: 1, D: 2, C: 3 };
 const sortHand = (cards: Card[]) =>
   [...cards].sort((a, b) => a.rank - b.rank || SUIT_ORDER[a.suit] - SUIT_ORDER[b.suit]);
 
+/** Width in px of the responsive "half" (crib/opponent) and "medium" (hand) card variants. */
+const responsiveCardWidth = (variant: "half" | "medium") => {
+  const desktop =
+    typeof window !== "undefined" && window.matchMedia("(min-width: 640px)").matches;
+  return variant === "half" ? (desktop ? 72 : 30) : desktop ? 72 : 59;
+};
+
 function dealHand(dealer: Side, scores: Record<Side, number>, log: LogEntry[]): State {
   const deck = freshDeck();
   return {
@@ -483,6 +490,7 @@ function CribbageTable() {
     isHost,
     opponentName: liveOpponent,
     opponentAvatar,
+    opponentFlag,
     remoteState,
     publish,
     opponentDisconnected,
@@ -1012,8 +1020,8 @@ function CribbageTable() {
           // Each crib card advances 48px (72px card less the 24px overlap), so
           // the pair lands side by side instead of stacked on the first slot.
           to: { x: cribRect.left + index * 48, y: cribRect.top },
-          fromScale: 72 / 64, // medium hand card (flying card base is full-size)
-          toScale: 72 / 64, // medium crib card
+          fromScale: responsiveCardWidth("medium") / 64, // hand card (medium)
+          toScale: responsiveCardWidth("half") / 64, // crib card is smaller
           faceDown: true,
         });
       });
@@ -1064,8 +1072,8 @@ function CribbageTable() {
           card,
           from: { x: rect.left, y: rect.top },
           to: { x: cribRect.left + (offset + index) * 48, y: cribRect.top },
-          fromScale: 72 / 64, // CPU hand shows medium face-down cards
-          toScale: 72 / 64,
+          fromScale: responsiveCardWidth("half") / 64, // CPU hand shows half-size face-down cards
+          toScale: responsiveCardWidth("half") / 64,
           faceDown: true,
         });
       });
@@ -1175,14 +1183,14 @@ function CribbageTable() {
       <p className="mb-2 text-[10px] uppercase tracking-[0.2em] text-gold">Crib</p>
       <div
         ref={cribRef}
-        className="flex w-[216px] justify-start [&>*:not(:first-child)]:-ml-6"
+        className="flex w-[216px] justify-center [&>*:not(:first-child)]:-ml-3"
       >
         {state.crib.length === 0 ? (
-          <div className="h-[105px] w-[72px]" aria-hidden="true" />
+          <div className="h-[43px] w-[30px] sm:h-[105px] sm:w-[72px]" aria-hidden="true" />
         ) : revealed ? (
-          state.crib.map((card) => <PlayingCard key={card.id} card={card} medium />)
+          state.crib.map((card) => <PlayingCard key={card.id} card={card} half />)
         ) : (
-          state.crib.map((card) => <FaceDownCard key={card.id} medium />)
+          state.crib.map((card) => <FaceDownCard key={card.id} half />)
         )}
       </div>
     </div>
@@ -1231,7 +1239,7 @@ function CribbageTable() {
         </>
       }
       containerClassName="px-3 sm:px-6"
-      boxClassName="py-0.5 sm:py-1"
+      boxClassName="py-[2.4px] sm:py-[4.8px]"
       gridClassName="grid gap-1.5"
       containerMaxWidth="max-w-7xl"
       below={
@@ -1241,6 +1249,8 @@ function CribbageTable() {
             opponentName={opponentName}
             playerAvatar={avatar}
             cpuAvatar={opponentAvatar ?? ADA_AVATAR}
+            playerFlag={flag}
+            cpuFlag={opponentFlag}
             playerScore={state.scores.player}
             cpuScore={state.scores.cpu}
           />
@@ -1261,6 +1271,8 @@ function CribbageTable() {
                 playerName={playerName}
                 playerAvatar={avatar}
                 cpuAvatar={opponentAvatar ?? ADA_AVATAR}
+                playerFlag={flag}
+                cpuFlag={opponentFlag}
               />
             </DialogContent>
           </Dialog>
@@ -1277,6 +1289,8 @@ function CribbageTable() {
           playerName={playerName}
           playerAvatar={avatar}
           cpuAvatar={opponentAvatar ?? ADA_AVATAR}
+          playerFlag={flag}
+          cpuFlag={opponentFlag}
         />
       }
     >
@@ -1334,9 +1348,9 @@ function CribbageTable() {
           <div className="flex flex-col items-center gap-2">
             <Seat
               name={opponentName}
-              isDealer={state.dealer === "cpu"}
+              isDealer={state.dealer === "cpu" && state.phase !== "cut"}
               avatar={
-                <span className="relative grid size-16 place-items-center overflow-hidden rounded-full bg-gold/20 ring-1 ring-gold/40">
+                <span className="relative grid size-10 place-items-center overflow-hidden rounded-full bg-gold/20 ring-1 ring-gold/40 sm:size-16">
                   <img
                     src={opponentAvatar ?? ADA_AVATAR}
                     alt={`${opponentName}'s avatar`}
@@ -1349,19 +1363,19 @@ function CribbageTable() {
                 </span>
               }
             />
-            <div className={`flex justify-center [&>*:not(:first-child)]:-ml-6${state.phase === "cut" ? "" : " min-h-[105px]"}`}>
+            <div className={`flex justify-center [&>*:not(:first-child)]:-ml-3${state.phase === "cut" ? "" : " min-h-[43px] sm:min-h-[105px]"}`}>
               {state.cpuHand.map((card, index) => {
                 if (layingId === card.id) {
                   return (
                     <span key={card.id} className="invisible block">
-                      <FaceDownCard medium />
+                      <FaceDownCard half />
                     </span>
                   );
                 }
                 if (!revealed && discardingIds.includes(card.id)) {
                   return (
                     <span key={card.id} className="invisible block">
-                      <FaceDownCard medium />
+                      <FaceDownCard half />
                     </span>
                   );
                 }
@@ -1375,7 +1389,7 @@ function CribbageTable() {
                     className={`${revealed ? "animate-turn-over" : "animate-deal-out"} block`}
                     style={{ animationDelay: `${index * 90}ms` }}
                   >
-                    {revealed ? <PlayingCard card={card} medium /> : <FaceDownCard medium />}
+                    {revealed ? <PlayingCard card={card} half /> : <FaceDownCard half />}
                   </span>
                 );
               })}
@@ -1399,7 +1413,7 @@ function CribbageTable() {
               />
             </div>
             <div className="overflow-x-auto pt-4">
-              <div className="mx-auto flex w-max flex-nowrap justify-center px-2 [&>*:not(:first-child)]:-ml-[52px]">
+              <div className="mx-auto flex w-max flex-nowrap justify-center px-2 [&>*:not(:first-child)]:-ml-[56px]">
                 {state.cutFan.map((card, index) => {
                   const isMine = state.playerCut?.id === card.id;
                   const isTheirs = state.cpuCut?.id === card.id;
@@ -1433,10 +1447,10 @@ function CribbageTable() {
                     >
                       {flipping ? (
                         <span className="animate-turn-over block">
-                          <PlayingCard card={card} table />
+                          <PlayingCard card={card} cut />
                         </span>
                       ) : (
-                        <FaceDownCard table />
+                        <FaceDownCard cut />
                       )}
                     </button>
                   );
@@ -1679,7 +1693,7 @@ function CribbageTable() {
               </div>
               <Seat
                 name={playerName}
-                isDealer={state.dealer === "player"}
+                isDealer={state.dealer === "player" && state.phase !== "cut"}
                 flag={flag}
                 nameTrigger={
                   <NicknameDialog
@@ -1695,7 +1709,7 @@ function CribbageTable() {
                   <PlayerAvatar
                     avatar={avatar}
                     onSelect={setAvatar}
-                    size="size-16"
+                    size="size-10 sm:size-16"
                     countdown={state.turn === "player" ? countdown : 0}
                   />
                 }
@@ -1758,7 +1772,7 @@ function DeckStack({ remaining, starter }: { remaining: number; starter: Card | 
         {starter ? (
           <span
             className="animate-turn-over absolute inset-0"
-            style={{ transform: "translate(10px, -10px)" }}
+            style={{ transform: "translate(11px, -11px)" }}
           >
             <PlayingCard card={starter} table />
           </span>
@@ -1781,10 +1795,10 @@ function CutSeat({
   return (
     <div className="text-center">
       <p className="mb-1 text-[10px] uppercase tracking-[0.2em] text-gold">{label}</p>
-      <div ref={seatRef} className="grid h-[86px] w-[59px] place-items-center">
+      <div ref={seatRef} className="grid h-[90px] w-[62px] place-items-center">
         {card ? (
           <span className="block">
-            <PlayingCard card={card} table />
+            <PlayingCard card={card} cut />
           </span>
         ) : (
           <div className="grid size-full place-items-center rounded-lg border border-dashed border-gold/30 text-[10px] text-ivory/40">
@@ -1823,14 +1837,14 @@ function Seat({
           </span>
         )}
       </div>
-      <div className="flex flex-col items-center gap-1">
+      <div className="flex items-center gap-1.5">
         {nameTrigger ?? <span className="text-sm text-cream">{name}</span>}
         {flag && (
           <img
             src={flagUrl(flag)}
             alt={flagName(flag) ?? ""}
             title={flagName(flag) ?? ""}
-            className="size-5 rounded-sm border border-black/20 object-cover shadow-md shadow-black/30"
+            className="size-5 shrink-0 rounded-sm border border-black/20 object-cover shadow-sm shadow-black/30"
           />
         )}
       </div>
@@ -1841,17 +1855,23 @@ function Seat({
 function FaceDownCard({
   small = false,
   tiny = false,
+  half = false,
   medium = false,
   xs = false,
   opp = false,
   table = false,
+  cut = false,
+  deck = false,
 }: {
   small?: boolean;
   tiny?: boolean;
+  half?: boolean;
   medium?: boolean;
   xs?: boolean;
   opp?: boolean;
   table?: boolean;
+  cut?: boolean;
+  deck?: boolean;
 }) {
   return (
     <img
@@ -1870,9 +1890,15 @@ function FaceDownCard({
                 ? "h-[77px] w-[53px]"
                 : table
                   ? "h-[86px] w-[59px]"
-                  : medium
-                    ? "h-[105px] w-[72px]"
-                    : "h-24 w-16"
+                  : cut
+                    ? "h-[90px] w-[62px] scale-[0.9215]"
+                    : deck
+                      ? "h-[95px] w-[65px]"
+                      : half
+                      ? "h-[43px] w-[30px] sm:h-[105px] sm:w-[72px]"
+                      : medium
+                      ? "h-[86px] w-[59px] sm:h-[105px] sm:w-[72px]"
+                      : "h-24 w-16"
       }`}
     />
   );
@@ -1894,19 +1920,25 @@ function PlayingCard({
   card,
   small = false,
   tiny = false,
+  half = false,
   medium = false,
   xs = false,
   opp = false,
   table = false,
+  cut = false,
+  deck = false,
   selected = false,
 }: {
   card: Card;
   small?: boolean;
   tiny?: boolean;
+  half?: boolean;
   medium?: boolean;
   xs?: boolean;
   opp?: boolean;
   table?: boolean;
+  cut?: boolean;
+  deck?: boolean;
   selected?: boolean;
 }) {
   const red = card.suit === "H" || card.suit === "D";
@@ -1926,9 +1958,15 @@ function PlayingCard({
                 ? "h-[77px] w-[53px]"
                 : table
                   ? "h-[86px] w-[59px]"
-                  : medium
-                    ? "h-[105px] w-[72px]"
-                    : "h-24 w-16 hover:-translate-y-1"
+                  : cut
+                    ? "h-[90px] w-[62px] scale-[0.9215]"
+                    : deck
+                      ? "h-[95px] w-[65px]"
+                      : half
+                      ? "h-[43px] w-[30px] sm:h-[105px] sm:w-[72px]"
+                      : medium
+                      ? "h-[86px] w-[59px] sm:h-[105px] sm:w-[72px]"
+                      : "h-24 w-16 hover:-translate-y-1"
       } ${selected ? "animate-float-selected border-gold ring-2 ring-gold" : "border-black/10"} ${
         red ? "text-destructive" : "text-brand"
       }`}
@@ -1936,7 +1974,7 @@ function PlayingCard({
       {/* corner index */}
       <span
         className={`absolute left-1 top-0.5 flex flex-col items-center leading-none font-display font-bold ${
-          tiny
+          tiny || half
             ? "text-[8px]"
             : xs
               ? "text-[9px]"
@@ -1944,17 +1982,17 @@ function PlayingCard({
                 ? "text-[10px]"
                 : small
                   ? "text-xs"
-                  : table
+                  : table || cut || deck
                     ? "text-[15px]"
                     : medium
-                      ? "text-[16px]"
+                      ? "text-[15px] sm:text-[16px]"
                       : "text-xs"
         }`}
       >
         <span>{rank}</span>
         <span
           className={
-            tiny
+            tiny || half
               ? "text-[7px]"
               : xs
                 ? "text-[8px]"
@@ -1962,10 +2000,10 @@ function PlayingCard({
                   ? "text-[9px]"
                   : small
                     ? "text-[11px]"
-                    : table
+                    : table || cut || deck
                       ? "text-[14px]"
                       : medium
-                        ? "text-[15px]"
+                        ? "text-[14px] sm:text-[15px]"
                         : "text-[11px]"
           }
         >
@@ -1977,7 +2015,7 @@ function PlayingCard({
       <span
         aria-hidden
         className={`absolute inset-0 grid place-items-center font-display ${
-          tiny
+          tiny || half
             ? "text-lg"
             : xs
               ? "text-xl"
@@ -1985,10 +2023,10 @@ function PlayingCard({
                 ? "text-[22px]"
                 : small
                   ? "text-[28px]"
-                  : table
+                  : table || cut || deck
                     ? "text-[35px]"
                     : medium
-                      ? "text-[39px]"
+                      ? "text-[35px] sm:text-[39px]"
                       : "text-4xl"
         } ${isFace ? "opacity-90" : "opacity-80"}`}
       >
@@ -1996,7 +2034,7 @@ function PlayingCard({
           <span className="flex flex-col items-center leading-none">
             <span
               className={
-                tiny
+                tiny || half
                   ? "text-xs"
                   : xs
                     ? "text-sm"
@@ -2004,10 +2042,10 @@ function PlayingCard({
                       ? "text-[14px]"
                       : small
                         ? "text-lg"
-                        : table
+                        : table || cut || deck
                           ? "text-[23px]"
                           : medium
-                            ? "text-[28px]"
+                            ? "text-[23px] sm:text-[28px]"
                             : "text-xl"
               }
             >
@@ -2015,7 +2053,7 @@ function PlayingCard({
             </span>
             <span
               className={
-                tiny
+                tiny || half
                   ? "text-sm"
                   : xs
                     ? "text-base"
@@ -2023,10 +2061,10 @@ function PlayingCard({
                       ? "text-[18px]"
                       : small
                         ? "text-[22px]"
-                        : table
+                        : table || cut || deck
                           ? "text-[28px]"
                           : medium
-                            ? "text-[30px]"
+                            ? "text-[28px] sm:text-[30px]"
                             : "text-2xl"
               }
             >
@@ -2041,7 +2079,7 @@ function PlayingCard({
       {/* mirrored bottom-right index */}
       <span
         className={`absolute bottom-0.5 right-1 flex rotate-180 flex-col items-center leading-none font-display font-bold ${
-          tiny
+          tiny || half
             ? "text-[8px]"
             : xs
               ? "text-[9px]"
@@ -2049,17 +2087,17 @@ function PlayingCard({
                 ? "text-[10px]"
                 : small
                   ? "text-xs"
-                  : table
+                  : table || cut || deck
                     ? "text-[15px]"
                     : medium
-                      ? "text-[16px]"
+                      ? "text-[15px] sm:text-[16px]"
                       : "text-xs"
         }`}
       >
         <span>{rank}</span>
         <span
           className={
-            tiny
+            tiny || half
               ? "text-[7px]"
               : xs
                 ? "text-[8px]"
@@ -2067,10 +2105,10 @@ function PlayingCard({
                   ? "text-[9px]"
                   : small
                     ? "text-[11px]"
-                    : table
+                    : table || cut || deck
                       ? "text-[14px]"
                       : medium
-                        ? "text-[15px]"
+                        ? "text-[14px] sm:text-[15px]"
                         : "text-[11px]"
           }
         >
