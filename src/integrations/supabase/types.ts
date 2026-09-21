@@ -266,6 +266,7 @@ export type Database = {
         Row: {
           avatar: string | null
           created_at: string
+          flag: string | null
           game: string
           id: string
           last_seen_at: string
@@ -276,6 +277,7 @@ export type Database = {
         Insert: {
           avatar?: string | null
           created_at?: string
+          flag?: string | null
           game: string
           id?: string
           last_seen_at?: string
@@ -286,6 +288,7 @@ export type Database = {
         Update: {
           avatar?: string | null
           created_at?: string
+          flag?: string | null
           game?: string
           id?: string
           last_seen_at?: string
