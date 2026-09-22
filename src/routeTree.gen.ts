@@ -22,6 +22,7 @@ import { Route as CribbageRouteImport } from './routes/cribbage'
 import { Route as FarkleRouteImport } from './routes/farkle'
 import { Route as FreecellRouteImport } from './routes/freecell'
 import { Route as FutureImprovementsRouteImport } from './routes/future-improvements'
+import { Route as HeartsRouteImport } from './routes/hearts'
 import { Route as KingsInTheCornerRouteImport } from './routes/kings-in-the-corner'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ReversiRouteImport } from './routes/reversi'
@@ -98,6 +99,11 @@ const FutureImprovementsRoute = FutureImprovementsRouteImport.update({
   path: '/future-improvements',
   getParentRoute: () => rootRouteImport,
 } as any)
+const HeartsRoute = HeartsRouteImport.update({
+  id: '/hearts',
+  path: '/hearts',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const KingsInTheCornerRoute = KingsInTheCornerRouteImport.update({
   id: '/kings-in-the-corner',
   path: '/kings-in-the-corner',
@@ -163,6 +169,7 @@ export interface FileRoutesByFullPath {
   '/farkle': typeof FarkleRoute
   '/freecell': typeof FreecellRoute
   '/future-improvements': typeof FutureImprovementsRoute
+  '/hearts': typeof HeartsRoute
   '/kings-in-the-corner': typeof KingsInTheCornerRoute
   '/privacy': typeof PrivacyRoute
   '/reversi': typeof ReversiRoute
@@ -188,6 +195,7 @@ export interface FileRoutesByTo {
   '/farkle': typeof FarkleRoute
   '/freecell': typeof FreecellRoute
   '/future-improvements': typeof FutureImprovementsRoute
+  '/hearts': typeof HeartsRoute
   '/kings-in-the-corner': typeof KingsInTheCornerRoute
   '/privacy': typeof PrivacyRoute
   '/reversi': typeof ReversiRoute
@@ -214,6 +222,7 @@ export interface FileRoutesById {
   '/farkle': typeof FarkleRoute
   '/freecell': typeof FreecellRoute
   '/future-improvements': typeof FutureImprovementsRoute
+  '/hearts': typeof HeartsRoute
   '/kings-in-the-corner': typeof KingsInTheCornerRoute
   '/privacy': typeof PrivacyRoute
   '/reversi': typeof ReversiRoute
@@ -241,6 +250,7 @@ export interface FileRouteTypes {
     | '/farkle'
     | '/freecell'
     | '/future-improvements'
+    | '/hearts'
     | '/kings-in-the-corner'
     | '/privacy'
     | '/reversi'
@@ -266,6 +276,7 @@ export interface FileRouteTypes {
     | '/farkle'
     | '/freecell'
     | '/future-improvements'
+    | '/hearts'
     | '/kings-in-the-corner'
     | '/privacy'
     | '/reversi'
@@ -291,6 +302,7 @@ export interface FileRouteTypes {
     | '/farkle'
     | '/freecell'
     | '/future-improvements'
+    | '/hearts'
     | '/kings-in-the-corner'
     | '/privacy'
     | '/reversi'
@@ -317,6 +329,7 @@ export interface RootRouteChildren {
   FarkleRoute: typeof FarkleRoute
   FreecellRoute: typeof FreecellRoute
   FutureImprovementsRoute: typeof FutureImprovementsRoute
+  HeartsRoute: typeof HeartsRoute
   KingsInTheCornerRoute: typeof KingsInTheCornerRoute
   PrivacyRoute: typeof PrivacyRoute
   ReversiRoute: typeof ReversiRoute
@@ -422,6 +435,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FutureImprovementsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/hearts': {
+      id: '/hearts'
+      path: '/hearts'
+      fullPath: '/hearts'
+      preLoaderRoute: typeof HeartsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/kings-in-the-corner': {
       id: '/kings-in-the-corner'
       path: '/kings-in-the-corner'
@@ -509,6 +529,7 @@ const rootRouteChildren: RootRouteChildren = {
   FarkleRoute: FarkleRoute,
   FreecellRoute: FreecellRoute,
   FutureImprovementsRoute: FutureImprovementsRoute,
+  HeartsRoute: HeartsRoute,
   KingsInTheCornerRoute: KingsInTheCornerRoute,
   PrivacyRoute: PrivacyRoute,
   ReversiRoute: ReversiRoute,

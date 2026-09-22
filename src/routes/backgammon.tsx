@@ -82,6 +82,7 @@ type State = {
   timerRequest: Seat | null;
   timerProposed: boolean;
   timerDeclined: boolean;
+  timerAgreed: boolean;
 };
 
 const freshState = (): State => ({
@@ -100,6 +101,7 @@ const freshState = (): State => ({
   timerRequest: null,
   timerProposed: false,
   timerDeclined: false,
+  timerAgreed: false,
 });
 
 const note = (log: LogEntry[], entry: LogEntry) => [entry, ...log].slice(0, 40);
@@ -292,26 +294,55 @@ function BackgammonTable() {
   };
 
   // Live matches run a 1-minute clock on the active seat; running out forfeits
-  // the game to the other player.
+  // the game to the other player. The clock starts the moment the two human
+  // players are seated — during the rolloff for first turn — not just once play
+  // begins, so a player who never rolls can still run out of time.
   // Stop the clock the moment the active player has finished moving (all dice
   // consumed) so it doesn't keep ticking through the 2s handover to the next
   // turn — a player who moved on their last second would otherwise time out.
+  // Who is expected to act right now, in local terms ("human" = me, "cpu" = them).
+  // During the rolloff this is whoever still has to roll a die; the host rolls
+  // first, then the guest. Once both dice are in, the winner is being decided,
+  // so the clock is held (see `paused`).
+  const turnKey =
+    state.phase === "rolloff"
+      ? state.rolloff.human === null
+        ? "human"
+        : state.rolloff.cpu === null
+          ? "cpu"
+          : "human"
+      : state.turn;
+  const resolvingRolloff =
+    state.phase === "rolloff" && state.rolloff.human !== null && state.rolloff.cpu !== null;
   const turnOver =
     state.phase === "play" && !state.winner && state.rolled && state.dice.length === 0;
   const turnSecondsLeft = useTurnTimer({
-    enabled: isMulti && opponentConnected && state.phase === "play" && !state.winner && !state.timerOff,
-    turn: state.turn,
-    paused: state.timerRequest !== null || turnOver,
+    enabled:
+      isMulti &&
+      opponentConnected &&
+      !state.winner &&
+      !state.timerOff &&
+      (state.phase === "play" || state.phase === "rolloff"),
+    turn: turnKey,
+    paused: state.timerRequest !== null || turnOver || resolvingRolloff,
     onTimeout: () =>
-      apply((current) => ({
-        ...current,
-        winner: flip(current.turn),
-        timedOut: true,
-        log: note(current.log, {
-          side: current.turn,
-          text: `${current.turn === "human" ? playerName : opponentName} ran out of time.`,
-        }),
-      })),
+      apply((current) => {
+        const actor: Seat =
+          current.phase === "rolloff"
+            ? current.rolloff.human === null
+              ? "human"
+              : "cpu"
+            : current.turn;
+        return {
+          ...current,
+          winner: flip(actor),
+          timedOut: true,
+          log: note(current.log, {
+            side: actor,
+            text: `${actor === "human" ? playerName : opponentName} ran out of time.`,
+          }),
+        };
+      }),
   });
   const countdown = turnSecondsLeft > 0 && turnSecondsLeft <= TURN_WARNING_SECONDS ? turnSecondsLeft : 0;
 
@@ -322,6 +353,7 @@ function BackgammonTable() {
 
   const reset = () => {
     const fresh = freshState();
+    proposedTimerOffRef.current = false;
     stateRef.current = fresh;
     setState(fresh);
     setSelected(null);
@@ -746,11 +778,14 @@ function BackgammonTable() {
             showPrompt={state.timerRequest === "cpu"}
             opponentName={opponentName}
             declined={proposedTimerOffRef.current && state.timerDeclined}
+            agreed={proposedTimerOffRef.current && state.timerAgreed}
             onRequest={() => {
               proposedTimerOffRef.current = true;
               apply((current) => ({ ...current, timerProposed: true, timerRequest: "human" }));
             }}
-            onAccept={() => apply((current) => ({ ...current, timerOff: true, timerRequest: null }))}
+            onAccept={() =>
+              apply((current) => ({ ...current, timerOff: true, timerAgreed: true, timerRequest: null }))
+            }
             onDecline={() => apply((current) => ({ ...current, timerRequest: null, timerDeclined: true }))}
           />
         </>
@@ -897,7 +932,7 @@ function BackgammonTable() {
               avatar={playerAvatar}
               onSelect={setPlayerAvatar}
               size="size-14"
-              countdown={state.turn === "human" ? countdown : 0}
+              countdown={turnKey === "human" ? countdown : 0}
               {...(passBubble === "human"
                 ? { message: "Pass!" }
                 : starterBubble === "human"

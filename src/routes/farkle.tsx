@@ -97,6 +97,7 @@ type State = {
   timerRequest: Seat | null;
   timerProposed: boolean;
   timerDeclined: boolean;
+  timerAgreed: boolean;
 };
 
 const blankDice = (): Die[] => Array.from({ length: DICE_COUNT }, () => ({ face: 1, set: false }));
@@ -141,6 +142,7 @@ const freshState = (): State => ({
   timerRequest: null,
   timerProposed: false,
   timerDeclined: false,
+  timerAgreed: false,
 });
 
 const note = (log: LogEntry[], entry: LogEntry) => [entry, ...log].slice(0, 40);
@@ -296,6 +298,7 @@ function FarkleTable() {
   const countdown = turnSecondsLeft > 0 && turnSecondsLeft <= TURN_WARNING_SECONDS ? turnSecondsLeft : 0;
 
   const reset = () => {
+    proposedTimerOffRef.current = false;
     const fresh = freshState();
     stateRef.current = fresh;
     setSelected([]);
@@ -743,11 +746,12 @@ function FarkleTable() {
           showPrompt={state.timerRequest === "cpu"}
           opponentName={opponentName}
           declined={proposedTimerOffRef.current && state.timerDeclined}
+          agreed={proposedTimerOffRef.current && state.timerAgreed}
           onRequest={() => {
             proposedTimerOffRef.current = true;
             apply((current) => ({ ...current, timerProposed: true, timerRequest: "human" }));
           }}
-          onAccept={() => apply((current) => ({ ...current, timerOff: true, timerRequest: null }))}
+          onAccept={() => apply((current) => ({ ...current, timerOff: true, timerAgreed: true, timerRequest: null }))}
           onDecline={() => apply((current) => ({ ...current, timerRequest: null, timerDeclined: true }))}
         />
       }

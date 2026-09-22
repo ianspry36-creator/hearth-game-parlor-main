@@ -23,6 +23,7 @@ export function TurnOffTimerControl({
   showPrompt,
   opponentName,
   declined = false,
+  agreed = false,
   onRequest,
   onAccept,
   onDecline,
@@ -32,6 +33,8 @@ export function TurnOffTimerControl({
   opponentName: string;
   /** Our own request was declined — surface a short notice to the instigator. */
   declined?: boolean;
+  /** Our own request was accepted — surface a short notice to the instigator. */
+  agreed?: boolean;
   onRequest: () => void;
   onAccept: () => void;
   onDecline: () => void;
@@ -44,6 +47,14 @@ export function TurnOffTimerControl({
     return () => clearTimeout(timer);
   }, [declined]);
 
+  const [showAgreed, setShowAgreed] = useState(false);
+  useEffect(() => {
+    if (!agreed) return;
+    setShowAgreed(true);
+    const timer = setTimeout(() => setShowAgreed(false), 6000);
+    return () => clearTimeout(timer);
+  }, [agreed]);
+
   return (
     <>
       {showButton && (
@@ -51,9 +62,14 @@ export function TurnOffTimerControl({
           Turn Off Timer
         </Button>
       )}
+      {showAgreed && (
+        <p className="text-xs leading-snug text-ivory/60">
+          {opponentName} has agreed to turn off Timer.
+        </p>
+      )}
       {showDeclined && (
         <p className="text-xs leading-snug text-ivory/60">
-          {opponentName} declined to turn off the timer.
+          {opponentName} has not agreed to turn off Timer. Timer function will continue.
         </p>
       )}
       <AlertDialog open={showPrompt}>

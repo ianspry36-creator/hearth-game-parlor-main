@@ -10,7 +10,7 @@ const MEDALS: Record<Exclude<MedalTier, "none">, { icon: string; label: string }
 const BRONZE_AT = 3;
 
 /**
- * A badge pinned to the top-right of a player's avatar. Shows the medal for
+ * A badge pinned to the bottom-centre of a player's avatar. Shows the medal for
  * players who have earned one, otherwise a count of finished games as they
  * work toward bronze.
  */
@@ -23,7 +23,7 @@ export function MedalBadge({ streak }: { streak: number }) {
       <span
         title={medal.label}
         aria-label={medal.label}
-        className="absolute -right-1.5 -top-1.5 grid size-6 shrink-0 place-items-center rounded-full bg-surface text-sm leading-none shadow ring-1 ring-gold/40"
+        className="absolute -bottom-1 left-1/2 grid size-7 -translate-x-1/2 place-items-center text-base leading-none drop-shadow"
       >
         {medal.icon}
       </span>
@@ -36,7 +36,7 @@ export function MedalBadge({ streak }: { streak: number }) {
     <span
       title={label}
       aria-label={label}
-      className="absolute -right-1.5 -top-1.5 grid size-6 shrink-0 place-items-center rounded-full bg-surface font-display text-xs leading-none text-ivory/80 shadow ring-1 ring-gold/40"
+      className="absolute -bottom-1 left-1/2 grid size-7 -translate-x-1/2 place-items-center font-display text-sm leading-none text-ivory drop-shadow"
     >
       {streak}
     </span>

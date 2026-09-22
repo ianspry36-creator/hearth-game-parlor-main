@@ -64,6 +64,7 @@ type State = {
   timerRequest: Player | null;
   timerProposed: boolean;
   timerDeclined: boolean;
+  timerAgreed: boolean;
 };
 
 const freshState = (): State => ({
@@ -82,6 +83,7 @@ const freshState = (): State => ({
   timerRequest: null,
   timerProposed: false,
   timerDeclined: false,
+  timerAgreed: false,
 });
 
 const note = (log: LogEntry[], entry: LogEntry) => [entry, ...log].slice(0, 40);
@@ -155,6 +157,7 @@ function ReversiTable() {
   const [flagOpen, setFlagOpen] = useState(false);
 
   const reset = () => {
+    proposedTimerOffRef.current = false;
     const fresh = freshState();
     stateRef.current = fresh;
     setState(fresh);
@@ -270,11 +273,12 @@ function ReversiTable() {
           showPrompt={state.timerRequest === "cpu"}
           opponentName={opponentName}
           declined={proposedTimerOffRef.current && state.timerDeclined}
+          agreed={proposedTimerOffRef.current && state.timerAgreed}
           onRequest={() => {
             proposedTimerOffRef.current = true;
             apply((current) => ({ ...current, timerProposed: true, timerRequest: "human" }));
           }}
-          onAccept={() => apply((current) => ({ ...current, timerOff: true, timerRequest: null }))}
+          onAccept={() => apply((current) => ({ ...current, timerOff: true, timerAgreed: true, timerRequest: null }))}
           onDecline={() => apply((current) => ({ ...current, timerRequest: null, timerDeclined: true }))}
         />
       }

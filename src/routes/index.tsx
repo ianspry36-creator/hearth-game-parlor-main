@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Heart } from "lucide-react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { GAMES } from "@/lib/games";
+import { getNickname } from "@/lib/multiplayer";
 import { useFavourites } from "@/lib/favourites";
 import { GameIcon } from "@/components/parlor/GameIcon";
 import { CardMark } from "@/components/parlor/CardMark";
@@ -35,7 +36,9 @@ function Lobby() {
   const { favourites, hydrated, isFavourite, toggleFavourite } = useFavourites();
   const [showFavourites, setShowFavourites] = useState(false);
   const hasFavourites = favourites.size > 0;
-  const visibleGames = showFavourites ? GAMES.filter((game) => isFavourite(game.id)) : GAMES;
+  const isOwner = (getNickname() ?? "").toLowerCase() === "spry123456";
+  const availableGames = GAMES.filter((game) => !game.ownerOnly || isOwner);
+  const visibleGames = showFavourites ? availableGames.filter((game) => isFavourite(game.id)) : availableGames;
 
   useEffect(() => {
     if (hydrated && !hasFavourites) setShowFavourites(false);
@@ -144,6 +147,11 @@ function Lobby() {
                     </div>
                     <div className="mt-4 flex items-center justify-center gap-2">
                       <h3 className="font-display text-xl font-bold">{game.name}</h3>
+                      {game.comingSoon && (
+                        <span className="rounded-full border border-gold/40 bg-gold/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-gold">
+                          Coming soon
+                        </span>
+                      )}
                       {game.beta && (
                         <span className="rounded-full border border-gold/40 bg-gold/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-gold">
                           Beta

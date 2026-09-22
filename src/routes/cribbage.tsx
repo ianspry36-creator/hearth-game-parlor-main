@@ -114,6 +114,7 @@ type State = {
   timerRequest: Side | null;
   timerProposed: boolean;
   timerDeclined: boolean;
+  timerAgreed: boolean;
 };
 
 type FlyingCard = {
@@ -169,6 +170,7 @@ function dealHand(dealer: Side, scores: Record<Side, number>, log: LogEntry[]): 
     timerRequest: null,
     timerProposed: false,
     timerDeclined: false,
+    timerAgreed: false,
     cutFan: [],
     playerCut: null,
     cpuCut: null,
@@ -604,6 +606,7 @@ function CribbageTable() {
   const countdown = turnSecondsLeft > 0 && turnSecondsLeft <= TURN_WARNING_SECONDS ? turnSecondsLeft : 0;
 
   const reset = (fresh: State) => {
+    proposedTimerOffRef.current = false;
     stateRef.current = fresh;
     setState(fresh);
     setSelected([]);
@@ -1249,11 +1252,12 @@ function CribbageTable() {
             showPrompt={state.timerRequest === "cpu"}
             opponentName={opponentName}
             declined={proposedTimerOffRef.current && state.timerDeclined}
+            agreed={proposedTimerOffRef.current && state.timerAgreed}
             onRequest={() => {
               proposedTimerOffRef.current = true;
               apply((current) => ({ ...current, timerProposed: true, timerRequest: "player" }));
             }}
-            onAccept={() => apply((current) => ({ ...current, timerOff: true, timerRequest: null }))}
+            onAccept={() => apply((current) => ({ ...current, timerOff: true, timerAgreed: true, timerRequest: null }))}
             onDecline={() =>
               apply((current) => ({ ...current, timerRequest: null, timerDeclined: true }))
             }

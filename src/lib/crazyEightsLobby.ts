@@ -33,6 +33,7 @@ export type GameRoomPlayer = {
   nickname: string;
   seat: number;
   avatar: string | null;
+  flag: string | null;
   is_bot: boolean;
   joined_at: string;
   last_seen_at: string;
@@ -41,7 +42,7 @@ export type GameRoomPlayer = {
 const ROOM_COLUMNS =
   "id, game, host_session, host_nickname, host_avatar, host_flag, password, is_public, max_seats, status, state, version, created_at, updated_at";
 
-const PLAYER_COLUMNS = "id, room_id, session_id, nickname, seat, avatar, is_bot, joined_at, last_seen_at";
+const PLAYER_COLUMNS = "id, room_id, session_id, nickname, seat, avatar, flag, is_bot, joined_at, last_seen_at";
 
 /** Rooms that have not reported in this long are treated as abandoned. */
 export const ROOM_STALE_MS = 90_000;
@@ -177,6 +178,7 @@ async function seatPlayer(
       nickname,
       seat,
       avatar: readAvatar(),
+      flag: readFlag(),
     })
     .select(PLAYER_COLUMNS)
     .single();

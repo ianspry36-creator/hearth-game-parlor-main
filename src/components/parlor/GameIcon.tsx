@@ -75,6 +75,22 @@ export function GameIcon({ id, className = "" }: { id: GameId; className?: strin
           </text>
         </svg>
       );
+    case "hearts":
+      return (
+        <svg {...common}>
+          <path
+            d="M24 40 C12 30 6 22 6 16 C6 11 10 7 15 7 C18 7 21 9 24 13 C27 9 30 7 33 7 C38 7 42 11 42 16 C42 22 36 30 24 40 Z"
+            className="fill-player-coral"
+          />
+          <path
+            d="M28 22 C31 15 35 12 38 13 C41 14 42 18 40 22 C38 26 33 28 28 29 Z"
+            className="fill-cream/90"
+          />
+          <text x="34" y="23" textAnchor="middle" fontSize="10" fontWeight="700" className="fill-brand">
+            Q
+          </text>
+        </svg>
+      );
     case "triangles":
       return (
         <svg {...common}>

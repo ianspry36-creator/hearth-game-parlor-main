@@ -212,6 +212,7 @@ export type Database = {
       game_room_players: {
         Row: {
           avatar: string | null
+          flag: string | null
           id: string
           is_bot: boolean
           joined_at: string
@@ -223,6 +224,7 @@ export type Database = {
         }
         Insert: {
           avatar?: string | null
+          flag?: string | null
           id?: string
           is_bot?: boolean
           joined_at?: string
@@ -234,6 +236,7 @@ export type Database = {
         }
         Update: {
           avatar?: string | null
+          flag?: string | null
           id?: string
           is_bot?: boolean
           joined_at?: string

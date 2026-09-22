@@ -1,13 +1,15 @@
-export type GameId = "cribbage" | "backgammon" | "warship" | "farkle" | "yahtzee" | "crazy-eights" | "triangles" | "solitaire" | "freecell" | "addiction" | "reversi" | "checkers" | "kings-in-the-corner" | "canfield" | "clock" | "scorpion" | "tripeaks" | "yukon";
+export type GameId = "cribbage" | "backgammon" | "warship" | "farkle" | "yahtzee" | "crazy-eights" | "hearts" | "triangles" | "solitaire" | "freecell" | "addiction" | "reversi" | "checkers" | "kings-in-the-corner" | "canfield" | "clock" | "scorpion" | "tripeaks" | "yukon";
 
 export type GameMeta = {
   id: GameId;
   name: string;
   initial: string;
   tagline: string;
-  path: "/cribbage" | "/backgammon" | "/warship" | "/farkle" | "/yahtzee" | "/crazy-eights" | "/triangles" | "/solitaire" | "/freecell" | "/addiction" | "/reversi" | "/checkers" | "/kings-in-the-corner" | "/canfield" | "/clock" | "/scorpion" | "/tripeaks" | "/yukon";
+  path: "/cribbage" | "/backgammon" | "/warship" | "/farkle" | "/yahtzee" | "/crazy-eights" | "/hearts" | "/triangles" | "/solitaire" | "/freecell" | "/addiction" | "/reversi" | "/checkers" | "/kings-in-the-corner" | "/canfield" | "/clock" | "/scorpion" | "/tripeaks" | "/yukon";
   rules: { heading: string; body: string }[];
   beta?: boolean;
+  comingSoon?: boolean;
+  ownerOnly?: boolean;
 };
 
 export const GAMES: GameMeta[] = [
@@ -285,6 +287,44 @@ export const GAMES: GameMeta[] = [
       {
         heading: "Finishing",
         body: "With the free cells empty and every tableau pile ordered as a descending, alternating run, the table clears itself. Undo as often as you like — each undo counts as a move.",
+      },
+    ],
+  },
+  {
+    id: "hearts",
+    name: "Hearts",
+    initial: "H",
+    tagline: "Avoid the hearts and the queen of spades — or take them all and shoot the moon.",
+    path: "/hearts",
+    comingSoon: true,
+    rules: [
+      {
+        heading: "The object",
+        body: "Take as few penalty points as you can. Every heart is worth one point and the queen of spades is worth thirteen, for twenty-six points in all.",
+      },
+      {
+        heading: "The deal",
+        body: "The full deck is dealt evenly among four players. The player holding the two of clubs leads the first trick.",
+      },
+      {
+        heading: "Passing",
+        body: "Before each hand every player passes three cards — to the left, then right, then across, with the fourth hand a hold. Choose the cards you least want to keep.",
+      },
+      {
+        heading: "Following suit",
+        body: "The leader plays any card, and each player in turn must follow suit if they can. The highest card of the led suit wins the trick, and its winner leads the next.",
+      },
+      {
+        heading: "Breaking hearts",
+        body: "Hearts may not be led until a heart has been played on an earlier trick — unless a player's hand holds nothing but hearts. Points may not be played on the very first trick.",
+      },
+      {
+        heading: "Shooting the moon",
+        body: "Take all twenty-six points in a hand and you shoot the moon: every opponent scores twenty-six while you score nothing.",
+      },
+      {
+        heading: "Winning",
+        body: "Hands continue until someone reaches one hundred points. When that happens, the player with the lowest total wins.",
       },
     ],
   },
@@ -574,6 +614,37 @@ export const GAMES: GameMeta[] = [
       {
         heading: "Winning",
         body: "Once every face-down card is turned over, the remaining cards fly home on their own. Your moves and time are kept so you can chase your best game — undo as often as you like, but each undo counts as a move.",
+      },
+    ],
+  },
+  {
+    id: "hearts",
+    name: "Hearts",
+    initial: "H",
+    tagline: "Dodge the hearts and the queen of spades — the lowest penalty score wins.",
+    path: "/hearts",
+    beta: true,
+    ownerOnly: true,
+    rules: [
+      {
+        heading: "The object",
+        body: "Take as few penalty points as you can. Every heart is worth one point and the queen of spades is worth thirteen. The player with the lowest total once someone reaches one hundred points wins the table.",
+      },
+      {
+        heading: "The deal",
+        body: "All fifty-two cards are dealt, thirteen to each of four players. The holder of the two of clubs leads the first trick, and that card must be played first.",
+      },
+      {
+        heading: "Passing",
+        body: "Each hand begins by passing three cards to another player — to the left, to the right, across the table, then holding on every fourth hand.",
+      },
+      {
+        heading: "Playing a trick",
+        body: "Follow the suit led if you can, otherwise play any card. The highest card of the suit led wins the trick, and the winner leads the next. Hearts may not be led until a heart has been played on an earlier trick.",
+      },
+      {
+        heading: "Scoring",
+        body: "At the end of a hand the tricks are scored: one point per heart, thirteen for the queen of spades. Capturing every heart and the queen of spades is a shoot the moon — you score nothing while everyone else takes twenty-six.",
       },
     ],
   },

@@ -279,6 +279,7 @@ function CrazyEightsTable() {
     isHost,
     opponentConnected,
     opponentName: liveOpponent,
+    opponentFlag: liveOpponentFlag,
     remoteState,
     publish,
     opponentDisconnected,
@@ -910,6 +911,19 @@ function CrazyEightsTable() {
           : playerAvatar;
   };
 
+  const seatFlag = (seat: Seat): string | null => {
+    if (seat === "you") return flag;
+    if (isRoom) {
+      const base = ORDER_BY_COUNT[activeCount];
+      const viewIndex = base.indexOf(seat);
+      const canonical = (mySeat + viewIndex) % activeCount;
+      const player = roomPlayers.find((p) => p.seat === canonical);
+      if (player?.flag) return player.flag;
+    }
+    if (isMulti && seat === "ada") return liveOpponentFlag;
+    return null;
+  };
+
   const winnerName = state.winner ? seatName(state.winner) : "Ada";
 
   const results = state.order.map((seat) => ({
@@ -1043,6 +1057,7 @@ function CrazyEightsTable() {
             name={seatName("ada")}
             timedOut={(state.timedOut ?? []).includes("ada")}
             avatar={seatAvatar("ada")}
+            flag={seatFlag("ada")}
             cards={state.hands.ada ?? []}
             handEls={seatHandEls.current}
             active={state.turn === "ada"}
@@ -1063,6 +1078,7 @@ function CrazyEightsTable() {
                 name={seatName("ace")}
                 timedOut={(state.timedOut ?? []).includes("ace")}
                 avatar={seatAvatar("ace")}
+                flag={seatFlag("ace")}
                 cards={state.hands.ace ?? []}
                 handEls={seatHandEls.current}
                 vertical
@@ -1146,6 +1162,7 @@ function CrazyEightsTable() {
                 name={seatName("leo")}
                 timedOut={(state.timedOut ?? []).includes("leo")}
                 avatar={seatAvatar("leo")}
+                flag={seatFlag("leo")}
                 cards={state.hands.leo ?? []}
                 handEls={seatHandEls.current}
                 vertical
@@ -1259,6 +1276,7 @@ function CrazyEightsTable() {
 function OpponentSeat({
   name,
   avatar,
+  flag,
   cards,
   handEls,
   vertical = false,
@@ -1276,6 +1294,7 @@ function OpponentSeat({
 }: {
   name: string;
   avatar: string;
+  flag?: string | null;
   cards: Card[];
   handEls: Map<string, HTMLElement>;
   vertical?: boolean;
@@ -1321,9 +1340,21 @@ function OpponentSeat({
             </div>
           )}
         </div>
-        <p className="text-[11px] uppercase tracking-[0.22em] text-ivory/45">
-          {name}
-        </p>
+        {vertical ? (
+          <div className="flex flex-col items-center gap-0.5">
+            <p className="text-[11px] uppercase tracking-[0.22em] text-ivory/45">
+              {name}
+            </p>
+            {flag ? <PlayerFlag flag={flag} className="size-4" /> : null}
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5">
+            <p className="text-[11px] uppercase tracking-[0.22em] text-ivory/45">
+              {name}
+            </p>
+            {flag ? <PlayerFlag flag={flag} className="size-4" /> : null}
+          </div>
+        )}
       </div>
       {/* Reserve vertical space for up to 10 stacked cards (h-[63px] minus -mt-[47px]
           overlap = 16px each, so 63 + 9*16 = 207px) so the side seats don't

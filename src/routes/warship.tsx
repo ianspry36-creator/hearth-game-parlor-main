@@ -78,6 +78,7 @@ type State = {
   timerRequest: Seat | null;
   timerProposed: boolean;
   timerDeclined: boolean;
+  timerAgreed: boolean;
 };
 
 // The opening fleet must match the server, so the first render uses a fixed
@@ -97,6 +98,7 @@ const freshState = (random: () => number = Math.random): State => ({
   timerRequest: null,
   timerProposed: false,
   timerDeclined: false,
+  timerAgreed: false,
 });
 
 const note = (log: LogEntry[], entry: LogEntry) => [entry, ...log].slice(0, 40);
@@ -205,6 +207,7 @@ function WarshipTable() {
   const [viewingBoard, setViewingBoard] = useState(false);
 
   const reset = () => {
+    proposedTimerOffRef.current = false;
     const fresh = freshState();
     // In a live game both seats start with a fleet (solo mode only hands the
     // human a random fleet; the guest's fleet would otherwise come up empty).
@@ -438,11 +441,12 @@ function WarshipTable() {
           showPrompt={state.timerRequest === "cpu"}
           opponentName={opponentName}
           declined={proposedTimerOffRef.current && state.timerDeclined}
+          agreed={proposedTimerOffRef.current && state.timerAgreed}
           onRequest={() => {
             proposedTimerOffRef.current = true;
             apply((current) => ({ ...current, timerProposed: true, timerRequest: "human" }));
           }}
-          onAccept={() => apply((current) => ({ ...current, timerOff: true, timerRequest: null }))}
+          onAccept={() => apply((current) => ({ ...current, timerOff: true, timerAgreed: true, timerRequest: null }))}
           onDecline={() => apply((current) => ({ ...current, timerRequest: null, timerDeclined: true }))}
         />
       }
