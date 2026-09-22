@@ -20,6 +20,8 @@ import { SpeechBubble } from "@/components/parlor/SpeechBubble";
 import { TableOptionsDialog } from "@/components/parlor/TableOptionsDialog";
 import { ADA_AVATAR, readAvatar } from "@/lib/avatars";
 import { flagName, flagUrl, readFlag } from "@/lib/flags";
+import { FlagPicker } from "@/components/parlor/FlagPicker";
+import { PlayerFlag } from "@/components/parlor/PlayerFlag";
 import { NicknameDialog } from "@/components/parlor/NicknameDialog";
 import { getGame } from "@/lib/games";
 import { CLASSIC_PALETTE, readTableGraphic, type TablePalette } from "@/lib/backgammonTables";
@@ -192,7 +194,7 @@ function consumeRoll(
   return { dice: rest, slots: restSlots };
 }
 
-/** A speech bubble rendered just below its anchor (used for the opponent's "PASS"). */
+/** A speech bubble rendered just below its anchor (used for the opponent's "Pass!"). */
 function CloudChat({ text }: { text: string }) {
   return (
     <div className="absolute left-1/2 top-full z-10 mt-2 -translate-x-1/2">
@@ -314,7 +316,8 @@ function BackgammonTable() {
   const countdown = turnSecondsLeft > 0 && turnSecondsLeft <= TURN_WARNING_SECONDS ? turnSecondsLeft : 0;
 
   const [playerAvatar, setPlayerAvatar] = useState<string>(readAvatar);
-  const [flag] = useState<string | null>(readFlag);
+  const [flag, setFlag] = useState<string | null>(readFlag);
+  const [flagOpen, setFlagOpen] = useState(false);
   const [tableGraphic, setTableGraphic] = useState<TablePalette | null>(readTableGraphic);
 
   const reset = () => {
@@ -753,6 +756,7 @@ function BackgammonTable() {
         </>
       }
     >
+      <FlagPicker open={flagOpen} onOpenChange={setFlagOpen} onSelect={setFlag} />
       <GameOverDialog
         open={Boolean(state.winner) && !viewingBoard}
         result={state.winner === "human" ? "win" : "loss"}
@@ -803,7 +807,7 @@ function BackgammonTable() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      <div className="space-y-6">
+      <div className="space-y-6 sm:space-y-1.5">
         {/* Opponent — top of the table */}
         <div className="flex items-center justify-between gap-4 rounded-2xl border border-gold/15 bg-brand/50 p-4">
           <div className="flex items-center gap-3">
@@ -816,7 +820,7 @@ function BackgammonTable() {
                 className="size-14 rounded-full border-2 border-gold/40 bg-surface object-cover"
               />
               {state.turn === "cpu" && countdown > 0 && <CountdownBadge seconds={countdown} />}
-              {passBubble === "cpu" && <CloudChat text="PASS" />}
+              {passBubble === "cpu" && <CloudChat text="Pass!" />}
               {starterBubble === "cpu" && <CloudChat text="I win starter throw. I go first" />}
             </div>
             <div>
@@ -895,7 +899,7 @@ function BackgammonTable() {
               size="size-14"
               countdown={state.turn === "human" ? countdown : 0}
               {...(passBubble === "human"
-                ? { message: "PASS" }
+                ? { message: "Pass!" }
                 : starterBubble === "human"
                   ? { message: "I win starter throw. I go first" }
                   : {})}
@@ -910,14 +914,7 @@ function BackgammonTable() {
                     </button>
                   }
                 />
-                {flag && (
-                  <img
-                    src={flagUrl(flag)}
-                    alt={flagName(flag) ?? ""}
-                    title={flagName(flag) ?? ""}
-                    className="size-5 shrink-0 rounded-sm border border-black/20 object-cover shadow-sm shadow-black/30"
-                  />
-                )}
+                <PlayerFlag flag={flag} onClick={() => setFlagOpen(true)} />
               </div>
               <p className="min-w-[9rem] whitespace-nowrap text-xs text-ivory/60">
                 {playerComment}
@@ -1123,9 +1120,9 @@ function Board({
     if (!boardEl) return;
     const boardRect = boardEl.getBoundingClientRect();
     // Responsive checker metrics (mirrors the Tailwind classes on the checkers
-    // and points: size-4/sm:size-5, gap-0.5/sm:gap-1, p-0.5/sm:p-1.5).
+    // and points: size-4/sm:size-7.5, gap-0.5/sm:gap-1, p-0.5/sm:p-1.5).
     const isSm = window.matchMedia("(min-width: 640px)").matches;
-    const size = isSm ? 20 : 16;
+    const size = isSm ? 30 : 16;
     const gap = isSm ? 4 : 2;
     const pad = isSm ? 6 : 2;
 
@@ -1309,7 +1306,7 @@ function Board({
           pointRefs.current[index] = el;
         }}
         onClick={() => (isDestination ? onMoveTo(index) : isSelectable ? onSelect(index) : undefined)}
-        className={`relative flex min-h-32 sm:min-h-50 flex-col ${top ? "justify-start" : "justify-end"} gap-0.5 p-0.5 sm:gap-1 sm:p-1.5 transition-shadow ${
+        className={`relative flex min-h-32 sm:min-h-63 flex-col ${top ? "justify-start" : "justify-end"} gap-0.5 p-0.5 sm:gap-1 sm:p-1.5 transition-shadow ${
           isDestination
             ? "ring-2 ring-gold ring-offset-1 ring-offset-[var(--board-surface)]"
             : isSelected
@@ -1327,13 +1324,13 @@ function Board({
               : "polygon(50% 0, 100% 100%, 0 100%)",
           }}
         />
-        {Array.from({ length: Math.min(Math.abs(shown), 8) }, (_, i) => {
-          const overflow = Math.abs(shown) - 8;
-          const isLast = i === Math.min(Math.abs(shown), 8) - 1;
+        {Array.from({ length: Math.min(Math.abs(shown), 7) }, (_, i) => {
+          const overflow = Math.abs(shown) - 7;
+          const isLast = i === Math.min(Math.abs(shown), 7) - 1;
           return (
             <span
               key={i}
-              className={`relative z-10 mx-auto flex size-4 items-center justify-center sm:size-5 rounded-full border ${
+              className={`relative z-10 mx-auto flex size-4 items-center justify-center sm:size-7.5 rounded-full border ${
                 count > 0 ? "border-[#6b5233] bg-cream" : "border-[var(--opp-piece-border)] bg-[var(--opp-piece)]"
               }`}
             >
@@ -1382,7 +1379,7 @@ function Board({
                 type="button"
                 title="Your piece — click to re-enter"
                 onClick={() => (selectable.includes("bar") ? onSelect("bar") : undefined)}
-                className={`relative flex size-4 sm:size-5 items-center justify-center rounded-full border p-0 transition-colors ${
+                className={`relative flex size-4 sm:size-7.5 items-center justify-center rounded-full border p-0 transition-colors ${
                   selected === "bar" ? "border-gold bg-cream" : "border-[#6b5233] bg-cream"
                 } ${
                   selectable.includes("bar") ? "cursor-pointer" : "cursor-default"
@@ -1400,7 +1397,7 @@ function Board({
               <span
                 key={`bar-opp-${i}`}
                 title="Opponent piece"
-                className="size-4 sm:size-5 rounded-full border border-[var(--opp-piece-border)] bg-[var(--opp-piece)]"
+                className="size-4 sm:size-7.5 rounded-full border border-[var(--opp-piece-border)] bg-[var(--opp-piece)]"
               />
             ))}
             {board.bar.human === 0 && board.bar.cpu === 0 && (
@@ -1446,7 +1443,7 @@ function Board({
           {flies.map((f) => (
             <span
               key={f.key}
-              className={`absolute flex size-4 sm:size-5 items-center justify-center -translate-x-1/2 -translate-y-1/2 rounded-full border-2 transition-all duration-1000 ease-in-out ${
+              className={`absolute flex size-4 sm:size-7.5 items-center justify-center -translate-x-1/2 -translate-y-1/2 rounded-full border-2 transition-all duration-1000 ease-in-out ${
                 f.side === "human" ? "border-[#6b5233] bg-cream" : "border-[var(--opp-piece-border)] bg-[var(--opp-piece)]"
               } ${f.arrived && f.settled ? "opacity-0" : "opacity-100"}`}
               style={{

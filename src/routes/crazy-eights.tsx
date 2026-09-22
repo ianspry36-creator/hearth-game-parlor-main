@@ -1176,7 +1176,6 @@ function CrazyEightsTable() {
               )}
             </div>
             <div className="flex items-center gap-2">
-              <PlayerFlag flag={flag} className="size-6" onClick={() => setFlagOpen(true)} />
               <NicknameDialog
                 onSaved={() => setNicknameVersion((v) => v + 1)}
                 trigger={
@@ -1188,6 +1187,7 @@ function CrazyEightsTable() {
                   </button>
                 }
               />
+              <PlayerFlag flag={flag} className="size-6" onClick={() => setFlagOpen(true)} />
             </div>
           </div>
           <div ref={handRef} className="flex items-end justify-center">

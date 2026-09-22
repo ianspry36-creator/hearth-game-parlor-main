@@ -19,7 +19,9 @@ import { TurnOffTimerControl } from "@/components/parlor/TurnOffTimerControl";
 import { SpeechBubble } from "@/components/parlor/SpeechBubble";
 import { getGame } from "@/lib/games";
 import { ADA_AVATAR, readAvatar } from "@/lib/avatars";
-import { flagName, flagUrl, readFlag } from "@/lib/flags";
+import { readFlag } from "@/lib/flags";
+import { FlagPicker } from "@/components/parlor/FlagPicker";
+import { PlayerFlag } from "@/components/parlor/PlayerFlag";
 import { NicknameDialog } from "@/components/parlor/NicknameDialog";
 import { getNickname, RECONNECT_SECONDS, TURN_WARNING_SECONDS, useMatch, useTurnTimer } from "@/lib/multiplayer";
 import { useRecordMatchResult } from "@/lib/stats";
@@ -261,7 +263,8 @@ function YahtzeeTable() {
   const countdown = turnSecondsLeft > 0 && turnSecondsLeft <= TURN_WARNING_SECONDS ? turnSecondsLeft : 0;
 
   const [playerAvatar, setPlayerAvatar] = useState<string>(readAvatar);
-  const [flag] = useState<string | null>(readFlag);
+  const [flag, setFlag] = useState<string | null>(readFlag);
+  const [flagOpen, setFlagOpen] = useState(false);
   const [viewingScorecard, setViewingScorecard] = useState(false);
 
   const reset = () => {
@@ -893,14 +896,7 @@ function YahtzeeTable() {
               ) : (
                 <p className="font-display text-base">{opponentName}</p>
               )}
-              {mine && flag && (
-                <img
-                  src={flagUrl(flag)}
-                  alt={flagName(flag) ?? ""}
-                  title={flagName(flag) ?? ""}
-                  className="size-5 shrink-0 rounded-sm border border-black/20 object-cover shadow-md shadow-black/30"
-                />
-              )}
+              {mine && <PlayerFlag flag={flag} onClick={() => setFlagOpen(true)} />}
             </div>
           </div>
         </div>
@@ -1078,6 +1074,7 @@ function YahtzeeTable() {
         />
       }
     >
+      <FlagPicker open={flagOpen} onOpenChange={setFlagOpen} onSelect={setFlag} />
       <GameOverDialog
         open={state.phase === "over" && !viewingScorecard}
         result={state.winner === "human" ? "win" : state.winner === "cpu" ? "loss" : "draw"}

@@ -29,7 +29,9 @@ import { getGame } from "@/lib/games";
 import { getNickname, RECONNECT_SECONDS, TURN_WARNING_SECONDS, useMatch, useTurnTimer } from "@/lib/multiplayer";
 import { useRecordMatchResult } from "@/lib/stats";
 import { ADA_AVATAR, readAvatar } from "@/lib/avatars";
-import { flagName, flagUrl, readFlag } from "@/lib/flags";
+import { readFlag } from "@/lib/flags";
+import { FlagPicker } from "@/components/parlor/FlagPicker";
+import { PlayerFlag } from "@/components/parlor/PlayerFlag";
 import { NicknameDialog } from "@/components/parlor/NicknameDialog";
 import {
   DICE_COUNT,
@@ -191,7 +193,8 @@ function FarkleTable() {
   const [state, setState] = useState<State>(freshState);
   const [selected, setSelected] = useState<number[]>([]);
   const [playerAvatar, setPlayerAvatar] = useState<string>(readAvatar);
-  const [flag] = useState<string | null>(readFlag);
+  const [flag, setFlag] = useState<string | null>(readFlag);
+  const [flagOpen, setFlagOpen] = useState(false);
   const [viewingBoard, setViewingBoard] = useState(false);
   const {
     match,
@@ -749,6 +752,7 @@ function FarkleTable() {
         />
       }
     >
+      <FlagPicker open={flagOpen} onOpenChange={setFlagOpen} onSelect={setFlag} />
       <GameOverDialog
         open={state.phase === "over" && Boolean(state.winner) && !viewingBoard}
         result={state.winner === "human" ? "win" : "loss"}
@@ -827,15 +831,9 @@ function FarkleTable() {
                 {state.turn === "cpu" && state.phase === "play" ? "Throwing…" : "Waiting"}
               </p>
             </div>
-            <div className="rounded-lg border border-gold/20 bg-surface/60 px-3 py-1.5 text-center sm:px-5 sm:py-2">
-              <p className="text-[10px] uppercase tracking-[0.2em] text-ivory/50">Score</p>
-              <p className="font-display text-xl font-bold text-gold sm:text-2xl">
-                {state.scores.cpu.toLocaleString()}
-              </p>
-            </div>
           </div>
 
-          <div className="flex min-h-9 flex-1 flex-wrap items-center justify-center gap-2">
+          <div className="order-3 flex min-h-9 flex-1 flex-wrap items-center justify-center gap-2 sm:order-2">
             {state.turn === "cpu" && state.phase === "play" && setAsideDice.length > 0 && (
               <>
                 <span className="text-[10px] uppercase tracking-[0.2em] text-ivory/50">
@@ -854,6 +852,12 @@ function FarkleTable() {
                 })}
               </>
             )}
+          </div>
+          <div className="rounded-lg border border-gold/20 bg-surface/60 px-3 py-1.5 text-center sm:order-3 sm:px-5 sm:py-2">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-ivory/50">Score</p>
+            <p className="font-display text-xl font-bold text-gold sm:text-2xl">
+              {state.scores.cpu.toLocaleString()}
+            </p>
           </div>
         </div>
 
@@ -912,7 +916,7 @@ function FarkleTable() {
               </div>
             ) : (
               <div className="rounded-2xl border border-gold/25 bg-surface/60 p-6 shadow-2xl shadow-black/40 sm:px-10 sm:py-8">
-                <div className="relative mx-auto h-52 w-full max-w-md sm:h-56">
+                <div className="relative mx-auto h-52 w-full max-w-[25.2rem] sm:h-56">
                   {state.dice.map((die, i) => {
                     if (!state.rolled || die.set) {
                       return null;
@@ -963,35 +967,22 @@ function FarkleTable() {
                 {...(playerMessage ? { message: playerMessage } : {})}
               />
               <div>
-                <NicknameDialog
-                  onSaved={setPlayerName}
-                  trigger={
-                    <button
-                      type="button"
-                      className="font-display text-lg font-bold hover:text-gold sm:text-xl"
-                    >
-                      {playerName}
-                    </button>
-                  }
-                />
-                {flag && (
-                  <img
-                    src={flagUrl(flag)}
-                    alt={flagName(flag) ?? ""}
-                    title={flagName(flag) ?? ""}
-                    className="mt-1 size-6 shrink-0 rounded-sm border border-black/20 object-cover shadow-md shadow-black/30"
+                <div className="flex items-center gap-2">
+                  <NicknameDialog
+                    onSaved={setPlayerName}
+                    trigger={
+                      <button
+                        type="button"
+                        className="font-display text-lg font-bold hover:text-gold sm:text-xl"
+                      >
+                        {playerName}
+                      </button>
+                    }
                   />
-                )}
+                  <PlayerFlag flag={flag} onClick={() => setFlagOpen(true)} className="size-6" />
+                </div>
                 <p className="text-xs text-ivory/60 sm:text-sm">
                   {myTurn && state.phase === "play" ? "Your turn" : "Waiting"}
-                </p>
-              </div>
-              <div className="rounded-lg border border-gold/20 bg-surface/60 px-3 py-1.5 text-center sm:px-6 sm:py-2.5">
-                <p className="text-[10px] uppercase tracking-[0.2em] text-ivory/50 sm:text-xs">
-                  Score
-                </p>
-                <p className="font-display text-xl font-bold text-gold sm:text-3xl">
-                  {state.scores.human.toLocaleString()}
                 </p>
               </div>
             </div>
@@ -1054,6 +1045,15 @@ function FarkleTable() {
                 )}
               </div>
             </div>
+            <div className="rounded-lg border border-gold/20 bg-surface/60 px-3 py-1.5 text-center sm:order-3 sm:px-6 sm:py-2.5">
+              <p className="text-[10px] uppercase tracking-[0.2em] text-ivory/50 sm:text-xs">
+                Score
+              </p>
+              <p className="font-display text-xl font-bold text-gold sm:text-3xl">
+                {state.scores.human.toLocaleString()}
+              </p>
+            </div>
+
           </div>
         </div>
       </div>

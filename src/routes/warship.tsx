@@ -8,7 +8,9 @@ import { CountdownBadge } from "@/components/parlor/CountdownBadge";
 import { TurnOffTimerControl } from "@/components/parlor/TurnOffTimerControl";
 import { getGame } from "@/lib/games";
 import { ADA_AVATAR, readAvatar } from "@/lib/avatars";
-import { flagName, flagUrl, readFlag } from "@/lib/flags";
+import { readFlag } from "@/lib/flags";
+import { FlagPicker } from "@/components/parlor/FlagPicker";
+import { PlayerFlag } from "@/components/parlor/PlayerFlag";
 import { NicknameDialog } from "@/components/parlor/NicknameDialog";
 import { getNickname, RECONNECT_SECONDS, TURN_WARNING_SECONDS, useMatch, useTurnTimer } from "@/lib/multiplayer";
 import { useRecordMatchResult } from "@/lib/stats";
@@ -198,7 +200,8 @@ function WarshipTable() {
   const countdown = turnSecondsLeft > 0 && turnSecondsLeft <= TURN_WARNING_SECONDS ? turnSecondsLeft : 0;
 
   const [playerAvatar, setPlayerAvatar] = useState<string>(readAvatar);
-  const [flag] = useState<string | null>(readFlag);
+  const [flag, setFlag] = useState<string | null>(readFlag);
+  const [flagOpen, setFlagOpen] = useState(false);
   const [viewingBoard, setViewingBoard] = useState(false);
 
   const reset = () => {
@@ -444,6 +447,7 @@ function WarshipTable() {
         />
       }
     >
+      <FlagPicker open={flagOpen} onOpenChange={setFlagOpen} onSelect={setFlag} />
       <GameOverDialog
         open={Boolean(state.winner) && !viewingBoard}
         result={state.winner === "human" ? "win" : "loss"}
@@ -522,7 +526,7 @@ function WarshipTable() {
                 size="size-15"
                 countdown={state.turn === "human" ? countdown : 0}
               />
-              <div>
+              <div className="flex items-center gap-2">
                 <NicknameDialog
                   onSaved={setPlayerName}
                   trigger={
@@ -534,14 +538,7 @@ function WarshipTable() {
                     </button>
                   }
                 />
-                {flag && (
-                  <img
-                    src={flagUrl(flag)}
-                    alt={flagName(flag) ?? ""}
-                    title={flagName(flag) ?? ""}
-                    className="mt-1 size-6 shrink-0 rounded-sm border border-black/20 object-cover shadow-md shadow-black/30"
-                  />
-                )}
+                <PlayerFlag flag={flag} onClick={() => setFlagOpen(true)} className="size-6" />
               </div>
             </div>
             <Grid

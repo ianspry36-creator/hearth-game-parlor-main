@@ -22,7 +22,7 @@ export function PlayerFlag({
       src={src}
       alt={alt}
       title={alt}
-      className={`${className} shrink-0 rounded-sm border border-black/20 object-cover shadow-sm shadow-black/30`}
+      className={`${className} shrink-0 rounded-sm border border-black/20 object-cover align-middle shadow-sm shadow-black/30`}
     />
   );
   if (!onClick) return img;

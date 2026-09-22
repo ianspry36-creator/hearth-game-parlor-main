@@ -683,15 +683,17 @@ function TrianglesTable() {
             countdown={state.turn === "human" ? countdown : 0}
           />
           <div className="min-w-0 flex-1">
-            <NicknameDialog
-              onSaved={setPlayerName}
-              trigger={
-                <button type="button" className="font-display text-lg font-bold hover:text-gold">
-                  {playerName}
-                </button>
-              }
-            />
-            <PlayerFlag flag={flag} className="size-6" onClick={() => setFlagOpen(true)} />
+            <div className="flex items-center gap-2">
+              <NicknameDialog
+                onSaved={setPlayerName}
+                trigger={
+                  <button type="button" className="font-display text-lg font-bold hover:text-gold">
+                    {playerName}
+                  </button>
+                }
+              />
+              <PlayerFlag flag={flag} className="size-6" onClick={() => setFlagOpen(true)} />
+            </div>
             <p className="text-xs text-ivory/60">{myTurn ? "Your turn" : "Waiting"}</p>
           </div>
           <p className="font-display text-2xl font-bold text-player-coral">{mine}</p>
