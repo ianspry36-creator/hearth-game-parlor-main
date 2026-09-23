@@ -23,7 +23,7 @@ export function MedalBadge({ streak }: { streak: number }) {
       <span
         title={medal.label}
         aria-label={medal.label}
-        className="absolute -bottom-1 left-1/2 grid size-7 -translate-x-1/2 place-items-center text-base leading-none drop-shadow"
+        className="absolute -bottom-2 left-1/2 grid size-14 -translate-x-1/2 place-items-center text-4xl leading-none drop-shadow"
       >
         {medal.icon}
       </span>
@@ -36,7 +36,7 @@ export function MedalBadge({ streak }: { streak: number }) {
     <span
       title={label}
       aria-label={label}
-      className="absolute -bottom-1 left-1/2 grid size-7 -translate-x-1/2 place-items-center font-display text-sm leading-none text-ivory drop-shadow"
+      className="absolute -bottom-2 left-1/2 grid size-14 -translate-x-1/2 place-items-center font-display text-3xl leading-none text-ivory drop-shadow"
     >
       {streak}
     </span>

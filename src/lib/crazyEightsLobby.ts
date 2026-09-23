@@ -170,7 +170,7 @@ async function seatPlayer(
   nickname: string,
   seat: number,
 ): Promise<GameRoomPlayer | null> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("game_room_players")
     .insert({
       room_id: roomId,
@@ -182,6 +182,18 @@ async function seatPlayer(
     })
     .select(PLAYER_COLUMNS)
     .single();
+  if (error) {
+    // Surface the underlying Supabase error so a missing column (e.g. the
+    // `flag` column added by a later migration) or an auth problem is visible
+    // in the console instead of a generic "Could not take a seat".
+    console.error(
+      "[crazy-eights] seatPlayer failed:",
+      error.message,
+      error.details,
+      error.hint,
+      error.code,
+    );
+  }
   return (data as GameRoomPlayer | null) ?? null;
 }
 

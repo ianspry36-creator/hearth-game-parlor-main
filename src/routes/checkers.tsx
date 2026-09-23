@@ -2,9 +2,20 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { TableShell } from "@/components/parlor/TableShell";
 import { GameOverDialog } from "@/components/parlor/GameOverDialog";
+import { Button } from "@/components/ui/button";
 import { PlayerAvatar } from "@/components/parlor/PlayerAvatar";
 import { CountdownBadge } from "@/components/parlor/CountdownBadge";
 import { TurnOffTimerControl } from "@/components/parlor/TurnOffTimerControl";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { getGame } from "@/lib/games";
 import { ADA_AVATAR, readAvatar } from "@/lib/avatars";
 import { readFlag } from "@/lib/flags";
@@ -201,12 +212,28 @@ function CheckersTable() {
   const isMulti = Boolean(matchId);
   const opponentName = liveOpponent ?? opponent ?? "Ada";
   const [playerName, setPlayerName] = useState(() => getNickname() ?? "You");
+  // Whether the end-of-game dialog has been dismissed to inspect the board.
+  const [viewingBoard, setViewingBoard] = useState(false);
+  // Whether the concede confirmation dialog is open.
+  const [concedeOpen, setConcedeOpen] = useState(false);
 
   const apply = (fn: (current: State) => State) => {
     const next = fn(stateRef.current);
     stateRef.current = next;
     setState(next);
     if (isMulti) void publish(isHost ? next : mirror(next));
+  };
+
+  // Concede the game: award the win to the opponent (Ada or the live player).
+  const concede = () => {
+    setConcedeOpen(false);
+    apply((current) => ({
+      ...current,
+      phase: "over",
+      winner: "cpu",
+      selected: null,
+      log: note(current.log, { side: "human", text: `${playerName} conceded.` }),
+    }));
   };
 
   // Live matches run a 1-minute clock on the active seat; running out forfeits
@@ -237,6 +264,7 @@ function CheckersTable() {
 
   const reset = () => {
     proposedTimerOffRef.current = false;
+    setViewingBoard(false);
     const fresh = freshState();
     stateRef.current = fresh;
     setState(fresh);
@@ -256,6 +284,7 @@ function CheckersTable() {
     const view = isHost ? remoteState : mirror(remoteState);
     stateRef.current = view;
     setState(view);
+    if (view.phase !== "over") setViewingBoard(false);
   }, [isMulti, isHost, match?.version, remoteState]);
 
   const myTurn = state.turn === "human" && state.phase === "play";
@@ -397,6 +426,7 @@ function CheckersTable() {
       onNewGame={() => (isMulti ? navigate({ to: "/checkers" }) : reset())}
       rail={null}
       menuExtra={
+        <>
         <TurnOffTimerControl
           showButton={
             isMulti && state.phase === "play" && !state.winner && !state.timerOff && !state.timerProposed
@@ -412,11 +442,17 @@ function CheckersTable() {
           onAccept={() => apply((current) => ({ ...current, timerOff: true, timerAgreed: true, timerRequest: null }))}
           onDecline={() => apply((current) => ({ ...current, timerRequest: null, timerDeclined: true }))}
         />
+        {state.phase === "play" && state.history.length > 1 && (
+          <Button variant="parlorGhost" size="sm" className="w-full h-6" onClick={() => setConcedeOpen(true)}>
+            Concede
+          </Button>
+        )}
+        </>
       }
     >
       <FlagPicker open={flagOpen} onOpenChange={setFlagOpen} onSelect={setFlag} />
       <GameOverDialog
-        open={state.phase === "over"}
+        open={state.phase === "over" && !viewingBoard}
         result={state.winner === "human" ? "win" : state.winner === "cpu" ? "loss" : "draw"}
         timedOut={state.timedOut}
         playerScore={human}
@@ -425,7 +461,35 @@ function CheckersTable() {
         opponentName={opponentName}
         playerAvatar={playerAvatar}
         onPlayAgain={reset}
+        playAgainLabel={isMulti ? "Rematch" : "Play again"}
+        footerExtra={
+          <>
+            <Button variant="parlorOutline" onClick={() => setViewingBoard(true)}>
+              View Board
+            </Button>
+            <Button variant="parlorOutline" onClick={() => navigate({ to: "/" })}>
+              Return to Play Room
+            </Button>
+          </>
+        }
       />
+
+      <AlertDialog open={concedeOpen} onOpenChange={setConcedeOpen}>
+        <AlertDialogContent className="border-gold/25 bg-brand text-cream">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-display text-2xl">Concede the game?</AlertDialogTitle>
+            <AlertDialogDescription className="text-ivory/65">
+              {isMulti
+                ? `You'll forfeit the match and ${opponentName} will win.`
+                : "You'll forfeit the game and Ada will win."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep playing</AlertDialogCancel>
+            <AlertDialogAction onClick={concede}>Concede</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <div className="space-y-8">
         {/* Opponent — top of the table */}
@@ -477,17 +541,13 @@ function CheckersTable() {
                     dark ? "bg-[#7a5230]" : "bg-[#e6d2a5]"
                   } ${isSelected ? "ring-2 ring-inset ring-gold" : ""}`}
                 >
-                  {dark && isMovable && (
-                    <span className="absolute inset-0 m-auto size-3 rounded-full border-2 border-gold/70" />
-                  )}
-
                   {cell && (
                     <span
                       className={`absolute inset-[10%] rounded-full border-2 shadow-md ${
                         cell.owner === "human"
                           ? "border-black/30 bg-player-coral"
                           : "border-black/10 bg-player-teal"
-                      }`}
+                      } ${isMovable ? "animate-checker-shine" : ""}`}
                     >
                       {cell.king && (
                         <svg

@@ -950,3 +950,23 @@
 .cursor-target {
   cursor: url("/target-cursor.cur"), crosshair;
 }
+
+/* Checkers — the human player's movable pieces are ringed in yellow with a
+   pulsing glow so they stand out while waiting for a move. */
+@keyframes checker-shine {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 4px #fde047,
+      0 0 10px 2px rgba(253, 224, 71, 0.55);
+  }
+  50% {
+    box-shadow:
+      0 0 0 4px #fde047,
+      0 0 20px 7px rgba(253, 224, 71, 0.9);
+  }
+}
+
+@utility animate-checker-shine {
+  animation: checker-shine 1.2s ease-in-out infinite;
+}

@@ -77,7 +77,11 @@ export function dealHand(random: () => number): { hands: Record<Seat, Card[]>; h
   const deck = freshDeck(random);
   const hands: Record<Seat, Card[]> = { you: [], ace: [], ada: [], leo: [] };
   SEATS.forEach((seat, i) => {
-    hands[seat] = sortHand(deck.slice(i * 13, i * 13 + 13));
+    const cards = deck.slice(i * 13, i * 13 + 13);
+    // Only the player's hand is sorted for readability. Computer hands stay in
+    // dealt (shuffled) order so their chosen pass cards aren't clustered at the
+    // tail of the fan.
+    hands[seat] = seat === "you" ? sortHand(cards) : cards;
   });
   let holder: Seat = "you";
   for (const seat of SEATS) {
@@ -222,7 +226,10 @@ function applyPass(state: State): State {
     hands[from] = (state.hands[from] ?? []).filter((c) => !ids.has(c.id));
     receiving[target] = [...(receiving[target] ?? []), ...toPass];
   }
-  for (const s of SEATS) hands[s] = sortHand([...(hands[s] ?? []), ...(receiving[s] ?? [])]);
+  for (const s of SEATS) {
+    hands[s] = [...(hands[s] ?? []), ...(receiving[s] ?? [])];
+  }
+  hands.you = sortHand(hands.you ?? []);
 
   const holder =
     SEATS.find((s) => (hands[s] ?? []).some((c) => c.rank === 2 && c.suit === "C")) ?? "you";
@@ -234,6 +241,26 @@ function applyPass(state: State): State {
     passSelections: { you: null, ace: null, ada: null, leo: null },
     log: note(state.log, { side: null, text: "Cards passed." }),
   };
+}
+
+export type PassTransfer = { from: Seat; to: Seat; card: Card };
+
+function passTransfers(state: State): PassTransfer[] {
+  const transfers: PassTransfer[] = [];
+  for (const from of SEATS) {
+    const to = passTarget(state.order, from, state.passDirection);
+    const ids = new Set(state.passSelections[from] ?? []);
+    for (const card of state.hands[from] ?? []) {
+      if (ids.has(card.id)) transfers.push({ from, to, card });
+    }
+  }
+  return transfers;
+}
+
+export function resolvePass(state: State): { next: State; transfers: PassTransfer[] } | null {
+  if (state.phase !== "passing") return null;
+  if (!SEATS.every((seat) => state.passSelections[seat] !== null)) return null;
+  return { next: applyPass(state), transfers: passTransfers(state) };
 }
 
 export function play(state: State, seat: Seat, cardId: string): State {

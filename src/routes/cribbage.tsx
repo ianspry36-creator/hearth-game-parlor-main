@@ -1441,48 +1441,58 @@ function CribbageTable() {
               />
             </div>
             <div className="overflow-x-auto pt-4">
-              <div className="mx-auto flex w-max flex-nowrap justify-center px-2 [&>*:not(:first-child)]:-ml-[56px]">
-                {state.cutFan.map((card, index) => {
-                  const isMine = state.playerCut?.id === card.id;
-                  const isTheirs = state.cpuCut?.id === card.id;
-                  const flipping =
-                    (isMine && cutStage === "flipMine") ||
-                    (isTheirs && !isMulti && cutStage === "flipTheirs");
-                  const gone =
-                    (isMine &&
-                      (cutStage === "seatMine" ||
-                        cutStage === "flipTheirs" ||
-                        cutStage === "seated")) ||
-                    (isTheirs && (cutStage === "seated" || isMulti));
-                  return (
-                    <button
-                      key={card.id}
-                      ref={(el) => {
-                        if (el) fanEls.current.set(card.id, el);
-                        else fanEls.current.delete(card.id);
-                      }}
-                      type="button"
-                      aria-label={`Cut card ${index + 1}`}
-                      disabled={Boolean(state.playerCut) || (isMulti && isTheirs)}
-                      onClick={() => cutDeck(card)}
-                      className={`relative transition-transform ${
-                        state.playerCut
-                          ? ""
-                          : "hover:z-10 hover:-translate-y-2 focus-visible:z-10 focus-visible:-translate-y-2"
-                      } ${
-                        flipping ? "z-20 -translate-y-3" : ""
-                      } ${gone ? "opacity-0" : flipping ? "" : "disabled:opacity-60"}`}
-                    >
-                      {flipping ? (
-                        <span className="animate-turn-over block">
-                          <PlayingCard card={card} cut />
-                        </span>
-                      ) : (
-                        <FaceDownCard cut />
-                      )}
-                    </button>
-                  );
-                })}
+              <div className="mx-auto flex w-max flex-col items-center gap-2 px-2 sm:flex-row sm:gap-0">
+                {[0, 26].map((start) => (
+                  <div
+                    key={start}
+                    className={`flex justify-center [&>*:not(:first-child)]:-ml-[56px]${
+                      start === 26 ? " sm:-ml-[56px]" : ""
+                    }`}
+                  >
+                    {state.cutFan.slice(start, start + 26).map((card, index) => {
+                      const globalIndex = start + index;
+                      const isMine = state.playerCut?.id === card.id;
+                      const isTheirs = state.cpuCut?.id === card.id;
+                      const flipping =
+                        (isMine && cutStage === "flipMine") ||
+                        (isTheirs && !isMulti && cutStage === "flipTheirs");
+                      const gone =
+                        (isMine &&
+                          (cutStage === "seatMine" ||
+                            cutStage === "flipTheirs" ||
+                            cutStage === "seated")) ||
+                        (isTheirs && (cutStage === "seated" || isMulti));
+                      return (
+                        <button
+                          key={card.id}
+                          ref={(el) => {
+                            if (el) fanEls.current.set(card.id, el);
+                            else fanEls.current.delete(card.id);
+                          }}
+                          type="button"
+                          aria-label={`Cut card ${globalIndex + 1}`}
+                          disabled={Boolean(state.playerCut) || (isMulti && isTheirs)}
+                          onClick={() => cutDeck(card)}
+                          className={`relative transition-transform ${
+                            state.playerCut
+                              ? ""
+                              : "hover:z-10 hover:-translate-y-2 focus-visible:z-10 focus-visible:-translate-y-2"
+                          } ${
+                            flipping ? "z-20 -translate-y-3" : ""
+                          } ${gone ? "opacity-0" : flipping ? "" : "disabled:opacity-60"}`}
+                        >
+                          {flipping ? (
+                            <span className="animate-turn-over block">
+                              <PlayingCard card={card} cut />
+                            </span>
+                          ) : (
+                            <FaceDownCard cut />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -1609,7 +1619,7 @@ function CribbageTable() {
           ) : null}
 
           <div className="text-center">
-            <div className={`flex justify-center [&>*:not(:first-child)]:-ml-6${state.phase === "cut" ? "" : " min-h-[105px]"}`}>
+            <div className={`flex justify-center [&>*:not(:first-child)]:-ml-7${state.phase === "cut" ? "" : " min-h-[105px]"}`}>
               {state.playerHand.map((card, index) => {
                 const isSelected = selected.includes(card.id);
                 const faceDown = isFreshDeal && index >= faceUpCount;
