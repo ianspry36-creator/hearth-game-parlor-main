@@ -534,6 +534,17 @@ function CrazyEightsTable() {
   const myTurn = state.turn === "you" && state.phase === "play";
   const iChooseSuit = state.phase === "suit" && state.turn === "you";
 
+  const turnLabel =
+    state.phase === "over"
+      ? state.winner
+        ? `${seatName(state.winner)} wins`
+        : "Game over"
+      : state.phase === "suit"
+        ? `${seatName(state.turn)} to name a suit`
+        : state.turn === "you"
+          ? "Your turn"
+          : `${seatName(state.turn)}'s turn`;
+
   /** Lay one or more cards of the same rank; the last one decides the suit going forward. */
   const playCards = (current: State, side: Seat, cards: Card[]): State => {
     if (!cards.length) return current;
@@ -1183,28 +1194,15 @@ function CrazyEightsTable() {
 
         {/* Your hand */}
         <section>
-          <div className="mb-2 flex items-center justify-center gap-3">
-            <div className="relative">
-              <PlayerAvatar avatar={playerAvatar} onSelect={setPlayerAvatar} size="size-15" />
-              {(state.timedOut ?? []).includes("you") && (
-                <span className="absolute bottom-0 left-1/2 z-10 grid size-5 -translate-x-1/2 translate-y-1/2 place-items-center rounded-full bg-red-600 text-cream ring-2 ring-brand">
-                  <Clock className="size-3" />
-                </span>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <NicknameDialog
-                onSaved={() => setNicknameVersion((v) => v + 1)}
-                trigger={
-                  <button
-                    type="button"
-                    className="text-[12.5px] uppercase tracking-[0.22em] text-ivory/45 hover:text-gold"
-                  >
-                    {seatName("you")}
-                  </button>
-                }
-              />
-              <PlayerFlag flag={flag} className="size-6" onClick={() => setFlagOpen(true)} />
+          <div className="mb-2 flex justify-center">
+            <div
+              className={`rounded-full border px-4 py-1.5 font-display text-sm tracking-wide ${
+                state.turn === "you" && state.phase !== "over"
+                  ? "border-gold/60 bg-gold/10 text-gold"
+                  : "border-ivory/15 bg-ivory/5 text-ivory/70"
+              }`}
+            >
+              {turnLabel}
             </div>
           </div>
           <div ref={handRef} className="flex items-end justify-center">
@@ -1237,6 +1235,30 @@ function CrazyEightsTable() {
                 </button>
               );
             })}
+          </div>
+          <div className="mt-3 flex items-center justify-center gap-3">
+            <div className="relative">
+              <PlayerAvatar avatar={playerAvatar} onSelect={setPlayerAvatar} size="size-15" />
+              {(state.timedOut ?? []).includes("you") && (
+                <span className="absolute bottom-0 left-1/2 z-10 grid size-5 -translate-x-1/2 translate-y-1/2 place-items-center rounded-full bg-red-600 text-cream ring-2 ring-brand">
+                  <Clock className="size-3" />
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <NicknameDialog
+                onSaved={() => setNicknameVersion((v) => v + 1)}
+                trigger={
+                  <button
+                    type="button"
+                    className="text-[12.5px] uppercase tracking-[0.22em] text-ivory/45 hover:text-gold"
+                  >
+                    {seatName("you")}
+                  </button>
+                }
+              />
+              <PlayerFlag flag={flag} className="size-6" onClick={() => setFlagOpen(true)} />
+            </div>
           </div>
           <div className="mt-5 flex min-h-9 flex-wrap items-center gap-3">
             {canPlaySelected && (

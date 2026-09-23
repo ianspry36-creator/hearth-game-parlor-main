@@ -967,12 +967,16 @@ function YahtzeeTable() {
         </td>
         <td className="h-6 border-b border-r border-gold/40 px-2 text-center lg:h-8">
           {taken ? (
-            <span className="font-display text-[13px] font-bold text-neutral-900 lg:text-[16px]">{myCard[category]}</span>
+            myCard[category] === 0 ? (
+              <span className="font-display text-[13px] font-bold text-neutral-900 lg:text-[16px]">—</span>
+            ) : (
+              <span className="font-display text-[13px] font-bold text-neutral-900 lg:text-[16px]">{myCard[category]}</span>
+            )
           ) : preview !== null ? (
             <button
               type="button"
               onClick={() => take(category)}
-              className="rounded-md border border-gold/40 px-2 py-0.5 text-xs font-bold text-red-600 transition-colors hover:bg-gold/20 hover:text-red-700 lg:text-[13px]"
+              className="inline-flex min-w-8 items-center justify-center rounded-md border border-gold/40 px-2 py-0.5 text-xs font-bold text-red-600 transition-colors hover:bg-gold/20 hover:text-red-700 lg:min-w-9 lg:text-[13px]"
             >
               {preview}
             </button>
@@ -982,7 +986,11 @@ function YahtzeeTable() {
         </td>
         <td className="h-6 border-b border-gold/40 pl-2 text-center lg:h-8">
           {theirCard[category] !== undefined ? (
-            <span className="font-display text-[13px] font-bold text-neutral-700 lg:text-[16px]">{theirCard[category]}</span>
+            theirCard[category] === 0 ? (
+              <span className="font-display text-[13px] font-bold text-neutral-700 lg:text-[16px]">—</span>
+            ) : (
+              <span className="font-display text-[13px] font-bold text-neutral-700 lg:text-[16px]">{theirCard[category]}</span>
+            )
           ) : (
             <span className="text-neutral-400">—</span>
           )}

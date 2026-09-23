@@ -251,6 +251,7 @@ export function ScoreGrid({
   cpuAvatar,
   playerFlag,
   cpuFlag,
+  hideCpuFlag = false,
   playerScore,
   cpuScore,
 }: {
@@ -260,6 +261,7 @@ export function ScoreGrid({
   cpuAvatar: string;
   playerFlag: string | null;
   cpuFlag: string | null;
+  hideCpuFlag?: boolean;
   playerScore: number;
   cpuScore: number;
 }) {
@@ -286,7 +288,7 @@ export function ScoreGrid({
             className="size-7 shrink-0 rounded-full object-cover ring-1 ring-black/15"
           />
           <span className="truncate">{opponentName}</span>
-          <PlayerFlag flag={cpuFlag} />
+          <PlayerFlag flag={cpuFlag} hide={hideCpuFlag} />
           <span className="size-2.5 shrink-0 rounded-full bg-ivory ring-1 ring-black/25" />
         </span>
         <span className="shrink-0 font-display text-lg">{cpuScore}</span>
@@ -307,6 +309,7 @@ export function CribBoard({
   cpuAvatar,
   playerFlag,
   cpuFlag,
+  hideCpuFlag = false,
 }: {
   graphic: string;
   playerScore: number;
@@ -319,6 +322,7 @@ export function CribBoard({
   cpuAvatar: string;
   playerFlag: string | null;
   cpuFlag: string | null;
+  hideCpuFlag?: boolean;
 }) {
   return (
     <div className="rounded-xl border border-gold/20 bg-surface/60 p-4">
@@ -341,6 +345,7 @@ export function CribBoard({
           cpuAvatar={cpuAvatar}
           playerFlag={playerFlag}
           cpuFlag={cpuFlag}
+          hideCpuFlag={hideCpuFlag}
           playerScore={playerScore}
           cpuScore={cpuScore}
         />

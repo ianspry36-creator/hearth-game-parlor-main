@@ -125,6 +125,9 @@ type FlyingCard = {
   fromScale?: number;
   toScale?: number;
   faceDown?: boolean;
+  /** Destination variant to render at, so the card lands at the exact same size
+   *  as the cards already sitting at its target (defaults to the full-size card). */
+  variant?: "table" | "half" | "medium";
 };
 
 const note = (log: LogEntry[], entry: LogEntry) => [entry, ...log].slice(0, 40);
@@ -134,11 +137,14 @@ const SUIT_ORDER: Record<Card["suit"], number> = { S: 0, H: 1, D: 2, C: 3 };
 const sortHand = (cards: Card[]) =>
   [...cards].sort((a, b) => a.rank - b.rank || SUIT_ORDER[a.suit] - SUIT_ORDER[b.suit]);
 
-/** Width in px of the responsive "half" (crib/opponent) and "medium" (hand) card variants. */
-const responsiveCardWidth = (variant: "half" | "medium") => {
+/** Width in px of the responsive "half" (crib/opponent), "medium" (hand) and
+ * "table" (pegging pile) card variants. */
+const responsiveCardWidth = (variant: "half" | "medium" | "table") => {
   const desktop =
     typeof window !== "undefined" && window.matchMedia("(min-width: 640px)").matches;
-  return variant === "half" ? (desktop ? 72 : 30) : desktop ? 72 : 56;
+  if (variant === "half") return desktop ? 72 : 30;
+  if (variant === "medium") return desktop ? 72 : 56;
+  return desktop ? 72 : 59; // table
 };
 
 function dealHand(dealer: Side, scores: Record<Side, number>, log: LogEntry[]): State {
@@ -547,6 +553,8 @@ function CribbageTable() {
   const cpuSeatRef = useRef<HTMLDivElement>(null);
   /** Last recorded on-screen position of each player hand card, for FLIP reflow. */
   const handPositions = useRef(new Map<string, { left: number; top: number }>());
+  /** Last recorded on-screen position of each opponent hand card, for FLIP reflow. */
+  const cpuHandPositions = useRef(new Map<string, { left: number; top: number }>());
 
   // Stable across the sort animation so the deal only plays once per hand.
   const handKey = [...state.playerHand.map((c) => c.id)].sort().join("-");
@@ -568,6 +576,9 @@ function CribbageTable() {
   );
 
   const opponentName = liveOpponent ?? opponent ?? "Ada";
+  // Ada is the built-in CPU opponent: she has no country, so her seat shows no
+  // flag (and no globe placeholder) unless a live human opponent is present.
+  const opponentIsCpu = !isMulti;
   const [playerName, setPlayerName] = useState(() => getNickname() ?? "You");
 
   /** Commit a move: locally always, and to the shared table in a live match. */
@@ -650,14 +661,14 @@ function CribbageTable() {
         card,
         from: { x: rect.left, y: rect.top },
         // The pile grows left-to-right inside a fixed-width slot, each card
-        // advancing 32px (59px card minus the 27px overlap). Land with the
-        // card's left edge exactly on the next empty slot.
+        // advancing by its width minus the 27px overlap. Land with the card's
+        // left edge exactly on the next empty slot.
         to: {
-          x: pileRect.left + state.pile.length * 32,
+          x: pileRect.left + state.pile.length * (responsiveCardWidth("table") - 27),
           y: pileRect.top,
         },
-        fromScale: 72 / 64, // medium hand card (flying card base is full-size)
-        toScale: 59 / 64, // table pile card
+        fromScale: responsiveCardWidth("medium") / responsiveCardWidth("table"),
+        variant: "table",
       };
       setFlying((current) => [...current, flight]);
       window.setTimeout(() => {
@@ -690,11 +701,11 @@ function CribbageTable() {
         from: { x: rect.left, y: rect.top },
         // Land on the next empty pile slot, matching the player-side animation.
         to: {
-          x: pileRect.left + stateRef.current.pile.length * 32,
+          x: pileRect.left + stateRef.current.pile.length * (responsiveCardWidth("table") - 27),
           y: pileRect.top,
         },
-        fromScale: 72 / 64, // medium face-down hand card
-        toScale: 59 / 64, // table pile card
+        fromScale: responsiveCardWidth("half") / responsiveCardWidth("table"),
+        variant: "table",
       };
       setFlying((current) => [...current, flight]);
       window.setTimeout(() => {
@@ -933,6 +944,47 @@ function CribbageTable() {
     return () => clearTimeout(cleanup);
   }, [state.playerHand]);
 
+  // Mirror of the player-hand reflow above, for the opponent's hand. The CPU
+  // hand only ever shrinks on screen (it never sorts into view), so the same
+  // "hand shrank" guard is enough to skip the deal-in animation.
+  useLayoutEffect(() => {
+    const prev = cpuHandPositions.current;
+    const next = new Map<string, { left: number; top: number }>();
+    const moves: { el: HTMLElement; dx: number; dy: number }[] = [];
+
+    state.cpuHand.forEach((card) => {
+      const el = cpuHandEls.current.get(card.id);
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const before = prev.get(card.id);
+      next.set(card.id, { left: rect.left, top: rect.top });
+      if (before && (before.left !== rect.left || before.top !== rect.top)) {
+        moves.push({ el, dx: before.left - rect.left, dy: before.top - rect.top });
+      }
+    });
+
+    cpuHandPositions.current = next;
+
+    if (state.cpuHand.length >= prev.size || moves.length === 0) return;
+
+    moves.forEach(({ el, dx, dy }) => {
+      el.style.transition = "none";
+      el.style.transform = `translate(${dx}px, ${dy}px)`;
+    });
+    void document.body.offsetHeight;
+    moves.forEach(({ el }) => {
+      el.style.transition = "transform 0.3s ease";
+      el.style.transform = "translate(0, 0)";
+    });
+    const cleanup = window.setTimeout(() => {
+      moves.forEach(({ el }) => {
+        el.style.transition = "";
+        el.style.transform = "";
+      });
+    }, 320);
+    return () => clearTimeout(cleanup);
+  }, [state.cpuHand]);
+
   // The host seeds the first deal for a fresh live table.
   useEffect(() => {
     if (!isMulti || !match || match.state || !isHost) return;
@@ -1036,12 +1088,12 @@ function CribbageTable() {
           key: Date.now() + index,
           card,
           from: { x: rect.left, y: rect.top },
-          // Each crib card advances 48px (72px card less the 24px overlap), so
-          // the pair lands side by side instead of stacked on the first slot.
-          to: { x: cribRect.left + index * 48, y: cribRect.top },
-          fromScale: responsiveCardWidth("medium") / 64, // hand card (medium)
-          toScale: responsiveCardWidth("half") / 64, // crib card is smaller
+          // Each crib card advances by its width minus the 12px overlap, so the
+          // pair lands side by side instead of stacked on the first slot.
+          to: { x: cribRect.left + index * (responsiveCardWidth("half") - 12), y: cribRect.top },
+          fromScale: responsiveCardWidth("medium") / responsiveCardWidth("half"),
           faceDown: true,
+          variant: "half",
         });
       });
     }
@@ -1090,10 +1142,10 @@ function CribbageTable() {
           key: Date.now() + index,
           card,
           from: { x: rect.left, y: rect.top },
-          to: { x: cribRect.left + (offset + index) * 48, y: cribRect.top },
-          fromScale: responsiveCardWidth("half") / 64, // CPU hand shows half-size face-down cards
-          toScale: responsiveCardWidth("half") / 64,
+          to: { x: cribRect.left + (offset + index) * (responsiveCardWidth("half") - 12), y: cribRect.top },
+          fromScale: 1, // CPU hand and crib both show half-size cards
           faceDown: true,
+          variant: "half",
         });
       });
     }
@@ -1277,6 +1329,7 @@ function CribbageTable() {
             cpuAvatar={opponentAvatar ?? ADA_AVATAR}
             playerFlag={flag}
             cpuFlag={opponentFlag}
+            hideCpuFlag={opponentIsCpu}
             playerScore={state.scores.player}
             cpuScore={state.scores.cpu}
           />
@@ -1299,6 +1352,7 @@ function CribbageTable() {
                 cpuAvatar={opponentAvatar ?? ADA_AVATAR}
                 playerFlag={flag}
                 cpuFlag={opponentFlag}
+                hideCpuFlag={opponentIsCpu}
               />
             </DialogContent>
           </Dialog>
@@ -1317,6 +1371,7 @@ function CribbageTable() {
           cpuAvatar={opponentAvatar ?? ADA_AVATAR}
           playerFlag={flag}
           cpuFlag={opponentFlag}
+          hideCpuFlag={opponentIsCpu}
         />
       }
     >
@@ -1377,6 +1432,7 @@ function CribbageTable() {
               name={opponentName}
               isDealer={state.dealer === "cpu" && state.phase !== "cut"}
               flag={opponentFlag}
+              hideFlag={opponentIsCpu}
               avatar={
                 <span className="relative grid size-10 place-items-center overflow-hidden rounded-full bg-gold/20 ring-1 ring-gold/40 sm:size-16">
                   <img
@@ -1445,8 +1501,8 @@ function CribbageTable() {
                 {[0, 26].map((start) => (
                   <div
                     key={start}
-                    className={`flex justify-center [&>*:not(:first-child)]:-ml-[56px]${
-                      start === 26 ? " sm:-ml-[56px]" : ""
+                    className={`flex justify-center [&>*:not(:first-child)]:-ml-[52px] ${
+                      start === 26 ? "sm:-ml-[52px]" : ""
                     }`}
                   >
                     {state.cutFan.slice(start, start + 26).map((card, index) => {
@@ -1502,7 +1558,7 @@ function CribbageTable() {
             <div className="flex items-center gap-3">
               <div
                 ref={pileRef}
-                className="relative flex h-[86px] w-[234px] items-center justify-start [&>*:not(:first-child)]:-ml-[27px] sm:w-72"
+                className="relative flex h-[86px] w-[234px] items-center justify-start [&>*:not(:first-child)]:-ml-[27px] sm:h-[105px] sm:w-72"
               >
                 {state.pile.map((card, index) => {
                   const isLast = index === state.pile.length - 1;
@@ -1777,6 +1833,12 @@ function FlyingCardView({ flight }: { flight: FlyingCard }) {
   const dx = moved ? flight.to.x - flight.from.x : 0;
   const dy = moved ? flight.to.y - flight.from.y : 0;
   const scale = moved ? (flight.toScale ?? 1) : (flight.fromScale ?? 1);
+  // Render the card at its destination variant so it lands at the exact same
+  // size as the cards already sitting there (all variants are 72px on desktop).
+  const v = flight.variant;
+  const half = v === "half";
+  const medium = v === "medium";
+  const table = v === "table";
   return (
     <div
       aria-hidden
@@ -1788,7 +1850,11 @@ function FlyingCardView({ flight }: { flight: FlyingCard }) {
         transform: `translate(${dx}px, ${dy}px) scale(${scale})`,
       }}
     >
-      {flight.faceDown ? <FaceDownCard /> : <PlayingCard card={flight.card} />}
+      {flight.faceDown ? (
+        <FaceDownCard half={half} medium={medium} table={table} />
+      ) : (
+        <PlayingCard card={flight.card} half={half} medium={medium} table={table} />
+      )}
     </div>
   );
 }
@@ -1798,7 +1864,7 @@ function DeckStack({ remaining, starter }: { remaining: number; starter: Card | 
   const layers = Math.min(4, Math.max(1, Math.ceil(remaining / 10)));
   return (
     <div className="text-center">
-      <div className="relative h-[86px] w-[59px]">
+      <div className="relative h-[86px] w-[59px] sm:h-[105px] sm:w-[72px]">
         {Array.from({ length: layers }).map((_, index) => (
           <span
             key={index}
@@ -1856,6 +1922,7 @@ function Seat({
   flag,
   nameTrigger,
   onFlagClick,
+  hideFlag = false,
 }: {
   name: string;
   isDealer: boolean;
@@ -1863,6 +1930,7 @@ function Seat({
   flag?: string | null;
   nameTrigger?: React.ReactNode;
   onFlagClick?: () => void;
+  hideFlag?: boolean;
 }) {
   return (
     <div className="flex items-center justify-center gap-2">
@@ -1880,7 +1948,7 @@ function Seat({
       </div>
       <div className="flex items-center gap-1.5">
         {nameTrigger ?? <span className="text-sm text-cream">{name}</span>}
-        <PlayerFlag flag={flag} onClick={onFlagClick} />
+        <PlayerFlag flag={flag} onClick={onFlagClick} hide={hideFlag} />
       </div>
     </div>
   );
@@ -1923,11 +1991,11 @@ function FaceDownCard({
               : small
                 ? "h-[77px] w-[53px]"
                 : table
-                  ? "h-[86px] w-[59px]"
+                  ? "h-[86px] w-[59px] sm:h-[105px] sm:w-[72px]"
                   : cut
                     ? "h-[90px] w-[62px] scale-[0.9215]"
                     : deck
-                      ? "h-[95px] w-[65px]"
+                      ? "h-[95px] w-[65px] sm:h-[105px] sm:w-[72px]"
                       : half
                       ? "h-[43px] w-[30px] sm:h-[105px] sm:w-[72px]"
                       : medium
@@ -1991,11 +2059,11 @@ function PlayingCard({
               : small
                 ? "h-[77px] w-[53px]"
                 : table
-                  ? "h-[86px] w-[59px]"
+                  ? "h-[86px] w-[59px] sm:h-[105px] sm:w-[72px]"
                   : cut
                     ? "h-[90px] w-[62px] scale-[0.9215]"
                     : deck
-                      ? "h-[95px] w-[65px]"
+                      ? "h-[95px] w-[65px] sm:h-[105px] sm:w-[72px]"
                       : half
                       ? "h-[43px] w-[30px] sm:h-[105px] sm:w-[72px]"
                       : medium
@@ -2008,37 +2076,41 @@ function PlayingCard({
       {/* corner index */}
       <span
         className={`absolute left-1 top-0.5 flex flex-col items-center leading-none font-display font-bold ${
-          tiny || half
+          tiny
             ? "text-[8px]"
-            : xs
-              ? "text-[9px]"
-              : opp
-                ? "text-[10px]"
-                : small
-                  ? "text-xs"
-                  : table || cut || deck
-                    ? "text-[15px]"
-                    : medium
-                      ? "text-[15px] sm:text-[16px]"
-                      : "text-xs"
+            : half
+              ? "text-[8px] sm:text-[16px]"
+              : xs
+                ? "text-[9px]"
+                : opp
+                  ? "text-[10px]"
+                  : small
+                    ? "text-xs"
+                    : table || cut || deck
+                      ? "text-[15px]"
+                      : medium
+                        ? "text-[15px] sm:text-[16px]"
+                        : "text-xs"
         }`}
       >
         <span>{rank}</span>
         <span
           className={
-            tiny || half
+            tiny
               ? "text-[7px]"
-              : xs
-                ? "text-[8px]"
-                : opp
-                  ? "text-[9px]"
-                  : small
-                    ? "text-[11px]"
-                    : table || cut || deck
-                      ? "text-[14px]"
-                      : medium
-                        ? "text-[14px] sm:text-[15px]"
-                        : "text-[11px]"
+              : half
+                ? "text-[7px] sm:text-[15px]"
+                : xs
+                  ? "text-[8px]"
+                  : opp
+                    ? "text-[9px]"
+                    : small
+                      ? "text-[11px]"
+                      : table || cut || deck
+                        ? "text-[14px]"
+                        : medium
+                          ? "text-[14px] sm:text-[15px]"
+                          : "text-[11px]"
           }
         >
           {suit}
@@ -2049,8 +2121,10 @@ function PlayingCard({
       <span
         aria-hidden
         className={`absolute inset-0 grid place-items-center font-display ${
-          tiny || half
+          tiny
             ? "text-lg"
+            : half
+              ? "text-lg sm:text-[39px]"
             : xs
               ? "text-xl"
               : opp
@@ -2068,8 +2142,10 @@ function PlayingCard({
           <span className="flex flex-col items-center leading-none">
             <span
               className={
-                tiny || half
+                tiny
                   ? "text-xs"
+                  : half
+                    ? "text-xs sm:text-[28px]"
                   : xs
                     ? "text-sm"
                     : opp
@@ -2087,8 +2163,10 @@ function PlayingCard({
             </span>
             <span
               className={
-                tiny || half
+                tiny
                   ? "text-sm"
+                  : half
+                    ? "text-sm sm:text-[30px]"
                   : xs
                     ? "text-base"
                     : opp
@@ -2113,37 +2191,41 @@ function PlayingCard({
       {/* mirrored bottom-right index */}
       <span
         className={`absolute bottom-0.5 right-1 flex rotate-180 flex-col items-center leading-none font-display font-bold ${
-          tiny || half
+          tiny
             ? "text-[8px]"
-            : xs
-              ? "text-[9px]"
-              : opp
-                ? "text-[10px]"
-                : small
-                  ? "text-xs"
-                  : table || cut || deck
-                    ? "text-[15px]"
-                    : medium
-                      ? "text-[15px] sm:text-[16px]"
-                      : "text-xs"
+            : half
+              ? "text-[8px] sm:text-[16px]"
+              : xs
+                ? "text-[9px]"
+                : opp
+                  ? "text-[10px]"
+                  : small
+                    ? "text-xs"
+                    : table || cut || deck
+                      ? "text-[15px]"
+                      : medium
+                        ? "text-[15px] sm:text-[16px]"
+                        : "text-xs"
         }`}
       >
         <span>{rank}</span>
         <span
           className={
-            tiny || half
+            tiny
               ? "text-[7px]"
-              : xs
-                ? "text-[8px]"
-                : opp
-                  ? "text-[9px]"
-                  : small
-                    ? "text-[11px]"
-                    : table || cut || deck
-                      ? "text-[14px]"
-                      : medium
-                        ? "text-[14px] sm:text-[15px]"
-                        : "text-[11px]"
+              : half
+                ? "text-[7px] sm:text-[15px]"
+                : xs
+                  ? "text-[8px]"
+                  : opp
+                    ? "text-[9px]"
+                    : small
+                      ? "text-[11px]"
+                      : table || cut || deck
+                        ? "text-[14px]"
+                        : medium
+                          ? "text-[14px] sm:text-[15px]"
+                          : "text-[11px]"
           }
         >
           {suit}

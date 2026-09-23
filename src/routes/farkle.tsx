@@ -212,6 +212,10 @@ function FarkleTable() {
   } = useMatch<State>(matchId, Boolean(state.winner));
   const stateRef = useRef(state);
   const proposedTimerOffRef = useRef(false);
+  // Banking animation: while the turn total counts down to zero the running
+  // score counts up, and only then is the bank actually committed.
+  const [bankAnim, setBankAnim] = useState<{ bank: number; score: number } | null>(null);
+  const bankAnimRef = useRef<number | null>(null);
   stateRef.current = state;
   // While a rematch is being negotiated the match row must stay open: treat the
   // game as unfinished so the delayed "completed" write doesn't fire and bounce
@@ -262,6 +266,7 @@ function FarkleTable() {
     () => () => {
       if (messageTimer.current) clearTimeout(messageTimer.current);
       if (cpuMessageTimer.current) clearTimeout(cpuMessageTimer.current);
+      if (bankAnimRef.current) cancelAnimationFrame(bankAnimRef.current);
     },
     [],
   );
@@ -554,12 +559,34 @@ function FarkleTable() {
   };
 
   const bank = () => {
-    if (!myTurn || bestKeepResult === null) return;
+    if (!myTurn || bestKeepResult === null || bankAnim !== null) return;
     const gained = bestKeepResult.score;
     const banked = state.turnScore + gained;
-    apply((current) => bankFor(current, "human", gained));
+    const startScore = state.scores.human;
     setSelected([]);
-    showAvatarMessage(`${banked.toLocaleString()} banked`);
+
+    // Count the turn total down to zero while the running score counts up,
+    // then commit the bank once the animation has finished.
+    const duration = 900;
+    const started = performance.now();
+    if (bankAnimRef.current) cancelAnimationFrame(bankAnimRef.current);
+    const step = (now: number) => {
+      const t = Math.min(1, (now - started) / duration);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setBankAnim({
+        bank: Math.round(banked * (1 - eased)),
+        score: Math.round(startScore + banked * eased),
+      });
+      if (t < 1) {
+        bankAnimRef.current = requestAnimationFrame(step);
+      } else {
+        bankAnimRef.current = null;
+        setBankAnim(null);
+        apply((current) => bankFor(current, "human", gained));
+        showAvatarMessage(`${banked.toLocaleString()} banked`);
+      }
+    };
+    bankAnimRef.current = requestAnimationFrame(step);
   };
 
   // A farkle auto-passes: after a three-second pause (letting the cry and rattle
@@ -674,7 +701,7 @@ function FarkleTable() {
   const diceLeft = activeDice.length;
 
   const meldTable = (
-    <table className="w-full text-sm">
+    <table className="w-full select-none text-sm">
       <thead>
         <tr className="border-b border-brand/20">
           <th className="pb-1.5 text-left font-semibold">Meld</th>
@@ -873,7 +900,7 @@ function FarkleTable() {
             </p>
           </div>
 
-          <div className="flex flex-1 flex-col items-center justify-center">
+          <div className="flex w-full flex-1 flex-col items-center justify-center">
             {state.phase === "rolloff" ? (
               <div className="text-center">
                 <p className="text-[11px] uppercase tracking-[0.3em] text-gold">Who goes first?</p>
@@ -919,7 +946,7 @@ function FarkleTable() {
                 </div>
               </div>
             ) : (
-              <div className="rounded-2xl border border-gold/25 bg-surface/60 p-6 shadow-2xl shadow-black/40 sm:px-10 sm:py-8">
+              <div className="w-full rounded-2xl border border-[#7CFC00] bg-[#7CFC00] p-6 shadow-2xl shadow-black/40 sm:px-10 sm:py-8">
                 <div className="relative mx-auto h-52 w-full max-w-[25.2rem] sm:h-56">
                   {state.dice.map((die, i) => {
                     if (!state.rolled || die.set) {
@@ -948,7 +975,7 @@ function FarkleTable() {
                   })}
                 </div>
                 {diceLeft === 0 && state.rolled && (
-                  <p className="mt-3 text-center text-sm text-ivory/60">
+                  <p className="mt-3 text-center text-sm font-medium text-brand">
                     Hot dice — throw all six again.
                   </p>
                 )}
@@ -1025,7 +1052,7 @@ function FarkleTable() {
                         Throw the dice
                       </Button>
                     ) : (
-                      <>
+                      <div className="flex flex-col items-center gap-3">
                         <Button
                           variant="parlor"
                           disabled={selectionScore === null}
@@ -1035,15 +1062,15 @@ function FarkleTable() {
                         </Button>
                         <Button
                           variant="parlorOutline"
-                          disabled={bestKeepResult === null}
+                          disabled={bestKeepResult === null || bankAnim !== null}
                           onClick={bank}
                         >
                           Bank
                           {bestKeepResult !== null
-                            ? ` ${(state.turnScore + bestKeepResult.score).toLocaleString()}`
+                            ? ` ${(bankAnim ? bankAnim.bank : state.turnScore + bestKeepResult.score).toLocaleString()}`
                             : ""}
                         </Button>
-                      </>
+                      </div>
                     )}
                   </>
                 )}
@@ -1054,7 +1081,7 @@ function FarkleTable() {
                 Score
               </p>
               <p className="font-display text-xl font-bold text-gold sm:text-3xl">
-                {state.scores.human.toLocaleString()}
+                {(bankAnim ? bankAnim.score : state.scores.human).toLocaleString()}
               </p>
             </div>
 

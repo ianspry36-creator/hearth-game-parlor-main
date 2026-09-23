@@ -19,7 +19,7 @@ import { TurnOffTimerControl } from "@/components/parlor/TurnOffTimerControl";
 import { SpeechBubble } from "@/components/parlor/SpeechBubble";
 import { TableOptionsDialog } from "@/components/parlor/TableOptionsDialog";
 import { ADA_AVATAR, readAvatar } from "@/lib/avatars";
-import { flagName, flagUrl, readFlag } from "@/lib/flags";
+import { readFlag } from "@/lib/flags";
 import { FlagPicker } from "@/components/parlor/FlagPicker";
 import { PlayerFlag } from "@/components/parlor/PlayerFlag";
 import { NicknameDialog } from "@/components/parlor/NicknameDialog";
@@ -214,6 +214,8 @@ function BackgammonTable() {
   const [selected, setSelected] = useState<number | "bar" | null>(null);
   // Whether the end-of-game dialog has been dismissed to inspect the board.
   const [viewingBoard, setViewingBoard] = useState(false);
+  // Whether the concede confirmation dialog is open.
+  const [concedeOpen, setConcedeOpen] = useState(false);
   const stateRef = useRef(state);
   const proposedTimerOffRef = useRef(false);
   stateRef.current = state;
@@ -291,6 +293,16 @@ function BackgammonTable() {
     stateRef.current = next;
     setState(next);
     if (isMulti) void publish(isHost ? next : mirror(next));
+  };
+
+  // Concede the game: award the win to the opponent (Ada or the live player).
+  const concede = () => {
+    setConcedeOpen(false);
+    apply((current) => ({
+      ...current,
+      winner: "cpu",
+      log: note(current.log, { side: "human", text: `${playerName} conceded.` }),
+    }));
   };
 
   // Live matches run a 1-minute clock on the active seat; running out forfeits
@@ -409,8 +421,13 @@ function BackgammonTable() {
       : [];
 
   // Human has checkers on the bar and is waiting to re-enter after rolling.
+  // The swirling ring only shows while a legal re-entry exists; once every
+  // entry point is blocked and the player passes, the piece stays still.
   const barNeedsMove =
-    state.board.bar.human > 0 && state.turn === "human" && state.rolled;
+    state.board.bar.human > 0 &&
+    state.turn === "human" &&
+    state.rolled &&
+    moves.some((m) => m.from === "bar");
 
   // Auto-select the bar while a checker needs to re-enter, so the legal
   // re-entry points are highlighted without the player having to click the
@@ -788,6 +805,11 @@ function BackgammonTable() {
             }
             onDecline={() => apply((current) => ({ ...current, timerRequest: null, timerDeclined: true }))}
           />
+          {!state.winner && state.phase === "play" && (
+            <Button variant="parlorGhost" size="sm" className="w-full h-6" onClick={() => setConcedeOpen(true)}>
+              Concede
+            </Button>
+          )}
         </>
       }
     >
@@ -842,6 +864,23 @@ function BackgammonTable() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <AlertDialog open={concedeOpen} onOpenChange={setConcedeOpen}>
+        <AlertDialogContent className="border-gold/25 bg-brand text-cream">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-display text-2xl">Concede the game?</AlertDialogTitle>
+            <AlertDialogDescription className="text-ivory/65">
+              {isMulti
+                ? `You'll forfeit the match and ${opponentName} will win.`
+                : "You'll forfeit the game and Ada will win."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep playing</AlertDialogCancel>
+            <AlertDialogAction onClick={concede}>Concede</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <div className="space-y-6 sm:space-y-1.5">
         {/* Opponent — top of the table */}
         <div className="flex items-center justify-between gap-4 rounded-2xl border border-gold/15 bg-brand/50 p-4">
@@ -861,14 +900,7 @@ function BackgammonTable() {
             <div>
               <div className="flex items-center gap-2">
                 <p className="font-display text-lg font-bold">{opponentName}</p>
-                {opponentFlag && (
-                  <img
-                    src={flagUrl(opponentFlag)}
-                    alt={flagName(opponentFlag) ?? ""}
-                    title={flagName(opponentFlag) ?? ""}
-                    className="size-5 shrink-0 rounded-sm border border-black/20 object-cover shadow-sm shadow-black/30"
-                  />
-                )}
+                <PlayerFlag flag={opponentFlag} />
               </div>
               <p className="text-xs text-ivory/60">
                 {opponentComment}

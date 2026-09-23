@@ -41,18 +41,12 @@ export function TurnOffTimerControl({
 }) {
   const [showDeclined, setShowDeclined] = useState(false);
   useEffect(() => {
-    if (!declined) return;
-    setShowDeclined(true);
-    const timer = setTimeout(() => setShowDeclined(false), 6000);
-    return () => clearTimeout(timer);
+    if (declined) setShowDeclined(true);
   }, [declined]);
 
   const [showAgreed, setShowAgreed] = useState(false);
   useEffect(() => {
-    if (!agreed) return;
-    setShowAgreed(true);
-    const timer = setTimeout(() => setShowAgreed(false), 6000);
-    return () => clearTimeout(timer);
+    if (agreed) setShowAgreed(true);
   }, [agreed]);
 
   return (
@@ -62,16 +56,32 @@ export function TurnOffTimerControl({
           Turn Off Timer
         </Button>
       )}
-      {showAgreed && (
-        <p className="text-xs leading-snug text-ivory/60">
-          {opponentName} has agreed to turn off Timer.
-        </p>
-      )}
-      {showDeclined && (
-        <p className="text-xs leading-snug text-ivory/60">
-          {opponentName} has not agreed to turn off Timer. Timer function will continue.
-        </p>
-      )}
+      <AlertDialog open={showAgreed} onOpenChange={setShowAgreed}>
+        <AlertDialogContent className="border-gold/25 bg-brand text-cream">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-display text-2xl">Timer switched off</AlertDialogTitle>
+            <AlertDialogDescription className="text-ivory/65">
+              {opponentName} has agreed to turn off the Timer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction>OK</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={showDeclined} onOpenChange={setShowDeclined}>
+        <AlertDialogContent className="border-gold/25 bg-brand text-cream">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-display text-2xl">Timer stays on</AlertDialogTitle>
+            <AlertDialogDescription className="text-ivory/65">
+              {opponentName} has not agreed to turn off the Timer. The Timer will continue.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction>OK</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <AlertDialog open={showPrompt}>
         <AlertDialogContent className="border-gold/25 bg-brand text-cream">
           <AlertDialogHeader>

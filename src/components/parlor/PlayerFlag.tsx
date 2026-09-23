@@ -10,11 +10,15 @@ export function PlayerFlag({
   flag,
   className = "size-5",
   onClick,
+  hide = false,
 }: {
   flag: string | null;
   className?: string;
   onClick?: () => void;
+  /** When true, render nothing (e.g. a bot with no country, rather than the globe placeholder). */
+  hide?: boolean;
 }) {
+  if (hide) return null;
   const src = flag ? flagUrl(flag) : earthUrl();
   const alt = flag ? (flagName(flag) ?? "") : "No flag chosen";
   const img = (
