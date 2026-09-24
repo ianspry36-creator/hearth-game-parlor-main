@@ -419,9 +419,13 @@ function YahtzeeTable() {
           ? rolloffSecond
           : null;
 
-  // The local player may throw when it is their turn and their die is still blank.
+  // The local player may throw when their own die is still blank. In a live
+  // match both players roll at once; solo play stays sequential (Ada throws
+  // after the player).
   const canRollOff =
-    state.phase === "rolloff" && rolloffTurn === "human" && state.rolloff.human === null;
+    state.phase === "rolloff" &&
+    state.rolloff.human === null &&
+    (isMulti || rolloffTurn === "human");
 
   // Before the opening roll-off, prompt the active player to throw.
   useEffect(() => {
@@ -924,7 +928,7 @@ function YahtzeeTable() {
             <p className="text-xs text-ivory/40">
               {active
                 ? "Dice you keep will sit here"
-                : state.phase === "rolloff" && rolloffTurn === side
+                : state.phase === "rolloff" && rolloffValue !== null
                   ? "Rolling Dice"
                   : "Waiting"}
             </p>
