@@ -506,7 +506,7 @@ export function WaitingRoom({
                     height={72}
                     className="size-[4.5rem] shrink-0 rounded-full border border-gold/40 object-cover"
                   />
-                  <MedalBadge streak={me?.streak ?? 0} />
+                  <MedalBadge streak={me?.streak ?? 0} nickname={nickname ?? undefined} />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
@@ -591,7 +591,7 @@ export function WaitingRoom({
                         {player.nickname.charAt(0).toUpperCase()}
                       </span>
                     )}
-                    <MedalBadge streak={player.streak ?? 0} />
+                    <MedalBadge streak={player.streak ?? 0} nickname={player.nickname} />
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">

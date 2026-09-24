@@ -1,9 +1,9 @@
 import { medalForStreak, type MedalTier } from "@/lib/medals";
 
 const MEDALS: Record<Exclude<MedalTier, "none">, { icon: string; label: string }> = {
-  bronze: { icon: "🥉", label: "Bronze medal — 3 completed online games" },
-  silver: { icon: "🥈", label: "Silver medal — 7 completed online games" },
-  gold: { icon: "🥇", label: "Gold medal — 12 completed online games" },
+  bronze: { icon: "🥉", label: "Bronze" },
+  silver: { icon: "🥈", label: "Silver" },
+  gold: { icon: "🥇", label: "Gold" },
 };
 
 /** Completed games required to earn the first (bronze) medal. */
@@ -11,10 +11,11 @@ const BRONZE_AT = 3;
 
 /**
  * A badge pinned to the bottom-centre of a player's avatar. Shows the medal for
- * players who have earned one, otherwise a count of finished games as they
- * work toward bronze.
+ * players who have earned one, otherwise a count of finished games as they work
+ * toward bronze. The raw counter is only shown for the developer's own account
+ * (nickname "spry123456"); everyone else sees just the medal icon.
  */
-export function MedalBadge({ streak }: { streak: number }) {
+export function MedalBadge({ streak, nickname }: { streak: number; nickname?: string }) {
   const tier = medalForStreak(streak);
 
   if (tier !== "none") {
@@ -29,6 +30,9 @@ export function MedalBadge({ streak }: { streak: number }) {
       </span>
     );
   }
+
+  // Hide the raw "games toward bronze" counter for everyone but the developer.
+  if ((nickname ?? "").toLowerCase() !== "spry123456") return null;
 
   const remaining = BRONZE_AT - streak;
   const label = `${streak} completed online game${streak === 1 ? "" : "s"} — ${remaining} more for bronze`;
