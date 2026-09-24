@@ -729,7 +729,7 @@ function FarkleTable() {
         <DialogTrigger asChild>
           <Button
             variant="parlor"
-            className="w-full bg-white text-brand hover:bg-white/90 lg:hidden"
+            className="w-full bg-white text-ink hover:bg-white/90 lg:hidden"
           >
             Meld Values
           </Button>
@@ -975,7 +975,7 @@ function FarkleTable() {
                   })}
                 </div>
                 {diceLeft === 0 && state.rolled && (
-                  <p className="mt-3 text-center text-sm font-medium text-brand">
+                  <p className="mt-3 text-center text-sm font-medium text-ink">
                     Hot dice — throw all six again.
                   </p>
                 )}

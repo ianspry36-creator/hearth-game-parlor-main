@@ -30,6 +30,7 @@
   --font-body: "Karla", sans-serif;
   --font-sans: "Karla", sans-serif;
   --color-brand: var(--brand);
+  --color-ink: var(--ink);
   --color-surface: var(--surface);
   --color-cream: var(--cream);
   --color-gold: var(--gold);
@@ -78,6 +79,7 @@
 
   /* Cards and Games palette — electric coral on deep plum */
   --brand: oklch(0.235 0.055 300);
+  --ink: oklch(0.24 0.02 300);
   --surface: oklch(0.305 0.065 302);
   --cream: oklch(0.968 0.014 20);
   --gold: oklch(0.72 0.168 22);
@@ -241,22 +243,6 @@
   --sidebar-primary-foreground: oklch(0.2 0.02 250);
 }
 
-:root[data-theme="cobalt"] {
-  --brand: oklch(0.235 0.06 258);
-  --surface: oklch(0.305 0.065 258);
-  --cream: oklch(0.968 0.014 258);
-  --gold: oklch(0.72 0.17 45);
-  --gold-bright: oklch(0.795 0.14 45);
-  --ivory: oklch(0.912 0.026 258);
-  --sage: oklch(0.655 0.15 45);
-  --popover: oklch(0.275 0.06 258);
-  --primary-foreground: oklch(0.2 0.05 258);
-  --muted: oklch(0.34 0.06 258);
-  --muted-foreground: oklch(0.79 0.03 258);
-  --accent: oklch(0.375 0.075 45);
-  --sidebar-primary-foreground: oklch(0.2 0.05 258);
-}
-
 :root[data-theme="lilac"] {
   --brand: oklch(0.235 0.055 285);
   --surface: oklch(0.305 0.06 285);
@@ -271,22 +257,6 @@
   --muted-foreground: oklch(0.79 0.03 300);
   --accent: oklch(0.375 0.075 300);
   --sidebar-primary-foreground: oklch(0.2 0.05 285);
-}
-
-:root[data-theme="rust"] {
-  --brand: oklch(0.235 0.05 45);
-  --surface: oklch(0.305 0.055 45);
-  --cream: oklch(0.968 0.014 50);
-  --gold: oklch(0.72 0.14 55);
-  --gold-bright: oklch(0.795 0.12 55);
-  --ivory: oklch(0.912 0.026 50);
-  --sage: oklch(0.655 0.14 55);
-  --popover: oklch(0.275 0.055 45);
-  --primary-foreground: oklch(0.2 0.05 45);
-  --muted: oklch(0.34 0.055 45);
-  --muted-foreground: oklch(0.79 0.03 50);
-  --accent: oklch(0.375 0.075 55);
-  --sidebar-primary-foreground: oklch(0.2 0.05 45);
 }
 
 :root[data-theme="pine"] {
@@ -367,6 +337,42 @@
   --muted-foreground: oklch(0.79 0.03 245);
   --accent: oklch(0.375 0.075 60);
   --sidebar-primary-foreground: oklch(0.2 0.05 245);
+}
+
+:root[data-theme="blush"] {
+  --brand: oklch(0.93 0.035 15);
+  --background: oklch(0.93 0.035 15);
+  --surface: oklch(0.975 0.012 15);
+  --cream: oklch(0.3 0.05 15);
+  --gold: oklch(0.58 0.16 20);
+  --gold-bright: oklch(0.65 0.14 20);
+  --ivory: oklch(0.38 0.04 15);
+  --sage: oklch(0.5 0.12 20);
+  --popover: oklch(0.985 0.005 15);
+  --primary-foreground: oklch(0.24 0.05 15);
+  --destructive-foreground: oklch(0.98 0.005 15);
+  --muted: oklch(0.9 0.03 15);
+  --muted-foreground: oklch(0.45 0.04 15);
+  --accent: oklch(0.88 0.05 15);
+  --sidebar-primary-foreground: oklch(0.24 0.05 15);
+}
+
+:root[data-theme="seafoam"] {
+  --brand: oklch(0.93 0.04 185);
+  --background: oklch(0.93 0.04 185);
+  --surface: oklch(0.975 0.012 185);
+  --cream: oklch(0.32 0.05 185);
+  --gold: oklch(0.55 0.13 185);
+  --gold-bright: oklch(0.62 0.11 185);
+  --ivory: oklch(0.4 0.04 185);
+  --sage: oklch(0.5 0.11 185);
+  --popover: oklch(0.985 0.005 185);
+  --primary-foreground: oklch(0.26 0.05 185);
+  --destructive-foreground: oklch(0.98 0.005 185);
+  --muted: oklch(0.9 0.03 185);
+  --muted-foreground: oklch(0.45 0.04 185);
+  --accent: oklch(0.88 0.05 185);
+  --sidebar-primary-foreground: oklch(0.26 0.05 185);
 }
 
 /* =========================================================================

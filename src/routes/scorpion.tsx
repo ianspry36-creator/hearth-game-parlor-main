@@ -454,7 +454,7 @@ function CardFace({
       onDragEnd={onDragEnd}
       aria-label={cardLabel(card)}
       className={`relative block h-[var(--scorpion-card-h)] w-[var(--scorpion-card-w)] select-none rounded-md border border-black/10 bg-white text-left shadow-md shadow-black/30 transition-transform ${
-        red ? "text-[#c0392b]" : "text-brand"
+        red ? "text-[#c0392b]" : "text-ink"
       } ${selected ? "-translate-y-1 ring-2 ring-gold" : ""}`}
     >
       <span className="absolute left-0.5 top-0.5 flex flex-col items-center font-display text-[9px] font-bold leading-none sm:left-1 sm:top-1 sm:text-sm">

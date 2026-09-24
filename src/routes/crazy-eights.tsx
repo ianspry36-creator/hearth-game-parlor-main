@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { TableShell } from "@/components/parlor/TableShell";
 import { GameOverDialog } from "@/components/parlor/GameOverDialog";
+import { CountdownBadge } from "@/components/parlor/CountdownBadge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,7 +22,7 @@ import { FlagPicker } from "@/components/parlor/FlagPicker";
 import { PlayerFlag } from "@/components/parlor/PlayerFlag";
 import { NicknameDialog } from "@/components/parlor/NicknameDialog";
 import { getGame } from "@/lib/games";
-import { getNickname, RECONNECT_SECONDS, useMatch, useTurnTimer } from "@/lib/multiplayer";
+import { getNickname, RECONNECT_SECONDS, TURN_WARNING_SECONDS, useMatch, useTurnTimer } from "@/lib/multiplayer";
 import { useRecordMatchResult } from "@/lib/stats";
 import { isStalePlayingRoom, leaveRoom, useCrazyEightsRoom } from "@/lib/crazyEightsLobby";
 import { CrazyEightsLobby } from "@/components/parlor/CrazyEightsLobby";
@@ -430,7 +431,7 @@ function CrazyEightsTable() {
   // Live tables run a 1-minute clock on the active seat. When a player runs
   // out of time in a 3- or 4-player game they are skipped and the hand
   // continues for the others; once a single player is left they win.
-  useTurnTimer({
+  const turnSecondsLeft = useTurnTimer({
     enabled: isLive && !state.winner && (state.phase === "play" || state.phase === "suit") && (!isMulti || opponentConnected),
     turn: state.turn,
     onTimeout: () =>
@@ -456,21 +457,37 @@ function CrazyEightsTable() {
       }),
   });
 
+  // Surface the last few seconds of a player's turn clock on their seat.
+  const countdown =
+    turnSecondsLeft > 0 && turnSecondsLeft <= TURN_WARNING_SECONDS ? turnSecondsLeft : 0;
+
   // Rematch: the local player asks the opponent to play another game.
   const requestRematch = () => {
-    if (!isMulti) return;
+    if (!isLive) return;
     apply((current) => ({ ...current, rematch: "you" }));
   };
 
   // The opponent declined our rematch — both players return to the final score.
   const declineRematch = () => {
-    if (!isMulti) return;
+    if (!isLive) return;
     apply((current) => ({ ...current, rematch: null }));
   };
 
-  // The opponent accepted — start a fresh game for both players.
+  // The opponent accepted — start a fresh game for both players. In a live
+  // room only the host authors the canonical shared state, so a non-host that
+  // accepts deals a fresh hand in its own view and publishes it rotated back
+  // to the host's frame.
   const acceptRematch = () => {
-    if (!isMulti) return;
+    if (!isLive) return;
+    if (isRoom) {
+      setSelectedIds([]);
+      setViewingHand(false);
+      const fresh = freshState(activeCount);
+      stateRef.current = fresh;
+      setState(fresh);
+      void publishRoom(remapState(fresh, mySeat, activeCount));
+      return;
+    }
     reset();
   };
 
@@ -960,9 +977,9 @@ function CrazyEightsTable() {
     return fit <= 0 ? -MIN_GAP : Math.min(CARD_W - 1, fit);
   })();
 
-  // Rematch flow: "you" means we asked, the opponent's seat means they asked us.
-  const rematchOutgoing = isMulti && state.rematch === "you";
-  const rematchIncoming = isMulti && state.rematch === "ada";
+  // Rematch flow: "you" means we asked; any other seat means someone asked us.
+  const rematchOutgoing = isLive && state.rematch === "you";
+  const rematchIncoming = isLive && state.rematch !== null && state.rematch !== "you";
 
   return (
     <TableShell
@@ -1008,9 +1025,9 @@ function CrazyEightsTable() {
         opponentName={winnerName}
         playerAvatar={playerAvatar}
         results={results}
-        onPlayAgain={isMulti ? requestRematch : reset}
-        playAgainLabel={isMulti ? "Rematch" : "Play again"}
-        playAgainDisabled={isMulti && state.rematch !== null}
+        onPlayAgain={isLive ? requestRematch : reset}
+        playAgainLabel={isLive ? "Rematch" : "Play again"}
+        playAgainDisabled={isLive && state.rematch !== null}
         {...(rematchOutgoing
           ? { detail: `Rematch request sent — waiting for ${opponentName} to respond…` }
           : {})}
@@ -1054,10 +1071,10 @@ function CrazyEightsTable() {
           {state.phase === "over" && (
             <Button
               variant="parlor"
-              onClick={isMulti ? requestRematch : reset}
-              disabled={isMulti && state.rematch !== null}
+              onClick={isLive ? requestRematch : reset}
+              disabled={isLive && state.rematch !== null}
             >
-              {isMulti ? "Rematch" : "Play again"}
+              {isLive ? "Rematch" : "Play again"}
             </Button>
           )}
         </section>
@@ -1072,6 +1089,7 @@ function CrazyEightsTable() {
             cards={state.hands.ada ?? []}
             handEls={seatHandEls.current}
             active={state.turn === "ada"}
+            countdown={countdown}
             dealing={dealing}
             dealt={dealt}
             playerCount={activeCount}
@@ -1095,6 +1113,7 @@ function CrazyEightsTable() {
                 vertical
                 rotation={isMobile ? "" : "-rotate-90"}
                 active={state.turn === "ace"}
+                countdown={countdown}
                 dealing={dealing}
                 dealt={dealt}
                 playerCount={activeCount}
@@ -1131,7 +1150,7 @@ function CrazyEightsTable() {
                     >
                       <span
                         className={`grid size-[35px] place-items-center rounded-full border border-gold/60 bg-cream/95 font-display text-xl shadow-lg shadow-black/40 ${
-                          isRed(state.wildSuit) ? "text-destructive" : "text-brand"
+                          isRed(state.wildSuit) ? "text-destructive" : "text-ink"
                         }`}
                       >
                         {SUIT_SYMBOL[state.wildSuit]}
@@ -1156,7 +1175,7 @@ function CrazyEightsTable() {
                       onClick={() => pickSuit(suit)}
                       aria-label={SUIT_NAME[suit]}
                       className={`grid size-[35px] place-items-center rounded-md border border-gold/40 bg-cream font-display text-xl transition-transform hover:-translate-y-0.5 hover:border-gold ${
-                        isRed(suit) ? "text-destructive" : "text-brand"
+                        isRed(suit) ? "text-destructive" : "text-ink"
                       }`}
                     >
                       {SUIT_SYMBOL[suit]}
@@ -1180,6 +1199,7 @@ function CrazyEightsTable() {
                 rotation={isMobile ? "" : "rotate-90"}
                 avatarSide="right"
                 active={state.turn === "leo"}
+                countdown={countdown}
                 dealing={dealing}
                 dealt={dealt}
                 playerCount={activeCount}
@@ -1238,7 +1258,12 @@ function CrazyEightsTable() {
           </div>
           <div className="mt-3 flex items-center justify-center gap-3">
             <div className="relative">
-              <PlayerAvatar avatar={playerAvatar} onSelect={setPlayerAvatar} size="size-15" />
+              <PlayerAvatar
+                avatar={playerAvatar}
+                onSelect={setPlayerAvatar}
+                size="size-15"
+                countdown={state.turn === "you" ? countdown : 0}
+              />
               {(state.timedOut ?? []).includes("you") && (
                 <span className="absolute bottom-0 left-1/2 z-10 grid size-5 -translate-x-1/2 translate-y-1/2 place-items-center rounded-full bg-red-600 text-cream ring-2 ring-brand">
                   <Clock className="size-3" />
@@ -1313,6 +1338,7 @@ function OpponentSeat({
   hiddenId,
   layingIds = [],
   timedOut = false,
+  countdown = 0,
 }: {
   name: string;
   avatar: string;
@@ -1331,6 +1357,7 @@ function OpponentSeat({
   hiddenId?: string | null;
   layingIds?: string[];
   timedOut?: boolean;
+  countdown?: number;
 }) {
   return (
     <div className={vertical ? `flex items-center gap-2 md:gap-4 ${avatarSide === "right" ? "flex-row-reverse" : ""}` : ""}>
@@ -1349,6 +1376,7 @@ function OpponentSeat({
               <Clock className="size-3" />
             </span>
           )}
+          {active && countdown > 0 && <CountdownBadge seconds={countdown} />}
           {bubble && (
             <div
               className={`absolute bottom-full z-10 mb-2 ${
@@ -1491,7 +1519,7 @@ function PlayingCard({
                 ? "h-[95px] w-[65px] md:h-[108px] md:w-[74px]"
                 : "h-[112px] w-[76px] md:h-[126px] md:w-[86px]"
       } ${highlighted ? "border-gold ring-2 ring-gold" : "border-black/10"} ${
-        red ? "text-destructive" : "text-brand"
+        red ? "text-destructive" : "text-ink"
       }`}
     >
       {/* corner index */}

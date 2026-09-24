@@ -88,6 +88,9 @@ const PASSWORD_WORDS = [
 // guard against any stray word that is not four letters long.
 const FOUR_LETTER_WORDS = PASSWORD_WORDS.filter((word) => word.length === 4);
 
+/** Total distinct passcodes that can ever be issued (one 4-letter word each). */
+export const PASSWORD_COUNT = FOUR_LETTER_WORDS.length;
+
 export function generatePassword(existing: Set<string>): string {
   const available = FOUR_LETTER_WORDS.filter((word) => !existing.has(word));
   const pool = available.length ? available : FOUR_LETTER_WORDS;
@@ -230,7 +233,9 @@ export async function createRoom(params: {
   isPublic: boolean;
   password?: string | null;
   maxSeats?: number;
-}): Promise<{ room: GameRoom; player: GameRoomPlayer } | { error: string }> {
+}): Promise<
+  { room: GameRoom; player: GameRoomPlayer } | { error: string; passwordTaken?: boolean }
+> {
   const { data: room, error } = await supabase
     .from("game_rooms")
     .insert({
@@ -248,7 +253,19 @@ export async function createRoom(params: {
     })
     .select(ROOM_COLUMNS)
     .single();
-  if (error || !room) return { error: "Could not create the table." };
+  if (error) {
+    // 23505 is a unique-violation. The only unique constraint on game_rooms that
+    // can fire here is the private-room passcode index, so this means another
+    // host grabbed the same passcode at the same moment.
+    if (error.code === "23505") {
+      return {
+        error: "That passcode is already in use at another table.",
+        passwordTaken: true,
+      };
+    }
+    return { error: "Could not create the table." };
+  }
+  if (!room) return { error: "Could not create the table." };
 
   const player = await seatPlayer(room.id, params.nickname, 0);
   if (!player) {

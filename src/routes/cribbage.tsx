@@ -1102,13 +1102,13 @@ function CribbageTable() {
     setSelected([]);
     if (flights.length) {
       setFlying((current) => [...current, ...flights]);
-      window.setTimeout(() => {
-        setFlying((current) => current.filter((f) => !flights.some((fl) => fl.key === f.key)));
-      }, 600);
     }
-    // Commit only once the flight has landed, so the cards don't show up in
-    // the crib before the animation completes.
+    // The flight transition is 500ms but only starts once the unmoved card has
+    // painted (a frame or two later). Commit at 600ms — the same tick the flying
+    // copy is removed — so the card settles exactly where it landed instead of
+    // popping a few pixels early.
     window.setTimeout(() => {
+      setFlying((current) => current.filter((f) => !flights.some((fl) => fl.key === f.key)));
       apply((current) => {
         const s: State = { ...current };
         s.playerDiscards = s.playerHand.filter((c) => discardIds.includes(c.id));
@@ -1122,7 +1122,7 @@ function CribbageTable() {
       if (!isMulti) {
         window.setTimeout(cpuDiscardToCrib, 2000);
       }
-    }, 500);
+    }, 600);
   };
 
   /** The opponent sends its two cards to the crib, then the starter is cut. */
@@ -1153,12 +1153,11 @@ function CribbageTable() {
     setDiscardingIds(cpuDiscards.map((c) => c.id));
     if (flights.length) {
       setFlying((current) => [...current, ...flights]);
-      window.setTimeout(() => {
-        setFlying((current) => current.filter((f) => !flights.some((fl) => fl.key === f.key)));
-      }, 600);
     }
-    // Commit only once the flight has landed, then cut the starter.
+    // Commit once the flight has landed (600ms, the same tick the flying copy
+    // is removed), then cut the starter.
     window.setTimeout(() => {
+      setFlying((current) => current.filter((f) => !flights.some((fl) => fl.key === f.key)));
       apply((cur) => {
         if (cur.phase !== "discard") return cur;
         const s: State = { ...cur };
@@ -1171,7 +1170,7 @@ function CribbageTable() {
       setDiscardingIds([]);
       // Once the cards have landed, cut the starter and open the play.
       apply((cur) => (cur.phase === "discard" ? startPlay(cur) : cur));
-    }, 500);
+    }, 600);
   };
 
   /** Dismiss my own "show" dialog; the host deals once both seats have dismissed. */
@@ -1254,7 +1253,7 @@ function CribbageTable() {
       <p className="mb-2 text-[10px] uppercase tracking-[0.2em] text-gold">Crib</p>
       <div
         ref={cribRef}
-        className="flex w-[216px] justify-center [&>*:not(:first-child)]:-ml-3"
+        className="flex w-[216px] justify-start [&>*:not(:first-child)]:-ml-3"
       >
         {state.crib.length === 0 ? (
           <div className="h-[43px] w-[30px] sm:h-[105px] sm:w-[72px]" aria-hidden="true" />
@@ -1611,11 +1610,15 @@ function CribbageTable() {
                 The show
               </AlertDialogTitle>
               <AlertDialogDescription className="text-center text-ivory/70">
-                Points in each hand and the crib.
+                {isMulti
+                  ? "Your cards, scored against the starter."
+                  : "Points in each hand and the crib."}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <div className="grid gap-3 sm:grid-cols-3">
-              {state.show.map((block, index) => (
+              {state.show
+                .filter((block) => !isMulti || block.side === "player")
+                .map((block, index) => (
                 <div
                   key={`${block.side}-${block.kind}-${index}`}
                   className="rounded-xl border border-gold/20 bg-brand/50 p-4 text-sm"
@@ -2010,7 +2013,7 @@ function CardChip({ card }: { card: Card }) {
   const red = card.suit === "H" || card.suit === "D";
   return (
     <span className="inline-flex items-center rounded border border-black/10 bg-cream px-1.5 py-0.5 font-display text-xs font-bold leading-none shadow-sm">
-      <span className={red ? "text-destructive" : "text-brand"}>
+      <span className={red ? "text-destructive" : "text-ink"}>
         {RANK_LABEL[card.rank]}
         {SUIT_SYMBOL[card.suit]}
       </span>
@@ -2070,7 +2073,7 @@ function PlayingCard({
                       ? "h-[82px] w-[56px] sm:h-[105px] sm:w-[72px]"
                       : "h-24 w-16 hover:-translate-y-1"
       } ${selected ? "animate-float-selected border-gold ring-2 ring-gold" : "border-black/10"} ${
-        red ? "text-destructive" : "text-brand"
+        red ? "text-destructive" : "text-ink"
       }`}
     >
       {/* corner index */}

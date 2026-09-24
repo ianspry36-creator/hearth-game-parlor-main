@@ -598,7 +598,7 @@ function CardFace({
       onPointerUp={onPointerUp}
       aria-label={cardLabel(card)}
       className={`relative block h-[var(--fc-card-h)] w-[var(--fc-card-w)] touch-none select-none rounded-lg border border-black/10 bg-white text-left shadow-md shadow-black/30 transition-transform ${
-        red ? "text-[#c0392b]" : "text-brand"
+        red ? "text-[#c0392b]" : "text-ink"
       } ${selected ? "-translate-y-1 ring-2 ring-gold" : ""}`}
     >
       <span className="absolute left-1 top-1 flex flex-col items-center font-display text-xs font-bold leading-none sm:text-lg">

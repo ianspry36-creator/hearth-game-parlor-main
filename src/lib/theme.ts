@@ -8,13 +8,13 @@ export type ThemeId =
   | "berry"
   | "slate"
   | "lilac"
-  | "rust"
   | "charcoal"
-  | "cobalt"
   | "pine"
   | "violet"
   | "maroon"
-  | "navy";
+  | "navy"
+  | "blush"
+  | "seafoam";
 
 export type ThemeOption = {
   id: ThemeId;
@@ -70,19 +70,9 @@ export const THEME_OPTIONS: ThemeOption[] = [
     swatch: { brand: "oklch(0.235 0.055 285)", accent: "oklch(0.72 0.13 300)" },
   },
   {
-    id: "rust",
-    label: "Rust & Bronze",
-    swatch: { brand: "oklch(0.235 0.05 45)", accent: "oklch(0.72 0.14 55)" },
-  },
-  {
     id: "charcoal",
     label: "Charcoal & Silver",
     swatch: { brand: "oklch(0.235 0.015 30)", accent: "oklch(0.72 0.05 40)" },
-  },
-  {
-    id: "cobalt",
-    label: "Cobalt & Tangerine",
-    swatch: { brand: "oklch(0.235 0.06 258)", accent: "oklch(0.72 0.17 45)" },
   },
   {
     id: "pine",
@@ -103,6 +93,16 @@ export const THEME_OPTIONS: ThemeOption[] = [
     id: "navy",
     label: "Navy & Apricot",
     swatch: { brand: "oklch(0.235 0.055 245)", accent: "oklch(0.72 0.15 60)" },
+  },
+  {
+    id: "blush",
+    label: "Blush & Rose",
+    swatch: { brand: "oklch(0.93 0.035 15)", accent: "oklch(0.58 0.16 20)" },
+  },
+  {
+    id: "seafoam",
+    label: "Seafoam & Mint",
+    swatch: { brand: "oklch(0.93 0.04 185)", accent: "oklch(0.55 0.13 185)" },
   },
 ];
 
@@ -146,4 +146,4 @@ export function applyTheme(id: ThemeId) {
  */
 export const THEME_INIT_SCRIPT =
   `(function(){try{var t=localStorage.getItem("parlor.theme");` +
-  `document.documentElement.dataset.theme=["plum","forest","midnight","wine","teal","amber","berry","slate","lilac","rust","charcoal","cobalt","pine","violet","maroon","navy"].indexOf(t)>-1?t:"plum";}catch(e){}})();`;
+  `document.documentElement.dataset.theme=["plum","forest","midnight","wine","teal","amber","berry","slate","lilac","charcoal","pine","violet","maroon","navy","blush","seafoam"].indexOf(t)>-1?t:"plum";}catch(e){}})();`;

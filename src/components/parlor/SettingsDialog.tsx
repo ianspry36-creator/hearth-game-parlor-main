@@ -262,7 +262,7 @@ function RankUploadBox({
               type="button"
               onClick={() => inputRef.current?.click()}
               disabled={busy}
-              className="absolute bottom-1 left-1 rounded bg-black/60 px-2 py-0.5 text-[10px] font-semibold text-cream transition-colors hover:bg-black/80"
+              className="absolute bottom-1 left-1 rounded bg-black/60 px-2 py-0.5 text-[10px] font-semibold text-white/90 transition-colors hover:bg-black/80"
             >
               Replace
             </button>
@@ -271,7 +271,7 @@ function RankUploadBox({
               onClick={onRemove}
               aria-label={`Remove ${label}`}
               title={`Remove ${label}`}
-              className="absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-black/60 text-ivory/70 transition-colors hover:bg-black/80 hover:text-gold"
+              className="absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-black/60 text-white/70 transition-colors hover:bg-black/80 hover:text-gold"
             >
               <X className="size-3" />
             </button>
@@ -374,7 +374,7 @@ function CardUploadSection({
             <li key={item.id} className="overflow-hidden rounded-lg border border-gold/20 bg-surface/40">
               <div className="relative">
                 <img src={item.dataUrl} alt={item.label} className="aspect-[5/7] w-full object-cover" />
-                <span className="absolute inset-x-0 bottom-0 bg-black/55 px-2 py-1 text-xs font-semibold text-cream">
+                <span className="absolute inset-x-0 bottom-0 bg-black/55 px-2 py-1 text-xs font-semibold text-white/90">
                   {item.label}
                 </span>
               </div>
@@ -652,7 +652,7 @@ export function SettingsDialog({ className }: Props) {
                     )}
                     style={{ background: `linear-gradient(135deg, ${option.swatch.brand}, ${option.swatch.accent})` }}
                   >
-                    <span className="absolute inset-x-0 bottom-0 bg-black/45 px-2 py-1.5 font-display text-sm font-semibold text-cream">
+                    <span className="absolute inset-x-0 bottom-0 bg-black/45 px-2 py-1.5 font-display text-sm font-semibold text-white/90">
                       {option.label}
                     </span>
                     {active && (

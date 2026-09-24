@@ -511,7 +511,7 @@ function CardFace({
       disabled={!onClick}
       aria-label={cardLabel(card)}
       className={`relative block h-[var(--tripeaks-card-h)] w-[var(--tripeaks-card-w)] select-none rounded-md border border-black/10 bg-white text-left shadow-md shadow-black/30 transition-transform ${
-        red ? "text-[#c0392b]" : "text-brand"
+        red ? "text-[#c0392b]" : "text-ink"
       } ${onClick ? "cursor-pointer hover:-translate-y-0.5 hover:ring-1 hover:ring-gold" : "cursor-default"} ${
         dimmed ? "saturate-50" : ""
       }`}

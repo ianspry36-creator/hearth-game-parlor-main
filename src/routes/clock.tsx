@@ -765,7 +765,7 @@ function ClockCardFace({ card }: { card: Card }) {
     <div
       aria-label={cardLabel(card)}
       className={`relative block h-[var(--clock-card-h)] w-[var(--clock-card-w)] select-none rounded-md border border-black/10 bg-white text-left shadow-md shadow-black/30 ${
-        red ? "text-[#c0392b]" : "text-brand"
+        red ? "text-[#c0392b]" : "text-ink"
       }`}
     >
       <span className="absolute left-0.5 top-0.5 flex flex-col items-center font-display text-[10px] font-bold leading-none">

@@ -717,7 +717,7 @@ function HeartsCard({
       disabled={!onClick}
       className={`relative flex shrink-0 flex-col items-center justify-center rounded-lg border bg-cream shadow-md shadow-black/30 ${
         corner ? "h-[88px] w-[68px]" : small ? "h-[144px] w-[100px]" : "h-[184px] w-[124px] sm:h-[216px] sm:w-[144px]"
-      } ${red ? "text-destructive" : "text-brand"} ${
+      } ${red ? "text-destructive" : "text-ink"} ${
         selected
           ? "z-10 -translate-y-2 border-gold ring-2 ring-gold"
           : highlighted

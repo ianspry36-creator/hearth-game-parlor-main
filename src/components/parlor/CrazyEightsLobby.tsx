@@ -32,6 +32,7 @@ import {
   joinRoom,
   leaveRoom,
   normalizePassword,
+  PASSWORD_COUNT,
   isStalePlayingRoom,
   removeBot,
   touchRoom,
@@ -160,23 +161,36 @@ export function CrazyEightsLobby({
     if (!nickname) return;
     setBusy(true);
     setError(null);
-    const existing = new Set(
+    // The database enforces uniqueness of private-room passcodes, but two hosts
+    // can still pick the same word at the same instant. Regenerate and retry
+    // until one sticks; there are PASSWORD_COUNT distinct words to draw from.
+    const taken = new Set(
       rooms.map((r) => (r.password ? normalizePassword(r.password) : "")).filter(Boolean),
     );
-    const password = generatePassword(existing);
-    const outcome = await createRoom({
-      game: game.id,
-      nickname,
-      isPublic: false,
-      password,
-    });
-    setBusy(false);
-    if ("error" in outcome) {
-      setError(outcome.error);
+    for (let attempt = 0; attempt < PASSWORD_COUNT; attempt += 1) {
+      const password = generatePassword(taken);
+      const outcome = await createRoom({
+        game: game.id,
+        nickname,
+        isPublic: false,
+        password,
+      });
+      if ("error" in outcome) {
+        if (outcome.passwordTaken) {
+          taken.add(password);
+          continue;
+        }
+        setBusy(false);
+        setError(outcome.error);
+        return;
+      }
+      setBusy(false);
+      setCreatedPassword(password);
+      setStage("created");
       return;
     }
-    setCreatedPassword(password);
-    setStage("created");
+    setBusy(false);
+    setError("Every passcode is taken right now — please try again shortly.");
   };
 
   const joinPublic = async (roomId: string) => {
