@@ -178,12 +178,19 @@ const shortName = (name: string) => (name.length > 3 ? name.slice(0, 3) : name);
 // Ordinal suffix for Ada's throw announcements ("2nd throw", "3rd throw").
 const ordinal = (n: number) => (n === 1 ? "1st" : n === 2 ? "2nd" : "3rd");
 
-function rollOff(current: State): State {
+function rollOff(current: State, solo: boolean): State {
   const human = rollFace();
+  const cpu = solo ? rollFace() : current.rolloff.cpu;
+  const logged = note(current.log, {
+    side: "human",
+    text: `throw a ${human} for the first turn.`,
+  });
   return {
     ...current,
-    rolloff: { ...current.rolloff, human },
-    log: note(current.log, { side: "human", text: `throw a ${human} for the first turn.` }),
+    rolloff: { human, cpu },
+    log: solo
+      ? note(logged, { side: "cpu", text: `throw a ${cpu} for the first turn.` })
+      : logged,
   };
 }
 
@@ -395,8 +402,8 @@ function YahtzeeTable() {
     [],
   );
 
-  // Who rolls first in the opening roll-off: the host (or the local player in
-  // solo play) throws first, the opponent second.
+  // First seat to render for the roll-off. Both players throw at the same time,
+  // so this only orders the settle animation and the solo throw gate.
   const rolloffFirst: Seat = isMulti && !isHost ? "cpu" : "human";
   const rolloffSecond: Seat = flip(rolloffFirst);
 
@@ -418,9 +425,8 @@ function YahtzeeTable() {
           ? rolloffSecond
           : null;
 
-  // The local player may throw when their own die is still blank. In a live
-  // match both players roll at once; solo play stays sequential (Ada throws
-  // after the player).
+  // The local player may throw while their own die is still blank. Both
+  // players throw at once to decide who goes first.
   const canRollOff =
     state.phase === "rolloff" &&
     state.rolloff.human === null &&
@@ -443,29 +449,8 @@ function YahtzeeTable() {
         : "Waiting…";
   const rollForFirst = () => {
     if (!canRollOff) return;
-    apply(rollOff);
+    apply((current) => rollOff(current, !isMulti));
   };
-
-  // Ada's rolloff die (solo play) lands once the player's own die has flown to
-  // their seat, so the two throws happen one at a time.
-  useEffect(() => {
-    if (isMulti) return;
-    if (state.phase !== "rolloff") return;
-    if (!state.rolloffSettled.human || state.rolloff.cpu !== null) return;
-    const timer = setTimeout(() => {
-      apply((current) => {
-        if (current.phase !== "rolloff") return current;
-        if (!current.rolloffSettled.human || current.rolloff.cpu !== null) return current;
-        const face = rollFace();
-        return {
-          ...current,
-          rolloff: { ...current.rolloff, cpu: face },
-          log: note(current.log, { side: "cpu", text: `throw a ${face} for the first turn.` }),
-        };
-      });
-    }, 1000);
-    return () => clearTimeout(timer);
-  }, [isMulti, state.phase, state.rolloffSettled.human, state.rolloff.cpu]);
 
   // Each rolloff die lands scattered in the throwing area, then after a beat flies
   // to its owner's seat. Once the second die has flown, the rolloff resolves: a
@@ -636,9 +621,7 @@ function YahtzeeTable() {
             : `${opponentName} goes first`
           : state.rolloff.human !== null && state.rolloff.cpu !== null
             ? "Tie — roll again"
-            : rolloffTurn === "human"
-              ? "Highest roll goes first"
-              : `Waiting for ${opponentName}…`
+            : "Highest roll goes first"
         : state.phase === "over"
           ? state.draw
           ? "A dead heat — honours shared"
