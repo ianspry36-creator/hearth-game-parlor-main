@@ -906,7 +906,7 @@ function YahtzeeTable() {
             </div>
           </div>
         </div>
-        <div className="mt-4 min-h-[3.2rem] grid place-items-center">
+        <div className="mt-4 min-h-[3.04rem] grid place-items-center">
           {kept.length > 0 ? (
             <div className="flex flex-wrap justify-center gap-3">
               {kept.map((i) => dieAt(i, false))}
@@ -968,7 +968,7 @@ function YahtzeeTable() {
         <td className="border-b border-r border-gold/40 py-0.5 pr-2 font-bold text-neutral-700 lg:py-2">
           {CATEGORY_LABELS[category]}
         </td>
-        <td className="h-6 border-b border-r border-gold/40 px-2 text-center lg:h-8">
+        <td className="h-[1.65rem] border-b border-r border-gold/40 px-2 text-center lg:h-[2.2rem]">
           {taken ? (
             myCard[category] === 0 ? (
               <span className="font-display text-[13px] font-bold text-neutral-900 lg:text-[16px]">—</span>
@@ -980,7 +980,7 @@ function YahtzeeTable() {
               <button
                 type="button"
                 onClick={() => take(category)}
-                className="text-xs font-bold text-red-600 transition-colors hover:text-red-700 lg:text-[13px]"
+                className="font-display text-[13px] font-bold text-red-600 transition-colors hover:text-red-700 lg:text-[16px]"
               >
                 {score}
               </button>
@@ -988,7 +988,7 @@ function YahtzeeTable() {
               <button
                 type="button"
                 onClick={() => take(category)}
-                className="text-xs font-bold text-neutral-400 transition-colors hover:text-neutral-600 lg:text-[13px]"
+                className="font-display text-[13px] font-bold text-neutral-400 transition-colors hover:text-neutral-600 lg:text-[16px]"
               >
                 0
               </button>
@@ -997,7 +997,7 @@ function YahtzeeTable() {
             <span className="text-neutral-400">—</span>
           )}
         </td>
-        <td className="h-6 border-b border-gold/40 pl-2 text-center lg:h-8">
+        <td className="h-[1.65rem] border-b border-gold/40 pl-2 text-center lg:h-[2.2rem]">
           {theirCard[category] !== undefined ? (
             theirCard[category] === 0 ? (
               <span className="font-display text-[13px] font-bold text-neutral-700 lg:text-[16px]">—</span>
@@ -1174,7 +1174,7 @@ function YahtzeeTable() {
           <div className="min-w-0 space-y-2.5">
             {seatBox("cpu")}
 
-            <section className="relative grid h-[11.73rem] place-items-center rounded-2xl border border-dashed border-gold/20 bg-brand/20 p-3 lg:h-[13.44rem] lg:p-6">
+            <section className="relative grid h-[11.14rem] place-items-center rounded-2xl border border-dashed border-gold/20 bg-brand/20 p-3 lg:h-[12.77rem] lg:p-6">
               {state.phase === "rolloff" ? (
                 <>
                   {state.rolloff.human !== null && !state.rolloffSettled.human && rolloffHumanSpot && (
