@@ -956,7 +956,7 @@ function YahtzeeTable() {
     const taken = myCard[category] !== undefined;
     const targets = jokerTargets(myCard, faces);
     const allowed = targets === null || targets.includes(category);
-    const preview =
+    const score =
       !taken && myTurn && state.rolls > 0 && allowed
         ? scoreMove(category, faces, myCard).score
         : null;
@@ -972,14 +972,24 @@ function YahtzeeTable() {
             ) : (
               <span className="font-display text-[13px] font-bold text-neutral-900 lg:text-[16px]">{myCard[category]}</span>
             )
-          ) : preview !== null ? (
-            <button
-              type="button"
-              onClick={() => take(category)}
-              className="inline-flex min-w-8 items-center justify-center rounded-md border border-gold/40 px-2 py-0.5 text-xs font-bold text-red-600 transition-colors hover:bg-gold/20 hover:text-red-700 lg:min-w-9 lg:text-[13px]"
-            >
-              {preview}
-            </button>
+          ) : score !== null ? (
+            score > 0 ? (
+              <button
+                type="button"
+                onClick={() => take(category)}
+                className="inline-flex min-w-8 items-center justify-center rounded-md border border-gold/40 px-2 py-0.5 text-xs font-bold text-red-600 transition-colors hover:bg-gold/20 hover:text-red-700 lg:min-w-9 lg:text-[13px]"
+              >
+                {score}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => take(category)}
+                className="inline-flex min-w-8 items-center justify-center rounded-md border border-gold/40 px-2 py-0.5 text-xs font-bold text-neutral-400 transition-colors hover:bg-gold/20 hover:text-neutral-600 lg:min-w-9 lg:text-[13px]"
+              >
+                0
+              </button>
+            )
           ) : (
             <span className="text-neutral-400">—</span>
           )}
@@ -1014,7 +1024,7 @@ function YahtzeeTable() {
   );
 
   const scorecard = (
-    <div className="origin-top rounded-xl border border-gold/20 bg-white px-1 py-4 lg:scale-90 lg:p-5">
+    <div className="origin-top rounded-xl border border-gold/20 bg-white px-1 py-4 lg:p-5">
       <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.22em] text-ink/70 lg:text-[12px]">Scorecard</p>
       <table className="w-full border-collapse table-fixed text-[11px] lg:table-auto lg:text-[14px]">
         <thead>
@@ -1066,6 +1076,7 @@ function YahtzeeTable() {
       }}
       onNewGame={() => (isMulti ? navigate({ to: "/yahtzee" }) : reset())}
       middle={scorecard}
+      middleGridClassName="lg:grid-cols-[1fr_241px_260px]"
       containerClassName="px-1.5 sm:px-3"
       boxClassName="pt-2.5 pl-1.5 pr-[5px] sm:pt-4 sm:pl-4 sm:pr-2"
       menuExtra={
@@ -1160,7 +1171,7 @@ function YahtzeeTable() {
           <div className="min-w-0 space-y-2.5">
             {seatBox("cpu")}
 
-            <section className="relative grid h-[14.66rem] place-items-center rounded-2xl border border-dashed border-gold/20 bg-brand/20 p-3 lg:h-[18.67rem] lg:p-6">
+            <section className="relative grid h-[14.66rem] place-items-center rounded-2xl border border-dashed border-gold/20 bg-brand/20 p-3 lg:h-[16.8rem] lg:p-6">
               {state.phase === "rolloff" ? (
                 <>
                   {state.rolloff.human !== null && !state.rolloffSettled.human && rolloffHumanSpot && (
@@ -1268,7 +1279,7 @@ function DieFace({
       disabled={!interactive}
       onClick={onClick}
       style={rotate != null ? { transform: `rotate(${rotate}deg)` } : undefined}
-      className={`grid size-[1.6rem] lg:size-[3.2rem] rounded-lg border lg:border-2 bg-cream p-1 lg:p-1.5 transition-all ${
+      className={`grid size-[1.6rem] lg:size-[2.88rem] rounded-lg border lg:border-2 bg-cream p-1 lg:p-1.5 transition-all ${
         held ? "-translate-y-1.5 border-gold shadow-lg shadow-black/40" : "border-cream/40"
       } ${dim ? "opacity-40" : ""} ${
         interactive ? "cursor-pointer hover:-translate-y-1 hover:border-gold" : "cursor-default"
@@ -1278,7 +1289,7 @@ function DieFace({
         {Array.from({ length: 9 }, (_, cell) => (
           <span
             key={cell}
-            className={`m-auto size-[0.2rem] lg:size-[0.4rem] rounded-full ${pips.includes(cell) ? "bg-brand" : ""}`}
+            className={`m-auto size-[0.2rem] lg:size-[0.36rem] rounded-full ${pips.includes(cell) ? "bg-brand" : ""}`}
           />
         ))}
       </span>

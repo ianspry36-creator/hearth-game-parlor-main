@@ -31,6 +31,7 @@ export function TableShell({
   rail,
   middle,
   middleClassName = "hidden self-start lg:block",
+  middleGridClassName = "lg:grid-cols-[1fr_219px_260px]",
   children,
   hideOpponent = false,
   showChat = true,
@@ -73,6 +74,7 @@ export function TableShell({
   boxClassName?: string;
   gridClassName?: string;
   containerMaxWidth?: string;
+  middleGridClassName?: string;
 }) {
   const navigate = useNavigate();
   const [confirming, setConfirming] = useState<"new" | "human" | "home" | "2" | "3" | "4" | null>(null);
@@ -137,7 +139,7 @@ export function TableShell({
           </div>
         </header>
 
-        <div className={`${gridClassName} ${middle ? "lg:grid-cols-[1fr_219px_260px]" : "lg:grid-cols-[1fr_260px]"}`}>
+        <div className={`${gridClassName} ${middle ? middleGridClassName : "lg:grid-cols-[1fr_260px]"}`}>
           <div className={`select-none rounded-2xl border border-gold/20 bg-surface/40 p-5 sm:p-8 ${boxClassName}`}>
             <ChatContext.Provider value={chatMessage}>{children}</ChatContext.Provider>
           </div>

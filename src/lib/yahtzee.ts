@@ -46,7 +46,7 @@ export const CATEGORY_LABELS: Record<Category, string> = {
   fullHouse: "Full house",
   smallStraight: "Small straight",
   largeStraight: "Large straight",
-  yahtzee: "Yahtzee",
+  yahtzee: "YAHTZEE",
   chance: "Chance",
 };
 
