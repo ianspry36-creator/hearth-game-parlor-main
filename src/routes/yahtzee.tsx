@@ -172,9 +172,8 @@ const freshState = (): State => ({
 const note = (log: LogEntry[], entry: LogEntry) => [entry, ...log].slice(0, 40);
 const flip = (side: Seat): Seat => (side === "human" ? "cpu" : "human");
 
-// Truncate a long nickname for the narrow scorecard column: over 4 characters
-// shows the first three characters followed by three dots.
-const shortName = (name: string) => (name.length > 4 ? `${name.slice(0, 3)}...` : name);
+// Truncate a long nickname for the narrow scorecard column to three characters.
+const shortName = (name: string) => (name.length > 3 ? name.slice(0, 3) : name);
 
 // Ordinal suffix for Ada's throw announcements ("2nd throw", "3rd throw").
 const ordinal = (n: number) => (n === 1 ? "1st" : n === 2 ? "2nd" : "3rd");
@@ -981,7 +980,7 @@ function YahtzeeTable() {
               <button
                 type="button"
                 onClick={() => take(category)}
-                className="inline-flex min-w-8 items-center justify-center rounded-md border border-gold/40 px-2 py-0.5 text-xs font-bold text-red-600 transition-colors hover:bg-gold/20 hover:text-red-700 lg:min-w-9 lg:text-[13px]"
+                className="text-xs font-bold text-red-600 transition-colors hover:text-red-700 lg:text-[13px]"
               >
                 {score}
               </button>
@@ -989,7 +988,7 @@ function YahtzeeTable() {
               <button
                 type="button"
                 onClick={() => take(category)}
-                className="inline-flex min-w-8 items-center justify-center rounded-md border border-gold/40 px-2 py-0.5 text-xs font-bold text-neutral-400 transition-colors hover:bg-gold/20 hover:text-neutral-600 lg:min-w-9 lg:text-[13px]"
+                className="text-xs font-bold text-neutral-400 transition-colors hover:text-neutral-600 lg:text-[13px]"
               >
                 0
               </button>
@@ -1033,8 +1032,8 @@ function YahtzeeTable() {
       <table className="w-full border-collapse table-fixed text-[11px] lg:table-auto lg:text-[14px]">
         <thead>
           <tr className="text-[10px] uppercase tracking-[0.18em] text-neutral-500 lg:text-[11px]">
-            <th className="w-[55%] border-b border-r border-gold/50 pb-1 pr-2 text-left font-bold lg:w-auto" />
-            <th className="w-[20%] border-b border-r border-gold/50 px-2 pb-1 text-center font-bold lg:w-auto">{shortName(playerName)}</th>
+            <th className="w-[52%] border-b border-r border-gold/50 pb-1 pr-2 text-left font-bold lg:w-auto" />
+            <th className="w-[23%] border-b border-r border-gold/50 px-2 pb-1 text-center font-bold lg:w-auto">{shortName(playerName)}</th>
             <th className="w-[25%] border-b border-gold/50 pb-1 pl-2 text-center font-bold lg:w-auto">{shortName(opponentName)}</th>
           </tr>
         </thead>
@@ -1175,7 +1174,7 @@ function YahtzeeTable() {
           <div className="min-w-0 space-y-2.5">
             {seatBox("cpu")}
 
-            <section className="relative grid h-[14.66rem] place-items-center rounded-2xl border border-dashed border-gold/20 bg-brand/20 p-3 lg:h-[16.8rem] lg:p-6">
+            <section className="relative grid h-[11.73rem] place-items-center rounded-2xl border border-dashed border-gold/20 bg-brand/20 p-3 lg:h-[13.44rem] lg:p-6">
               {state.phase === "rolloff" ? (
                 <>
                   {state.rolloff.human !== null && !state.rolloffSettled.human && rolloffHumanSpot && (
