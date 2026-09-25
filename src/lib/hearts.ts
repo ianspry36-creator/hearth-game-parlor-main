@@ -201,7 +201,7 @@ export function trickWinner(trick: PlayedCard[]): Seat {
   return best.seat;
 }
 
-function passTarget(order: Seat[], from: Seat, direction: PassDirection): Seat {
+export function passTarget(order: Seat[], from: Seat, direction: PassDirection): Seat {
   const i = order.indexOf(from);
   const n = order.length;
   const shift = direction === "left" ? 1 : direction === "right" ? -1 : direction === "across" ? 2 : 0;
@@ -290,7 +290,7 @@ function resolveTrick(state: State): State {
   const tricks = { ...state.tricks, [winner]: [...(state.tricks[winner] ?? []), cards] };
   const pen = trickPenalty(state.trick);
   const handPoints = { ...state.handPoints, [winner]: (state.handPoints[winner] ?? 0) + pen };
-  const done = Object.values(tricks).every((t) => t.length === 13);
+  const done = SEATS.reduce((sum, s) => sum + (tricks[s]?.length ?? 0), 0) === 13;
   const next: State = {
     ...state,
     tricks,

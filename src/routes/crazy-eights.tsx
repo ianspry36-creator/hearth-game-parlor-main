@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { PlayerAvatar } from "@/components/parlor/PlayerAvatar";
 import { SpeechBubble } from "@/components/parlor/SpeechBubble";
+import { TurnOffTimerControl } from "@/components/parlor/TurnOffTimerControl";
 import { ADA_AVATAR, AVATAR_OPTIONS, readAvatar } from "@/lib/avatars";
 import { readFlag } from "@/lib/flags";
 import { FlagPicker } from "@/components/parlor/FlagPicker";
@@ -118,6 +119,16 @@ type State = {
   dealId: number;
   /** Cards drawn so far this turn — a player may draw up to MAX_DRAWS. */
   drew: number;
+  /** The per-turn clock has been switched off for the rest of the match. */
+  timerOff: boolean;
+  /** Seat that asked to switch off the timer; non-null while awaiting a reply. */
+  timerRequest: Seat | null;
+  /** We proposed switching off the timer — hide the button for good after. */
+  timerProposed: boolean;
+  /** Our switch-off request was declined. */
+  timerDeclined: boolean;
+  /** Our switch-off request was accepted. */
+  timerAgreed: boolean;
 };
 
 type FlyingCard = {
@@ -168,6 +179,11 @@ function freshState(count: PlayerCount = 2, random: () => number = Math.random):
     timedOut: [],
     dealId: ++dealCounter,
     drew: 0,
+    timerOff: false,
+    timerRequest: null,
+    timerProposed: false,
+    timerDeclined: false,
+    timerAgreed: false,
   };
 }
 
@@ -195,6 +211,7 @@ function mirror(state: State): State {
     winner: state.winner ? swap(state.winner) : null,
     rematch: state.rematch ? swap(state.rematch) : null,
     timedOut: (state.timedOut ?? []).map(swap),
+    timerRequest: state.timerRequest ? swap(state.timerRequest) : null,
     log: state.log.map((entry) => ({ ...entry, side: entry.side ? swap(entry.side) : null })),
   };
 }
@@ -223,6 +240,7 @@ function remapState(state: State, shift: number, count: PlayerCount): State {
     winner: state.winner ? map(state.winner) : null,
     rematch: state.rematch ? map(state.rematch) : null,
     timedOut: (state.timedOut ?? []).map(map),
+    timerRequest: state.timerRequest ? map(state.timerRequest) : null,
     log: state.log.map((entry) => ({ ...entry, side: entry.side ? map(entry.side) : null })),
   };
 }
@@ -323,6 +341,9 @@ function CrazyEightsTable() {
   const layingRef = useRef(false);
   const stateRef = useRef(state);
   stateRef.current = state;
+  // Remember that we asked to switch off the timer, so the accept/decline
+  // notice shows only to the player who proposed it.
+  const proposedTimerOffRef = useRef(false);
   // While a rematch is being negotiated the match row must stay open: treat the
   // game as unfinished so the delayed "completed" write doesn't fire and bounce
   // both players back to the game room mid-rematch.
@@ -415,6 +436,7 @@ function CrazyEightsTable() {
 
   const startGame = (count: PlayerCount) => {
     if (isRoom && !roomIsHost) return;
+    proposedTimerOffRef.current = false;
     const n = isRoom ? activeCount : count;
     setPlayerCount(n);
     setSelectedIds([]);
@@ -432,8 +454,14 @@ function CrazyEightsTable() {
   // out of time in a 3- or 4-player game they are skipped and the hand
   // continues for the others; once a single player is left they win.
   const turnSecondsLeft = useTurnTimer({
-    enabled: isLive && !state.winner && (state.phase === "play" || state.phase === "suit") && (!isMulti || opponentConnected),
+    enabled:
+      isLive &&
+      !state.winner &&
+      (state.phase === "play" || state.phase === "suit") &&
+      (!isMulti || opponentConnected) &&
+      !state.timerOff,
     turn: state.turn,
+    paused: state.timerRequest != null,
     onTimeout: () =>
       apply((current) => {
         const timedOut = [...(current.timedOut ?? []), current.turn];
@@ -1012,6 +1040,25 @@ function CrazyEightsTable() {
       }}
       onNewGame={() => (isLive ? navigate({ to: "/crazy-eights" }) : startGame(2))}
       rail={null}
+      menuExtra={
+        <TurnOffTimerControl
+          showButton={
+            isMulti && state.phase !== "over" && !state.winner && !state.timerOff && !state.timerProposed
+          }
+          showPrompt={state.timerRequest != null && state.timerRequest !== "you"}
+          opponentName={opponentName}
+          declined={proposedTimerOffRef.current && state.timerDeclined}
+          agreed={proposedTimerOffRef.current && state.timerAgreed}
+          onRequest={() => {
+            proposedTimerOffRef.current = true;
+            apply((current) => ({ ...current, timerProposed: true, timerRequest: "you" }));
+          }}
+          onAccept={() =>
+            apply((current) => ({ ...current, timerOff: true, timerAgreed: true, timerRequest: null }))
+          }
+          onDecline={() => apply((current) => ({ ...current, timerRequest: null, timerDeclined: true }))}
+        />
+      }
       containerClassName="px-1.5 sm:px-3"
       boxClassName="px-[5px] py-[5px] sm:px-2 sm:py-2"
     >

@@ -18,6 +18,8 @@ import cardBackAsset from "@/assets/card-back.png";
 import { readFlag } from "@/lib/flags";
 import { FlagPicker } from "@/components/parlor/FlagPicker";
 import { PlayerFlag } from "@/components/parlor/PlayerFlag";
+import { AvatarPicker } from "@/components/parlor/AvatarPicker";
+import { NicknameDialog } from "@/components/parlor/NicknameDialog";
 import {
   SEATS,
   SEAT_NAMES,
@@ -26,6 +28,7 @@ import {
   idleState,
   initGame,
   legalPlays,
+  passTarget,
   play,
   redeal,
   resolvePass,
@@ -34,6 +37,7 @@ import {
   type Seat,
   type State,
 } from "@/lib/hearts";
+import { playHeartsBroken } from "@/lib/hearts-sounds";
 
 const BOTS: Seat[] = ["ace", "ada", "leo"];
 const DEAL_ORDER: Seat[] = ["ace", "ada", "leo", "you"];
@@ -47,13 +51,13 @@ type FlyingCard = {
 };
 
 const FLIGHT_MS = 500;
-const DEAL_STAGGER_MS = 200;
-const CARD_W = 68;
-const CARD_H = 88;
-const H_FAN_STEP = 36; // 68 − 32 overlap for horizontal fans
-const V_FAN_STEP = 24; // 88 − 64 overlap for vertical fans
+const DEAL_STAGGER_MS = 100;
+const CARD_W = 75;
+const CARD_H = 97;
+const H_FAN_STEP = 43; // 75 − 32 overlap for horizontal fans
+const V_FAN_STEP = 33; // 97 − 64 overlap for vertical fans
 
-// Position a 68×88 card so its centre lands on a rectangle's midpoint.
+// Position a 75×97 card so its centre lands on a rectangle's midpoint.
 const centreOn = (rect: DOMRect) => ({
   x: rect.left + rect.width / 2 - CARD_W / 2,
   y: rect.top + rect.height / 2 - CARD_H / 2,
@@ -153,15 +157,17 @@ function HeartsTable() {
         ? centreOn(toRect)
         : { x: window.innerWidth / 2 - CARD_W / 2, y: window.innerHeight / 2 - CARD_H / 2 };
       const key = flightKeyRef.current++;
-      setFlying((current) => [...current, { key, from, to, card }]);
+      setFlying((current) => [...current, { key, from, to, ...(seat === "you" ? { card } : {}) }]);
       window.setTimeout(() => {
         setFlying((current) => current.filter((f) => f.key !== key));
         const prev = stateRef.current;
         const next = play(prev, seat, card.id);
         setState(next);
-        // A completed trick: sweep its four cards into the winner's pile.
+        // Hearts just broke — play the smash.
+        if (!prev.heartsBroken && next.heartsBroken) playHeartsBroken();
+        // A completed trick: pause 2s, then sweep its four cards into the winner's pile.
         if (prev.trick.length === 3 && next.trick.length === 0) {
-          collectTrick(prev.trick, next.turn);
+          window.setTimeout(() => collectTrick(prev.trick, next.turn), 2000);
         }
       }, FLIGHT_MS);
     },
@@ -206,9 +212,9 @@ function HeartsTable() {
       if (!cardId) return;
       const card = current.hands[seat]?.find((c) => c.id === cardId);
       if (card) animatePlay(seat, card);
-    }, 900);
+    }, 450);
     return () => window.clearTimeout(timer);
-  }, [state.phase, state.turn, animatePlay]);
+  }, [state.phase, state.turn, state.trick.length, animatePlay]);
 
   // After a scored hand the table sits in "dealing" briefly, then deals again.
   useEffect(() => {
@@ -224,22 +230,23 @@ function HeartsTable() {
   const isPassing = state.phase === "passing";
   const needsToPass = isPassing && state.passSelections.you === null;
   const myTurn = state.phase === "playing" && state.turn === "you";
+  const passTargetName = SEAT_NAMES[passTarget(state.order, "you", state.passDirection)];
 
   const legalIds = useMemo(() => {
     if (!myTurn) return new Set<string>();
     return new Set(legalPlays(state, "you").map((card) => card.id));
   }, [state, myTurn]);
 
-  const playerAvatar = readAvatar();
+  const [playerAvatar, setPlayerAvatar] = useState<string>(() => readAvatar());
   const [playerFlag, setPlayerFlag] = useState<string | null>(readFlag);
   const [flagOpen, setFlagOpen] = useState(false);
-  const playerName = getNickname() ?? "You";
+  const [playerName, setPlayerName] = useState<string>(() => getNickname() ?? "You");
   const seatAvatar = (seat: Seat) =>
     seat === "you" ? playerAvatar : seat === "ace" ? ACE_AVATAR : seat === "ada" ? ADA_AVATAR : LEO_AVATAR;
 
   const winnerName =
     state.winner === "you"
-      ? (getNickname() ?? "You")
+      ? playerName
       : state.winner
         ? SEAT_NAMES[state.winner]
         : "Opponent";
@@ -247,12 +254,12 @@ function HeartsTable() {
   const results = useMemo(() => {
     if (!state.winner) return undefined;
     return SEATS.map((seat) => ({
-      name: seat === "you" ? (getNickname() ?? "You") : SEAT_NAMES[seat],
+      name: seat === "you" ? playerName : SEAT_NAMES[seat],
       score: state.points[seat] ?? 0,
       avatar: seatAvatar(seat),
       won: seat === state.winner,
     }));
-  }, [state.winner, state.points, playerAvatar]);
+  }, [state.winner, state.points, playerAvatar, playerName]);
 
   const startNewGame = useCallback(() => {
     setState(idleState());
@@ -332,6 +339,7 @@ function HeartsTable() {
 
     // Fly each passed card from its hand to its new hand, then commit.
     const fallback = { x: window.innerWidth / 2 - CARD_W / 2, y: window.innerHeight / 2 - CARD_H / 2 };
+    const rotate = state.passDirection === "left" ? ("cw" as const) : undefined;
     const flights = resolved.transfers.map((t) => {
       const srcRect = seatRefs.current[t.from]?.getBoundingClientRect();
       const dstRect = seatRefs.current[t.to]?.getBoundingClientRect();
@@ -340,7 +348,15 @@ function HeartsTable() {
         t.from === "you" || t.from === "ada" ? ("horizontal" as const) : ("vertical" as const);
       const from = srcRect ? fanSlotPosition(srcRect, index, 13, orientation) : fallback;
       const to = dstRect ? centreOn(dstRect) : fallback;
-      return { key: flightKeyRef.current++, from, to, card: t.card };
+      return {
+        key: flightKeyRef.current++,
+        from,
+        to,
+        // Cards passed from the opposition stay face down; only the player's own
+        // passed cards are shown face up.
+        ...(t.from === "you" ? { card: t.card } : {}),
+        ...(rotate ? { rotate } : {}),
+      };
     });
 
     scheduleFlights(flights);
@@ -423,10 +439,10 @@ function HeartsTable() {
         <div ref={trickRef} className="flex min-h-[65px] flex-1 flex-col items-center justify-center gap-1 text-center">
           {state.phase === "ready" && (
             <div className="flex flex-col items-center gap-3">
-              <div ref={packRef} className="relative h-[88px] w-[68px]">
-                <CardBack className="absolute left-0 top-0 h-[88px] w-[68px]" />
-                <CardBack className="absolute left-1 top-1 h-[88px] w-[68px]" />
-                <CardBack className="absolute left-2 top-2 h-[88px] w-[68px]" />
+              <div ref={packRef} className="relative h-[97px] w-[75px]">
+                <CardBack className="absolute left-0 top-0 h-[97px] w-[75px]" />
+                <CardBack className="absolute left-1 top-1 h-[97px] w-[75px]" />
+                <CardBack className="absolute left-2 top-2 h-[97px] w-[75px]" />
               </div>
               {isDealing ? (
                 <p className="text-sm text-ivory/70">Dealing…</p>
@@ -437,7 +453,7 @@ function HeartsTable() {
           )}
           {state.phase === "passing" && (
             <Button variant="parlor" disabled={passSelection.length !== 3} onClick={confirmPass}>
-              Pass {passSelection.length}/3 cards
+              Pass {passSelection.length}/3 Cards to {passTargetName}
             </Button>
           )}
           {state.phase === "dealing" && <p className="text-sm text-ivory/70">Dealing the next hand…</p>}
@@ -498,20 +514,27 @@ function HeartsTable() {
             })}
           </div>
           <div className="mt-2 flex items-center justify-center gap-2">
-            <img
-              src={playerAvatar}
-              alt={playerName}
-              className="size-12 rounded-full object-cover ring-1 ring-ivory/20"
-            />
+            <AvatarPicker avatar={playerAvatar} onSelect={setPlayerAvatar} size="size-[60px]" />
             <div className="flex flex-col items-start gap-0.5">
-              <p className="font-display text-sm font-bold">{playerName}</p>
+              <NicknameDialog
+                trigger={
+                  <button
+                    type="button"
+                    title="Change your name"
+                    className="font-display text-sm font-bold transition-colors hover:text-gold"
+                  >
+                    {playerName}
+                  </button>
+                }
+                onSaved={setPlayerName}
+              />
               <div className="flex items-center gap-1.5">
                 <PlayerFlag flag={playerFlag} onClick={() => setFlagOpen(true)} className="size-4" />
                 <p className="inline-block rounded-full bg-gold/15 px-2 py-0.5 text-xs font-bold text-gold">
-                  {state.points.you ?? 0} pts
+                  {(state.points.you ?? 0) + (state.handPoints.you ?? 0)} pts
                 </p>
                 <div ref={setTrickRef("you")}>
-                  <TrickPile tricks={state.tricks.you ?? []} />
+                  <TrickPile tricks={state.tricks.you ?? []} horizontal />
                 </div>
               </div>
             </div>
@@ -552,11 +575,11 @@ function SeatPanel({
       <img
         src={avatar}
         alt={name}
-        className={`size-12 rounded-full object-cover ${isTurn ? "ring-2 ring-gold" : "ring-1 ring-ivory/20"}`}
+        className={`size-[60px] rounded-full object-cover ${isTurn ? "ring-2 ring-gold" : "ring-1 ring-ivory/20"}`}
       />
       <p className="font-display text-sm font-bold">{name}</p>
       <div ref={trickRef} className="flex items-center gap-1.5">
-        <TrickPile tricks={tricks} />
+        <TrickPile tricks={tricks} horizontal={side === "top"} />
       </div>
     </div>
   );
@@ -571,7 +594,7 @@ function SeatPanel({
           const offset = selected
             ? `${side === "left" ? "translate-x-2" : "-translate-x-2"} ring-2 ring-gold`
             : "";
-          return <CardBack key={card.id} className={`h-[88px] w-[68px] ${base} ${offset}`} />;
+          return <CardBack key={card.id} className={`h-[97px] w-[75px] ${base} ${offset}`} />;
         })}
       </div>
     ) : null;
@@ -585,7 +608,7 @@ function SeatPanel({
           return (
             <CardBack
               key={card.id}
-              className={`h-[88px] w-[68px] ${i > 0 ? "-ml-8" : ""} ${offset}`}
+              className={`h-[97px] w-[75px] ${i > 0 ? "-ml-8" : ""} ${offset}`}
             />
           );
         })}
@@ -596,7 +619,7 @@ function SeatPanel({
     return (
       <div className="flex items-center gap-2">
         {/* Reserve the 13-card fan footprint so seats don't shift after dealing. */}
-        <div ref={cardRef} className="flex min-h-[376px] min-w-[88px] flex-col items-center">
+        <div ref={cardRef} className="flex min-h-[493px] min-w-[97px] flex-col items-center">
           {verticalFan}
         </div>
         {identity}
@@ -609,7 +632,7 @@ function SeatPanel({
       <div className="flex items-center gap-2">
         {identity}
         {/* Reserve the 13-card fan footprint so seats don't shift after dealing. */}
-        <div ref={cardRef} className="flex min-h-[376px] min-w-[88px] flex-col items-center">
+        <div ref={cardRef} className="flex min-h-[493px] min-w-[97px] flex-col items-center">
           {verticalFan}
         </div>
       </div>
@@ -622,52 +645,49 @@ function SeatPanel({
         <img
           src={avatar}
           alt={name}
-          className={`size-12 rounded-full object-cover ${isTurn ? "ring-2 ring-gold" : "ring-1 ring-ivory/20"}`}
+          className={`size-[60px] rounded-full object-cover ${isTurn ? "ring-2 ring-gold" : "ring-1 ring-ivory/20"}`}
         />
         <div className="flex flex-col items-start gap-0.5">
           <p className="font-display text-sm font-bold">{name}</p>
           <div ref={trickRef} className="flex items-center gap-1.5">
-            <TrickPile tricks={tricks} />
+            <TrickPile tricks={tricks} horizontal />
           </div>
         </div>
       </div>
-      <div ref={cardRef} className="flex min-h-[88px] items-end justify-center">
+      <div ref={cardRef} className="flex min-h-[97px] items-end justify-center">
         {horizontalFan}
       </div>
     </div>
   );
 }
 
-// A won trick rendered as a single face-down miniature card (37.5% of the
-// corner-card size — the previous 25% size increased by half).
+// A won trick rendered as a single face-down miniature card.
 function MiniCard({ className = "", style }: { className?: string; style?: CSSProperties }) {
   return (
     <img
       src={cardBackAsset}
       alt=""
       aria-hidden="true"
-      className={`block h-[33px] w-[25.5px] rounded-[3px] object-cover shadow-sm ${className}`}
+      className={`block h-[55px] w-[42px] rounded-[4px] object-cover shadow-sm ${className}`}
       style={style}
     />
   );
 }
 
 // The stack of tricks a seat has won, kept at the side of the player. Each trick
-// is one face-down card; multiple tricks overlap into a pile with a running count.
-function TrickPile({ tricks }: { tricks: Card[][] }) {
+// is one face-down card; the cards stagger so the won count is visible at a glance.
+// Seats whose hand fans horizontally (the player and Ada) overlap across the screen
+// instead of stacking downward.
+function TrickPile({ tricks, horizontal = false }: { tricks: Card[][]; horizontal?: boolean }) {
   if (!tricks.length) return null;
   return (
-    <div className="flex items-center gap-1">
-      <div className="relative h-[33px] w-[25.5px]">
-        {tricks.map((_, i) => (
-          <MiniCard
-            key={i}
-            className="absolute left-0 top-0"
-            style={{ transform: `translateY(${-i}px)` }}
-          />
-        ))}
-      </div>
-      <span className="text-[10px] font-semibold leading-none text-gold">{tricks.length}</span>
+    <div className={horizontal ? "flex items-center" : "flex flex-col items-center"}>
+      {tricks.map((_, i) => (
+        <MiniCard
+          key={i}
+          className={horizontal ? (i > 0 ? "-ml-[30px]" : "") : i > 0 ? "-mt-[42px]" : ""}
+        />
+      ))}
     </div>
   );
 }
@@ -716,7 +736,7 @@ function HeartsCard({
       onClick={onClick}
       disabled={!onClick}
       className={`relative flex shrink-0 flex-col items-center justify-center rounded-lg border bg-cream shadow-md shadow-black/30 ${
-        corner ? "h-[88px] w-[68px]" : small ? "h-[144px] w-[100px]" : "h-[184px] w-[124px] sm:h-[216px] sm:w-[144px]"
+        corner ? "h-[97px] w-[75px]" : small ? "h-[158px] w-[110px]" : "h-[202px] w-[136px] sm:h-[238px] sm:w-[158px]"
       } ${red ? "text-destructive" : "text-ink"} ${
         selected
           ? "z-10 -translate-y-2 border-gold ring-2 ring-gold"
@@ -766,25 +786,15 @@ function FlyingCardView({ flight }: { flight: FlyingCard }) {
   }, []);
   const dx = moved ? flight.to.x - flight.from.x : 0;
   const dy = moved ? flight.to.y - flight.from.y : 0;
+  const rotateDeg = flight.rotate === "cw" ? 90 : flight.rotate === "ccw" ? -90 : 0;
+  const transform = `translate(${dx}px, ${dy}px) rotate(${moved ? rotateDeg : 0}deg)`;
   return (
     <div
       aria-hidden
       className="pointer-events-none fixed z-50 transition-transform duration-500 ease-out"
-      style={{ left: flight.from.x, top: flight.from.y, transform: `translate(${dx}px, ${dy}px)` }}
+      style={{ left: flight.from.x, top: flight.from.y, transform }}
     >
-      {flight.card ? (
-        <HeartsCard
-          card={flight.card}
-          corner
-          className={flight.rotate === "cw" ? "rotate-90" : flight.rotate === "ccw" ? "-rotate-90" : ""}
-        />
-      ) : (
-        <CardBack
-          className={`h-[88px] w-[68px] ${
-            flight.rotate === "cw" ? "rotate-90" : flight.rotate === "ccw" ? "-rotate-90" : ""
-          }`}
-        />
-      )}
+      {flight.card ? <HeartsCard card={flight.card} corner /> : <CardBack className="h-[97px] w-[75px]" />}
     </div>
   );
 }
