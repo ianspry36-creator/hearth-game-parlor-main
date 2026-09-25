@@ -16,6 +16,7 @@ export type ConnectionErrorType =
   | "realtime_disconnect"
   | "opponent_disconnect"
   | "opponent_reconnect"
+  | "publish_state"
   | "read_streak"
   | "record_streak";
 

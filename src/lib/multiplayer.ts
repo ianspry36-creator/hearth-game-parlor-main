@@ -240,6 +240,11 @@ export function useMatch<T>(matchId: string | undefined, gameOver = false) {
   // written to the shared row, which proves it is still at the table.
   const noteOpponentActivityRef = useRef<() => void>(() => {});
 
+  // Points at the latest `readRow` so `publish` can force a re-sync after a
+  // write that fails even after retries (rolling the local board back to the
+  // server's truth instead of hanging the shared table mid-turn).
+  const readRowRef = useRef<(force?: boolean) => Promise<void>>(() => Promise.resolve());
+
   // True once we have adopted a non-completed row for this match, i.e. we were
   // actually seated at the table playing it. Distinguishes a match that just
   // finished (leave the final score on screen for a rematch) from a returning
@@ -269,10 +274,10 @@ export function useMatch<T>(matchId: string | undefined, gameOver = false) {
      * their score on the shared scorecard and the end of the game never arrived,
      * with no disconnection shown because the table was still "connected".
      */
-    const applyRow = (row: MatchRow) => {
+    const applyRow = (row: MatchRow, force = false) => {
       if (!live) return;
       const key = matchRowWriteKey(row);
-      if (myWriteKeysRef.current.has(key) || appliedKeysRef.current.has(key)) return;
+      if (!force && (myWriteKeysRef.current.has(key) || appliedKeysRef.current.has(key))) return;
       appliedKeysRef.current.add(key);
       version.current = Math.max(version.current, row.version);
       if (row.status !== "completed") sawActiveMatchRef.current = true;
@@ -283,17 +288,18 @@ export function useMatch<T>(matchId: string | undefined, gameOver = false) {
       noteOpponentActivityRef.current();
     };
 
-    const readRow = async () => {
+    const readRow = async (force = false) => {
       try {
         const { data } = await supabase.from("matches").select("*").eq("id", matchId).maybeSingle();
         if (!live || !data) return;
-        applyRow(data as MatchRow);
+        applyRow(data as MatchRow, force);
       } catch (error) {
         // A dropped connection is not fatal: the next poll (or the tab waking
         // up) fetches the row again, so never let it reject unhandled.
         console.error("[multiplayer] read match failed:", error);
       }
     };
+    readRowRef.current = readRow;
 
     void (async () => {
       await readRow();
@@ -322,6 +328,7 @@ export function useMatch<T>(matchId: string | undefined, gameOver = false) {
 
     return () => {
       live = false;
+      readRowRef.current = () => Promise.resolve();
       window.clearInterval(poll);
       document.removeEventListener("visibilitychange", onWake);
       window.removeEventListener("online", onWake);
@@ -343,14 +350,32 @@ export function useMatch<T>(matchId: string | undefined, gameOver = false) {
       // fresh object and re-render the board mid-animation, cancelling the
       // piece fly.
       myWriteKeysRef.current.add(matchRowWriteKey({ version: next, updated_at: updatedAt }));
-      await supabase
-        .from("matches")
-        .update({
-          state: state as unknown as never,
-          version: next,
-          updated_at: updatedAt,
-        })
-        .eq("id", matchId);
+
+      // A failed write used to be swallowed silently: the local player kept
+      // their optimistic move while the opponent never received it, leaving the
+      // shared table frozen mid-turn with no error shown and no disconnection
+      // reported. Retry a few times with a short backoff so a transient network
+      // blip or a brief rate-limit can't drop a move, then force a re-sync from
+      // the server so a genuinely lost write rolls the local board back instead
+      // of hanging the game.
+      const payload = {
+        state: state as unknown as never,
+        version: next,
+        updated_at: updatedAt,
+      };
+      let lastError: unknown = null;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const { error } = await supabase.from("matches").update(payload).eq("id", matchId);
+        if (!error) return;
+        lastError = error;
+        if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
+      }
+      console.error("[multiplayer] publish failed after retries:", lastError);
+      logConnectionError("publish_state", lastError, { match_id: matchId });
+      // Force a re-read that bypasses the echo/applied dedup so the local
+      // player's optimistic move is rolled back to the server's truth rather
+      // than the table appearing to hang.
+      void readRowRef.current?.(true);
     },
     [matchId],
   );
