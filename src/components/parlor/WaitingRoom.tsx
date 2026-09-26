@@ -54,14 +54,17 @@ type WaitingPlayer = {
 
 export function useNickname() {
   const [nickname, setNickname] = useState<string | null>(null);
-  useEffect(() => {
+  const reloadNickname = useCallback(() => {
     setNickname(window.localStorage.getItem(NICKNAME_KEY));
   }, []);
+  useEffect(() => {
+    reloadNickname();
+  }, [reloadNickname]);
   const save = (value: string) => {
     window.localStorage.setItem(NICKNAME_KEY, value);
     setNickname(value);
   };
-  return { nickname, save };
+  return { nickname, save, reloadNickname };
 }
 
 function waitingLabel(lastSeen: string, createdFallback: string) {
@@ -84,7 +87,7 @@ export function WaitingRoom({
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
 }) {
-  const { nickname, save } = useNickname();
+  const { nickname, save, reloadNickname } = useNickname();
   const [draft, setDraft] = useState("");
   const [openState, setOpenState] = useState(false);
   const open = openProp ?? openState;
@@ -290,11 +293,20 @@ export function WaitingRoom({
     void join(value);
   };
 
+  // Re-read the saved nickname each time the room opens so a name changed
+  // elsewhere (e.g. at the table) is picked up before we join.
+  useEffect(() => {
+    if (!open) return;
+    reloadNickname();
+  }, [open, reloadNickname]);
+
   // If we already have a saved nickname, skip the prompt and join immediately.
   useEffect(() => {
-    if (!open || joined || !nickname) return;
-    void join(nickname);
-  }, [open, joined, nickname, join]);
+    if (!open || joined) return;
+    const name = window.localStorage.getItem(NICKNAME_KEY);
+    if (!name) return;
+    void join(name);
+  }, [open, joined, join]);
 
   const invitePlayer = async (player: WaitingPlayer) => {
     if (invitingRef.current) return; // a double-click fired while an invite is in flight

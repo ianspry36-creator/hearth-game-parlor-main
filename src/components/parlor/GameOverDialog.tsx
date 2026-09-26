@@ -186,7 +186,7 @@ export function GameOverDialog({
           </p>
         ) : null}
 
-        <AlertDialogFooter className="gap-2 sm:justify-center">
+        <AlertDialogFooter className="gap-2 sm:justify-center sm:space-x-0">
           {footerExtra}
           <AlertDialogAction asChild>
             <Button
