@@ -1027,14 +1027,19 @@ function CrazyEightsTable() {
 
   // Overlap grows as cards are added and shrinks as cards leave. Cards that fit
   // keep a few pixels between them (never touching); otherwise they overlap to
-  // fill the row. `CARD_W - 1` keeps at least 1px of every card visible.
+  // fill the row. On small screens the hand starts overlapping once it reaches
+  // OVERLAP_AT cards so it stays comfortably on screen. `CARD_W - 1` keeps at
+  // least 1px of every card visible.
   const CARD_W = isMobile ? 72 : 81;
   const MIN_GAP = 5;
+  /** Number of cards at which a small-screen hand starts to overlap. */
+  const OVERLAP_AT = 5;
   const handOverlap = (() => {
     const n = myHand.length;
     if (n <= 1 || handWidth <= 0) return 0;
     const fit = CARD_W - (handWidth - CARD_W) / (n - 1);
-    return fit <= 0 ? -MIN_GAP : Math.min(CARD_W - 1, fit);
+    if (fit <= 0) return isMobile && n >= OVERLAP_AT ? MIN_GAP : -MIN_GAP;
+    return Math.min(CARD_W - 1, fit);
   })();
 
   // Rematch flow: "you" means we asked; any other seat means someone asked us.
