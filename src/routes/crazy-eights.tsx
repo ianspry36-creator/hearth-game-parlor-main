@@ -48,6 +48,8 @@ import { Clock } from "lucide-react";
 
 const FLIGHT_MS = 550;
 const STAGGER_MS = 400;
+/** Pause before the end-of-hand scorecard appears so the winning play can land. */
+const SCORECARD_DELAY_MS = 3000;
 
 export const Route = createFileRoute("/crazy-eights")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -385,6 +387,18 @@ function CrazyEightsTable() {
     setViewingHand(false);
     setSelectedIds([]);
   }, [state.dealId]);
+
+  // Delay the end-of-hand scorecard a beat so the winning play lands before the
+  // dialog pops in. Resets as soon as the game leaves the "over" phase.
+  const [scorecardReady, setScorecardReady] = useState(false);
+  useEffect(() => {
+    if (state.phase !== "over") {
+      setScorecardReady(false);
+      return;
+    }
+    const timer = window.setTimeout(() => setScorecardReady(true), SCORECARD_DELAY_MS);
+    return () => window.clearTimeout(timer);
+  }, [state.phase]);
 
   // Measure the hand row so cards can spread edge-to-edge on small screens.
   useEffect(() => {
@@ -1061,7 +1075,7 @@ function CrazyEightsTable() {
       menuExtra={
         <TurnOffTimerControl
           showButton={
-            isMulti && state.phase !== "over" && !state.winner && !state.timerOff && !state.timerProposed
+            isLive && state.phase !== "over" && !state.winner && !state.timerOff && !state.timerProposed
           }
           showPrompt={state.timerRequest != null && state.timerRequest !== "you"}
           opponentName={opponentName}
@@ -1082,7 +1096,7 @@ function CrazyEightsTable() {
     >
       <FlagPicker open={flagOpen} onOpenChange={setFlagOpen} onSelect={setFlag} />
       <GameOverDialog
-        open={state.phase === "over" && !viewingHand}
+        open={state.phase === "over" && scorecardReady && !viewingHand}
         result={state.winner === "you" ? "win" : "loss"}
         playerScore={handPenalty(myHand)}
         opponentScore={handPenalty(state.hands[state.winner ?? "ada"] ?? [])}

@@ -602,6 +602,22 @@ function FarkleTable() {
         };
       }
     }
+    // Ada decides her best keep the moment the dice land so her Bank total reads
+    // the highest possible score straight away, rather than waiting for each die
+    // to be moved into her set-aside area one at a time.
+    if (side === "cpu") {
+      const keep = bestKeep(faces);
+      const openIndexes = dice.map((d, i) => (d.set ? -1 : i)).filter((i) => i >= 0);
+      return {
+        ...current,
+        dice,
+        rolled: true,
+        farkled: false,
+        pending: keep ? keep.indexes.map((i) => openIndexes[i]!) : [],
+        pendingScore: keep ? keep.score : 0,
+        log: note(current.log, { side, text: `throw ${hot ? "hot dice: " : ""}${label}.` }),
+      };
+    }
     return {
       ...current,
       dice,
@@ -811,18 +827,9 @@ function FarkleTable() {
                   : rollFor(staged, "cpu");
           }
         } else {
-          const faces = openFaces(current.dice);
-          const openIndexes = current.dice.map((d, i) => (d.set ? -1 : i)).filter((i) => i >= 0);
-          const keep = bestKeep(faces);
-          if (!keep) {
-            next = passDice(current);
-          } else {
-            next = {
-              ...current,
-              pending: keep.indexes.map((i) => openIndexes[i]!),
-              pendingScore: keep.score,
-            };
-          }
+          // Ada has just banked and is waiting for her "banked" bubble to clear
+          // (cpuBankPassTimer flips the turn); do nothing this tick.
+          next = current;
         }
         stateRef.current = next;
         return next;
@@ -1038,24 +1045,24 @@ function FarkleTable() {
                 </p>
               </div>
             </div>
-            <div className="flex flex-1 items-center justify-center gap-3">
+            <div className="flex items-center justify-center gap-3 sm:contents">
               <div className="min-w-[5rem] rounded-lg border border-gold/20 bg-surface/60 px-3 py-1.5 text-center sm:min-w-[8rem] sm:px-6 sm:py-2.5">
                 <p className="text-[10px] uppercase tracking-[0.2em] text-ivory/50 sm:text-xs">Bank</p>
                 <p className="font-display text-xl font-bold text-gold tabular-nums sm:text-3xl">
                   {(cpuBankAnim
                     ? cpuBankAnim.bank
                     : state.turn === "cpu"
-                      ? state.turnScore
+                      ? state.turnScore + state.pendingScore
                       : 0
                   ).toLocaleString()}
                 </p>
               </div>
-            </div>
-            <div className="min-w-[5rem] rounded-lg border border-gold/20 bg-surface/60 px-3 py-1.5 text-center sm:order-3 sm:min-w-[8rem] sm:px-6 sm:py-2.5">
-              <p className="text-[10px] uppercase tracking-[0.2em] text-ivory/50 sm:text-xs">Score</p>
-              <p className="font-display text-xl font-bold text-gold tabular-nums sm:text-3xl">
-                {(cpuBankAnim ? cpuBankAnim.score : state.scores.cpu).toLocaleString()}
-              </p>
+              <div className="min-w-[5rem] rounded-lg border border-gold/20 bg-surface/60 px-3 py-1.5 text-center sm:order-3 sm:min-w-[8rem] sm:px-6 sm:py-2.5">
+                <p className="text-[10px] uppercase tracking-[0.2em] text-ivory/50 sm:text-xs">Score</p>
+                <p className="font-display text-xl font-bold text-gold tabular-nums sm:text-3xl">
+                  {(cpuBankAnim ? cpuBankAnim.score : state.scores.cpu).toLocaleString()}
+                </p>
+              </div>
             </div>
           </div>
           <div className="flex min-h-9 flex-wrap items-center justify-center gap-2 sm:h-14">
@@ -1089,7 +1096,7 @@ function FarkleTable() {
           <div className="flex w-full flex-1 flex-col items-center justify-center">
             {state.phase === "rolloff" ? (
               <div className="w-full rounded-2xl border border-gold/25 bg-surface/60 p-6 text-center shadow-2xl shadow-black/40 sm:px-10 sm:py-6">
-                <p className="text-[11px] uppercase tracking-[0.3em] text-gold">Who goes first?</p>
+                <p className="hidden text-[11px] uppercase tracking-[0.3em] text-gold sm:block">Who goes first?</p>
                 <div className="mt-6 flex items-center justify-center gap-8">
                   <div className="flex flex-col items-center gap-2">
                     <p className="font-display">{playerName}</p>
@@ -1229,56 +1236,58 @@ function FarkleTable() {
               </div>
             </div>
 
-            <div className="order-2 flex flex-col items-center gap-2 sm:order-2 sm:h-32 sm:flex-1 sm:items-center sm:justify-center">
-              <div className="flex min-h-9 flex-wrap items-center justify-center gap-3">
-                {state.phase === "play" && myTurn && !state.farkled && (
-                  <>
-                    {!state.rolled ? (
-                      <div className="flex flex-col items-center gap-3">
-                        <Button variant="parlor" onClick={roll}>
-                          Throw the dice
-                        </Button>
-                        <Button variant="parlorOutline" disabled>
-                          Bank 0
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-center gap-3">
-                        <Button
-                          variant="parlor"
-                          disabled={selectionScore === null}
-                          onClick={keepAndRoll}
-                        >
-                          Roll again
-                        </Button>
-                        <Button
-                          variant="parlorOutline"
-                          disabled={bestKeepResult === null || bankAnim !== null}
-                          onClick={bank}
-                        >
-                          Bank
-                          {bestKeepResult !== null
-                            ? ` ${(bankAnim ? bankAnim.bank : state.turnScore + bestKeepResult.score).toLocaleString()}`
-                            : ""}
-                        </Button>
-                      </div>
-                    )}
-                  </>
-                )}
-                {state.phase === "play" && myTurn && state.farkled && farkleRattling && (
-                  <Button variant="parlorOutline" disabled className="animate-rattle">
-                    Bank
-                  </Button>
-                )}
+            <div className="flex items-center justify-center gap-3 sm:contents">
+              <div className="order-2 flex flex-col items-center gap-2 sm:order-2 sm:h-32 sm:flex-1 sm:items-center sm:justify-center">
+                <div className="flex min-h-9 flex-wrap items-center justify-center gap-3">
+                  {state.phase === "play" && myTurn && !state.farkled && (
+                    <>
+                      {!state.rolled ? (
+                        <div className="flex flex-col items-center gap-3">
+                          <Button variant="parlor" onClick={roll}>
+                            Throw the dice
+                          </Button>
+                          <Button variant="parlorOutline" disabled>
+                            Bank 0
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center gap-3">
+                          <Button
+                            variant="parlor"
+                            disabled={selectionScore === null}
+                            onClick={keepAndRoll}
+                          >
+                            Roll again
+                          </Button>
+                          <Button
+                            variant="parlorOutline"
+                            disabled={bestKeepResult === null || bankAnim !== null}
+                            onClick={bank}
+                          >
+                            Bank
+                            {bestKeepResult !== null
+                              ? ` ${(bankAnim ? bankAnim.bank : state.turnScore + bestKeepResult.score).toLocaleString()}`
+                              : ""}
+                          </Button>
+                        </div>
+                      )}
+                    </>
+                  )}
+                  {state.phase === "play" && myTurn && state.farkled && farkleRattling && (
+                    <Button variant="parlorOutline" disabled className="animate-rattle">
+                      Bank
+                    </Button>
+                  )}
+                </div>
               </div>
-            </div>
-            <div className="order-3 min-w-[5rem] rounded-lg border border-gold/20 bg-surface/60 px-3 py-1.5 text-center sm:order-3 sm:min-w-[8rem] sm:px-6 sm:py-2.5">
-              <p className="text-[10px] uppercase tracking-[0.2em] text-ivory/50 sm:text-xs">
-                Score
-              </p>
-              <p className="font-display text-xl font-bold text-gold tabular-nums sm:text-3xl">
-                {(bankAnim ? bankAnim.score : state.scores.human).toLocaleString()}
-              </p>
+              <div className="order-3 min-w-[5rem] rounded-lg border border-gold/20 bg-surface/60 px-3 py-1.5 text-center sm:order-3 sm:min-w-[8rem] sm:px-6 sm:py-2.5">
+                <p className="text-[10px] uppercase tracking-[0.2em] text-ivory/50 sm:text-xs">
+                  Score
+                </p>
+                <p className="font-display text-xl font-bold text-gold tabular-nums sm:text-3xl">
+                  {(bankAnim ? bankAnim.score : state.scores.human).toLocaleString()}
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -1316,7 +1325,7 @@ function DieFace({
   onClick?: () => void;
 }) {
   const pips = PIPS[face] ?? [];
-  const size = sizeClass ?? (medium ? "size-14" : small ? "size-9" : "size-16");
+  const size = sizeClass ?? (medium ? "size-11 sm:size-14" : small ? "size-9" : "size-16");
   return (
     <button
       type="button"
