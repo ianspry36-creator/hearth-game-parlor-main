@@ -378,6 +378,14 @@ function CrazyEightsTable() {
   }, [handKey, activeCount]);
   const dealing = dealt < HAND_SIZE * activeCount;
 
+  // Dismiss the "View hand" overlay whenever a fresh hand is dealt — including a
+  // rematch accepted by the opponent, which starts a new game over the wire and
+  // would otherwise leave the overlay up so the next round's result never shows.
+  useEffect(() => {
+    setViewingHand(false);
+    setSelectedIds([]);
+  }, [state.dealId]);
+
   // Measure the hand row so cards can spread edge-to-edge on small screens.
   useEffect(() => {
     const el = handRef.current;
@@ -671,12 +679,12 @@ function CrazyEightsTable() {
     );
   };
 
-  /** Reorder the player's hand by rank, toggling low-to-high / high-to-low. */
+  /** Reorder the player's hand grouped by suit, each suit low-to-high / high-to-low. */
   const sortHand = () => {
     const dir = sortDesc ? -1 : 1;
     apply((current) => {
       const hand = [...current.hands.you].sort(
-        (a, b) => dir * (a.rank - b.rank) || SUITS.indexOf(a.suit) - SUITS.indexOf(b.suit),
+        (a, b) => SUITS.indexOf(a.suit) - SUITS.indexOf(b.suit) || dir * (a.rank - b.rank),
       );
       return { ...current, hands: { ...current.hands, you: hand } };
     });
@@ -948,6 +956,16 @@ function CrazyEightsTable() {
   ]);
 
   const canPlayNow = hasPlayable(myHand, top, state.wildSuit);
+
+  // Once the player has drawn the maximum number of cards and still can't play,
+  // pass automatically after a short pause — no "Pass the turn" button needed.
+  const passRef = useRef(pass);
+  passRef.current = pass;
+  useEffect(() => {
+    if (!myTurn || state.drew < MAX_DRAWS || canPlayNow) return;
+    const timer = setTimeout(() => passRef.current(), 2000);
+    return () => clearTimeout(timer);
+  }, [myTurn, state.drew, canPlayNow]);
 
   const seatAvatar = (seat: Seat): string => {
     if (seat === "you") return playerAvatar;
@@ -1341,11 +1359,6 @@ function CrazyEightsTable() {
             {myTurn && !canPlaySelected && !canPlayNow && state.drew < MAX_DRAWS && state.deck.length > 0 && (
               <Button variant="parlor" onClick={draw}>
                 Draw a card
-              </Button>
-            )}
-            {myTurn && state.drew >= MAX_DRAWS && !canPlayNow && (
-              <Button variant="parlorOutline" onClick={pass}>
-                Pass the turn
               </Button>
             )}
             <Button
