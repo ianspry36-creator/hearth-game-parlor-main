@@ -1003,10 +1003,10 @@ function FarkleTable() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      <div className="flex min-h-[560px] flex-col sm:min-h-[720px]">
+      <div className="flex min-h-[560px] flex-col sm:mx-auto sm:min-h-[720px] sm:w-[85%]">
         {/* Ada — top of the table */}
         <div className="flex flex-col gap-4 rounded-2xl border border-gold/15 bg-brand/50 px-9 py-[27px]">
-          <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
+          <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-4">
               <div className="relative inline-block">
                 <img
@@ -1040,12 +1040,12 @@ function FarkleTable() {
                   {(state.turn === "cpu" ? state.turnScore : 0).toLocaleString()}
                 </p>
               </div>
-              <div className="min-w-[5rem] rounded-lg border border-gold/20 bg-surface/60 px-3 py-1.5 text-center sm:min-w-[8rem] sm:px-6 sm:py-2.5">
-                <p className="text-[10px] uppercase tracking-[0.2em] text-ivory/50 sm:text-xs">Score</p>
-                <p className="font-display text-xl font-bold text-gold tabular-nums sm:text-3xl">
-                  {(cpuBankAnim ?? state.scores.cpu).toLocaleString()}
-                </p>
-              </div>
+            </div>
+            <div className="min-w-[5rem] rounded-lg border border-gold/20 bg-surface/60 px-3 py-1.5 text-center sm:order-3 sm:min-w-[8rem] sm:px-6 sm:py-2.5">
+              <p className="text-[10px] uppercase tracking-[0.2em] text-ivory/50 sm:text-xs">Score</p>
+              <p className="font-display text-xl font-bold text-gold tabular-nums sm:text-3xl">
+                {(cpuBankAnim ?? state.scores.cpu).toLocaleString()}
+              </p>
             </div>
           </div>
           <div className="flex min-h-9 flex-wrap items-center justify-center gap-2 sm:h-14">
@@ -1080,7 +1080,6 @@ function FarkleTable() {
             {state.phase === "rolloff" ? (
               <div className="w-full rounded-2xl border border-gold/25 bg-surface/60 p-6 text-center shadow-2xl shadow-black/40 sm:px-10 sm:py-6">
                 <p className="text-[11px] uppercase tracking-[0.3em] text-gold">Who goes first?</p>
-                <p className="mt-2 font-display text-2xl font-bold">Highest roll starts the game</p>
                 <div className="mt-6 flex items-center justify-center gap-8">
                   <div className="flex flex-col items-center gap-2">
                     <p className="font-display">{playerName}</p>
@@ -1090,7 +1089,7 @@ function FarkleTable() {
                           transform: `rotate(${scatterFor(0, state.rolloff.human).angle}deg)`,
                         }}
                       >
-                        <DieFace face={state.rolloff.human} />
+                        <DieFace face={state.rolloff.human} sizeClass="size-[3.6rem]" />
                       </div>
                     )}
                   </div>
@@ -1103,7 +1102,7 @@ function FarkleTable() {
                           transform: `rotate(${scatterFor(1, state.rolloff.cpu).angle}deg)`,
                         }}
                       >
-                        <DieFace face={state.rolloff.cpu} />
+                        <DieFace face={state.rolloff.cpu} sizeClass="size-[3.6rem]" />
                       </div>
                     )}
                   </div>
@@ -1294,6 +1293,7 @@ function DieFace({
   dim = false,
   small = false,
   medium = false,
+  sizeClass,
   onClick,
 }: {
   face: number;
@@ -1302,9 +1302,11 @@ function DieFace({
   dim?: boolean;
   small?: boolean;
   medium?: boolean;
+  sizeClass?: string;
   onClick?: () => void;
 }) {
   const pips = PIPS[face] ?? [];
+  const size = sizeClass ?? (medium ? "size-14" : small ? "size-9" : "size-16");
   return (
     <button
       type="button"
@@ -1312,9 +1314,9 @@ function DieFace({
       aria-pressed={selected}
       disabled={!interactive}
       onClick={onClick}
-      className={`grid rounded-xl border-2 bg-cream p-1.5 transition-all ${
-        medium ? "size-14" : small ? "size-9" : "size-16"
-      } ${selected ? "-translate-y-1.5 border-gold shadow-lg shadow-black/40" : "border-cream/40"} ${
+      className={`grid rounded-xl border-2 bg-cream p-1.5 transition-all ${size} ${
+        selected ? "-translate-y-1.5 border-gold shadow-lg shadow-black/40" : "border-cream/40"
+      } ${
         dim ? "opacity-40" : ""
       } ${interactive ? "cursor-pointer hover:-translate-y-1 hover:border-gold" : "cursor-default"}`}
     >
