@@ -530,16 +530,16 @@ export const GAMES: GameMeta[] = [
     id: "warship",
     name: "Warship",
     initial: "W",
-    tagline: "Eight hidden ships, ten by ten of open water, and a duel of guesswork.",
+    tagline: "Nine hidden ships, ten by ten of open water, and a duel of guesswork.",
     path: "/warship",
     rules: [
       {
         heading: "The object",
-        body: "Find and sink your opponent's entire fleet of eight ships before they sink yours.",
+        body: "Find and sink your opponent's entire fleet of nine ships before they sink yours.",
       },
       {
         heading: "The fleet",
-        body: "Each admiral hides a Carrier of five squares, a Battleship of four, a Cruiser and a Submarine of three each, a Destroyer of two, and a Patrol Boat, Gunboat and Scout of one square each. Ships sit horizontally or vertically and may not overlap.",
+        body: "Each admiral hides a Battleship of four squares, a Cruiser and a Submarine of three each, a Destroyer and a Frigate of two each, and a Patrol Boat, Gunboat, Scout and Skiff of one square each. Ships sit horizontally or vertically and may not overlap.",
       },
       {
         heading: "Taking aim",
@@ -551,7 +551,7 @@ export const GAMES: GameMeta[] = [
       },
       {
         heading: "Victory",
-        body: "The first admiral to sink all eight of the enemy ships wins the engagement.",
+        body: "The first admiral to sink all nine of the enemy ships wins the engagement.",
       },
     ],
   },

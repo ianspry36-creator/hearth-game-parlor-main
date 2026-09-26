@@ -1,14 +1,15 @@
 export const SIZE = 10;
 
 export const FLEET = [
-  { name: "Carrier", size: 5 },
   { name: "Battleship", size: 4 },
   { name: "Cruiser", size: 3 },
   { name: "Submarine", size: 3 },
   { name: "Destroyer", size: 2 },
+  { name: "Frigate", size: 2 },
   { name: "Patrol Boat", size: 1 },
   { name: "Gunboat", size: 1 },
   { name: "Scout", size: 1 },
+  { name: "Skiff", size: 1 },
 ] as const;
 
 export type Ship = { name: string; size: number; cells: number[] };

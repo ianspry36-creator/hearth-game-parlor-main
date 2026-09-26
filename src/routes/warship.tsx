@@ -599,14 +599,15 @@ function WarshipTable() {
 
 /** Hull colours and deck markings per ship class. */
 const HULL: Record<string, { body: string; mark: string; glyph: string }> = {
-  Carrier: { body: "bg-red-600", mark: "border-red-200/70", glyph: "✈" },
   Battleship: { body: "bg-yellow-500", mark: "border-yellow-200/60", glyph: "⌖" },
   Cruiser: { body: "bg-cyan-600", mark: "border-cyan-200/60", glyph: "⚓" },
   Submarine: { body: "bg-cyan-600", mark: "border-cyan-200/60", glyph: "◉" },
   Destroyer: { body: "bg-pink-500", mark: "border-pink-200/60", glyph: "▲" },
+  Frigate: { body: "bg-red-600", mark: "border-red-200/70", glyph: "▤" },
   "Patrol Boat": { body: "bg-teal-600", mark: "border-teal-200/60", glyph: "◎" },
   Gunboat: { body: "bg-orange-600", mark: "border-orange-200/60", glyph: "◆" },
   Scout: { body: "bg-purple-600", mark: "border-purple-200/60", glyph: "▪" },
+  Skiff: { body: "bg-stone-500", mark: "border-stone-200/60", glyph: "◦" },
 };
 
 function ShipSegment({ ship, cell }: { ship: Ship; cell: number }) {
