@@ -1030,7 +1030,7 @@ function CrazyEightsTable() {
   // fill the row. On small screens the hand starts overlapping once it reaches
   // OVERLAP_AT cards so it stays comfortably on screen. `CARD_W - 1` keeps at
   // least 1px of every card visible.
-  const CARD_W = isMobile ? 72 : 81;
+  const CARD_W = isMobile ? 65 : 81;
   const MIN_GAP = 5;
   /** Number of cards at which a small-screen hand starts to overlap. */
   const OVERLAP_AT = 5;
@@ -1345,7 +1345,7 @@ function CrazyEightsTable() {
               <PlayerAvatar
                 avatar={playerAvatar}
                 onSelect={setPlayerAvatar}
-                size="size-15"
+                size="size-[54px]"
                 countdown={state.turn === "you" ? countdown : 0}
               />
               {(state.timedOut ?? []).includes("you") && (
@@ -1593,7 +1593,7 @@ function PlayingCard({
           : small
             ? "h-[72px] w-12 md:h-[81px] md:w-[54px]"
             : medium
-              ? "h-[108px] w-[72px] md:h-[122px] md:w-[81px]"
+              ? "h-[97px] w-[65px] md:h-[122px] md:w-[81px]"
               : table
                 ? "h-[95px] w-[65px] md:h-[108px] md:w-[74px]"
                 : "h-[112px] w-[76px] md:h-[126px] md:w-[86px]"

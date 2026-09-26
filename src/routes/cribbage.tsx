@@ -77,7 +77,7 @@ const other = (s: Side): Side => (s === "player" ? "cpu" : "player");
 const WIN = 121;
 
 type LogEntry = { side: Side | null; text: string };
-type ShowBlock = { side: Side; kind: "hand" | "crib"; lines: ScoreLine[]; total: number };
+type ShowBlock = { side: Side; kind: "hand" | "crib"; hand: Card[]; lines: ScoreLine[]; total: number };
 
 type State = {
   phase: "cut" | "discard" | "play" | "between" | "pause" | "show" | "over";
@@ -262,7 +262,7 @@ function runShow(s: State) {
     if (winner) break;
     const lines = scoreHand(entry.hand, s.starter, entry.kind === "crib");
     const total = totalPoints(lines);
-    blocks.push({ side: entry.side, kind: entry.kind, lines, total });
+    blocks.push({ side: entry.side, kind: entry.kind, hand: entry.hand, lines, total });
     if (total <= 0) continue;
     scores[entry.side] += total;
     s.log = note(s.log, {
@@ -1238,7 +1238,7 @@ function CribbageTable() {
           : state.phase === "discard"
             ? waitingForDiscard
               ? `Cards sent to the crib — waiting for ${opponentName}.`
-              : "Select 2 cards to send to the crib, and then click the Send to Crib button"
+              : "Select two cards to send to the crib, and then click the Send to Crib button"
             : state.phase === "between"
               ? "End of the play — clearing the board next"
               : state.phase === "pause"
@@ -1580,7 +1580,7 @@ function CribbageTable() {
                       <PlayingCard card={card} table />
                       {isLast && state.lastPeg ? (
                         <span
-                          className="animate-scale-in pointer-events-none absolute -top-3 right-0 z-20 -translate-y-full select-none"
+                          className="animate-scale-in pointer-events-none absolute top-0 left-1/2 z-20 -translate-x-1/2 -translate-y-1/2 select-none"
                           title={`${state.lastPeg.label} — ${state.lastPeg.points} to ${
                             state.lastPeg.side === "player" ? "you" : opponentName
                           }`}
@@ -1623,6 +1623,18 @@ function CribbageTable() {
                   className="rounded-xl border border-gold/20 bg-brand/50 p-4 text-sm"
                 >
                   <p className="mb-2 font-display text-lg text-gold">{blockLabel(block)}</p>
+                  <div className="mb-3 flex items-end justify-center">
+                    <span className="flex gap-1">
+                      {sortHand(block.hand).map((c) => (
+                        <PlayingCard key={c.id} card={c} tiny />
+                      ))}
+                    </span>
+                    {block.kind === "hand" && state.starter ? (
+                      <span className="ml-3 flex gap-1">
+                        <PlayingCard card={state.starter} tiny />
+                      </span>
+                    ) : null}
+                  </div>
                   <p className="mb-3 text-2xl font-semibold">{block.total}</p>
                   <ul className="space-y-2 text-xs text-ivory/65">
                     {block.lines.length ? (
