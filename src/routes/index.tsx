@@ -10,6 +10,7 @@ import warshipMenuIcon from "@/assets/warshipMenuIcon.png";
 import reversiMenuIcon from "@/assets/reversiMenuIcon.png";
 import checkersMenuIcon from "@/assets/checkersMenuIcon.png";
 import heartsMenuIcon from "@/assets/heartsMenuIcon.png";
+import addictionMenuIcon from "@/assets/addictionMenuIcon.jpeg";
 import { CardMark } from "@/components/parlor/CardMark";
 import { VisitorCounter } from "@/components/parlor/VisitorCounter";
 import { Switch } from "@/components/ui/switch";
@@ -176,6 +177,12 @@ function Lobby() {
                       <img
                         src={heartsMenuIcon}
                         alt="Hearts"
+                        className="size-[2cm] rounded-2xl object-contain"
+                      />
+                    ) : game.id === "addiction" ? (
+                      <img
+                        src={addictionMenuIcon}
+                        alt="Addiction"
                         className="size-[2cm] rounded-2xl object-contain"
                       />
                     ) : (
