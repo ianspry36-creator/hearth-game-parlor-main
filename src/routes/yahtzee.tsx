@@ -951,10 +951,10 @@ function YahtzeeTable() {
         <td className="border-b border-r border-gold/40 py-0.5 pr-2 font-bold text-neutral-700 lg:py-2">
           {CATEGORY_LABELS[category]}
         </td>
-        <td className="h-[1.65rem] border-b border-r border-gold/40 px-2 text-center lg:h-[2.2rem]">
+        <td className="relative h-[1.65rem] border-b border-r border-gold/40 px-2 text-center lg:h-[2.2rem]">
           {taken ? (
             myCard[category] === 0 ? (
-              <span className="font-display text-[13px] font-bold text-neutral-900 lg:text-[16px]">—</span>
+              <span className="font-display text-[13px] font-bold text-neutral-900 lg:text-[16px]">0</span>
             ) : (
               <span className="font-display text-[13px] font-bold text-neutral-900 lg:text-[16px]">{myCard[category]}</span>
             )
@@ -963,7 +963,7 @@ function YahtzeeTable() {
               <button
                 type="button"
                 onClick={() => take(category)}
-                className="font-display text-[13px] font-bold text-red-600 transition-colors hover:text-red-700 lg:text-[16px]"
+                className="absolute inset-0 grid cursor-pointer place-items-center font-display text-[13px] font-bold text-red-600 transition-colors hover:text-red-700 lg:text-[16px]"
               >
                 {score}
               </button>
@@ -971,9 +971,10 @@ function YahtzeeTable() {
               <button
                 type="button"
                 onClick={() => take(category)}
-                className="font-display text-[13px] font-bold text-neutral-400 transition-colors hover:text-neutral-600 lg:text-[16px]"
+                aria-label={`Score 0 in ${CATEGORY_LABELS[category]}`}
+                className="absolute inset-0 grid cursor-pointer place-items-center transition-colors hover:bg-red-50"
               >
-                0
+                {/* A score of 0 is left blank until it is selected. */}
               </button>
             )
           ) : (
@@ -983,7 +984,7 @@ function YahtzeeTable() {
         <td className="h-[1.65rem] border-b border-gold/40 pl-2 text-center lg:h-[2.2rem]">
           {theirCard[category] !== undefined ? (
             theirCard[category] === 0 ? (
-              <span className="font-display text-[13px] font-bold text-neutral-700 lg:text-[16px]">—</span>
+              <span className="font-display text-[13px] font-bold text-neutral-700 lg:text-[16px]">0</span>
             ) : (
               <span className="font-display text-[13px] font-bold text-neutral-700 lg:text-[16px]">{theirCard[category]}</span>
             )
@@ -1094,7 +1095,6 @@ function YahtzeeTable() {
         playerAvatar={playerAvatar}
         timedOut={state.timedOut}
         onPlayAgain={isMulti ? requestRematch : reset}
-        playAgainClassName="scale-90"
         playAgainLabel={isMulti ? "Rematch" : "Play again"}
         playAgainDisabled={isMulti && state.rematch !== null}
         {...(rematchOutgoing
@@ -1104,12 +1104,11 @@ function YahtzeeTable() {
           <>
             <Button
               variant="parlorOutline"
-              className="scale-90"
               onClick={() => setViewingScorecard(true)}
             >
               View scorecard
             </Button>
-            <Button variant="parlorOutline" className="scale-90" onClick={() => navigate({ to: "/" })}>
+            <Button variant="parlorOutline" onClick={() => navigate({ to: "/" })}>
               Back to game room
             </Button>
           </>
