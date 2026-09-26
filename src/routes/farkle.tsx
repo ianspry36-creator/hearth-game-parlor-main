@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -26,7 +26,13 @@ import { TurnOffTimerControl } from "@/components/parlor/TurnOffTimerControl";
 import { CryingTears } from "@/components/parlor/CryingTears";
 import { SpeechBubble } from "@/components/parlor/SpeechBubble";
 import { getGame } from "@/lib/games";
-import { getNickname, RECONNECT_SECONDS, TURN_WARNING_SECONDS, useMatch, useTurnTimer } from "@/lib/multiplayer";
+import {
+  getNickname,
+  RECONNECT_SECONDS,
+  TURN_WARNING_SECONDS,
+  useMatch,
+  useTurnTimer,
+} from "@/lib/multiplayer";
 import { useRecordMatchResult } from "@/lib/stats";
 import { ADA_AVATAR, readAvatar } from "@/lib/avatars";
 import { readFlag } from "@/lib/flags";
@@ -83,7 +89,7 @@ type State = {
   rolled: boolean;
   farkled: boolean;
   /** True when the current player just cleared all six dice (hot dice). The
-   *  re-roll is delayed two seconds so both seats can announce it first. */
+   *  re-roll is delayed three seconds so both seats can announce it first. */
   hotDice: boolean;
   /** Dice queued to set aside one at a time during Ada's solo turn. */
   pending: number[];
@@ -216,7 +222,58 @@ function FarkleTable() {
   // score counts up, and only then is the bank actually committed.
   const [bankAnim, setBankAnim] = useState<{ bank: number; score: number } | null>(null);
   const bankAnimRef = useRef<number | null>(null);
+  // Ada's banking animation: counts her score up while the "banked" bubble shows.
+  const [cpuBankAnim, setCpuBankAnim] = useState<number | null>(null);
+  const cpuBankAnimRef = useRef<number | null>(null);
+  // Clears Ada's dice after her "banked" bubble disappears.
+  const cpuBankPassTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Holds the rolloff winner while its "I won the throw" bubble plays out;
+  // play begins once that bubble clears.
+  const [pendingPlay, setPendingPlay] = useState<Seat | null>(null);
   stateRef.current = state;
+  // FLIP animation: dice the player picks fly from the throwing tray down to the
+  // "Set aside" tray, and fly back when clicked there again. We remember each
+  // die's last on-screen rectangle and, whenever it toggles between the two
+  // areas, animate the freshly-mounted element from its old spot to its new one.
+  const dieRefs = useRef(new Map<number, HTMLDivElement>());
+  const lastRects = useRef(new Map<number, DOMRect>());
+  const prevLocationRef = useRef<Map<number, string>>(new Map());
+  const registerDie = (i: number) => (el: HTMLDivElement | null) => {
+    if (el) dieRefs.current.set(i, el);
+    else dieRefs.current.delete(i);
+  };
+  useLayoutEffect(() => {
+    const nowLocation = new Map<number, string>();
+    state.dice.forEach((die, i) => {
+      nowLocation.set(i, die.set ? "cpu" : selected.includes(i) ? "player" : "center");
+    });
+    const nextRects = new Map<number, DOMRect>();
+    dieRefs.current.forEach((el, i) => nextRects.set(i, el.getBoundingClientRect()));
+    nextRects.forEach((next, i) => {
+      const prev = lastRects.current.get(i);
+      if (!prev) return;
+      // Only dice that moved between the throwing area and the set-aside tray
+      // animate; a re-roll changes a die's face in place and should not fly.
+      if (prevLocationRef.current.get(i) === nowLocation.get(i)) return;
+      const dx = prev.left - next.left;
+      const dy = prev.top - next.top;
+      if (dx === 0 && dy === 0) return;
+      const el = dieRefs.current.get(i);
+      if (!el) return;
+      const base = el.style.transform || "none";
+      const from =
+        base === "none" ? `translate(${dx}px, ${dy}px)` : `translate(${dx}px, ${dy}px) ${base}`;
+      el.animate(
+        [
+          { transform: from, zIndex: 40 },
+          { transform: base, zIndex: 40 },
+        ],
+        { duration: 300, easing: "cubic-bezier(0.22, 1, 0.36, 1)" },
+      );
+    });
+    lastRects.current = nextRects;
+    prevLocationRef.current = nowLocation;
+  });
   // While a rematch is being negotiated the match row must stay open: treat the
   // game as unfinished so the delayed "completed" write doesn't fire and bounce
   // both players back to the game room mid-rematch.
@@ -244,7 +301,35 @@ function FarkleTable() {
   const prevHotDice = useRef(false);
   useEffect(() => {
     const gained = state.scores.cpu - prevCpuScore.current;
-    if (gained > 0) showCpuMessage(`${gained.toLocaleString()} banked`);
+    if (gained > 0) {
+      // Count Ada's score up so her score box doesn't jump when she banks.
+      const startScore = prevCpuScore.current;
+      const duration = 900;
+      const started = performance.now();
+      if (cpuBankAnimRef.current) cancelAnimationFrame(cpuBankAnimRef.current);
+      // Ada announces the bank before her score starts counting up.
+      showCpuMessage(`${gained.toLocaleString()} banked`);
+      // Clear Ada's dice once her "banked" bubble disappears.
+      if (cpuBankPassTimer.current) clearTimeout(cpuBankPassTimer.current);
+      cpuBankPassTimer.current = setTimeout(() => {
+        apply((current) => {
+          if (current.phase !== "play" || current.turn !== "cpu") return current;
+          return passDice(current);
+        });
+      }, 2200);
+      const step = (now: number) => {
+        const t = Math.min(1, (now - started) / duration);
+        const eased = 1 - Math.pow(1 - t, 3);
+        setCpuBankAnim(Math.round(startScore + gained * eased));
+        if (t < 1) {
+          cpuBankAnimRef.current = requestAnimationFrame(step);
+        } else {
+          cpuBankAnimRef.current = null;
+          setCpuBankAnim(null);
+        }
+      };
+      cpuBankAnimRef.current = requestAnimationFrame(step);
+    }
     prevCpuScore.current = state.scores.cpu;
   }, [state.scores.cpu]);
   // Ada (or the live opponent) announces a farkle in her chat cloud.
@@ -253,12 +338,25 @@ function FarkleTable() {
       showCpuMessage("Farkle!");
     }
   }, [state.farkled, state.turn, state.phase]);
+  // While a farkle rattles, keep the Bank button visible so it can shake with
+  // the dice, then let it disappear once the rattle ends (~0.9s).
+  const [farkleRattling, setFarkleRattling] = useState(false);
+  const farkleRattleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (state.farkled && state.turn === "human" && state.phase === "play") {
+      setFarkleRattling(true);
+      if (farkleRattleTimer.current) clearTimeout(farkleRattleTimer.current);
+      farkleRattleTimer.current = setTimeout(() => setFarkleRattling(false), 900);
+    } else {
+      setFarkleRattling(false);
+    }
+  }, [state.farkled, state.turn, state.phase]);
   // Whoever clears all six dice announces "Hot Dice!" — the active player in
   // their own bubble, the opponent in Ada's (works for both solo and multiplayer).
   useEffect(() => {
     if (state.hotDice && !prevHotDice.current) {
-      if (state.turn === "human") showAvatarMessage("Hot Dice!");
-      else showCpuMessage("Hot Dice!");
+      if (state.turn === "human") showAvatarMessage("HOT DICE!");
+      else showCpuMessage("HOT DICE!");
     }
     prevHotDice.current = state.hotDice;
   }, [state.hotDice, state.turn]);
@@ -267,6 +365,9 @@ function FarkleTable() {
       if (messageTimer.current) clearTimeout(messageTimer.current);
       if (cpuMessageTimer.current) clearTimeout(cpuMessageTimer.current);
       if (bankAnimRef.current) cancelAnimationFrame(bankAnimRef.current);
+      if (cpuBankAnimRef.current) cancelAnimationFrame(cpuBankAnimRef.current);
+      if (farkleRattleTimer.current) clearTimeout(farkleRattleTimer.current);
+      if (cpuBankPassTimer.current) clearTimeout(cpuBankPassTimer.current);
     },
     [],
   );
@@ -285,7 +386,8 @@ function FarkleTable() {
   // Live matches run a 1-minute clock on the active seat; running out forfeits
   // the game to the other player.
   const turnSecondsLeft = useTurnTimer({
-    enabled: isMulti && opponentConnected && state.phase === "play" && !state.winner && !state.timerOff,
+    enabled:
+      isMulti && opponentConnected && state.phase === "play" && !state.winner && !state.timerOff,
     turn: state.turn,
     paused: state.timerRequest !== null,
     onTimeout: () =>
@@ -300,7 +402,8 @@ function FarkleTable() {
         }),
       })),
   });
-  const countdown = turnSecondsLeft > 0 && turnSecondsLeft <= TURN_WARNING_SECONDS ? turnSecondsLeft : 0;
+  const countdown =
+    turnSecondsLeft > 0 && turnSecondsLeft <= TURN_WARNING_SECONDS ? turnSecondsLeft : 0;
 
   const reset = () => {
     proposedTimerOffRef.current = false;
@@ -422,19 +525,41 @@ function FarkleTable() {
         } else {
           showCpuMessage("I won the throw. I will play first.");
         }
-        return {
-          ...current,
-          turn: first,
-          phase: "play",
-          log: note(current.log, {
-            side: first,
-            text: `win the rolloff ${hh}-${cc} and take the first turn.`,
-          }),
-        };
+        // Keep the rolloff dice on screen until the "I won the throw" bubble
+        // clears, then hand over the first turn.
+        setPendingPlay(first);
+        return current;
       });
     }, 2000);
     return () => clearTimeout(timer);
   }, [isMulti, isHost, state.phase, state.rolloff.human, state.rolloff.cpu]);
+
+  // Once the "I won the throw" bubble has cleared, begin play: move the turn to
+  // the winner and drop the rolloff dice.
+  useEffect(() => {
+    if (pendingPlay === null) return;
+    if (state.phase !== "rolloff") {
+      setPendingPlay(null);
+      return;
+    }
+    const timer = setTimeout(() => {
+      apply((current) => {
+        if (current.phase !== "rolloff") return current;
+        if (current.rolloff.human === null || current.rolloff.cpu === null) return current;
+        return {
+          ...current,
+          turn: pendingPlay,
+          phase: "play",
+          log: note(current.log, {
+            side: pendingPlay,
+            text: `win the rolloff ${current.rolloff.human}-${current.rolloff.cpu} and take the first turn.`,
+          }),
+        };
+      });
+      setPendingPlay(null);
+    }, 2200);
+    return () => clearTimeout(timer);
+  }, [pendingPlay, state.phase]);
 
   const rollFor = (current: State, side: Seat): State => {
     const hot = current.dice.every((d) => d.set);
@@ -454,6 +579,25 @@ function FarkleTable() {
           text: `throw ${label} — a farkle. ${current.turnScore.toLocaleString()} points lost.`,
         }),
       };
+    }
+    // Hot dice: when every die just thrown can be set aside, clear the table and
+    // re-roll all six automatically — the player doesn't have to select each die.
+    if (side === "human") {
+      const allScore = scoreSelection(faces);
+      if (allScore !== null) {
+        return {
+          ...current,
+          dice: dice.map((d) => ({ ...d, set: true })),
+          rolled: true,
+          farkled: false,
+          turnScore: current.turnScore + allScore,
+          hotDice: true,
+          log: note(current.log, {
+            side,
+            text: `throw hot dice: ${label} — all ${allScore.toLocaleString()} points.`,
+          }),
+        };
+      }
     }
     return {
       ...current,
@@ -492,10 +636,15 @@ function FarkleTable() {
     if (won) {
       return { ...logged, phase: "over", winner: side, turnScore: 0, rolled: false };
     }
+    // Ada keeps her dice on screen while her "banked" bubble plays out; a
+    // follow-up effect clears them once that bubble disappears.
+    if (side === "cpu") {
+      return logged;
+    }
     return passDice(logged);
   };
 
-  // Hot dice: let the "Hot Dice!" bubble play out for two seconds, then throw
+  // Hot dice: let the "Hot Dice!" bubble play out for three seconds, then throw
   // all six again. In multiplayer only the seat whose turn it is performs (and
   // publishes) the re-roll; the other seat just watches its mirrored copy.
   useEffect(() => {
@@ -506,7 +655,7 @@ function FarkleTable() {
         if (!current.hotDice) return current;
         return rollFor({ ...current, hotDice: false }, current.turn);
       });
-    }, 2000);
+    }, 3000);
     return () => clearTimeout(timer);
   }, [state.hotDice, isMulti, state.turn]);
 
@@ -521,12 +670,23 @@ function FarkleTable() {
   const bestKeepResult =
     myTurn && state.rolled && !state.farkled ? bestKeep(openFaces(state.dice)) : null;
 
+  // A die can be picked up only when it can actually be made into a meld: a 1
+  // or 5 scores on its own, and any other face must appear three or more times
+  // to form a three-of-a-kind. Dead dice stay in the tray.
+  const canSelect = (index: number): boolean => {
+    const face = state.dice[index]?.face;
+    if (face === undefined) return false;
+    if (face === 1 || face === 5) return true;
+    return openFaces(state.dice).filter((f) => f === face).length >= 3;
+  };
+
   const toggle = (index: number) => {
     if (!myTurn || !state.rolled || state.farkled) return;
     if (state.dice[index]?.set) return;
-    setSelected((prev) =>
-      prev.includes(index) ? prev.filter((i) => i !== index) : [...prev, index],
-    );
+    setSelected((prev) => {
+      if (prev.includes(index)) return prev.filter((i) => i !== index);
+      return canSelect(index) ? [...prev, index] : prev;
+    });
   };
 
   const roll = () => {
@@ -697,8 +857,6 @@ function FarkleTable() {
               : "Rattling the dice…";
 
   const setAsideDice = state.dice.filter((d) => d.set);
-  const activeDice = state.dice.filter((d) => !d.set);
-  const diceLeft = activeDice.length;
 
   const meldTable = (
     <table className="w-full select-none text-sm">
@@ -727,10 +885,7 @@ function FarkleTable() {
       </div>
       <Dialog>
         <DialogTrigger asChild>
-          <Button
-            variant="parlor"
-            className="w-full bg-white text-ink hover:bg-white/90 lg:hidden"
-          >
+          <Button variant="parlor" className="w-full bg-white text-ink hover:bg-white/90 lg:hidden">
             Meld Values
           </Button>
         </DialogTrigger>
@@ -751,6 +906,7 @@ function FarkleTable() {
   return (
     <TableShell
       game={game}
+      containerMaxWidth="max-w-[64.8rem]"
       opponentName={opponentName}
       opponentStatus={status}
       showChat={isMulti}
@@ -768,7 +924,11 @@ function FarkleTable() {
       menuExtra={
         <TurnOffTimerControl
           showButton={
-            isMulti && state.phase === "play" && !state.winner && !state.timerOff && !state.timerProposed
+            isMulti &&
+            state.phase === "play" &&
+            !state.winner &&
+            !state.timerOff &&
+            !state.timerProposed
           }
           showPrompt={state.timerRequest === "cpu"}
           opponentName={opponentName}
@@ -778,8 +938,17 @@ function FarkleTable() {
             proposedTimerOffRef.current = true;
             apply((current) => ({ ...current, timerProposed: true, timerRequest: "human" }));
           }}
-          onAccept={() => apply((current) => ({ ...current, timerOff: true, timerAgreed: true, timerRequest: null }))}
-          onDecline={() => apply((current) => ({ ...current, timerRequest: null, timerDeclined: true }))}
+          onAccept={() =>
+            apply((current) => ({
+              ...current,
+              timerOff: true,
+              timerAgreed: true,
+              timerRequest: null,
+            }))
+          }
+          onDecline={() =>
+            apply((current) => ({ ...current, timerRequest: null, timerDeclined: true }))
+          }
         />
       }
     >
@@ -836,73 +1005,80 @@ function FarkleTable() {
       </AlertDialog>
       <div className="flex min-h-[560px] flex-col sm:min-h-[720px]">
         {/* Ada — top of the table */}
-        <div className="flex flex-col items-center gap-4 rounded-2xl border border-gold/15 bg-brand/50 p-4 sm:flex-row sm:justify-between">
-          <div className="flex items-center gap-4">
-            <div className="relative inline-block">
-              <img
-                src={opponentAvatar ?? ADA_AVATAR}
-                alt={opponentName}
-                width={64}
-                height={64}
-                className={`size-14 sm:size-[4.2rem] rounded-full border-2 border-gold/40 bg-surface object-cover ${
-                  cpuFarkled ? "animate-cry" : ""
-                }`}
-              />
-              {state.turn === "cpu" && countdown > 0 && <CountdownBadge seconds={countdown} />}
-              {cpuFarkled && <CryingTears />}
-              {cpuMessage && (
-                <div className="absolute left-0 top-full z-10 mt-2">
-                  <SpeechBubble text={cpuMessage} tail="up-left" />
-                </div>
-              )}
+        <div className="flex flex-col gap-4 rounded-2xl border border-gold/15 bg-brand/50 px-9 py-[27px]">
+          <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
+            <div className="flex items-center gap-4">
+              <div className="relative inline-block">
+                <img
+                  src={opponentAvatar ?? ADA_AVATAR}
+                  alt={opponentName}
+                  width={64}
+                  height={64}
+                  className={`size-14 sm:size-[4.2rem] rounded-full border-2 border-gold/40 bg-surface object-cover ${
+                    cpuFarkled ? "animate-cry" : ""
+                  }`}
+                />
+                {state.turn === "cpu" && countdown > 0 && <CountdownBadge seconds={countdown} />}
+                {cpuFarkled && <CryingTears />}
+                {cpuMessage && (
+                  <div className="absolute left-0 top-full z-10 mt-2">
+                    <SpeechBubble text={cpuMessage} tail="up-left" />
+                  </div>
+                )}
+              </div>
+              <div>
+                <p className="font-display text-lg font-bold">{opponentName}</p>
+                <p className="text-xs text-ivory/60">
+                  {state.turn === "cpu" && state.phase === "play" ? "Throwing…" : "Waiting"}
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="font-display text-lg font-bold">{opponentName}</p>
-              <p className="text-xs text-ivory/60">
-                {state.turn === "cpu" && state.phase === "play" ? "Throwing…" : "Waiting"}
-              </p>
+            <div className="flex flex-1 items-center justify-center gap-3">
+              <div className="min-w-[5rem] rounded-lg border border-gold/20 bg-surface/60 px-3 py-1.5 text-center sm:min-w-[8rem] sm:px-6 sm:py-2.5">
+                <p className="text-[10px] uppercase tracking-[0.2em] text-ivory/50 sm:text-xs">Bank</p>
+                <p className="font-display text-xl font-bold text-gold tabular-nums sm:text-3xl">
+                  {(state.turn === "cpu" ? state.turnScore : 0).toLocaleString()}
+                </p>
+              </div>
+              <div className="min-w-[5rem] rounded-lg border border-gold/20 bg-surface/60 px-3 py-1.5 text-center sm:min-w-[8rem] sm:px-6 sm:py-2.5">
+                <p className="text-[10px] uppercase tracking-[0.2em] text-ivory/50 sm:text-xs">Score</p>
+                <p className="font-display text-xl font-bold text-gold tabular-nums sm:text-3xl">
+                  {(cpuBankAnim ?? state.scores.cpu).toLocaleString()}
+                </p>
+              </div>
             </div>
           </div>
-
-          <div className="order-3 flex min-h-9 flex-1 flex-wrap items-center justify-center gap-2 sm:order-2">
+          <div className="flex min-h-9 flex-wrap items-center justify-center gap-2 sm:h-14">
             {state.turn === "cpu" && state.phase === "play" && setAsideDice.length > 0 && (
               <>
-                <span className="text-[10px] uppercase tracking-[0.2em] text-ivory/50">
-                  Set aside
-                </span>
                 {setAsideDice.map((die) => {
                   const realIndex = state.dice.indexOf(die);
                   return (
-                    <span
+                    <div
                       key={`c${realIndex}`}
-                      className={state.farkled ? "animate-rattle" : "animate-die-to-cpu"}
+                      ref={registerDie(realIndex)}
+                      className={state.farkled ? "animate-rattle" : ""}
                     >
-                      <DieFace face={die.face} small />
-                    </span>
+                      <DieFace face={die.face} medium />
+                    </div>
                   );
                 })}
               </>
             )}
           </div>
-          <div className="rounded-lg border border-gold/20 bg-surface/60 px-3 py-1.5 text-center sm:order-3 sm:px-5 sm:py-2">
-            <p className="text-[10px] uppercase tracking-[0.2em] text-ivory/50">Score</p>
-            <p className="font-display text-xl font-bold text-gold sm:text-2xl">
-              {state.scores.cpu.toLocaleString()}
-            </p>
-          </div>
         </div>
 
         {/* Middle arena — status and thrown dice */}
-        <div className="mt-6 flex flex-1 flex-col items-center gap-2.5">
-          <div className="w-full max-w-xl rounded-xl border border-gold/20 bg-gold/10 px-5 py-3 text-center">
-            <p className="flex min-h-10 items-center justify-center text-sm font-medium text-cream">
+        <div className="mt-2.5 flex flex-1 flex-col items-center gap-2.5">
+          <div className="w-full max-w-xl rounded-xl border border-gold/20 bg-gold/10 px-5 py-1.5 text-center">
+            <p className="flex min-h-5 items-center justify-center text-sm font-medium text-cream">
               {status}
             </p>
           </div>
 
           <div className="flex w-full flex-1 flex-col items-center justify-center">
             {state.phase === "rolloff" ? (
-              <div className="text-center">
+              <div className="w-full rounded-2xl border border-gold/25 bg-surface/60 p-6 text-center shadow-2xl shadow-black/40 sm:px-10 sm:py-6">
                 <p className="text-[11px] uppercase tracking-[0.3em] text-gold">Who goes first?</p>
                 <p className="mt-2 font-display text-2xl font-bold">Highest roll starts the game</p>
                 <div className="mt-6 flex items-center justify-center gap-8">
@@ -946,16 +1122,17 @@ function FarkleTable() {
                 </div>
               </div>
             ) : (
-              <div className="w-full rounded-2xl border border-[#7CFC00] bg-[#7CFC00] p-6 shadow-2xl shadow-black/40 sm:px-10 sm:py-8">
-                <div className="relative mx-auto h-52 w-full max-w-[25.2rem] sm:h-56">
+              <div className="w-full rounded-2xl border border-gold/25 bg-surface/60 p-6 shadow-2xl shadow-black/40 sm:px-10 sm:py-6">
+                <div className="relative mx-auto h-[10.53rem] w-full max-w-[22.68rem] sm:h-[11.34rem]">
                   {state.dice.map((die, i) => {
-                    if (!state.rolled || die.set) {
+                    if (!state.rolled || die.set || selected.includes(i)) {
                       return null;
                     }
                     const { angle, x, y } = scatterFor(i, die.face);
                     return (
                       <div
                         key={i}
+                        ref={registerDie(i)}
                         className="absolute"
                         style={{
                           left: `${x}%`,
@@ -966,26 +1143,51 @@ function FarkleTable() {
                         <DieFace
                           face={die.face}
                           medium
-                          selected={selected.includes(i)}
-                          interactive={myTurn && state.rolled && !state.farkled}
+                          interactive={myTurn && state.rolled && !state.farkled && canSelect(i)}
                           onClick={() => toggle(i)}
                         />
                       </div>
                     );
                   })}
                 </div>
-                {diceLeft === 0 && state.rolled && (
-                  <p className="mt-3 text-center text-sm font-medium text-ink">
-                    Hot dice — throw all six again.
-                  </p>
-                )}
               </div>
             )}
           </div>
         </div>
 
         {/* Player — bottom of the table */}
-        <div className="mt-3 rounded-2xl border border-gold/15 bg-brand/50 p-4 sm:px-7 sm:py-[49px]">
+        <div className="mt-1.5 rounded-2xl border border-gold/15 bg-brand/50 p-4 sm:px-7 sm:pt-[30px] sm:pb-[15px]">
+          <div className="flex min-h-9 flex-wrap items-center justify-center gap-2 sm:h-14">
+            {state.turn === "human" &&
+              state.phase === "play" &&
+              (setAsideDice.length > 0 || selected.length > 0) && (
+                <>
+                  {setAsideDice.map((die) => {
+                    const realIndex = state.dice.indexOf(die);
+                    return (
+                      <span key={`s${realIndex}`} className={state.farkled ? "animate-rattle" : ""}>
+                        <DieFace face={die.face} medium />
+                      </span>
+                    );
+                  })}
+                  {selected.map((i) => {
+                    const die = state.dice[i];
+                    if (!die || die.set) return null;
+                    return (
+                      <div key={`sel${i}`} ref={registerDie(i)} className="relative">
+                        <DieFace
+                          face={die.face}
+                          medium
+                          selected
+                          interactive={myTurn && state.rolled && !state.farkled}
+                          onClick={() => toggle(i)}
+                        />
+                      </div>
+                    );
+                  })}
+                </>
+              )}
+          </div>
           <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-4">
               <PlayerAvatar
@@ -1019,38 +1221,18 @@ function FarkleTable() {
             </div>
 
             <div className="order-3 flex flex-col items-center gap-2 sm:order-2 sm:h-32 sm:flex-1 sm:items-center sm:justify-center">
-              <div className="flex min-h-9 flex-wrap items-center justify-center gap-2 sm:min-h-11">
-                {state.turn === "human" && state.phase === "play" && setAsideDice.length > 0 && (
-                  <>
-                    <span className="text-[10px] uppercase tracking-[0.2em] text-ivory/50 sm:text-xs">
-                      Set aside
-                    </span>
-                    {setAsideDice.map((die) => {
-                      const realIndex = state.dice.indexOf(die);
-                      return (
-                        <span
-                          key={`s${realIndex}`}
-                          className={
-                            state.farkled
-                              ? "animate-rattle sm:scale-[1.2]"
-                              : "animate-die-to-player sm:scale-[1.2]"
-                          }
-                        >
-                          <DieFace face={die.face} small />
-                        </span>
-                      );
-                    })}
-                  </>
-                )}
-              </div>
-
               <div className="flex min-h-9 flex-wrap items-center justify-center gap-3 sm:min-w-[300px]">
                 {state.phase === "play" && myTurn && !state.farkled && (
                   <>
                     {!state.rolled ? (
-                      <Button variant="parlor" onClick={roll}>
-                        Throw the dice
-                      </Button>
+                      <div className="flex flex-col items-center gap-3">
+                        <Button variant="parlor" onClick={roll}>
+                          Throw the dice
+                        </Button>
+                        <Button variant="parlorOutline" disabled>
+                          Bank 0
+                        </Button>
+                      </div>
                     ) : (
                       <div className="flex flex-col items-center gap-3">
                         <Button
@@ -1074,17 +1256,21 @@ function FarkleTable() {
                     )}
                   </>
                 )}
+                {state.phase === "play" && myTurn && state.farkled && farkleRattling && (
+                  <Button variant="parlorOutline" disabled className="animate-rattle">
+                    Bank
+                  </Button>
+                )}
               </div>
             </div>
-            <div className="rounded-lg border border-gold/20 bg-surface/60 px-3 py-1.5 text-center sm:order-3 sm:px-6 sm:py-2.5">
+            <div className="min-w-[5rem] rounded-lg border border-gold/20 bg-surface/60 px-3 py-1.5 text-center sm:order-3 sm:min-w-[8rem] sm:px-6 sm:py-2.5">
               <p className="text-[10px] uppercase tracking-[0.2em] text-ivory/50 sm:text-xs">
                 Score
               </p>
-              <p className="font-display text-xl font-bold text-gold sm:text-3xl">
+              <p className="font-display text-xl font-bold text-gold tabular-nums sm:text-3xl">
                 {(bankAnim ? bankAnim.score : state.scores.human).toLocaleString()}
               </p>
             </div>
-
           </div>
         </div>
       </div>
