@@ -1457,7 +1457,7 @@ function CribbageTable() {
                 </span>
               }
             />
-            <div className={`flex justify-center [&>*:not(:first-child)]:-ml-3 sm:-ml-[36px]${state.phase === "cut" ? "" : " min-h-[43px] sm:min-h-[105px]"}`}>
+            <div className={`flex justify-center [&>*:not(:first-child)]:-ml-3 sm:-ml-[57.6px]${state.phase === "cut" ? "" : " min-h-[43px] sm:min-h-[105px]"}`}>
               {state.cpuHand.map((card, index) => {
                 if (layingId === card.id) {
                   return (
