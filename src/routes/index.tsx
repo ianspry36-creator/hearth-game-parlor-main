@@ -5,11 +5,15 @@ import { GAMES } from "@/lib/games";
 import { getNickname } from "@/lib/multiplayer";
 import { useFavourites } from "@/lib/favourites";
 import { GameIcon } from "@/components/parlor/GameIcon";
+import backgammonMenuIcon from "@/assets/backgammonMenuIcon.png";
+import warshipMenuIcon from "@/assets/warshipMenuIcon.png";
+import reversiMenuIcon from "@/assets/reversiMenuIcon.png";
+import checkersMenuIcon from "@/assets/checkersMenuIcon.png";
+import heartsMenuIcon from "@/assets/heartsMenuIcon.png";
 import { CardMark } from "@/components/parlor/CardMark";
 import { VisitorCounter } from "@/components/parlor/VisitorCounter";
 import { Switch } from "@/components/ui/switch";
 import { SettingsDialog } from "@/components/parlor/SettingsDialog";
-
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -38,7 +42,9 @@ function Lobby() {
   const hasFavourites = favourites.size > 0;
   const isOwner = (getNickname() ?? "").toLowerCase() === "spry123456";
   const availableGames = GAMES.filter((game) => !game.ownerOnly || isOwner);
-  const visibleGames = showFavourites ? availableGames.filter((game) => isFavourite(game.id)) : availableGames;
+  const visibleGames = showFavourites
+    ? availableGames.filter((game) => isFavourite(game.id))
+    : availableGames;
 
   useEffect(() => {
     if (hydrated && !hasFavourites) setShowFavourites(false);
@@ -83,8 +89,8 @@ function Lobby() {
             <span className="text-gold">completely free.</span>
           </h1>
           <p className="mx-auto mt-5 max-w-xl text-[15px] leading-relaxed text-ivory/70">
-            Pick a table and play straight away — against Ada, or against a real person
-            in the multiplayer waiting room. No fuss and totally free.
+            Pick a table and play straight away — against Ada, or against a real person in the
+            multiplayer waiting room. No fuss and totally free.
           </p>
         </section>
 
@@ -102,7 +108,9 @@ function Lobby() {
                   onCheckedChange={(checked) => setShowFavourites(checked)}
                   disabled={hydrated && !hasFavourites}
                 />
-                <span className="text-xs uppercase tracking-[0.16em] text-ivory/60">Favourites</span>
+                <span className="text-xs uppercase tracking-[0.16em] text-ivory/60">
+                  Favourites
+                </span>
               </label>
             </div>
           </div>
@@ -120,9 +128,7 @@ function Lobby() {
                     onClick={() => toggleFavourite(game.id)}
                     aria-pressed={fav}
                     aria-label={
-                      fav
-                        ? `Remove ${game.name} from favourites`
-                        : `Add ${game.name} to favourites`
+                      fav ? `Remove ${game.name} from favourites` : `Add ${game.name} to favourites`
                     }
                     title={fav ? "Remove from favourites" : "Add to favourites"}
                     className="absolute right-3 top-3 z-10 grid size-8 place-items-center rounded-full transition-colors hover:bg-gold/15"
@@ -142,9 +148,41 @@ function Lobby() {
                     }
                     className="flex w-full flex-col items-center"
                   >
-                    <div className="grid size-14 place-items-center rounded-2xl border border-gold/25 bg-gold/12 text-gold transition-colors group-hover:bg-gold/20">
-                      <GameIcon id={game.id} className="size-9" />
-                    </div>
+                    {game.id === "backgammon" ? (
+                      <img
+                        src={backgammonMenuIcon}
+                        alt="Backgammon"
+                        className="size-[2cm] rounded-2xl object-contain"
+                      />
+                    ) : game.id === "warship" ? (
+                      <img
+                        src={warshipMenuIcon}
+                        alt="Warship"
+                        className="size-[2cm] rounded-2xl object-contain"
+                      />
+                    ) : game.id === "reversi" ? (
+                      <img
+                        src={reversiMenuIcon}
+                        alt="Reversi"
+                        className="size-[2cm] rounded-2xl object-contain"
+                      />
+                    ) : game.id === "checkers" ? (
+                      <img
+                        src={checkersMenuIcon}
+                        alt="Checkers"
+                        className="size-[2cm] rounded-2xl object-contain"
+                      />
+                    ) : game.id === "hearts" ? (
+                      <img
+                        src={heartsMenuIcon}
+                        alt="Hearts"
+                        className="size-[2cm] rounded-2xl object-contain"
+                      />
+                    ) : (
+                      <div className="grid size-14 place-items-center rounded-2xl border border-gold/25 bg-gold/12 text-gold transition-colors group-hover:bg-gold/20">
+                        <GameIcon id={game.id} className="size-9" />
+                      </div>
+                    )}
                     <div className="mt-4 flex items-center justify-center gap-2">
                       <h3 className="font-display text-xl font-bold">{game.name}</h3>
                       {game.comingSoon && (
@@ -177,24 +215,15 @@ function Lobby() {
           <p>Cards and Games 3.7</p>
           <VisitorCounter />
           <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
-            <Link
-              to="/about"
-              className="text-ivory/50 transition-colors hover:text-gold"
-            >
+            <Link to="/about" className="text-ivory/50 transition-colors hover:text-gold">
               About
             </Link>
             <span className="text-ivory/25">·</span>
-            <Link
-              to="/privacy"
-              className="text-ivory/50 transition-colors hover:text-gold"
-            >
+            <Link to="/privacy" className="text-ivory/50 transition-colors hover:text-gold">
               Privacy
             </Link>
             <span className="text-ivory/25">·</span>
-            <Link
-              to="/contact"
-              className="text-ivory/50 transition-colors hover:text-gold"
-            >
+            <Link to="/contact" className="text-ivory/50 transition-colors hover:text-gold">
               Contact
             </Link>
             <span className="hidden text-ivory/25 sm:inline">·</span>
