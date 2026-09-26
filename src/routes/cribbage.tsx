@@ -1264,7 +1264,7 @@ function CribbageTable() {
       <p className="mb-2 text-[10px] uppercase tracking-[0.2em] text-gold">Crib</p>
       <div
         ref={cribRef}
-        className="flex justify-start [&>*:not(:first-child)]:-ml-3 sm:-ml-[54px]"
+        className="flex justify-start [&>*:not(:first-child)]:-ml-3 sm:[&>*:not(:first-child)]:-ml-[54px]"
       >
         {state.crib.length === 0 ? (
           <div className="h-[43px] w-[30px] rounded-lg border border-dashed border-gold/40 sm:h-[105px] sm:w-[126px]" aria-hidden="true" />
@@ -1457,7 +1457,7 @@ function CribbageTable() {
                 </span>
               }
             />
-            <div className={`flex justify-center [&>*:not(:first-child)]:-ml-3 sm:-ml-[14.4px]${state.phase === "cut" ? "" : " min-h-[43px] sm:min-h-[105px]"}`}>
+            <div className={`flex justify-center [&>*:not(:first-child)]:-ml-3 sm:[&>*:not(:first-child)]:-ml-[57.6px]${state.phase === "cut" ? "" : " min-h-[43px] sm:min-h-[105px]"}`}>
               {state.cpuHand.map((card, index) => {
                 if (layingId === card.id) {
                   return (
