@@ -222,8 +222,8 @@ function FarkleTable() {
   // score counts up, and only then is the bank actually committed.
   const [bankAnim, setBankAnim] = useState<{ bank: number; score: number } | null>(null);
   const bankAnimRef = useRef<number | null>(null);
-  // Ada's banking animation: counts her score up while the "banked" bubble shows.
-  const [cpuBankAnim, setCpuBankAnim] = useState<number | null>(null);
+  // Ada's banking animation: counts her score up while her bank counts down.
+  const [cpuBankAnim, setCpuBankAnim] = useState<{ bank: number; score: number } | null>(null);
   const cpuBankAnimRef = useRef<number | null>(null);
   // Clears Ada's dice after her "banked" bubble disappears.
   const cpuBankPassTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -320,7 +320,10 @@ function FarkleTable() {
       const step = (now: number) => {
         const t = Math.min(1, (now - started) / duration);
         const eased = 1 - Math.pow(1 - t, 3);
-        setCpuBankAnim(Math.round(startScore + gained * eased));
+        setCpuBankAnim({
+          bank: Math.round(gained * (1 - eased)),
+          score: Math.round(startScore + gained * eased),
+        });
         if (t < 1) {
           cpuBankAnimRef.current = requestAnimationFrame(step);
         } else {
@@ -639,7 +642,9 @@ function FarkleTable() {
     // Ada keeps her dice on screen while her "banked" bubble plays out; a
     // follow-up effect clears them once that bubble disappears.
     if (side === "cpu") {
-      return logged;
+      // Reset the turn total so Ada's "Bank" box reads zero once her banked
+      // dice are counted; the count-down is handled by the cpuBankAnim above.
+      return { ...logged, turnScore: 0 };
     }
     return passDice(logged);
   };
@@ -907,6 +912,7 @@ function FarkleTable() {
     <TableShell
       game={game}
       containerMaxWidth="max-w-[64.8rem]"
+      boxClassName="px-1 sm:px-[0.4rem]"
       opponentName={opponentName}
       opponentStatus={status}
       showChat={isMulti}
@@ -919,8 +925,7 @@ function FarkleTable() {
         reset();
       }}
       onNewGame={() => (isMulti ? navigate({ to: "/farkle" }) : reset())}
-      middle={meldValues}
-      middleClassName="self-start"
+      rail={meldValues}
       menuExtra={
         <TurnOffTimerControl
           showButton={
@@ -1037,14 +1042,19 @@ function FarkleTable() {
               <div className="min-w-[5rem] rounded-lg border border-gold/20 bg-surface/60 px-3 py-1.5 text-center sm:min-w-[8rem] sm:px-6 sm:py-2.5">
                 <p className="text-[10px] uppercase tracking-[0.2em] text-ivory/50 sm:text-xs">Bank</p>
                 <p className="font-display text-xl font-bold text-gold tabular-nums sm:text-3xl">
-                  {(state.turn === "cpu" ? state.turnScore : 0).toLocaleString()}
+                  {(cpuBankAnim
+                    ? cpuBankAnim.bank
+                    : state.turn === "cpu"
+                      ? state.turnScore
+                      : 0
+                  ).toLocaleString()}
                 </p>
               </div>
             </div>
             <div className="min-w-[5rem] rounded-lg border border-gold/20 bg-surface/60 px-3 py-1.5 text-center sm:order-3 sm:min-w-[8rem] sm:px-6 sm:py-2.5">
               <p className="text-[10px] uppercase tracking-[0.2em] text-ivory/50 sm:text-xs">Score</p>
               <p className="font-display text-xl font-bold text-gold tabular-nums sm:text-3xl">
-                {(cpuBankAnim ?? state.scores.cpu).toLocaleString()}
+                {(cpuBankAnim ? cpuBankAnim.score : state.scores.cpu).toLocaleString()}
               </p>
             </div>
           </div>
@@ -1122,7 +1132,7 @@ function FarkleTable() {
               </div>
             ) : (
               <div className="w-full rounded-2xl border border-gold/25 bg-surface/60 p-6 shadow-2xl shadow-black/40 sm:px-10 sm:py-6">
-                <div className="relative mx-auto h-[10.53rem] w-full max-w-[22.68rem] sm:h-[11.34rem]">
+                <div className="relative mx-auto h-[10.2rem] w-full max-w-[20.4rem]">
                   {state.dice.map((die, i) => {
                     if (!state.rolled || die.set || selected.includes(i)) {
                       return null;
@@ -1219,8 +1229,8 @@ function FarkleTable() {
               </div>
             </div>
 
-            <div className="order-3 flex flex-col items-center gap-2 sm:order-2 sm:h-32 sm:flex-1 sm:items-center sm:justify-center">
-              <div className="flex min-h-9 flex-wrap items-center justify-center gap-3 sm:min-w-[300px]">
+            <div className="order-2 flex flex-col items-center gap-2 sm:order-2 sm:h-32 sm:flex-1 sm:items-center sm:justify-center">
+              <div className="flex min-h-9 flex-wrap items-center justify-center gap-3">
                 {state.phase === "play" && myTurn && !state.farkled && (
                   <>
                     {!state.rolled ? (
@@ -1239,7 +1249,7 @@ function FarkleTable() {
                           disabled={selectionScore === null}
                           onClick={keepAndRoll}
                         >
-                          Keep &amp; throw again
+                          Roll again
                         </Button>
                         <Button
                           variant="parlorOutline"
@@ -1262,7 +1272,7 @@ function FarkleTable() {
                 )}
               </div>
             </div>
-            <div className="min-w-[5rem] rounded-lg border border-gold/20 bg-surface/60 px-3 py-1.5 text-center sm:order-3 sm:min-w-[8rem] sm:px-6 sm:py-2.5">
+            <div className="order-3 min-w-[5rem] rounded-lg border border-gold/20 bg-surface/60 px-3 py-1.5 text-center sm:order-3 sm:min-w-[8rem] sm:px-6 sm:py-2.5">
               <p className="text-[10px] uppercase tracking-[0.2em] text-ivory/50 sm:text-xs">
                 Score
               </p>
