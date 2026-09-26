@@ -148,12 +148,12 @@ const responsiveCardWidth = (variant: "half" | "medium" | "table" | "crib") => {
   return desktop ? 72 : 59; // table
 };
 
-/** Overlap between adjacent fanned cards, in px. Desktop fans heavily (75% of
- * the 72px card is covered, leaving ~18px visible); mobile stays at 12px. */
+/** Overlap between adjacent fanned cards, in px. Desktop leaves 30% of the
+ * 72px card visible (~21.6px); mobile stays at 12px. */
 const responsiveCardOverlap = () => {
   const desktop =
     typeof window !== "undefined" && window.matchMedia("(min-width: 640px)").matches;
-  return desktop ? 54 : 12;
+  return desktop ? 50.4 : 12;
 };
 
 function dealHand(dealer: Side, scores: Record<Side, number>, log: LogEntry[]): State {
@@ -1264,10 +1264,10 @@ function CribbageTable() {
       <p className="mb-2 text-[10px] uppercase tracking-[0.2em] text-gold">Crib</p>
       <div
         ref={cribRef}
-        className="flex justify-start [&>*:not(:first-child)]:-ml-3 sm:[&>*:not(:first-child)]:-ml-[54px]"
+        className="flex justify-start [&>*:not(:first-child)]:-ml-3 sm:[&>*:not(:first-child)]:-ml-[50.4px]"
       >
         {state.crib.length === 0 ? (
-          <div className="h-[43px] w-[30px] rounded-lg border border-dashed border-gold/40 sm:h-[105px] sm:w-[126px]" aria-hidden="true" />
+          <div className="h-[43px] w-[30px] rounded-lg border border-dashed border-gold/40 sm:h-[105px] sm:w-[136.8px]" aria-hidden="true" />
         ) : revealed ? (
           state.crib.map((card) => <PlayingCard key={card.id} card={card} crib />)
         ) : (
@@ -1457,7 +1457,7 @@ function CribbageTable() {
                 </span>
               }
             />
-            <div className={`flex justify-center [&>*:not(:first-child)]:-ml-3 sm:[&>*:not(:first-child)]:-ml-[57.6px]${state.phase === "cut" ? "" : " min-h-[43px] sm:min-h-[105px]"}`}>
+            <div className={`flex justify-center [&>*:not(:first-child)]:-ml-3 sm:[&>*:not(:first-child)]:-ml-[50.4px]${state.phase === "cut" ? "" : " min-h-[43px] sm:min-h-[105px]"}`}>
               {state.cpuHand.map((card, index) => {
                 if (layingId === card.id) {
                   return (
