@@ -144,8 +144,16 @@ const responsiveCardWidth = (variant: "half" | "medium" | "table" | "crib") => {
     typeof window !== "undefined" && window.matchMedia("(min-width: 640px)").matches;
   if (variant === "half") return desktop ? 72 : 30;
   if (variant === "medium") return desktop ? 72 : 56;
-  if (variant === "crib") return desktop ? 36 : 30;
+  if (variant === "crib") return desktop ? 72 : 30;
   return desktop ? 72 : 59; // table
+};
+
+/** Overlap between adjacent fanned cards, in px. Desktop fans heavily (75% of
+ * the 72px card is covered, leaving ~18px visible); mobile stays at 12px. */
+const responsiveCardOverlap = () => {
+  const desktop =
+    typeof window !== "undefined" && window.matchMedia("(min-width: 640px)").matches;
+  return desktop ? 54 : 12;
 };
 
 function dealHand(dealer: Side, scores: Record<Side, number>, log: LogEntry[]): State {
@@ -1091,7 +1099,7 @@ function CribbageTable() {
           from: { x: rect.left, y: rect.top },
           // Each crib card advances by its width minus the 12px overlap, so the
           // pair lands side by side instead of stacked on the first slot.
-          to: { x: cribRect.left + index * (responsiveCardWidth("crib") - 12), y: cribRect.top },
+          to: { x: cribRect.left + index * (responsiveCardWidth("crib") - responsiveCardOverlap()), y: cribRect.top },
           fromScale: responsiveCardWidth("medium") / responsiveCardWidth("crib"),
           faceDown: true,
           variant: "crib",
@@ -1143,7 +1151,7 @@ function CribbageTable() {
           key: Date.now() + index,
           card,
           from: { x: rect.left, y: rect.top },
-          to: { x: cribRect.left + (offset + index) * (responsiveCardWidth("crib") - 12), y: cribRect.top },
+          to: { x: cribRect.left + (offset + index) * (responsiveCardWidth("crib") - responsiveCardOverlap()), y: cribRect.top },
           fromScale: responsiveCardWidth("half") / responsiveCardWidth("crib"), // CPU hand (half) to smaller crib
           faceDown: true,
           variant: "crib",
@@ -1256,10 +1264,10 @@ function CribbageTable() {
       <p className="mb-2 text-[10px] uppercase tracking-[0.2em] text-gold">Crib</p>
       <div
         ref={cribRef}
-        className="flex w-[108px] justify-start [&>*:not(:first-child)]:-ml-3"
+        className="flex justify-start [&>*:not(:first-child)]:-ml-3 sm:-ml-[54px]"
       >
         {state.crib.length === 0 ? (
-          <div className="h-[43px] w-[30px] sm:h-[52px] sm:w-[36px]" aria-hidden="true" />
+          <div className="h-[43px] w-[30px] rounded-lg border border-dashed border-gold/40 sm:h-[105px] sm:w-[126px]" aria-hidden="true" />
         ) : revealed ? (
           state.crib.map((card) => <PlayingCard key={card.id} card={card} crib />)
         ) : (
@@ -1449,7 +1457,7 @@ function CribbageTable() {
                 </span>
               }
             />
-            <div className={`flex justify-center [&>*:not(:first-child)]:-ml-3${state.phase === "cut" ? "" : " min-h-[43px] sm:min-h-[105px]"}`}>
+            <div className={`flex justify-center [&>*:not(:first-child)]:-ml-3 sm:-ml-[54px]${state.phase === "cut" ? "" : " min-h-[43px] sm:min-h-[105px]"}`}>
               {state.cpuHand.map((card, index) => {
                 if (layingId === card.id) {
                   return (
@@ -2014,7 +2022,7 @@ function FaceDownCard({
                     : deck
                       ? "h-[95px] w-[65px] sm:h-[105px] sm:w-[72px]"
                       : crib
-                      ? "h-[43px] w-[30px] sm:h-[52px] sm:w-[36px]"
+                      ? "h-[43px] w-[30px] sm:h-[105px] sm:w-[72px]"
                       : half
                       ? "h-[43px] w-[30px] sm:h-[105px] sm:w-[72px]"
                       : medium
@@ -2086,7 +2094,7 @@ function PlayingCard({
                     : deck
                       ? "h-[95px] w-[65px] sm:h-[105px] sm:w-[72px]"
                       : crib
-                      ? "h-[43px] w-[30px] sm:h-[52px] sm:w-[36px]"
+                      ? "h-[43px] w-[30px] sm:h-[105px] sm:w-[72px]"
                       : half
                       ? "h-[43px] w-[30px] sm:h-[105px] sm:w-[72px]"
                       : medium
@@ -2099,9 +2107,9 @@ function PlayingCard({
       {/* corner index */}
       <span
         className={`absolute left-1 top-0.5 flex flex-col items-center leading-none font-display font-bold ${
-          tiny || crib
+          tiny
             ? "text-[8px]"
-            : half
+            : half || crib
               ? "text-[8px] sm:text-[16px]"
               : xs
                 ? "text-[9px]"
@@ -2119,9 +2127,9 @@ function PlayingCard({
         <span>{rank}</span>
         <span
           className={
-            tiny || crib
+            tiny
               ? "text-[7px]"
-              : half
+              : half || crib
                 ? "text-[7px] sm:text-[15px]"
                 : xs
                   ? "text-[8px]"
@@ -2144,9 +2152,9 @@ function PlayingCard({
       <span
         aria-hidden
         className={`absolute inset-0 grid place-items-center font-display ${
-          tiny || crib
+          tiny
             ? "text-lg"
-            : half
+            : half || crib
               ? "text-lg sm:text-[39px]"
             : xs
               ? "text-xl"
@@ -2165,9 +2173,9 @@ function PlayingCard({
           <span className="flex flex-col items-center leading-none">
             <span
               className={
-                tiny || crib
+                tiny
                   ? "text-xs"
-                  : half
+                  : half || crib
                     ? "text-xs sm:text-[28px]"
                   : xs
                     ? "text-sm"
@@ -2186,9 +2194,9 @@ function PlayingCard({
             </span>
             <span
               className={
-                tiny || crib
+                tiny
                   ? "text-sm"
-                  : half
+                  : half || crib
                     ? "text-sm sm:text-[30px]"
                   : xs
                     ? "text-base"
@@ -2214,9 +2222,9 @@ function PlayingCard({
       {/* mirrored bottom-right index */}
       <span
         className={`absolute bottom-0.5 right-1 flex rotate-180 flex-col items-center leading-none font-display font-bold ${
-          tiny || crib
+          tiny
             ? "text-[8px]"
-            : half
+            : half || crib
               ? "text-[8px] sm:text-[16px]"
               : xs
                 ? "text-[9px]"
@@ -2234,9 +2242,9 @@ function PlayingCard({
         <span>{rank}</span>
         <span
           className={
-            tiny || crib
+            tiny
               ? "text-[7px]"
-              : half
+              : half || crib
                 ? "text-[7px] sm:text-[15px]"
                 : xs
                   ? "text-[8px]"
