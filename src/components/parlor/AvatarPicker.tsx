@@ -57,7 +57,7 @@ export function AvatarPicker({ avatar, onSelect, sad = false, size = "size-8" }:
         <Tabs defaultValue="people">
           <TabsList className="grid w-full grid-cols-4">
             {CATEGORIES.map((category) => (
-              <TabsTrigger key={category.value} value={category.value}>
+              <TabsTrigger key={category.value} value={category.value} className="text-foreground">
                 {category.label}
               </TabsTrigger>
             ))}

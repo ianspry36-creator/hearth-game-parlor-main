@@ -1233,7 +1233,7 @@ function CrazyEightsTable() {
                       className="pointer-events-none absolute inset-0 z-10 grid place-items-center"
                     >
                       <span
-                        className={`grid size-[35px] place-items-center rounded-full border border-gold/60 bg-cream/95 font-display text-xl shadow-lg shadow-black/40 ${
+                        className={`grid size-[35px] place-items-center rounded-full border border-gold/60 bg-white/95 font-display text-xl shadow-lg shadow-black/40 ${
                           isRed(state.wildSuit) ? "text-destructive" : "text-ink"
                         }`}
                       >
@@ -1587,7 +1587,7 @@ function PlayingCard({
   const isFace = card.rank > 10;
   return (
     <span
-      className={`relative block overflow-hidden rounded-lg border bg-cream shadow-md shadow-black/30 transition-transform ${
+      className={`relative block overflow-hidden rounded-lg border bg-white shadow-md shadow-black/30 transition-transform ${
         tiny
           ? "h-16 w-[44px] md:h-[72px] md:w-[50px]"
           : small

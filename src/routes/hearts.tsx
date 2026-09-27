@@ -735,7 +735,7 @@ function HeartsCard({
       type="button"
       onClick={onClick}
       disabled={!onClick}
-      className={`relative flex shrink-0 flex-col items-center justify-center rounded-lg border bg-cream shadow-md shadow-black/30 ${
+      className={`relative flex shrink-0 flex-col items-center justify-center rounded-lg border bg-white shadow-md shadow-black/30 ${
         corner ? "h-[97px] w-[75px]" : small ? "h-[158px] w-[110px]" : "h-[202px] w-[136px] sm:h-[238px] sm:w-[158px]"
       } ${red ? "text-destructive" : "text-ink"} ${
         selected

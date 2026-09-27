@@ -5,12 +5,17 @@ import { GAMES } from "@/lib/games";
 import { getNickname } from "@/lib/multiplayer";
 import { useFavourites } from "@/lib/favourites";
 import { GameIcon } from "@/components/parlor/GameIcon";
-import backgammonMenuIcon from "@/assets/backgammonMenuIcon.png";
-import warshipMenuIcon from "@/assets/warshipMenuIcon.png";
-import reversiMenuIcon from "@/assets/reversiMenuIcon.png";
-import checkersMenuIcon from "@/assets/checkersMenuIcon.png";
-import heartsMenuIcon from "@/assets/heartsMenuIcon.png";
-import addictionMenuIcon from "@/assets/addictionMenuIcon.jpeg";
+import backgammonMenuIcon from "@/assets/backgammonMenuIcon.svg";
+import warshipMenuIcon from "@/assets/warshipMenuIcon.svg";
+import reversiMenuIcon from "@/assets/reversiMenuIcon.svg";
+import checkersMenuIcon from "@/assets/checkersMenuIcon.svg";
+import heartsMenuIcon from "@/assets/heartsMenuIcon.svg";
+import addictionMenuIcon from "@/assets/addictionMenuIcon.svg";
+import yahtzeeMenuIcon from "@/assets/yahtzeeMenuIcon.svg";
+import cribbageMenuIcon from "@/assets/cribbageMenuIcon.svg";
+import clockMenuIcon from "@/assets/clockMenuIcon.svg";
+import crazyMenuIcon from "@/assets/crazyMenuIcon.svg";
+import triPeaksMenuIcon from "@/assets/triPeaksMenuIcon.svg";
 import { CardMark } from "@/components/parlor/CardMark";
 import { VisitorCounter } from "@/components/parlor/VisitorCounter";
 import { Switch } from "@/components/ui/switch";
@@ -183,6 +188,36 @@ function Lobby() {
                       <img
                         src={addictionMenuIcon}
                         alt="Addiction"
+                        className="size-[2cm] rounded-2xl object-contain"
+                      />
+                    ) : game.id === "yahtzee" ? (
+                      <img
+                        src={yahtzeeMenuIcon}
+                        alt="Yahtzee"
+                        className="size-[2cm] rounded-2xl object-contain"
+                      />
+                    ) : game.id === "cribbage" ? (
+                      <img
+                        src={cribbageMenuIcon}
+                        alt="Cribbage"
+                        className="size-[2cm] rounded-2xl object-contain"
+                      />
+                    ) : game.id === "clock" ? (
+                      <img
+                        src={clockMenuIcon}
+                        alt="Clock"
+                        className="size-[2cm] rounded-2xl object-contain"
+                      />
+                    ) : game.id === "crazy-eights" ? (
+                      <img
+                        src={crazyMenuIcon}
+                        alt="Crazy Eights"
+                        className="size-[2cm] rounded-2xl object-contain"
+                      />
+                    ) : game.id === "tripeaks" ? (
+                      <img
+                        src={triPeaksMenuIcon}
+                        alt="Tri Peaks"
                         className="size-[2cm] rounded-2xl object-contain"
                       />
                     ) : (

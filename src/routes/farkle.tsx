@@ -873,14 +873,14 @@ function FarkleTable() {
   const meldTable = (
     <table className="w-full select-none text-sm">
       <thead>
-        <tr className="border-b border-brand/20">
+        <tr className="border-b border-black/20">
           <th className="pb-1.5 text-left font-semibold">Meld</th>
           <th className="pb-1.5 text-right font-semibold">Value</th>
         </tr>
       </thead>
       <tbody>
         {MELD_VALUES.map((row) => (
-          <tr key={row.meld} className="border-b border-brand/10 last:border-0">
+          <tr key={row.meld} className="border-b border-black/10 last:border-0">
             <td className="py-1 text-left">{row.meld}</td>
             <td className="py-1 text-right font-medium">{row.value}</td>
           </tr>
@@ -891,7 +891,7 @@ function FarkleTable() {
 
   const meldValues = (
     <>
-      <div className="hidden rounded-xl border border-gold/15 bg-cream/95 p-4 text-brand shadow-lg lg:block">
+      <div className="hidden rounded-xl border border-gold/15 bg-white p-4 text-black shadow-lg lg:block">
         <p className="mb-3 text-center font-display text-lg font-bold">Meld Values</p>
         {meldTable}
       </div>
@@ -901,7 +901,7 @@ function FarkleTable() {
             Meld Values
           </Button>
         </DialogTrigger>
-        <DialogContent className="max-h-[85vh] overflow-y-auto border-gold/25 bg-cream text-brand sm:max-w-md">
+        <DialogContent className="max-h-[85vh] overflow-y-auto border-gold/25 bg-white text-black sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="font-display text-2xl font-bold">Meld Values</DialogTitle>
           </DialogHeader>
@@ -1095,7 +1095,7 @@ function FarkleTable() {
 
           <div className="flex w-full flex-1 flex-col items-center justify-center">
             {state.phase === "rolloff" ? (
-              <div className="w-full rounded-2xl border border-gold/25 bg-surface/60 p-6 text-center shadow-2xl shadow-black/40 sm:px-10 sm:py-6">
+              <div className="w-full rounded-2xl border border-gold/25 bg-felt/10 p-6 text-center shadow-2xl shadow-black/40 sm:px-10 sm:py-6">
                 <p className="hidden text-[11px] uppercase tracking-[0.3em] text-gold sm:block">Who goes first?</p>
                 <div className="mt-6 flex items-center justify-center gap-8">
                   <div className="flex flex-col items-center gap-2">
@@ -1138,7 +1138,7 @@ function FarkleTable() {
                 </div>
               </div>
             ) : (
-              <div className="w-full rounded-2xl border border-gold/25 bg-surface/60 p-6 shadow-2xl shadow-black/40 sm:px-10 sm:py-6">
+              <div className="w-full rounded-2xl border border-gold/25 bg-felt/10 p-6 shadow-2xl shadow-black/40 sm:px-10 sm:py-6">
                 <div className="relative mx-auto h-[10.2rem] w-full max-w-[20.4rem]">
                   {state.dice.map((die, i) => {
                     if (!state.rolled || die.set || selected.includes(i)) {
@@ -1333,8 +1333,8 @@ function DieFace({
       aria-pressed={selected}
       disabled={!interactive}
       onClick={onClick}
-      className={`grid rounded-xl border-2 bg-cream p-1.5 transition-all ${size} ${
-        selected ? "-translate-y-1.5 border-gold shadow-lg shadow-black/40" : "border-cream/40"
+      className={`grid rounded-xl border-2 bg-white p-1.5 transition-all ${size} ${
+        selected ? "-translate-y-1.5 border-gold shadow-lg shadow-black/40" : "border-black/20"
       } ${
         dim ? "opacity-40" : ""
       } ${interactive ? "cursor-pointer hover:-translate-y-1 hover:border-gold" : "cursor-default"}`}
@@ -1344,7 +1344,7 @@ function DieFace({
           <span
             key={cell}
             className={`m-auto rounded-full ${medium ? "size-2" : small ? "size-1" : "size-2"} ${
-              pips.includes(cell) ? "bg-brand" : ""
+              pips.includes(cell) ? "bg-black" : ""
             }`}
           />
         ))}

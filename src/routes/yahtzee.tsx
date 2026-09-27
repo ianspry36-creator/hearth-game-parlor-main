@@ -1156,7 +1156,7 @@ function YahtzeeTable() {
           <div className="min-w-0 space-y-2.5">
             {seatBox("cpu")}
 
-            <section className="relative grid h-[11.14rem] place-items-center rounded-2xl border border-dashed border-gold/20 bg-brand/20 p-3 lg:h-[12.77rem] lg:p-6">
+            <section className="relative grid h-[11.14rem] place-items-center rounded-2xl border border-dashed border-gold/20 bg-felt-yahtzee/10 p-3 lg:h-[12.77rem] lg:p-6">
               {state.phase === "rolloff" ? (
                 <>
                   {state.rolloff.human !== null && !state.rolloffSettled.human && rolloffHumanSpot && (
@@ -1264,8 +1264,8 @@ function DieFace({
       disabled={!interactive}
       onClick={onClick}
       style={rotate != null ? { transform: `rotate(${rotate}deg)` } : undefined}
-      className={`grid size-[1.6rem] lg:size-[2.88rem] rounded-lg border lg:border-2 bg-cream p-1 lg:p-1.5 transition-all ${
-        held ? "-translate-y-1.5 border-gold shadow-lg shadow-black/40" : "border-cream/40"
+      className={`grid size-[1.6rem] lg:size-[2.88rem] rounded-lg border lg:border-2 bg-white p-1 lg:p-1.5 transition-all ${
+        held ? "-translate-y-1.5 border-gold shadow-lg shadow-black/40" : "border-black/20"
       } ${dim ? "opacity-40" : ""} ${
         interactive ? "cursor-pointer hover:-translate-y-1 hover:border-gold" : "cursor-default"
       }`}
@@ -1274,7 +1274,7 @@ function DieFace({
         {Array.from({ length: 9 }, (_, cell) => (
           <span
             key={cell}
-            className={`m-auto size-[0.2rem] lg:size-[0.36rem] rounded-full ${pips.includes(cell) ? "bg-brand" : ""}`}
+            className={`m-auto size-[0.2rem] lg:size-[0.36rem] rounded-full ${pips.includes(cell) ? "bg-black" : ""}`}
           />
         ))}
       </span>

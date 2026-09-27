@@ -2036,7 +2036,7 @@ function FaceDownCard({
 function CardChip({ card }: { card: Card }) {
   const red = card.suit === "H" || card.suit === "D";
   return (
-    <span className="inline-flex items-center rounded border border-black/10 bg-cream px-1.5 py-0.5 font-display text-xs font-bold leading-none shadow-sm">
+    <span className="inline-flex items-center rounded border border-black/10 bg-white px-1.5 py-0.5 font-display text-xs font-bold leading-none shadow-sm">
       <span className={red ? "text-destructive" : "text-ink"}>
         {RANK_LABEL[card.rank]}
         {SUIT_SYMBOL[card.suit]}
@@ -2078,7 +2078,7 @@ function PlayingCard({
   const isFace = card.rank > 10;
   return (
     <span
-      className={`relative block overflow-hidden rounded-lg border bg-cream shadow-md shadow-black/30 transition-transform ${
+      className={`relative block overflow-hidden rounded-lg border bg-white shadow-md shadow-black/30 transition-transform ${
         tiny
           ? "h-12 w-8"
           : xs
