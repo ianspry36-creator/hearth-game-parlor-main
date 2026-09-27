@@ -143,11 +143,11 @@ const DIE_PIPS: number[][] = [
 function Die({ value }: { value: number }) {
   const pips = DIE_PIPS[value] ?? [4];
   return (
-    <span className="grid size-10 grid-cols-3 grid-rows-3 place-items-center rounded-lg bg-cream p-1">
+    <span className="grid size-10 grid-cols-3 grid-rows-3 place-items-center rounded-lg bg-white p-1">
       {Array.from({ length: 9 }, (_, i) => (
         <span
           key={i}
-          className={`size-2 rounded-full ${pips.includes(i) ? "bg-[#2a2a2a]" : ""}`}
+          className={`size-2 rounded-full ${pips.includes(i) ? "bg-black" : ""}`}
         />
       ))}
     </span>
