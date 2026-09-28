@@ -7,6 +7,8 @@ export type GameMeta = {
   tagline: string;
   path: "/cribbage" | "/backgammon" | "/warship" | "/farkle" | "/yahtzee" | "/crazy-eights" | "/hearts" | "/triangles" | "/solitaire" | "/freecell" | "/addiction" | "/reversi" | "/checkers" | "/kings-in-the-corner" | "/canfield" | "/clock" | "/scorpion" | "/tripeaks" | "/yukon";
   rules: { heading: string; body: string }[];
+  history: string;
+  historySource?: string;
   beta?: boolean;
   comingSoon?: boolean;
   ownerOnly?: boolean;
@@ -19,6 +21,9 @@ export const GAMES: GameMeta[] = [
     initial: "A",
     tagline: "Four rows, four suits, and a single careful line from two to king.",
     path: "/addiction",
+    history:
+      "A modern patience game, a close cousin of the solitaire family, and a member of the Montana group of patiences, where the goal is to arrange all the cards in suit from Deuce to King. Its name comes from the way a single misstep can leave a player hopelessly hooked, restarting again and again in search of the perfect line.",
+    historySource: "https://en.wikipedia.org/wiki/Gaps",
     rules: [
       {
         heading: "The object",
@@ -52,6 +57,9 @@ export const GAMES: GameMeta[] = [
     initial: "B",
     tagline: "Twenty-four points across the board, decided by a roll of the dice.",
     path: "/backgammon",
+    history:
+      "Backgammon is the most widespread Western member of the tables family of games, a lineage whose ancestors reach back to ancient boards such as the Royal Game of Ur in Mesopotamia. The earliest record of backgammon itself dates to seventeenth-century England, descended from the sixteenth-century game of Irish, while the Romans played a close relative they called tabula. It took its familiar modern shape over the centuries that followed.",
+    historySource: "https://en.wikipedia.org/wiki/Backgammon",
     rules: [
       {
         heading: "The object",
@@ -81,6 +89,9 @@ export const GAMES: GameMeta[] = [
     initial: "C",
     tagline: "Build four foundations up from the lead rank and drain the reserve home.",
     path: "/canfield",
+    history:
+      "An English patience first known as Demon Patience and once praised as the best game for one pack yet invented. It became known as Canfield in the United States after a story linked it to the celebrated casino owner Richard A. Canfield, who supposedly turned it into a gambling game - though the game actually played at his casino may have been Klondike. It is closely related to Klondike and remains one of the most popular games of its type.",
+    historySource: "https://en.wikipedia.org/wiki/Canfield_(solitaire)",
     rules: [
       {
         heading: "The object",
@@ -118,6 +129,9 @@ export const GAMES: GameMeta[] = [
     initial: "C",
     tagline: "Jump, capture and crown your way across the chequered board.",
     path: "/checkers",
+    history:
+      "Played for thousands of years; a board discovered in the ancient city of Ur dates back to around 3000 BC, and the game descends from older Middle Eastern board games such as alquerque. The version played today - English draughts, on an 8x8 board with twelve pieces a side - was standardised in England, where the familiar forced-capture rules became the modern standard.",
+    historySource: "https://en.wikipedia.org/wiki/English_draughts",
     rules: [
       {
         heading: "The object",
@@ -151,6 +165,9 @@ export const GAMES: GameMeta[] = [
     initial: "C",
     tagline: "Deal the deck around the clock and lay each card at its own hour before the fourth King tolls.",
     path: "/clock",
+    history:
+      "A cheerful, almost mechanical patience dealt around a circle of twelve piles like the face of a clock, with the kings gathered at the centre. Also known as Sundial and closely related to the game of Travellers, it needs no skill at all - only patience while the cards reveal whether the deck will strike midnight in order.",
+    historySource: "https://en.wikipedia.org/wiki/Clock_(card_game)",
     rules: [
       {
         heading: "The object",
@@ -176,6 +193,9 @@ export const GAMES: GameMeta[] = [
     initial: "E",
     tagline: "Follow the suit, follow the rank, and let a wild eight turn the table.",
     path: "/crazy-eights",
+    history:
+      "Crazy Eights is the best-known American member of the Eights group of shedding games, in which players race to be first to discard every card by matching rank or suit. The same family includes Switch, Mau-Mau and Whot!, and the game is best remembered today as the direct ancestor of Uno, which dressed the same rules in a bright commercial suit.",
+    historySource: "https://en.wikipedia.org/wiki/Crazy_Eights",
     rules: [
       {
         heading: "The object",
@@ -205,6 +225,9 @@ export const GAMES: GameMeta[] = [
     initial: "C",
     tagline: "Four suits, a peg, and a quiet duel of points and patience.",
     path: "/cribbage",
+    history:
+      "Invented in the early seventeenth century by Sir John Suckling, the English poet and courtier, who added the crib and the distinctive wooden scoring board. It has been played ever since, beloved in pubs and famously aboard Royal Navy submarines. Its unique scoring language - fifteens, pairs, runs and nobs - has barely changed in four hundred years.",
+    historySource: "https://en.wikipedia.org/wiki/Cribbage",
     rules: [
       {
         heading: "The object",
@@ -234,6 +257,9 @@ export const GAMES: GameMeta[] = [
     initial: "F",
     tagline: "Six dice, a rising pile of points, and the nerve to know when to stop.",
     path: "/farkle",
+    history:
+      "An old push-your-luck dice game believed to have reached North America aboard French sailing ships in the 1600s, passed down through families ever since as a folk game. It is known by many names over the years - Ten Thousand, Zilch, Greed, Zonk and more - and has been marketed commercially as Pocket Farkel since 1996. Whatever it is called, the thrill is the same: bank your score or risk the whole pile on one more roll.",
+    historySource: "https://en.wikipedia.org/wiki/Farkle",
     rules: [
       {
         heading: "The object",
@@ -263,6 +289,9 @@ export const GAMES: GameMeta[] = [
     initial: "F",
     tagline: "Eight piles, four free cells, and a careful path home.",
     path: "/freecell",
+    history:
+      "FreeCell was created as a computer game by Paul Alfille, who devised it in the late 1960s while a student at the University of Illinois, where it quietly circulated among computer users for years. It became a household name when Microsoft bundled it with Windows in 1995, and its near-universal winnability - very few deals are genuinely unsolvable - is still debated by players today.",
+    historySource: "https://en.wikipedia.org/wiki/FreeCell",
     rules: [
       {
         heading: "The object",
@@ -296,6 +325,9 @@ export const GAMES: GameMeta[] = [
     initial: "H",
     tagline: "Avoid the hearts and the queen of spades — or take them all and shoot the moon.",
     path: "/hearts",
+    history:
+      "Hearts is a trick-avoidance game first recorded in the United States in the 1880s, a member of the Whist family that flips the usual goal on its head: players try not to win tricks at all. Its ancestor Reversis, an eighteenth-century French trick-taking game, shared the same aim of dodging penalties. The modern version, with its heart penalties and the dreaded queen of spades, has since been overtaken by its close variants Black Lady and Black Maria.",
+    historySource: "https://en.wikipedia.org/wiki/Hearts_(card_game)",
     comingSoon: true,
     rules: [
       {
@@ -334,6 +366,9 @@ export const GAMES: GameMeta[] = [
     initial: "K",
     tagline: "Settle all twelve face cards into their reserved slots to win the hand.",
     path: "/kings-in-the-corner",
+    history:
+      "An American card game that emerged in the early twentieth century, built around the simple idea that a king should reign from a corner. Played with a single deck, it blends the table-laying of solitaire with the pace of a family shedding game. It spread as a cosy parlour game, easy enough for any table to pick up.",
+    historySource: "https://en.wikipedia.org/wiki/Kings_in_the_Corner",
     rules: [
       {
         heading: "The object",
@@ -367,6 +402,9 @@ export const GAMES: GameMeta[] = [
     initial: "R",
     tagline: "Outflank your opponent and turn the board your colour.",
     path: "/reversi",
+    history:
+      "Reversi was invented in London in the 1880s, credited both to Lewis Waterman and, independently, to John W. Mollett. It languished for decades until a Japanese salesman, Goro Hasegawa, revived and renamed it Othello in 1971, after Shakespeare's play. Under that name it conquered the world and remains the best-known form of the game today.",
+    historySource: "https://en.wikipedia.org/wiki/Reversi",
     rules: [
       {
         heading: "The object",
@@ -400,6 +438,9 @@ export const GAMES: GameMeta[] = [
     initial: "S",
     tagline: "Lay four same-suit runs, King down to Ace, and let the scorpion's tail carry you home.",
     path: "/scorpion",
+    history:
+      "Scorpion is a solitaire that blends the tableau-building of Spider with the open, everything-on-the-table honesty of Yukon. Its origin is obscure, but it is counted among the more demanding of the patience games. Its reputation for difficulty has long attracted determined players chasing a rare completed game.",
+    historySource: "https://en.wikipedia.org/wiki/Scorpion_(solitaire)",
     rules: [
       {
         heading: "The object",
@@ -437,6 +478,9 @@ export const GAMES: GameMeta[] = [
     initial: "S",
     tagline: "Deal the tableau, build four foundations, and send every card home.",
     path: "/solitaire",
+    history:
+      "The patience we call Solitaire is properly Klondike, the most widely played member of the solitaire family. Its precise origins are uncertain, though it rose to popularity in the early twentieth century. It introduced millions to computers when Microsoft bundled it with Windows 3.0 in 1990, and that little green window made it the world's best-known card game.",
+    historySource: "https://en.wikipedia.org/wiki/Klondike_(solitaire)",
     rules: [
       {
         heading: "The object",
@@ -470,6 +514,9 @@ export const GAMES: GameMeta[] = [
     initial: "T",
     tagline: "Three pyramids share one valley — climb a rank up or down and clear every peak.",
     path: "/tripeaks",
+    history:
+      "Tri Peaks was created by Robert Hogue in 1989, making it one of the youngest members of the solitaire family. Its three overlapping pyramids, and its simple hunt for the next card one rank up or down, made it an instant favourite. It became especially popular when it shipped as a computer game in the decades that followed.",
+    historySource: "https://en.wikipedia.org/wiki/Tri_Peaks",
     rules: [
       {
         heading: "The object",
@@ -503,6 +550,9 @@ export const GAMES: GameMeta[] = [
     initial: "T",
     tagline: "Twenty scattered spots, one line at a time, and the third line takes the triangle.",
     path: "/triangles",
+    history:
+      "This is the peg-and-board puzzle long found on cafe tables and truck-stop counters, in which one jumps pegs to leave as few behind as possible. The game's exact origin is unclear - peg solitaire in its various forms has been played in Europe since at least the seventeenth century. The triangular board, with its fifteen holes and fourteen pegs, has teased players for generations.",
+    historySource: "https://en.wikipedia.org/wiki/Peg_solitaire",
     rules: [
       {
         heading: "The object",
@@ -532,6 +582,9 @@ export const GAMES: GameMeta[] = [
     initial: "W",
     tagline: "Nine hidden ships, ten by ten of open water, and a duel of guesswork.",
     path: "/warship",
+    history:
+      "Better known as Battleship, this game began as a pencil-and-paper guessing game played by soldiers in the First World War. The grid-and-salvo format circulated for decades before Milton Bradley turned it into a plastic board game in 1967. It has been sinking fleets ever since, on tables and then on computer screens.",
+    historySource: "https://en.wikipedia.org/wiki/Battleship_(game)",
     rules: [
       {
         heading: "The object",
@@ -561,6 +614,9 @@ export const GAMES: GameMeta[] = [
     initial: "Y",
     tagline: "Five dice, thirteen boxes, and the hunt for all five alike.",
     path: "/yahtzee",
+    history:
+      "Yahtzee was created in 1954 by a Canadian couple who played it with friends aboard their yacht and called it the Yacht Game. Toy and game entrepreneur Edwin S. Lowe bought the rights and, in 1956, renamed it Yahtzee. The familiar five dice and thirteen-box score sheet have been rolling ever since.",
+    historySource: "https://en.wikipedia.org/wiki/Yahtzee",
     rules: [
       {
         heading: "The object",
@@ -590,6 +646,9 @@ export const GAMES: GameMeta[] = [
     initial: "Y",
     tagline: "Lift whole columns regardless of order and build four suits home from the Ace.",
     path: "/yukon",
+    history:
+      "Yukon is a close relative of Klondike, distinguished by its signature freedom: whole columns may be lifted and moved regardless of order, with every card dealt face up from the start. Its origins are modest and its recorded history short. Its wide-open table has made it a favourite of patient solitaire players who prefer a clear view of every card.",
+    historySource: "https://en.wikipedia.org/wiki/Yukon_(solitaire)",
     rules: [
       {
         heading: "The object",
@@ -614,37 +673,6 @@ export const GAMES: GameMeta[] = [
       {
         heading: "Winning",
         body: "Once every face-down card is turned over, the remaining cards fly home on their own. Your moves and time are kept so you can chase your best game — undo as often as you like, but each undo counts as a move.",
-      },
-    ],
-  },
-  {
-    id: "hearts",
-    name: "Hearts",
-    initial: "H",
-    tagline: "Dodge the hearts and the queen of spades — the lowest penalty score wins.",
-    path: "/hearts",
-    beta: true,
-    ownerOnly: true,
-    rules: [
-      {
-        heading: "The object",
-        body: "Take as few penalty points as you can. Every heart is worth one point and the queen of spades is worth thirteen. The player with the lowest total once someone reaches one hundred points wins the table.",
-      },
-      {
-        heading: "The deal",
-        body: "All fifty-two cards are dealt, thirteen to each of four players. The holder of the two of clubs leads the first trick, and that card must be played first.",
-      },
-      {
-        heading: "Passing",
-        body: "Each hand begins by passing three cards to another player — to the left, to the right, across the table, then holding on every fourth hand.",
-      },
-      {
-        heading: "Playing a trick",
-        body: "Follow the suit led if you can, otherwise play any card. The highest card of the suit led wins the trick, and the winner leads the next. Hearts may not be led until a heart has been played on an earlier trick.",
-      },
-      {
-        heading: "Scoring",
-        body: "At the end of a hand the tricks are scored: one point per heart, thirteen for the queen of spades. Capturing every heart and the queen of spades is a shoot the moon — you score nothing while everyone else takes twenty-six.",
       },
     ],
   },

@@ -951,7 +951,7 @@ function BackgammonTable() {
               <span
                 key={`off-human-mobile-${i}`}
                 title="Your piece"
-                className="size-4 rounded-full border border-black/20 bg-cream"
+                className="size-4 rounded-full border border-black/20 bg-white"
               />
             ))}
           </div>
@@ -1037,7 +1037,7 @@ function BackgammonTable() {
                 <span
                   key={`off-human-${i}`}
                   title="Your piece"
-                  className="size-4 rounded-full border border-black/20 bg-cream"
+                  className="size-4 rounded-full border border-black/20 bg-white"
                 />
               ))}
               {state.board.off.human === 0 && (
@@ -1398,7 +1398,7 @@ function Board({
             <span
               key={i}
               className={`relative z-10 mx-auto flex size-4 items-center justify-center sm:size-7.5 rounded-full border ${
-                count > 0 ? "border-[#6b5233] bg-cream" : "border-[var(--opp-piece-border)] bg-[var(--opp-piece)]"
+                count > 0 ? "border-[#6b5233] bg-white" : "border-[var(--opp-piece-border)] bg-[var(--opp-piece)]"
               }`}
             >
               {isLast && overflow > 0 && (
@@ -1447,7 +1447,7 @@ function Board({
                 title="Your piece — click to re-enter"
                 onClick={() => (selectable.includes("bar") ? onSelect("bar") : undefined)}
                 className={`relative flex size-4 sm:size-7.5 items-center justify-center rounded-full border p-0 transition-colors ${
-                  selected === "bar" ? "border-gold bg-cream" : "border-[#6b5233] bg-cream"
+                  selected === "bar" ? "border-gold bg-white" : "border-[#6b5233] bg-white"
                 } ${
                   selectable.includes("bar") ? "cursor-pointer" : "cursor-default"
                 }`}
@@ -1511,7 +1511,7 @@ function Board({
             <span
               key={f.key}
               className={`absolute flex size-4 sm:size-7.5 items-center justify-center -translate-x-1/2 -translate-y-1/2 rounded-full border-2 transition-all duration-1000 ease-in-out ${
-                f.side === "human" ? "border-[#6b5233] bg-cream" : "border-[var(--opp-piece-border)] bg-[var(--opp-piece)]"
+                f.side === "human" ? "border-[#6b5233] bg-white" : "border-[var(--opp-piece-border)] bg-[var(--opp-piece)]"
               } ${f.arrived && f.settled ? "opacity-0" : "opacity-100"}`}
               style={{
                 left: f.arrived ? f.tx : f.x,

@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { RulesDialog } from "@/components/parlor/RulesDialog";
 import { StatisticsDialog } from "@/components/parlor/StatisticsDialog";
+import { HistoryDialog } from "@/components/parlor/HistoryDialog";
 import { WaitingRoom } from "@/components/parlor/WaitingRoom";
 import { ChatDialog } from "@/components/parlor/ChatDialog";
 import { ChatContext } from "@/components/parlor/ChatContext";
@@ -206,6 +207,14 @@ export function TableShell({
                   trigger={
                     <Button variant="parlorGhost" size="sm" className="w-full h-6">
                       How to Play
+                    </Button>
+                  }
+                />
+                <HistoryDialog
+                  game={game}
+                  trigger={
+                    <Button variant="parlorGhost" size="sm" className="w-full h-6">
+                      History
                     </Button>
                   }
                 />

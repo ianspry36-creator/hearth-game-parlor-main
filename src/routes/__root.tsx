@@ -14,6 +14,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { applyTheme, readTheme, THEME_INIT_SCRIPT } from "../lib/theme";
 import { applyEffect, readEffect, EFFECT_INIT_SCRIPT } from "../lib/effects";
 import { applyPalette, readPalette, PALETTE_INIT_SCRIPT } from "../lib/palette";
+import { GameNav } from "../components/parlor/GameNav";
 
 function NotFoundComponent() {
   return (
@@ -145,6 +146,7 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <Outlet />
+      <GameNav />
     </QueryClientProvider>
   );
 }
