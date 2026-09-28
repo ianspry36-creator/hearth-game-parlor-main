@@ -404,6 +404,18 @@
   --felt-yahtzee: #00ff00;
 }
 
+/* Light colour schemes: scoreboard names and scores render black for readability. */
+:root[data-theme="blush"] .scoreboard-text,
+:root[data-theme="seafoam"] .scoreboard-text,
+:root[data-theme="butter"] .scoreboard-text,
+:root[data-theme="peach"] .scoreboard-text,
+:root[data-theme="sky"] .scoreboard-text,
+:root[data-theme="leaf"] .scoreboard-text,
+:root[data-theme="wisteria"] .scoreboard-text,
+:root[data-theme="sand"] .scoreboard-text {
+  color: var(--ink);
+}
+
 /* =========================================================================
  * Background effects — switchable from Settings > Effects.
  * Applied to <body> via the data-effect attribute on <html>.

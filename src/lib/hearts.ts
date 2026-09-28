@@ -39,6 +39,9 @@ export type State = {
 export const isHeart = (c: Card): boolean => c.suit === "H";
 export const isQueenOfSpades = (c: Card): boolean => c.rank === 12 && c.suit === "S";
 
+/** Ace is high in Hearts — it outranks the king. */
+export const rankValue = (c: Card): number => (c.rank === 1 ? 14 : c.rank);
+
 export function penaltyOf(card: Card): number {
   if (isQueenOfSpades(card)) return 13;
   if (isHeart(card)) return 1;
@@ -68,7 +71,10 @@ export function emptyPoints(): Record<Seat, number> {
 const SUIT_ORDER: Record<Suit, number> = { C: 0, D: 1, S: 2, H: 3 };
 
 function sortHand(hand: Card[]): Card[] {
-  return [...hand].sort((a, b) => SUIT_ORDER[a.suit] - SUIT_ORDER[b.suit] || a.rank - b.rank);
+  // Ace sorts high (above the king) so it sits at the far end of the fan.
+  return [...hand].sort(
+    (a, b) => SUIT_ORDER[a.suit] - SUIT_ORDER[b.suit] || rankValue(a) - rankValue(b),
+  );
 }
 
 let dealCounter = 0;
@@ -160,6 +166,7 @@ export function isFirstTrick(state: State): boolean {
 }
 
 export function legalPlays(state: State, seat: Seat): Card[] {
+  if (state.trick.length >= 4) return []; // trick complete, awaiting the sweep
   const hand = state.hands[seat] ?? [];
   if (!hand.length) return [];
   const first = isFirstTrick(state);
@@ -196,7 +203,7 @@ export function trickWinner(trick: PlayedCard[]): Seat {
   const leadSuit = trick[0]!.card.suit;
   let best = trick[0]!;
   for (const p of trick.slice(1)) {
-    if (p.card.suit === leadSuit && p.card.rank > best.card.rank) best = p;
+    if (p.card.suit === leadSuit && rankValue(p.card) > rankValue(best.card)) best = p;
   }
   return best.seat;
 }
@@ -263,8 +270,9 @@ export function resolvePass(state: State): { next: State; transfers: PassTransfe
   return { next: applyPass(state), transfers: passTransfers(state) };
 }
 
-export function play(state: State, seat: Seat, cardId: string): State {
+export function play(state: State, seat: Seat, cardId: string, resolve = true): State {
   if (state.phase !== "playing" || state.turn !== seat) return state;
+  if (state.trick.length >= 4) return state; // trick complete, awaiting the sweep
   const hand = state.hands[seat] ?? [];
   const card = hand.find((c) => c.id === cardId);
   if (!card) return state;
@@ -280,11 +288,11 @@ export function play(state: State, seat: Seat, cardId: string): State {
     log: note(state.log, { side: seat, text: `played ${cardLabel(card)}.` }),
   };
 
-  if (trick.length === 4) return resolveTrick(next);
+  if (trick.length === 4) return resolve ? resolveTrick(next) : next;
   return { ...next, turn: nextSeat(seat, state.order) };
 }
 
-function resolveTrick(state: State): State {
+export function resolveTrick(state: State): State {
   const winner = trickWinner(state.trick);
   const cards = state.trick.map((p) => p.card);
   const tricks = { ...state.tricks, [winner]: [...(state.tricks[winner] ?? []), cards] };
@@ -324,6 +332,7 @@ function finishHand(state: State): State {
         ...state,
         points,
         shooters,
+        handPoints: emptyPoints(),
         phase: "over",
         winner: leaders[0]!,
         log: note(state.log, {
@@ -340,6 +349,7 @@ function finishHand(state: State): State {
     ...state,
     points,
     shooters,
+    handPoints: emptyPoints(),
     phase: "dealing",
     log: note(state.log, { side: null, text: `${summary} Dealing the next hand…` }),
   };
