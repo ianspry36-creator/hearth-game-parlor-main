@@ -73,16 +73,29 @@ const cardH = () => (isDesktop() ? 97 : 73);
 // Desktop overlaps 21px (step 54); mobile overlaps 32px (step 24) — 10% less
 // reveal than the previous 27px step, so the hand stays tighter on small screens.
 const hFanStep = () => (isDesktop() ? 54 : 24);
-// Opponent fan reveal: a thin sliver of each back — 20% wider on desktop.
-const OPP_H_STEP = () => (isDesktop() ? 7.2 : 6);
-const OPP_V_STEP = () => (isDesktop() ? 9.6 : 8);
+// Opponent fan reveal: a thin sliver of each back — twice as wide on desktop.
+const OPP_H_STEP = () => (isDesktop() ? 14.4 : 6);
+const OPP_V_STEP = () => (isDesktop() ? 19.2 : 8);
 const TRICK_PAUSE_MS = 2000; // hold the completed trick on the table before sweeping it away
 const miniScale = () => 42 / cardW(); // shrink sweeping trick cards to the mini-card size on arrival
 
+// Document scroll offsets. Flight coordinates come from getBoundingClientRect(),
+// which reports viewport-relative positions; adding the scroll offsets turns them
+// into document-relative positions so the flying cards (rendered `position:
+// absolute`) scroll with the table instead of staying pinned to the viewport.
+const scrollX = () => (typeof window === "undefined" ? 0 : window.scrollX);
+const scrollY = () => (typeof window === "undefined" ? 0 : window.scrollY);
+
+// Centre of the viewport in document coordinates — used when a ref is missing.
+const fallbackPoint = () => ({
+  x: window.innerWidth / 2 - cardW() / 2 + scrollX(),
+  y: window.innerHeight / 2 - cardH() / 2 + scrollY(),
+});
+
 // Position a card so its centre lands on a rectangle's midpoint.
 const centreOn = (rect: DOMRect) => ({
-  x: rect.left + rect.width / 2 - cardW() / 2,
-  y: rect.top + rect.height / 2 - cardH() / 2,
+  x: rect.left + rect.width / 2 - cardW() / 2 + scrollX(),
+  y: rect.top + rect.height / 2 - cardH() / 2 + scrollY(),
 });
 
 // Top-left position for a played card so it lands in its slot within the trick
@@ -103,11 +116,11 @@ const fanSlotPosition = (
   if (orientation === "horizontal") {
     const totalWidth = cardW() + (total - 1) * step;
     const startX = rect.left + rect.width / 2 - totalWidth / 2;
-    return { x: startX + index * step, y: rect.bottom - cardH() };
+    return { x: startX + index * step + scrollX(), y: rect.bottom - cardH() + scrollY() };
   }
   return {
-    x: rect.left + rect.width / 2 - cardW() / 2,
-    y: rect.top + index * step,
+    x: rect.left + rect.width / 2 - cardW() / 2 + scrollX(),
+    y: rect.top + index * step + scrollY(),
   };
 };
 
@@ -189,10 +202,7 @@ function HeartsTable() {
     (trick: PlayedCard[], winner: Seat) => {
       const fromRect = trickRowRef.current?.getBoundingClientRect();
       const toRect = trickRefs.current[winner]?.getBoundingClientRect();
-      const fallback = {
-        x: window.innerWidth / 2 - cardW() / 2,
-        y: window.innerHeight / 2 - cardH() / 2,
-      };
+      const fallback = fallbackPoint();
       const from = fromRect ? centreOn(fromRect) : fallback;
       const to = toRect ? centreOn(toRect) : fallback;
       const flights = trick.map((played) => ({
@@ -210,19 +220,28 @@ function HeartsTable() {
 
   // Live multiplayer table: humans join seats and the rest are played by computers.
   const isRoom = Boolean(roomId);
-  const roomSeatOf = (seat: Seat): number => (mySeat + SEATS.indexOf(seat)) % 4;
-  const isBotSeat = (seat: Seat): boolean => {
-    if (!isRoom) return seat !== "you";
-    const occ = roomPlayers.find((p) => p.seat === roomSeatOf(seat));
-    return Boolean(occ?.is_bot);
-  };
+  const roomSeatOf = useCallback(
+    (seat: Seat): number => (mySeat + SEATS.indexOf(seat)) % 4,
+    [mySeat],
+  );
+  // Memoised so the auto-play effect below doesn't re-run on every render: a
+  // fresh `isBotSeat` identity would retrigger it and make each bot play
+  // several cards in one turn.
+  const isBotSeat = useCallback(
+    (seat: Seat): boolean => {
+      if (!isRoom) return seat !== "you";
+      const occ = roomPlayers.find((p) => p.seat === roomSeatOf(seat));
+      return Boolean(occ?.is_bot);
+    },
+    [isRoom, roomPlayers, roomSeatOf],
+  );
 
   // Fly a played card from its seat to its slot in the trick, then commit the play.
   const animatePlay = useCallback(
     (seat: Seat, card: Card) => {
       const fromRect = seatRefs.current[seat]?.getBoundingClientRect();
       const trickRect = trickRowRef.current?.getBoundingClientRect();
-      const fallback = { x: window.innerWidth / 2 - cardW() / 2, y: window.innerHeight / 2 - cardH() / 2 };
+      const fallback = fallbackPoint();
       // Fly from the card's own slot in the fan, not the centre of the whole hand.
       const hand = stateRef.current.hands[seat] ?? [];
       const index = hand.findIndex((c) => c.id === card.id);
@@ -512,7 +531,7 @@ function HeartsTable() {
     const packRect = packRef.current?.getBoundingClientRect();
     const from = packRect
       ? centreOn(packRect)
-      : { x: window.innerWidth / 2 - cardW() / 2, y: window.innerHeight / 2 - cardH() / 2 };
+      : fallbackPoint();
 
     // Deal the next hand up front so the player's cards can fly face-up.
     const next = initGame(Math.random, state.handNumber, state.points);
@@ -580,7 +599,7 @@ function HeartsTable() {
     if (!resolved) return;
 
     // Fly each passed card from its hand to its new hand, then commit.
-    const fallback = { x: window.innerWidth / 2 - cardW() / 2, y: window.innerHeight / 2 - cardH() / 2 };
+    const fallback = fallbackPoint();
     const flights = resolved.transfers.map((t) => {
       const srcRect = seatRefs.current[t.from]?.getBoundingClientRect();
       const dstRect = seatRefs.current[t.to]?.getBoundingClientRect();
@@ -1053,11 +1072,11 @@ function SeatPanel({
       <div className="flex flex-col items-center">
         {hand.map((card, i) => {
           const selected = selectedIds.includes(card.id);
-          const base = `${rotation} ${i > 0 ? "-mt-[41px] sm:-mt-[107.4px]" : ""}`;
+          const base = `${rotation} ${i > 0 ? "-mt-[41px] sm:-mt-[77.8px]" : ""}`;
           const offset = selected
             ? `${side === "left" ? "translate-x-2" : "-translate-x-2"} ring-2 ring-gold`
             : "";
-          return <CardBack key={card.id} className={`h-[49px] w-[38px] sm:h-[117px] sm:w-[90px] ${base} ${offset}`} />;
+          return <CardBack key={card.id} className={`h-[49px] w-[38px] sm:h-[97px] sm:w-[75px] ${base} ${offset}`} />;
         })}
       </div>
     ) : null;
@@ -1071,7 +1090,7 @@ function SeatPanel({
           return (
             <CardBack
               key={card.id}
-              className={`h-[49px] w-[38px] sm:h-[117px] sm:w-[90px] ${i > 0 ? "-ml-[32px] sm:-ml-[82.8px]" : ""} ${offset}`}
+              className={`h-[49px] w-[38px] sm:h-[97px] sm:w-[75px] ${i > 0 ? "-ml-[32px] sm:-ml-[60.6px]" : ""} ${offset}`}
             />
           );
         })}
@@ -1082,7 +1101,7 @@ function SeatPanel({
     return (
       <div className="flex items-center gap-2">
         {/* Reserve the 13-card fan footprint so seats don't shift after dealing. */}
-        <div ref={cardRef} className="flex min-h-[145px] min-w-[49px] flex-col items-center sm:min-h-[213px] sm:min-w-[117px]">
+        <div ref={cardRef} className="flex min-h-[145px] min-w-[49px] flex-col items-center sm:min-h-[327.4px] sm:min-w-[97px]">
           {verticalFan}
         </div>
         {identity}
@@ -1095,7 +1114,7 @@ function SeatPanel({
       <div className="flex items-center gap-2">
         {identity}
         {/* Reserve the 13-card fan footprint so seats don't shift after dealing. */}
-        <div ref={cardRef} className="flex min-h-[145px] min-w-[49px] flex-col items-center sm:min-h-[213px] sm:min-w-[117px]">
+        <div ref={cardRef} className="flex min-h-[145px] min-w-[49px] flex-col items-center sm:min-h-[327.4px] sm:min-w-[97px]">
           {verticalFan}
         </div>
       </div>
@@ -1116,7 +1135,7 @@ function SeatPanel({
           </div>
         </div>
       </div>
-      <div ref={cardRef} className="flex min-h-[49px] items-end justify-center sm:min-h-[117px]">
+      <div ref={cardRef} className="flex min-h-[49px] items-end justify-center sm:min-h-[97px]">
         {horizontalFan}
       </div>
     </div>
@@ -1251,10 +1270,10 @@ function FlyingCardView({ flight }: { flight: FlyingCard }) {
   return (
     <div
       aria-hidden
-      className="pointer-events-none fixed z-50 transition-transform ease-out"
+      className="pointer-events-none absolute z-50 transition-transform ease-out"
       style={{ left: flight.from.x, top: flight.from.y, transform, transitionDuration: `${duration}ms` }}
     >
-      {flight.card ? <HeartsCard card={flight.card} corner /> : <CardBack className="h-[49px] w-[38px] sm:h-[117px] sm:w-[90px]" />}
+      {flight.card ? <HeartsCard card={flight.card} corner /> : <CardBack className="h-[49px] w-[38px] sm:h-[97px] sm:w-[75px]" />}
     </div>
   );
 }

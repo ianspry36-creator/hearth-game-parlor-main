@@ -416,20 +416,25 @@ export function HeartsLobby({
                       </span>
                     )}
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">
-                        {player ? (
-                          <>
-                            {player.nickname}
-                            {player.session_id === session ? " (you)" : ""}
-                            {player.seat === 0 ? " · host" : ""}
-                            {player.is_bot ? " · computer" : ""}
-                          </>
-                        ) : bot ? (
-                          <span className="text-ivory/55">{bot.name} (computer)</span>
-                        ) : (
-                          <span className="text-ivory/40">Open seat — computer will fill it</span>
-                        )}
-                      </p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="truncate text-sm font-medium">
+                          {player ? (
+                            <>
+                              {player.nickname}
+                              {player.session_id === session ? " (you)" : ""}
+                              {player.seat === 0 ? " · host" : ""}
+                              {player.is_bot ? " · computer" : ""}
+                            </>
+                          ) : bot ? (
+                            <span className="text-ivory/55">{bot.name} (computer)</span>
+                          ) : (
+                            <span className="text-ivory/40">Open seat — computer will fill it</span>
+                          )}
+                        </p>
+                        {player && !player.is_bot ? (
+                          <PlayerFlag flag={player.flag} className="size-3.5" />
+                        ) : null}
+                      </div>
                       <p className="text-xs text-ivory/55">Seat {seat + 1}</p>
                     </div>
                   </div>

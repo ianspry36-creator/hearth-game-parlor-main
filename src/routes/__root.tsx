@@ -14,6 +14,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { applyTheme, readTheme, THEME_INIT_SCRIPT } from "../lib/theme";
 import { applyEffect, readEffect, EFFECT_INIT_SCRIPT } from "../lib/effects";
 import { applyPalette, readPalette, PALETTE_INIT_SCRIPT } from "../lib/palette";
+import { structuredData, SITE_URL } from "../lib/structuredData";
 import { GameNav } from "../components/parlor/GameNav";
 import { DeveloperBadge } from "../components/parlor/DeveloperBadge";
 
@@ -78,7 +79,7 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
 }
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
-  head: () => ({
+  head: ({ matches }) => ({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
@@ -97,6 +98,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:card", content: "summary_large_image" },
     ],
     links: [
+      {
+        rel: "canonical",
+        href: `${SITE_URL}${matches[matches.length - 1]?.pathname || "/"}`,
+      },
       {
         rel: "stylesheet",
         href: appCss,
@@ -122,6 +127,10 @@ function RootShell({ children }: { children: ReactNode }) {
     <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+        />
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         <script dangerouslySetInnerHTML={{ __html: EFFECT_INIT_SCRIPT }} />
         <script dangerouslySetInnerHTML={{ __html: PALETTE_INIT_SCRIPT }} />

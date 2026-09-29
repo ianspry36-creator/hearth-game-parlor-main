@@ -20,6 +20,10 @@ import solitaireMenuIcon from "@/assets/solitaireMenuIcon.svg";
 import farkleMenuIcon from "@/assets/farkleMenuIcon.svg";
 import kingCornerMenuIcon from "@/assets/kingCornerMenuIcon.svg";
 import scorpianMenuIcon from "@/assets/scorpianMenuIcon.svg";
+import yukonMenuIcon from "@/assets/yukonMenuIcon.svg";
+import canfieldMenuIcon from "@/assets/canfieldMenuIcon.svg";
+import freecellMenuIcon from "@/assets/freecellMenuIcon.svg";
+import trianglesMenuIcon from "@/assets/trianglesMenuIcon.svg";
 import { CardMark } from "@/components/parlor/CardMark";
 import { VisitorCounter } from "@/components/parlor/VisitorCounter";
 import { Switch } from "@/components/ui/switch";
@@ -250,6 +254,30 @@ function Lobby() {
                       <img
                         src={scorpianMenuIcon}
                         alt="Scorpion Solitaire"
+                        className="size-[2cm] rounded-2xl object-contain"
+                      />
+                    ) : game.id === "yukon" ? (
+                      <img
+                        src={yukonMenuIcon}
+                        alt="Yukon Solitaire"
+                        className="size-[2cm] rounded-2xl object-contain"
+                      />
+                    ) : game.id === "canfield" ? (
+                      <img
+                        src={canfieldMenuIcon}
+                        alt="Canfield"
+                        className="size-[2cm] rounded-2xl object-contain"
+                      />
+                    ) : game.id === "freecell" ? (
+                      <img
+                        src={freecellMenuIcon}
+                        alt="FreeCell"
+                        className="size-[2cm] rounded-2xl object-contain"
+                      />
+                    ) : game.id === "triangles" ? (
+                      <img
+                        src={trianglesMenuIcon}
+                        alt="Triangles"
                         className="size-[2cm] rounded-2xl object-contain"
                       />
                     ) : (
