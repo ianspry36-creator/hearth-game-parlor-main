@@ -13,6 +13,7 @@ import { ACE_AVATAR, ADA_AVATAR, LEO_AVATAR } from "@/lib/avatars";
 import { useNickname } from "@/components/parlor/WaitingRoom";
 import { moderateNickname } from "@/lib/moderation";
 import { useBlockedUsers } from "@/lib/blockedUsers";
+import { PlayerFlag } from "@/components/parlor/PlayerFlag";
 import {
   INAPPROPRIATE_NAME_MESSAGE,
   MAX_NICKNAME_LENGTH,
@@ -322,9 +323,25 @@ export function HeartsLobby({
                       type="button"
                       disabled={busy || count >= MAX_SEATS}
                       onClick={() => void joinPublic(room.id)}
-                      className="flex w-full items-center justify-between rounded-lg border border-gold/20 bg-brand/50 p-3 text-left hover:border-gold/40"
+                      className="flex w-full items-center gap-3 rounded-lg border border-gold/20 bg-brand/50 p-3 text-left hover:border-gold/40"
                     >
-                      <span className="text-sm font-medium">{room.host_nickname}&apos;s table</span>
+                      {room.host_avatar ? (
+                        <img
+                          src={room.host_avatar}
+                          alt={room.host_nickname}
+                          className="size-9 shrink-0 rounded-full border border-gold/30 object-cover"
+                        />
+                      ) : (
+                        <span className="grid size-9 shrink-0 place-items-center rounded-full border border-gold/30 bg-surface font-display text-sm text-gold">
+                          {room.host_nickname.charAt(0).toUpperCase()}
+                        </span>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="truncate text-sm font-medium">{room.host_nickname}&apos;s table</span>
+                          <PlayerFlag flag={room.host_flag} className="size-4" />
+                        </div>
+                      </div>
                       <span className="text-xs text-ivory/55">
                         {count}/{MAX_SEATS}
                       </span>

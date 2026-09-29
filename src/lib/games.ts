@@ -325,10 +325,10 @@ export const GAMES: GameMeta[] = [
     initial: "H",
     tagline: "Avoid the hearts and the queen of spades — or take them all and shoot the moon.",
     path: "/hearts",
+    comingSoon: true,
     history:
       "Hearts is a trick-avoidance game first recorded in the United States in the 1880s, a member of the Whist family that flips the usual goal on its head: players try not to win tricks at all. Its ancestor Reversis, an eighteenth-century French trick-taking game, shared the same aim of dodging penalties. The modern version, with its heart penalties and the dreaded queen of spades, has since been overtaken by its close variants Black Lady and Black Maria.",
     historySource: "https://en.wikipedia.org/wiki/Hearts_(card_game)",
-    comingSoon: true,
     rules: [
       {
         heading: "The object",

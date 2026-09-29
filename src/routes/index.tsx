@@ -269,11 +269,6 @@ function Lobby() {
                           Beta
                         </span>
                       )}
-                      {(game.beta || game.comingSoon) && !isDev && (
-                        <span className="rounded-full border border-gold/40 bg-gold/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-gold">
-                          Developer only
-                        </span>
-                      )}
                     </div>
                   </button>
                 </div>
@@ -319,7 +314,7 @@ function Lobby() {
                   type="button"
                   className="text-ivory/50 transition-colors hover:text-gold"
                 >
-                  Dev login
+                  DEV LOGIN
                 </button>
               }
             />

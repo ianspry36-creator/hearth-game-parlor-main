@@ -70,9 +70,9 @@ const cardW = () => (isDesktop() ? 75 : 56);
 const cardH = () => (isDesktop() ? 97 : 73);
 
 // Player's horizontal fan step: only the rank and suit corner stays visible.
-// Desktop overlaps 21px (step 54) — 50% more reveal; mobile overlaps 29px
-// (step 27) — 10% less than the minimum-corner reveal.
-const hFanStep = () => (isDesktop() ? 54 : 27);
+// Desktop overlaps 21px (step 54); mobile overlaps 32px (step 24) — 10% less
+// reveal than the previous 27px step, so the hand stays tighter on small screens.
+const hFanStep = () => (isDesktop() ? 54 : 24);
 // Opponent fan reveal: a thin sliver of each back — 20% wider on desktop.
 const OPP_H_STEP = () => (isDesktop() ? 7.2 : 6);
 const OPP_V_STEP = () => (isDesktop() ? 9.6 : 8);
@@ -448,6 +448,12 @@ function HeartsTable() {
     if (occ?.avatar) return occ.avatar;
     return seat === "ace" ? ACE_AVATAR : seat === "ada" ? ADA_AVATAR : LEO_AVATAR;
   };
+  const seatFlag = (seat: Seat): string | null => {
+    if (seat === "you") return playerFlag;
+    if (!isRoom) return null;
+    const occ = roomPlayers.find((p) => p.seat === roomSeatOf(seat));
+    return occ?.flag ?? null;
+  };
 
   const isPassing = state.phase === "passing";
   const needsToPass = isPassing && state.passSelections.you === null;
@@ -626,7 +632,7 @@ function HeartsTable() {
       opponentName="Ace, Ada & Leo"
       opponentStatus=""
       hideOpponent
-      gameInProgress={state.phase !== "over"}
+      gameInProgress={state.phase !== "ready" && state.phase !== "over"}
       onMatched={() => {}}
       onNewGame={startNewGame}
       lobby={({ open, onOpenChange }) => (
@@ -660,6 +666,8 @@ function HeartsTable() {
           <SeatPanel
             avatar={seatAvatar("ada")}
             name={seatName("ada")}
+            flag={seatFlag("ada")}
+            isBot={isBotSeat("ada")}
             hand={state.hands.ada ?? []}
             selectedIds={state.passSelections.ada ?? []}
             isTurn={state.turn === "ada" && state.phase === "playing"}
@@ -677,6 +685,8 @@ function HeartsTable() {
             <SeatPanel
               avatar={seatAvatar("ace")}
               name={seatName("ace")}
+              flag={seatFlag("ace")}
+              isBot={isBotSeat("ace")}
               hand={state.hands.ace ?? []}
               selectedIds={state.passSelections.ace ?? []}
               isTurn={state.turn === "ace" && state.phase === "playing"}
@@ -704,11 +714,16 @@ function HeartsTable() {
               )}
             </div>
           )}
-          {state.phase === "passing" && (
-            <Button variant="parlor" disabled={passSelection.length !== 3} onClick={confirmPass}>
-              Pass {passSelection.length}/3
-            </Button>
-          )}
+          {state.phase === "passing" &&
+            (needsToPass ? (
+              <Button variant="parlor" disabled={passSelection.length !== 3} onClick={confirmPass}>
+                Pass {passSelection.length}/3
+              </Button>
+            ) : (
+              <p className="font-display text-base text-gold">
+                Waiting for opponents to choose their cards…
+              </p>
+            ))}
           {state.phase === "dealing" && <p className="text-sm text-ivory/70">Dealing the next hand…</p>}
           {state.phase === "playing" && (
             <>
@@ -732,7 +747,7 @@ function HeartsTable() {
                   above stays put while cards enter and leave the table. */}
               <div ref={trickRowRef} className="flex min-h-[115px] items-center justify-center sm:min-h-[160px]">
                 {state.trick.length > 0 ? (
-                  <TrickRow trick={state.trick} />
+                  <TrickRow trick={state.trick} names={seatNames} />
                 ) : (
                   <p className="text-xs text-ivory/40">Lead a card to start the trick</p>
                 )}
@@ -744,6 +759,8 @@ function HeartsTable() {
             <SeatPanel
               avatar={seatAvatar("leo")}
               name={seatName("leo")}
+              flag={seatFlag("leo")}
+              isBot={isBotSeat("leo")}
               hand={state.hands.leo ?? []}
               selectedIds={state.passSelections.leo ?? []}
               isTurn={state.turn === "leo" && state.phase === "playing"}
@@ -772,7 +789,7 @@ function HeartsTable() {
                   highlighted={legal}
                   dimmed={dimmed}
                   onClick={needsToPass || myTurn ? () => handleCardClick(card) : undefined}
-                  className={i > 0 ? "-ml-[29px] sm:-ml-[21px]" : ""}
+                  className={i > 0 ? "-ml-[32px] sm:-ml-[21px]" : ""}
                 />
               );
             })}
@@ -818,7 +835,7 @@ function HeartsTable() {
   );
 }
 
-function TrickRow({ trick }: { trick: PlayedCard[] }) {
+function TrickRow({ trick, names }: { trick: PlayedCard[]; names: Record<Seat, string> }) {
   const rowRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const prevLeft = useRef<Record<string, number>>({});
 
@@ -858,7 +875,7 @@ function TrickRow({ trick }: { trick: PlayedCard[] }) {
           className={`relative ${i > 0 ? "-ml-6" : ""}`}
         >
           <HeartsCard card={played.card} corner />
-          <span className="pointer-events-none absolute left-1/2 top-full mt-1 -translate-x-1/2 whitespace-nowrap text-[10px] text-ivory/60">{seatName(played.seat)}</span>
+          <span className="pointer-events-none absolute left-1/2 top-full mt-1 -translate-x-1/2 whitespace-nowrap text-[10px] text-ivory/60">{names[played.seat]}</span>
         </div>
       ))}
     </div>
@@ -970,6 +987,18 @@ function Scoreboard({ points, names }: { points: Record<Seat, number>; names: Re
   );
 }
 
+/** A small computer badge shown in place of a flag for computer opponents. */
+function ComputerIcon({ className = "size-4" }: { className?: string }) {
+  return (
+    <img
+      src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f4bb.svg"
+      alt="Computer"
+      title="Computer"
+      className={`${className} shrink-0 rounded-sm border border-black/20 object-cover align-middle shadow-sm shadow-black/30`}
+    />
+  );
+}
+
 function SeatPanel({
   avatar,
   name,
@@ -982,6 +1011,8 @@ function SeatPanel({
   tricks = [],
   hideLastTrick = false,
   crying = false,
+  flag = null,
+  isBot = false,
 }: {
   avatar: string;
   name: string;
@@ -994,11 +1025,22 @@ function SeatPanel({
   tricks?: Card[][];
   hideLastTrick?: boolean;
   crying?: boolean;
+  flag?: string | null;
+  isBot?: boolean;
 }) {
+  const badge = isBot ? (
+    <ComputerIcon className="size-3.5" />
+  ) : (
+    <PlayerFlag flag={flag} className="size-3.5" />
+  );
+
   const identity = (
     <div className="flex flex-col items-center gap-1">
       <SeatAvatar avatar={avatar} name={name} isTurn={isTurn} crying={crying} />
-      <p className="font-display text-sm font-bold">{name}</p>
+      <div className="flex items-center gap-1">
+        <p className="font-display text-sm font-bold">{name}</p>
+        {badge}
+      </div>
       <div ref={trickRef} className="flex items-center gap-1.5">
         <TrickPile tricks={tricks} horizontal={side === "top"} hideLastTrick={hideLastTrick} />
       </div>
@@ -1065,7 +1107,10 @@ function SeatPanel({
       <div className="flex items-center gap-2">
         <SeatAvatar avatar={avatar} name={name} isTurn={isTurn} crying={crying} />
         <div className="flex flex-col items-start gap-0.5">
-          <p className="font-display text-sm font-bold">{name}</p>
+          <div className="flex items-center gap-1">
+            <p className="font-display text-sm font-bold">{name}</p>
+            {badge}
+          </div>
           <div ref={trickRef} className="flex items-center gap-1.5">
             <TrickPile tricks={tricks} horizontal hideLastTrick={hideLastTrick} />
           </div>
