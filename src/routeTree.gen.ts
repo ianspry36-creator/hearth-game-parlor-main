@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as AddictionRouteImport } from './routes/addiction'
 import { Route as BackgammonRouteImport } from './routes/backgammon'
+import { Route as BlogRouteImport } from './routes/blog'
 import { Route as CanfieldRouteImport } from './routes/canfield'
 import { Route as CheckersRouteImport } from './routes/checkers'
 import { Route as ClockRouteImport } from './routes/clock'
@@ -52,6 +53,11 @@ const AddictionRoute = AddictionRouteImport.update({
 const BackgammonRoute = BackgammonRouteImport.update({
   id: '/backgammon',
   path: '/backgammon',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BlogRoute = BlogRouteImport.update({
+  id: '/blog',
+  path: '/blog',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CanfieldRoute = CanfieldRouteImport.update({
@@ -160,6 +166,7 @@ export interface FileRoutesByFullPath {
   '/about': typeof AboutRoute
   '/addiction': typeof AddictionRoute
   '/backgammon': typeof BackgammonRoute
+  '/blog': typeof BlogRoute
   '/canfield': typeof CanfieldRoute
   '/checkers': typeof CheckersRoute
   '/clock': typeof ClockRoute
@@ -186,6 +193,7 @@ export interface FileRoutesByTo {
   '/about': typeof AboutRoute
   '/addiction': typeof AddictionRoute
   '/backgammon': typeof BackgammonRoute
+  '/blog': typeof BlogRoute
   '/canfield': typeof CanfieldRoute
   '/checkers': typeof CheckersRoute
   '/clock': typeof ClockRoute
@@ -213,6 +221,7 @@ export interface FileRoutesById {
   '/about': typeof AboutRoute
   '/addiction': typeof AddictionRoute
   '/backgammon': typeof BackgammonRoute
+  '/blog': typeof BlogRoute
   '/canfield': typeof CanfieldRoute
   '/checkers': typeof CheckersRoute
   '/clock': typeof ClockRoute
@@ -241,6 +250,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/addiction'
     | '/backgammon'
+    | '/blog'
     | '/canfield'
     | '/checkers'
     | '/clock'
@@ -267,6 +277,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/addiction'
     | '/backgammon'
+    | '/blog'
     | '/canfield'
     | '/checkers'
     | '/clock'
@@ -293,6 +304,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/addiction'
     | '/backgammon'
+    | '/blog'
     | '/canfield'
     | '/checkers'
     | '/clock'
@@ -320,6 +332,7 @@ export interface RootRouteChildren {
   AboutRoute: typeof AboutRoute
   AddictionRoute: typeof AddictionRoute
   BackgammonRoute: typeof BackgammonRoute
+  BlogRoute: typeof BlogRoute
   CanfieldRoute: typeof CanfieldRoute
   CheckersRoute: typeof CheckersRoute
   ClockRoute: typeof ClockRoute
@@ -370,6 +383,13 @@ declare module '@tanstack/react-router' {
       path: '/backgammon'
       fullPath: '/backgammon'
       preLoaderRoute: typeof BackgammonRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/blog': {
+      id: '/blog'
+      path: '/blog'
+      fullPath: '/blog'
+      preLoaderRoute: typeof BlogRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/canfield': {
@@ -520,6 +540,7 @@ const rootRouteChildren: RootRouteChildren = {
   AboutRoute: AboutRoute,
   AddictionRoute: AddictionRoute,
   BackgammonRoute: BackgammonRoute,
+  BlogRoute: BlogRoute,
   CanfieldRoute: CanfieldRoute,
   CheckersRoute: CheckersRoute,
   ClockRoute: ClockRoute,

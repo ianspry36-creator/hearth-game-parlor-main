@@ -5,25 +5,25 @@ import { GAMES } from "@/lib/games";
 import { getNickname } from "@/lib/multiplayer";
 import { useFavourites } from "@/lib/favourites";
 import { GameIcon } from "@/components/parlor/GameIcon";
-import backgammonMenuIcon from "@/assets/backgammonMenuIcon.svg";
-import warshipMenuIcon from "@/assets/warshipMenuIcon.svg";
-import reversiMenuIcon from "@/assets/reversiMenuIcon.svg";
-import checkersMenuIcon from "@/assets/checkersMenuIcon.svg";
-import heartsMenuIcon from "@/assets/heartsMenuIcon.svg";
-import addictionMenuIcon from "@/assets/addictionMenuIcon.svg";
-import yahtzeeMenuIcon from "@/assets/yahtzeeMenuIcon.svg";
-import cribbageMenuIcon from "@/assets/cribbageMenuIcon.svg";
-import clockMenuIcon from "@/assets/clockMenuIcon.svg";
-import crazyMenuIcon from "@/assets/crazyMenuIcon.svg";
-import triPeaksMenuIcon from "@/assets/triPeaksMenuIcon.svg";
-import solitaireMenuIcon from "@/assets/solitaireMenuIcon.svg";
-import farkleMenuIcon from "@/assets/farkleMenuIcon.svg";
-import kingCornerMenuIcon from "@/assets/kingCornerMenuIcon.svg";
-import scorpianMenuIcon from "@/assets/scorpianMenuIcon.svg";
-import yukonMenuIcon from "@/assets/yukonMenuIcon.svg";
-import canfieldMenuIcon from "@/assets/canfieldMenuIcon.svg";
-import freecellMenuIcon from "@/assets/freecellMenuIcon.svg";
-import trianglesMenuIcon from "@/assets/trianglesMenuIcon.svg";
+import backgammonMenuIcon from "@/assets/backgammonMenuIcon.webp";
+import warshipMenuIcon from "@/assets/warshipMenuIcon.webp";
+import reversiMenuIcon from "@/assets/reversiMenuIcon.webp";
+import checkersMenuIcon from "@/assets/checkersMenuIcon.webp";
+import heartsMenuIcon from "@/assets/heartsMenuIcon.webp";
+import addictionMenuIcon from "@/assets/addictionMenuIcon.webp";
+import yahtzeeMenuIcon from "@/assets/yahtzeeMenuIcon.webp";
+import cribbageMenuIcon from "@/assets/cribbageMenuIcon.webp";
+import clockMenuIcon from "@/assets/clockMenuIcon.webp";
+import crazyMenuIcon from "@/assets/crazyMenuIcon.webp";
+import triPeaksMenuIcon from "@/assets/triPeaksMenuIcon.webp";
+import solitaireMenuIcon from "@/assets/solitaireMenuIcon.webp";
+import farkleMenuIcon from "@/assets/farkleMenuIcon.webp";
+import kingCornerMenuIcon from "@/assets/kingCornerMenuIcon.webp";
+import scorpianMenuIcon from "@/assets/scorpianMenuIcon.webp";
+import yukonMenuIcon from "@/assets/yukonMenuIcon.webp";
+import canfieldMenuIcon from "@/assets/canfieldMenuIcon.webp";
+import freecellMenuIcon from "@/assets/freecellMenuIcon.webp";
+import trianglesMenuIcon from "@/assets/trianglesMenuIcon.webp";
 import { CardMark } from "@/components/parlor/CardMark";
 import { VisitorCounter } from "@/components/parlor/VisitorCounter";
 import { Switch } from "@/components/ui/switch";
@@ -314,11 +314,15 @@ function Lobby() {
         </section>
 
         <footer className="mt-16 border-t border-gold/12 pt-6 text-center text-[11px] uppercase tracking-[0.28em] text-ivory/30">
-          <p>Cards and Games 3.7</p>
+          <p>Cards and Games v4.0</p>
           <VisitorCounter />
           <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
             <Link to="/about" className="text-ivory/50 transition-colors hover:text-gold">
               About
+            </Link>
+            <span className="text-ivory/25">·</span>
+            <Link to="/blog" className="text-ivory/50 transition-colors hover:text-gold">
+              Blog
             </Link>
             <span className="text-ivory/25">·</span>
             <Link to="/privacy" className="text-ivory/50 transition-colors hover:text-gold">

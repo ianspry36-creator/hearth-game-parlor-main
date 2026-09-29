@@ -67,6 +67,21 @@ function ContactPage() {
           </div>
         </div>
 
+        <div className="mt-6 rounded-2xl border border-gold/20 bg-surface/45 p-8">
+          <h2 className="font-display text-2xl font-semibold text-gold">Facebook</h2>
+          <p className="mt-2 text-ivory/80">
+            Follow us for updates, new games and the occasional card-table story:
+          </p>
+          <a
+            href="https://www.facebook.com/profile.php?id=61594837714885"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-4 inline-block text-lg font-medium text-gold underline decoration-gold/30 underline-offset-4 transition-colors hover:text-gold-bright hover:decoration-gold-bright/50"
+          >
+            Cards and Games on Facebook
+          </a>
+        </div>
+
         <footer className="mt-16 border-t border-gold/12 pt-6 text-center text-[11px] uppercase tracking-[0.28em] text-ivory/30">
           Cards and Games · Cards dealt nightly
         </footer>
