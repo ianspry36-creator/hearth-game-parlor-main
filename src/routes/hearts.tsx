@@ -908,30 +908,46 @@ function Scoreboard({ points, names }: { points: Record<Seat, number>; names: Re
 
   const rowRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const prevTop = useRef<Record<string, number>>({});
+  const prevOrder = useRef<string | null>(null);
 
   // FLIP: when the ordering changes, glide each row from its old slot to its new one.
+  // Only animate on an actual reorder (not on every render), and clear any in-flight
+  // transform first so we always measure the true layout positions.
   useLayoutEffect(() => {
+    order.forEach((seat) => {
+      const el = rowRefs.current[seat];
+      if (el) el.style.transform = "";
+    });
+
     const next: Record<string, number> = {};
     order.forEach((seat) => {
       next[seat] = rowRefs.current[seat]?.getBoundingClientRect().top ?? 0;
     });
-    const prev = prevTop.current;
-    for (const seat of order) {
-      const el = rowRefs.current[seat];
-      const prevVal = prev[seat];
-      const nextVal = next[seat];
-      if (!el || prevVal == null || nextVal == null) continue;
-      const delta = prevVal - nextVal;
-      if (Math.abs(delta) > 0.5) {
-        el.style.transition = "none";
-        el.style.transform = `translateY(${delta}px)`;
-        void el.offsetHeight;
-        el.style.transition = "transform 400ms ease";
-        el.style.transform = "translateY(0px)";
+
+    const orderKey = order.join(",");
+    const changed = prevOrder.current !== null && prevOrder.current !== orderKey;
+    prevOrder.current = orderKey;
+
+    if (changed) {
+      const prev = prevTop.current;
+      for (const seat of order) {
+        const el = rowRefs.current[seat];
+        const prevVal = prev[seat];
+        const nextVal = next[seat];
+        if (!el || prevVal == null || nextVal == null) continue;
+        const delta = prevVal - nextVal;
+        if (Math.abs(delta) > 0.5) {
+          el.style.transition = "none";
+          el.style.transform = `translateY(${delta}px)`;
+          void el.offsetHeight;
+          el.style.transition = "transform 400ms ease";
+          el.style.transform = "translateY(0px)";
+        }
       }
     }
+
     prevTop.current = next;
-  }, [order, points, names]);
+  }, [order]);
 
   return (
     <div className="rounded-xl border-2 border-gold/30 bg-surface/80 px-[8.82px] py-[6.3px] shadow-md shadow-black/30 sm:px-[12.6px] sm:py-[9px]">

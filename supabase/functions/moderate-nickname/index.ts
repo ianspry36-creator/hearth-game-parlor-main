@@ -87,6 +87,8 @@ const BLOCKED_TERMS: string[] = [
   "retarded",
   "spastic",
   "spaz",
+  "popeye",
+  "popeyed",
   // Sexual / predatory content
   "rape",
   "rapist",

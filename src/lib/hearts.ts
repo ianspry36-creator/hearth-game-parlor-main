@@ -428,6 +428,10 @@ export function remapState(state: State, shift: number): State {
     winner: state.winner ? map(state.winner) : null,
     shooters: (state.shooters ?? []).map(map),
     log: (state.log ?? []).map((e) => ({ ...e, side: e.side ? map(e.side) : null })),
+    // The in-flight trick records which seat played each card, so its seats must
+    // rotate too — otherwise a guest's play is published with `seat: "you"` and
+    // the trick winner (and therefore the next turn) is resolved against the host.
+    trick: state.trick.map((p) => ({ ...p, seat: map(p.seat) })),
   };
 }
 

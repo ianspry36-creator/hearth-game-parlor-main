@@ -16,10 +16,16 @@ import cribbageMenuIcon from "@/assets/cribbageMenuIcon.svg";
 import clockMenuIcon from "@/assets/clockMenuIcon.svg";
 import crazyMenuIcon from "@/assets/crazyMenuIcon.svg";
 import triPeaksMenuIcon from "@/assets/triPeaksMenuIcon.svg";
+import solitaireMenuIcon from "@/assets/solitaireMenuIcon.svg";
+import farkleMenuIcon from "@/assets/farkleMenuIcon.svg";
+import kingCornerMenuIcon from "@/assets/kingCornerMenuIcon.svg";
+import scorpianMenuIcon from "@/assets/scorpianMenuIcon.svg";
 import { CardMark } from "@/components/parlor/CardMark";
 import { VisitorCounter } from "@/components/parlor/VisitorCounter";
 import { Switch } from "@/components/ui/switch";
 import { SettingsDialog } from "@/components/parlor/SettingsDialog";
+import { DevLoginDialog } from "@/components/parlor/DevLoginDialog";
+import { useDeveloperMode } from "@/lib/dev-mode";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -47,6 +53,7 @@ function Lobby() {
   const [showFavourites, setShowFavourites] = useState(false);
   const hasFavourites = favourites.size > 0;
   const isOwner = (getNickname() ?? "").toLowerCase() === "spry123456";
+  const isDev = useDeveloperMode();
   const availableGames = GAMES.filter((game) => !game.ownerOnly || isOwner);
   const visibleGames = showFavourites
     ? availableGames.filter((game) => isFavourite(game.id))
@@ -146,12 +153,13 @@ function Lobby() {
                   </button>
                   <button
                     type="button"
-                    onClick={() =>
+                    onClick={() => {
+                      if ((game.beta || game.comingSoon) && !isDev) return;
                       navigate({
                         to: game.path,
                         search: { opponent: undefined, match: undefined },
-                      })
-                    }
+                      });
+                    }}
                     className="flex w-full flex-col items-center"
                   >
                     {game.id === "backgammon" ? (
@@ -220,6 +228,30 @@ function Lobby() {
                         alt="Tri Peaks"
                         className="size-[2cm] rounded-2xl object-contain"
                       />
+                    ) : game.id === "solitaire" ? (
+                      <img
+                        src={solitaireMenuIcon}
+                        alt="Solitaire"
+                        className="size-[2cm] rounded-2xl object-contain"
+                      />
+                    ) : game.id === "farkle" ? (
+                      <img
+                        src={farkleMenuIcon}
+                        alt="Farkle"
+                        className="size-[2cm] rounded-2xl object-contain"
+                      />
+                    ) : game.id === "kings-in-the-corner" ? (
+                      <img
+                        src={kingCornerMenuIcon}
+                        alt="Kings in the Corner"
+                        className="size-[2cm] rounded-2xl object-contain"
+                      />
+                    ) : game.id === "scorpion" ? (
+                      <img
+                        src={scorpianMenuIcon}
+                        alt="Scorpion Solitaire"
+                        className="size-[2cm] rounded-2xl object-contain"
+                      />
                     ) : (
                       <div className="grid size-14 place-items-center rounded-2xl border border-gold/25 bg-gold/12 text-gold transition-colors group-hover:bg-gold/20">
                         <GameIcon id={game.id} className="size-9" />
@@ -235,6 +267,11 @@ function Lobby() {
                       {game.beta && (
                         <span className="rounded-full border border-gold/40 bg-gold/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-gold">
                           Beta
+                        </span>
+                      )}
+                      {(game.beta || game.comingSoon) && !isDev && (
+                        <span className="rounded-full border border-gold/40 bg-gold/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-gold">
+                          Developer only
                         </span>
                       )}
                     </div>
@@ -275,6 +312,17 @@ function Lobby() {
             >
               Future improvements
             </Link>
+            <span className="hidden text-ivory/25 sm:inline">·</span>
+            <DevLoginDialog
+              trigger={
+                <button
+                  type="button"
+                  className="text-ivory/50 transition-colors hover:text-gold"
+                >
+                  Dev login
+                </button>
+              }
+            />
           </div>
         </footer>
       </div>
