@@ -1111,9 +1111,9 @@ function Scoreboard({ points, names }: { points: Record<Seat, number>; names: Re
   }, [order]);
 
   return (
-    <div className="rounded-xl border-2 border-gold/30 bg-surface/80 px-[6.62px] py-[4.02px] shadow-md shadow-black/30 sm:origin-top-right sm:scale-[0.85] sm:px-[12.6px] sm:py-[7.65px]">
-      <p className="mb-[1.89px] text-center text-[7.56px] uppercase tracking-[0.18em] text-gold sm:mb-[3.6px] sm:text-[14.4px]">Scoreboard</p>
-      <div className="space-y-[1.89px] sm:space-y-[3.6px]">
+    <div className="rounded-xl border-2 border-gold/30 bg-surface/80 px-[6.62px] py-[3.42px] shadow-md shadow-black/30 sm:origin-top-right sm:scale-[0.85] sm:px-[12.6px] sm:py-[7.65px]">
+      <p className="mb-[1.61px] text-center text-[7.56px] uppercase tracking-[0.18em] text-gold sm:mb-[3.6px] sm:text-[14.4px]">Scoreboard</p>
+      <div className="space-y-[1.61px] sm:space-y-[3.6px]">
         {order.map((seat) => (
           <div
             key={seat}
