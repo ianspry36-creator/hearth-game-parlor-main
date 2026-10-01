@@ -290,7 +290,7 @@ export function HeartsLobby({
               <div className="flex gap-2">
                 <Input
                   value={joinCode}
-                  onChange={(e) => setJoinCode(e.target.value)}
+                  onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") void joinByCode();
                   }}

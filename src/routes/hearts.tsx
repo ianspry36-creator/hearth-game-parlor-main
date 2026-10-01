@@ -78,7 +78,7 @@ const hFanStep = () => (isDesktop() ? 54 : 24);
 const OPP_H_STEP = () => (isDesktop() ? 14.4 : 6);
 const OPP_V_STEP = () => (isDesktop() ? 19.2 : 8);
 const TRICK_PAUSE_MS = 2000; // hold the completed trick on the table before sweeping it away
-const miniScale = () => 42 / cardW(); // shrink sweeping trick cards to the mini-card size on arrival
+const miniScale = () => (isDesktop() ? 42 : 31.5) / cardW(); // shrink sweeping trick cards to the mini-card size on arrival
 
 // Document scroll offsets. Flight coordinates come from getBoundingClientRect(),
 // which reports viewport-relative positions; adding the scroll offsets turns them
@@ -975,6 +975,10 @@ function HeartsTable() {
   );
 }
 
+function shortenName(name: string): string {
+  return name.length > 4 ? `${name.slice(0, 4)}..` : name;
+}
+
 function TrickRow({ trick, names }: { trick: PlayedCard[]; names: Record<Seat, string> }) {
   const rowRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const prevLeft = useRef<Record<string, number>>({});
@@ -1015,7 +1019,7 @@ function TrickRow({ trick, names }: { trick: PlayedCard[]; names: Record<Seat, s
           className={`relative ${i > 0 ? "-ml-6" : ""}`}
         >
           <HeartsCard card={played.card} corner />
-          <span className="pointer-events-none absolute left-1/2 top-full mt-1 -translate-x-1/2 whitespace-nowrap text-[10px] text-ivory/60">{names[played.seat]}</span>
+          <span className="pointer-events-none absolute left-1/2 top-full mt-1 -translate-x-1/2 whitespace-nowrap text-[10px] text-ivory/60">{shortenName(names[played.seat])}</span>
         </div>
       ))}
     </div>
@@ -1107,16 +1111,16 @@ function Scoreboard({ points, names }: { points: Record<Seat, number>; names: Re
   }, [order]);
 
   return (
-    <div className="rounded-xl border-2 border-gold/30 bg-surface/80 px-[8.82px] py-[5.36px] shadow-md shadow-black/30 sm:origin-top-right sm:scale-[0.85] sm:px-[12.6px] sm:py-[7.65px]">
-      <p className="mb-[2.52px] text-center text-[10.08px] uppercase tracking-[0.18em] text-gold sm:mb-[3.6px] sm:text-[14.4px]">Scoreboard</p>
-      <div className="space-y-[2.52px] sm:space-y-[3.6px]">
+    <div className="rounded-xl border-2 border-gold/30 bg-surface/80 px-[6.62px] py-[4.02px] shadow-md shadow-black/30 sm:origin-top-right sm:scale-[0.85] sm:px-[12.6px] sm:py-[7.65px]">
+      <p className="mb-[1.89px] text-center text-[7.56px] uppercase tracking-[0.18em] text-gold sm:mb-[3.6px] sm:text-[14.4px]">Scoreboard</p>
+      <div className="space-y-[1.89px] sm:space-y-[3.6px]">
         {order.map((seat) => (
           <div
             key={seat}
             ref={(el) => {
               rowRefs.current[seat] = el;
             }}
-            className="flex items-center justify-between gap-[15.12px] text-[11.34px] sm:gap-[21.6px] sm:text-[16.2px]"
+            className="flex items-center justify-between gap-[11.34px] text-[8.51px] sm:gap-[21.6px] sm:text-[16.2px]"
           >
             <span className="scoreboard-text font-bold text-ivory/80">{names[seat]}</span>
             <span className="scoreboard-text font-display font-extrabold text-gold">{points[seat] ?? 0}</span>
@@ -1196,14 +1200,14 @@ function SeatPanel({
         {hand.map((card, i) => {
           const selected = selectedIds.includes(card.id);
           const arriving = incomingIds.includes(card.id);
-          const base = `${rotation} ${i > 0 ? "-mt-[41px] sm:-mt-[77.8px]" : ""}`;
+          const base = `${rotation} ${i > 0 ? "-mt-[53.25px] sm:-mt-[77.8px]" : ""}`;
           if (arriving) {
-            return <div key={card.id} className={`h-[49px] w-[38px] sm:h-[97px] sm:w-[75px] ${base}`} />;
+            return <div key={card.id} className={`h-[61.25px] w-[47.5px] sm:h-[97px] sm:w-[75px] ${base}`} />;
           }
           const offset = selected
             ? `${side === "left" ? "translate-x-2" : "-translate-x-2"} ring-2 ring-gold`
             : "";
-          return <CardBack key={card.id} className={`h-[49px] w-[38px] sm:h-[97px] sm:w-[75px] ${base} ${offset}`} />;
+          return <CardBack key={card.id} className={`h-[61.25px] w-[47.5px] sm:h-[97px] sm:w-[75px] ${base} ${offset}`} />;
         })}
       </div>
     ) : null;
@@ -1214,15 +1218,15 @@ function SeatPanel({
         {hand.map((card, i) => {
           const selected = selectedIds.includes(card.id);
           const arriving = incomingIds.includes(card.id);
-          const margin = i > 0 ? "-ml-[32px] sm:-ml-[60.6px]" : "";
+          const margin = i > 0 ? "-ml-[41.5px] sm:-ml-[60.6px]" : "";
           if (arriving) {
-            return <div key={card.id} className={`h-[49px] w-[38px] sm:h-[97px] sm:w-[75px] ${margin}`} />;
+            return <div key={card.id} className={`h-[61.25px] w-[47.5px] sm:h-[97px] sm:w-[75px] ${margin}`} />;
           }
           const offset = selected ? "translate-y-2 ring-2 ring-gold" : "";
           return (
             <CardBack
               key={card.id}
-              className={`h-[49px] w-[38px] sm:h-[97px] sm:w-[75px] ${margin} ${offset}`}
+              className={`h-[61.25px] w-[47.5px] sm:h-[97px] sm:w-[75px] ${margin} ${offset}`}
             />
           );
         })}
@@ -1233,7 +1237,7 @@ function SeatPanel({
     return (
       <div className="flex items-center gap-2">
         {/* Reserve the 13-card fan footprint so seats don't shift after dealing. */}
-        <div ref={cardRef} className="flex min-h-[145px] min-w-[49px] flex-col items-center sm:min-h-[327.4px] sm:min-w-[97px]">
+        <div ref={cardRef} className="flex min-h-[157.25px] min-w-[61.25px] flex-col items-center sm:min-h-[327.4px] sm:min-w-[97px]">
           {verticalFan}
         </div>
         {identity}
@@ -1246,7 +1250,7 @@ function SeatPanel({
       <div className="flex items-center gap-2">
         {identity}
         {/* Reserve the 13-card fan footprint so seats don't shift after dealing. */}
-        <div ref={cardRef} className="flex min-h-[145px] min-w-[49px] flex-col items-center sm:min-h-[327.4px] sm:min-w-[97px]">
+        <div ref={cardRef} className="flex min-h-[157.25px] min-w-[61.25px] flex-col items-center sm:min-h-[327.4px] sm:min-w-[97px]">
           {verticalFan}
         </div>
       </div>
@@ -1267,7 +1271,7 @@ function SeatPanel({
           <TrickPile tricks={tricks} horizontal hideLastTrick={hideLastTrick} />
         </div>
       </div>
-      <div ref={cardRef} className="flex min-h-[49px] items-end justify-center sm:min-h-[97px]">
+      <div ref={cardRef} className="flex min-h-[61.25px] items-end justify-center sm:min-h-[97px]">
         {horizontalFan}
       </div>
     </div>
@@ -1281,7 +1285,7 @@ function MiniCard({ className = "", style }: { className?: string; style?: CSSPr
       src={cardBackAsset}
       alt=""
       aria-hidden="true"
-      className={`block h-[55px] w-[42px] rounded-[4px] object-cover shadow-sm ${className}`}
+      className={`block h-[41.25px] w-[31.5px] rounded-[4px] object-cover shadow-sm sm:h-[55px] sm:w-[42px] ${className}`}
       style={style}
     />
   );
@@ -1307,7 +1311,7 @@ function TrickPile({
       {tricks.slice(0, count).map((_, i) => (
         <MiniCard
           key={i}
-          className={horizontal ? (i > 0 ? "-ml-[30px]" : "") : i > 0 ? "-mt-[42px]" : ""}
+          className={horizontal ? (i > 0 ? "-ml-[22.5px] sm:-ml-[30px]" : "") : i > 0 ? "-mt-[31.5px] sm:-mt-[42px]" : ""}
         />
       ))}
     </div>
@@ -1406,7 +1410,7 @@ function FlyingCardView({ flight }: { flight: FlyingCard }) {
       className="pointer-events-none absolute z-50 transition-transform ease-out"
       style={{ left: flight.from.x, top: flight.from.y, transform, transitionDuration: `${duration}ms` }}
     >
-      {flight.card ? <HeartsCard card={flight.card} corner /> : <CardBack className="h-[49px] w-[38px] sm:h-[97px] sm:w-[75px]" />}
+      {flight.card ? <HeartsCard card={flight.card} corner /> : <CardBack className="h-[61.25px] w-[47.5px] sm:h-[97px] sm:w-[75px]" />}
     </div>
   );
 }
