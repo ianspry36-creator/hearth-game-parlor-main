@@ -18,6 +18,11 @@ const SOLO_GAMES: GameId[] = [
 
 export const isSoloGame = (id: GameId): boolean => SOLO_GAMES.includes(id);
 
+/** Games playable both solo (against the house bot) and against a live opponent. */
+const HYBRID_GAMES: GameId[] = ["farkle", "cribbage", "reversi"];
+
+export const isHybridGame = (id: GameId): boolean => HYBRID_GAMES.includes(id);
+
 export type LeaderboardEntry = {
   nickname: string;
   played: number;
@@ -200,7 +205,7 @@ export async function fetchOpponentStats(
 function winnerToResult(winner: string | null): "win" | "loss" | "draw" | null {
   if (!winner) return null;
   if (winner === "draw") return "draw";
-  if (winner === "cpu" || winner === "ada" || winner === "leo") return "loss";
+  if (winner === "cpu" || winner === "ada" || winner === "ace" || winner === "leo") return "loss";
   return "win";
 }
 

@@ -34,6 +34,7 @@ import {
   useTurnTimer,
 } from "@/lib/multiplayer";
 import { useRecordMatchResult } from "@/lib/stats";
+import { useSolitaireStats } from "@/lib/solitaireStats";
 import { ADA_AVATAR, readAvatar } from "@/lib/avatars";
 import { readFlag } from "@/lib/flags";
 import { FlagPicker } from "@/components/parlor/FlagPicker";
@@ -378,6 +379,18 @@ function FarkleTable() {
   const isMulti = Boolean(matchId);
   const opponentName = liveOpponent ?? opponent ?? "Ada";
   const [playerName, setPlayerName] = useState(() => getNickname() ?? "You");
+
+  // Solo games against Ada are recorded locally so they show in Statistics
+  // alongside the multiplayer leaderboard; live matches are handled by
+  // useRecordMatchResult above instead.
+  const { recordResult: recordSoloResult } = useSolitaireStats(game.id);
+  const prevSoloWinnerRef = useRef<Seat | null>(null);
+  useEffect(() => {
+    if (!isMulti && state.winner && state.winner !== prevSoloWinnerRef.current) {
+      recordSoloResult(state.winner === "human" ? "win" : "loss");
+    }
+    prevSoloWinnerRef.current = state.winner;
+  }, [state.winner, isMulti, recordSoloResult]);
 
   const apply = (fn: (current: State) => State) => {
     const next = fn(stateRef.current);
@@ -881,8 +894,8 @@ function FarkleTable() {
       <tbody>
         {MELD_VALUES.map((row) => (
           <tr key={row.meld} className="border-b border-black/10 last:border-0">
-            <td className="py-1 text-left">{row.meld}</td>
-            <td className="py-1 text-right font-medium">{row.value}</td>
+            <td className="py-[3px] text-left">{row.meld}</td>
+            <td className="py-[3px] text-right font-medium">{row.value}</td>
           </tr>
         ))}
       </tbody>
@@ -919,7 +932,7 @@ function FarkleTable() {
     <TableShell
       game={game}
       containerMaxWidth="max-w-[64.8rem]"
-      boxClassName="px-1 sm:px-[0.4rem]"
+      boxClassName="px-1 pt-1 sm:px-[0.4rem] sm:pt-1.5"
       opponentName={opponentName}
       opponentStatus={status}
       showChat={isMulti}
@@ -932,6 +945,9 @@ function FarkleTable() {
         reset();
       }}
       onNewGame={() => (isMulti ? navigate({ to: "/farkle" }) : reset())}
+      onAbandon={() => {
+        if (!isMulti) recordSoloResult("abandoned");
+      }}
       rail={meldValues}
       menuExtra={
         <TurnOffTimerControl
@@ -1017,7 +1033,7 @@ function FarkleTable() {
       </AlertDialog>
       <div className="flex min-h-[560px] flex-col sm:mx-auto sm:min-h-[720px] sm:w-[85%]">
         {/* Ada — top of the table */}
-        <div className="flex flex-col gap-4 rounded-2xl border border-gold/15 bg-brand/50 px-9 py-[27px]">
+        <div className="flex flex-col gap-4 rounded-2xl border border-gold/15 bg-brand/50 px-9 py-1.5">
           <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-4">
               <div className="relative inline-block">
@@ -1086,7 +1102,7 @@ function FarkleTable() {
         </div>
 
         {/* Middle arena — status and thrown dice */}
-        <div className="mt-2.5 flex flex-1 flex-col items-center gap-2.5">
+        <div className="mt-2.5 flex flex-1 flex-col items-center gap-0.5">
           <div className="w-full max-w-xl rounded-xl border border-gold/20 bg-gold/10 px-5 py-1.5 text-center">
             <p className="flex min-h-5 items-center justify-center text-sm font-medium text-cream">
               {status}
@@ -1095,51 +1111,51 @@ function FarkleTable() {
 
           <div className="flex w-full flex-1 flex-col items-center justify-center">
             {state.phase === "rolloff" ? (
-              <div className="w-full rounded-2xl border border-gold/25 bg-felt/10 p-6 text-center shadow-2xl shadow-black/40 sm:px-10 sm:py-6">
-                <p className="hidden text-[11px] uppercase tracking-[0.3em] text-gold sm:block">Who goes first?</p>
-                <div className="mt-6 flex items-center justify-center gap-8">
-                  <div className="flex flex-col items-center gap-2">
-                    <p className="font-display">{playerName}</p>
-                    {state.rolloff.human !== null && (
-                      <div
-                        style={{
-                          transform: `rotate(${scatterFor(0, state.rolloff.human).angle}deg)`,
-                        }}
-                      >
-                        <DieFace face={state.rolloff.human} sizeClass="size-[3.6rem]" />
-                      </div>
-                    )}
+              <div className="w-full rounded-2xl border border-gold/25 bg-felt/10 p-1 text-center shadow-2xl shadow-black/40 sm:px-2 sm:py-1">
+                <div className="flex h-[11.2rem] flex-col items-center justify-center gap-2">
+                  <p className="hidden text-[11px] uppercase tracking-[0.3em] text-gold sm:block">Who goes first?</p>
+                  <div className="flex items-center justify-center gap-8">
+                    <div className="flex flex-col items-center gap-2">
+                      <p className="font-display">{playerName}</p>
+                      {state.rolloff.human !== null && (
+                        <div
+                          style={{
+                            transform: `rotate(${scatterFor(0, state.rolloff.human).angle}deg)`,
+                          }}
+                        >
+                          <DieFace face={state.rolloff.human} sizeClass="size-[3.6rem]" />
+                        </div>
+                      )}
+                    </div>
+                    <p className="font-display text-2xl text-gold">vs</p>
+                    <div className="flex flex-col items-center gap-2">
+                      <p className="font-display">{opponentName}</p>
+                      {state.rolloff.cpu !== null && (
+                        <div
+                          style={{
+                            transform: `rotate(${scatterFor(1, state.rolloff.cpu).angle}deg)`,
+                          }}
+                        >
+                          <DieFace face={state.rolloff.cpu} sizeClass="size-[3.6rem]" />
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <p className="font-display text-2xl text-gold">vs</p>
-                  <div className="flex flex-col items-center gap-2">
-                    <p className="font-display">{opponentName}</p>
-                    {state.rolloff.cpu !== null && (
-                      <div
-                        style={{
-                          transform: `rotate(${scatterFor(1, state.rolloff.cpu).angle}deg)`,
-                        }}
-                      >
-                        <DieFace face={state.rolloff.cpu} sizeClass="size-[3.6rem]" />
-                      </div>
+                  {state.rolloff.human !== null &&
+                    state.rolloff.cpu !== null &&
+                    rolloffWinner === null && (
+                      <p className="text-sm text-ivory/55">
+                        Tie at {state.rolloff.human} — throw again.
+                      </p>
                     )}
-                  </div>
-                </div>
-                {state.rolloff.human !== null &&
-                  state.rolloff.cpu !== null &&
-                  rolloffWinner === null && (
-                    <p className="mt-4 text-sm text-ivory/55">
-                      Tie at {state.rolloff.human} — throw again.
-                    </p>
-                  )}
-                <div className="mt-6">
                   <Button variant="parlor" onClick={rollForFirst} disabled={!canRollOff}>
                     {rolloffLabel}
                   </Button>
                 </div>
               </div>
             ) : (
-              <div className="w-full rounded-2xl border border-gold/25 bg-felt/10 p-6 shadow-2xl shadow-black/40 sm:px-10 sm:py-6">
-                <div className="relative mx-auto h-[10.2rem] w-full max-w-[20.4rem]">
+              <div className="w-full rounded-2xl border border-gold/25 bg-felt/10 p-1 shadow-2xl shadow-black/40 sm:px-2 sm:py-1">
+                <div className="relative mx-auto h-[11.2rem] w-full max-w-[20.4rem]">
                   {state.dice.map((die, i) => {
                     if (!state.rolled || die.set || selected.includes(i)) {
                       return null;

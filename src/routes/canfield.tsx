@@ -15,6 +15,7 @@ import { RulesDialog } from "@/components/parlor/RulesDialog";
 import { getGame } from "@/lib/games";
 import { FavouriteSwitch } from "@/components/parlor/FavouriteSwitch";
 import { StatisticsDialog } from "@/components/parlor/StatisticsDialog";
+import { HistoryDialog } from "@/components/parlor/HistoryDialog";
 import { useSolitaireStats } from "@/lib/solitaireStats";
 import { CardMark } from "@/components/parlor/CardMark";
 import { RANK_LABEL, SUIT_SYMBOL, cardLabel, type Card } from "@/lib/cribbage";
@@ -34,7 +35,6 @@ import {
   moveTableauToTableau,
   moveWasteToFoundation,
   moveWasteToTableau,
-  type DrawMode,
   type GameState,
 } from "@/lib/canfield";
 import { mulberry32 } from "@/lib/random";
@@ -97,7 +97,6 @@ function CanfieldTable() {
   const [selection, setSelection] = useState<Selection>(null);
   const [dragOverTarget, setDragOverTarget] = useState<DropTarget>(null);
   const dragSourceRef = useRef<Selection>(null);
-  const [drawMode, setDrawMode] = useState<DrawMode>(3);
   const [confirming, setConfirming] = useState<"new" | "home" | null>(null);
   const { recordResult } = useSolitaireStats(game.id);
   const prevWonRef = useRef(false);
@@ -123,11 +122,11 @@ function CanfieldTable() {
     setSelection(null);
     setFinishedElapsed(null);
     setElapsed(0);
-    startRef.current = Date.now();
+    startRef.current = 0;
     endedRef.current = false;
 
     const id = window.setInterval(() => {
-      if (!endedRef.current) setElapsed(Math.floor((Date.now() - startRef.current) / 1000));
+      if (!endedRef.current && startRef.current !== 0) setElapsed(Math.floor((Date.now() - startRef.current) / 1000));
     }, 250);
 
     try {
@@ -140,6 +139,11 @@ function CanfieldTable() {
 
     return () => window.clearInterval(id);
   }, []);
+
+  // Start the clock on the first move rather than when the hand is dealt.
+  useEffect(() => {
+    if (startRef.current === 0 && state.moves > 0) startRef.current = Date.now();
+  }, [state.moves]);
 
   useEffect(() => {
     endedRef.current = state.won;
@@ -175,7 +179,7 @@ function CanfieldTable() {
     setSelection(null);
     setFinishedElapsed(null);
     setElapsed(0);
-    startRef.current = Date.now();
+    startRef.current = 0;
     endedRef.current = false;
   };
 
@@ -191,7 +195,7 @@ function CanfieldTable() {
     setSelection(null);
   };
 
-  const clickStock = () => apply(drawStock(state, drawMode));
+  const clickStock = () => apply(drawStock(state, 3));
 
   const clickWaste = () => {
     if (state.waste.length === 0) return;
@@ -488,6 +492,14 @@ function CanfieldTable() {
                     </Button>
                   }
                 />
+                <HistoryDialog
+                  game={game}
+                  trigger={
+                    <Button variant="parlorGhost" className="w-full">
+                      History
+                    </Button>
+                  }
+                />
                 <Button
                   variant="parlorGhost"
                   className="w-full"
@@ -510,20 +522,6 @@ function CanfieldTable() {
           </aside>
         </div>
 
-        <div className="mt-6 flex flex-col items-center justify-center gap-3 border-t border-gold/15 pt-4 text-center">
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            <button
-              type="button"
-              onClick={() => setDrawMode(drawMode === 3 ? 1 : 3)}
-              className="cursor-pointer rounded-full border border-gold/30 px-3 py-1.5 text-xs uppercase tracking-[0.15em] text-ivory/70 transition-colors hover:text-gold"
-            >
-              Draw {drawMode === 3 ? 3 : 1}
-            </button>
-          </div>
-          <p className="text-xs text-ivory/40">
-            Click the stock to deal. Select a card, then click where it should go.
-          </p>
-        </div>
       </div>
 
       <AlertDialog open={confirming !== null} onOpenChange={(next) => !next && setConfirming(null)}>
@@ -542,6 +540,7 @@ function CanfieldTable() {
             <AlertDialogCancel>Keep playing</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
+                recordResult("abandoned");
                 if (confirming === "home") void navigate({ to: "/" });
                 else if (confirming === "new") reset();
                 setConfirming(null);

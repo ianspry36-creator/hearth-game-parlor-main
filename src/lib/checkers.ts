@@ -6,7 +6,7 @@
 // (toward row 0); the computer's men start on rows 0–2 and move down.
 
 export type Player = "human" | "cpu";
-export type Piece = { owner: Player; king: boolean };
+export type Piece = { id: number; owner: Player; king: boolean };
 /** null = empty square. Only dark squares ever hold a piece. */
 export type Cell = Piece | null;
 export type Board = Cell[];
@@ -32,11 +32,12 @@ export function squareName(i: number): string {
 /** The standard opening: twelve men each on the three rows nearest the player. */
 export function makeInitialBoard(): Board {
   const board: Cell[] = Array.from({ length: SIZE * SIZE }, () => null);
+  let id = 0;
   for (let row = 0; row < SIZE; row += 1) {
     for (let col = 0; col < SIZE; col += 1) {
       if (!isDark(row, col)) continue;
-      if (row < 3) board[idx(row, col)] = { owner: "cpu", king: false };
-      else if (row > 4) board[idx(row, col)] = { owner: "human", king: false };
+      if (row < 3) board[idx(row, col)] = { id: id++, owner: "cpu", king: false };
+      else if (row > 4) board[idx(row, col)] = { id: id++, owner: "human", king: false };
     }
   }
   return board;
@@ -146,7 +147,7 @@ export function applyStep(board: Board, from: number, to: number): Board {
   const { row: r0, col: c0 } = cellRC(from);
   const { row: r1, col: c1 } = cellRC(to);
   const king = piece.king || (piece.owner === "human" ? r1 === 0 : r1 === SIZE - 1);
-  next[to] = { owner: piece.owner, king };
+  next[to] = { id: piece.id, owner: piece.owner, king };
   if (Math.abs(r1 - r0) === 2) {
     next[idx((r0 + r1) / 2, (c0 + c1) / 2)] = null;
   }
@@ -173,7 +174,7 @@ export function mirroredBoard(board: Board): Board {
   const out: Cell[] = new Array<Cell>(board.length);
   for (let i = 0; i < board.length; i += 1) {
     const cell = board[board.length - 1 - i];
-    out[i] = cell ? { owner: flip(cell.owner), king: cell.king } : null;
+    out[i] = cell ? { id: cell.id, owner: flip(cell.owner), king: cell.king } : null;
   }
   return out;
 }

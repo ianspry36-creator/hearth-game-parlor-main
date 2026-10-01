@@ -24,6 +24,7 @@ import { TurnOffTimerControl } from "@/components/parlor/TurnOffTimerControl";
 import { getGame } from "@/lib/games";
 import { getNickname, RECONNECT_SECONDS, TURN_WARNING_SECONDS, useMatch, useTurnTimer } from "@/lib/multiplayer";
 import { useRecordMatchResult } from "@/lib/stats";
+import { useSolitaireStats } from "@/lib/solitaireStats";
 import {
   cardLabel,
   RANK_LABEL,
@@ -589,6 +590,18 @@ function CribbageTable() {
   // flag (and no globe placeholder) unless a live human opponent is present.
   const opponentIsCpu = !isMulti;
   const [playerName, setPlayerName] = useState(() => getNickname() ?? "You");
+
+  // Solo games against Ada are recorded locally so they show in Statistics
+  // alongside the multiplayer leaderboard; live matches are handled by
+  // useRecordMatchResult above instead.
+  const { recordResult: recordSoloResult } = useSolitaireStats(game.id);
+  const prevSoloWinnerRef = useRef<Side | null>(null);
+  useEffect(() => {
+    if (!isMulti && state.winner && state.winner !== prevSoloWinnerRef.current) {
+      recordSoloResult(state.winner === "player" ? "win" : "loss");
+    }
+    prevSoloWinnerRef.current = state.winner;
+  }, [state.winner, isMulti, recordSoloResult]);
 
   /** Commit a move: locally always, and to the shared table in a live match. */
   const apply = (fn: (current: State) => State) => {
@@ -1304,6 +1317,9 @@ function CribbageTable() {
         navigate({ to: "/cribbage", search: { opponent: nickname, match: newMatchId } });
       }}
       onNewGame={() => (isMulti ? navigate({ to: "/cribbage" }) : reset(freshGame()))}
+      onAbandon={() => {
+        if (!isMulti) recordSoloResult("abandoned");
+      }}
       menuExtra={
         <>
           <CribBoardOptionsDialog boardGraphic={boardGraphic} onSelect={setBoardGraphic} />

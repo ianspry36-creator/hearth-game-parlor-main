@@ -15,6 +15,7 @@ import { RulesDialog } from "@/components/parlor/RulesDialog";
 import { getGame } from "@/lib/games";
 import { FavouriteSwitch } from "@/components/parlor/FavouriteSwitch";
 import { StatisticsDialog } from "@/components/parlor/StatisticsDialog";
+import { HistoryDialog } from "@/components/parlor/HistoryDialog";
 import { useSolitaireStats } from "@/lib/solitaireStats";
 import { CardMark } from "@/components/parlor/CardMark";
 import { RANK_LABEL, SUIT_SYMBOL, cardLabel, type Card } from "@/lib/cribbage";
@@ -23,7 +24,6 @@ import {
   freshGame,
   place,
   reveal,
-  slotLabel,
   type GameState,
   type ClockPile,
   type CenterSlot,
@@ -76,12 +76,17 @@ const SLOT_POSITIONS = Array.from({ length: 12 }, (_, i) => {
   return { left: `${x}%`, top: `${y}%` } as const;
 });
 
+// Degrees each outer pile is rotated so the bottom edge of its cards points at
+// the centre of the clock face (1 o'clock at 30° through 12 o'clock at 360°).
+const slotAngle = (slot: number) => (slot + 1) * 30;
+
 // A card currently flying from the active pile to its own hour (double-click/drag move).
 type Flight = {
   key: number;
   card: Card;
   from: { x: number; y: number };
   to: { x: number; y: number };
+  rotation: number;
 };
 
 function ClockTable() {
@@ -135,11 +140,11 @@ function ClockTable() {
     setState(freshGame());
     setElapsed(0);
     setFinishedElapsed(null);
-    startRef.current = Date.now();
+    startRef.current = 0;
     endedRef.current = false;
 
     const id = window.setInterval(() => {
-      if (!endedRef.current) setElapsed(Math.floor((Date.now() - startRef.current) / 1000));
+      if (!endedRef.current && startRef.current !== 0) setElapsed(Math.floor((Date.now() - startRef.current) / 1000));
     }, 250);
 
     try {
@@ -151,6 +156,11 @@ function ClockTable() {
 
     return () => window.clearInterval(id);
   }, []);
+
+  // Start the clock on the first card placed rather than when the hand is dealt.
+  useEffect(() => {
+    if (startRef.current === 0 && state.revealed > 0) startRef.current = Date.now();
+  }, [state.revealed]);
 
   useEffect(() => {
     const over = state.won || state.lost;
@@ -221,6 +231,7 @@ function ClockTable() {
         card,
         from: { x: fromRect.left, y: fromRect.top },
         to: { x: toRect.left, y: toRect.top },
+        rotation: target === 12 ? 0 : slotAngle(target),
       };
       setFlights((currentFlights) => [...currentFlights, flight]);
       window.setTimeout(() => {
@@ -291,7 +302,7 @@ function ClockTable() {
     setState(freshGame());
     setFinishedElapsed(null);
     setElapsed(0);
-    startRef.current = Date.now();
+    startRef.current = 0;
     endedRef.current = false;
     setFlights([]);
     setPlacing(false);
@@ -333,7 +344,7 @@ function ClockTable() {
           </div>
         </header>
 
-        <div className="flex flex-wrap items-center justify-center gap-6 border-y border-gold/15 py-4 text-center">
+        <div className="flex flex-wrap items-center justify-center gap-6 border-y border-gold/15 py-1 text-center">
           <Stat label="Cards laid" value={`${state.revealed} / 52`} />
           <Stat label="Time" value={formatElapsed(shownElapsed)} />
           <Stat label="Wins" value={String(wins)} />
@@ -341,7 +352,7 @@ function ClockTable() {
         </div>
 
         <div className="mt-8 grid items-start gap-6 lg:grid-cols-[1fr_260px]">
-          <div className="select-none relative rounded-2xl border border-gold/15 bg-surface/40 p-4 sm:p-6">
+          <div className="select-none relative rounded-2xl border border-gold/15 bg-surface/40 p-1 sm:p-1.5">
             <ClockFace
               state={state}
               onPlace={() => placeCard(true)}
@@ -413,6 +424,14 @@ function ClockTable() {
                     </Button>
                   }
                 />
+                <HistoryDialog
+                  game={game}
+                  trigger={
+                    <Button variant="parlorGhost" className="w-full">
+                      History
+                    </Button>
+                  }
+                />
                 <StatisticsDialog
                   game={game}
                   trigger={
@@ -446,6 +465,7 @@ function ClockTable() {
             <AlertDialogCancel>Keep playing</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
+                recordResult("abandoned");
                 if (confirming === "home") void navigate({ to: "/" });
                 else if (confirming === "new") reset();
                 setConfirming(null);
@@ -515,7 +535,6 @@ function ClockFace({
   };
   return (
     <div className="relative mx-auto aspect-square w-full max-w-[620px]">
-      <div className="absolute inset-4 rounded-full border border-gold/15" />
       {state.piles.slice(0, 12).map((pile, slot) => (
         <div
           key={slot}
@@ -541,6 +560,7 @@ function ClockFace({
           activeCenter={state.activeCenter}
           isDropTarget={dropTarget === 12}
           isCurrent={12 === activeSlot}
+          isFirstTurn={state.revealed === 0 && state.activeCenter === -1}
           onRevealCenter={onRevealCenter}
           registerCenter={registerCenter}
           {...slotProps}
@@ -580,17 +600,19 @@ function ClockSlot({
   const down = pile.faceDown;
   const up = pile.faceUp;
   const isEmpty = down.length === 0 && up.length === 0;
-  const overlapStyle = { marginTop: "calc(var(--clock-overlap) * -1)" };
+  const angle = slotAngle(slot);
+  // Unit vector pointing from this pile toward the clock centre.
+  const rad = (angle * Math.PI) / 180;
+  const towardX = -Math.sin(rad);
+  const towardY = Math.cos(rad);
 
-  // The pile fans upward so the current card sits fully revealed at the
-  // bottom, face-down cards above it, and cards already laid at the very top —
-  // each card peeking a sliver of its top edge.
+  // The pile fans toward the centre: the cards already laid face up sit at the
+  // back (furthest from the middle, at the bottom of the pack), the face-down
+  // cards sit on top of them, and the (revealed) card sits nearest the centre —
+  // each card peeking a sliver toward the clock face.
   const current = isCurrent && up.length > 0 ? up[up.length - 1] : null;
   const placed = current ? up.slice(0, -1) : up;
 
-  // Build the pile from the top of the screen down, then give each layer an
-  // increasing z-index so every card covers the one just above it, leaving the
-  // top sliver of that card visible.
   type Layer =
     | { kind: "placed"; card: Card }
     | { kind: "down" }
@@ -601,32 +623,40 @@ function ClockSlot({
     ...(current ? [{ kind: "current", card: current } as Layer] : []),
   ];
 
+  // The angle a dragged card should face once it lands (its own hour, or flat
+  // for a King).
+  const targetAngle = current ? (current.rank === 13 ? 0 : slotAngle(current.rank - 1)) : angle;
+
   return (
     <div className="flex flex-col items-center gap-1">
       <div className="relative block">
-        <div className="flex flex-col items-center">
+        <div className="relative h-[var(--clock-card-h)] w-[var(--clock-card-w)]">
           {layers.map((layer, idx) => {
-            const style = {
-              ...(idx > 0 ? overlapStyle : {}),
-              zIndex: idx + 1,
-            };
+            const depth = idx;
+            const ox = Number((towardX * depth).toFixed(4));
+            const oy = Number((towardY * depth).toFixed(4));
+            const offset =
+              depth > 0
+                ? `translate(calc(${ox} * var(--clock-overlap)), calc(${oy} * var(--clock-overlap))) `
+                : "";
+            const style = { zIndex: idx + 1 };
             if (layer.kind === "placed") {
               return (
-                <div key={`placed-${idx}`} className="relative" style={style}>
+                <div key={`placed-${idx}`} className="pointer-events-none absolute left-0 top-0" style={{ ...style, transform: `${offset}rotate(${angle}deg)` }}>
                   <ClockCardFace card={layer.card} />
                 </div>
               );
             }
             if (layer.kind === "down") {
               return (
-                <div key={`down-${idx}`} className="relative" style={style}>
+                <div key={`down-${idx}`} className="pointer-events-none absolute left-0 top-0" style={{ ...style, transform: `${offset}rotate(${angle}deg)` }}>
                   <ClockCardBack />
                 </div>
               );
             }
             if (placing) {
               return (
-                <div key="current" className="relative" style={style}>
+                <div key="current" className="pointer-events-none absolute left-0 top-0" style={{ ...style, transform: `${offset}rotate(${angle}deg)` }}>
                   <ClockCardFace card={layer.card} />
                 </div>
               );
@@ -641,12 +671,12 @@ function ClockSlot({
                 onPointerMove={onCurrentPointerMove}
                 onPointerUp={onCurrentPointerUp}
                 aria-label={`${cardLabel(layer.card)} — double-click or drag to its hour`}
-                className={`relative block cursor-grab touch-none select-none transition-transform ${
-                  isDragging ? "duration-0" : "duration-200"
-                }`}
+                className="absolute left-0 top-0 block cursor-grab touch-none select-none"
                 style={{
                   ...style,
-                  transform: `translate(${dragOffset.x}px, ${dragOffset.y}px)`,
+                  translate: `calc(${ox} * var(--clock-overlap) + ${dragOffset.x}px) calc(${oy} * var(--clock-overlap) + ${dragOffset.y}px)`,
+                  rotate: `${isDragging ? targetAngle : angle}deg`,
+                  transition: "rotate 200ms ease-out",
                 }}
               >
                 <ClockCardFace card={layer.card} />
@@ -660,9 +690,6 @@ function ClockSlot({
           <span className="absolute -inset-2 z-30 rounded-lg ring-2 ring-gold-bright animate-gentle-flash" />
         )}
       </div>
-      <span className="text-[10px] font-bold uppercase tracking-wider text-ivory/50">
-        {slotLabel(slot)}
-      </span>
     </div>
   );
 }
@@ -680,6 +707,7 @@ function CenterSlot({
   dragOffset,
   isDragging,
   placing,
+  isFirstTurn,
   onRevealCenter,
   registerCenter,
 }: {
@@ -695,6 +723,7 @@ function CenterSlot({
   dragOffset: { x: number; y: number };
   isDragging: boolean;
   placing: boolean;
+  isFirstTurn: boolean;
   onRevealCenter: (index: number) => void;
   registerCenter: (index: number, el: HTMLDivElement | null) => void;
 }) {
@@ -752,9 +781,11 @@ function CenterSlot({
         {isDropTarget && (
           <span className="absolute -inset-2 z-30 rounded-lg ring-2 ring-gold-bright animate-gentle-flash" />
         )}
+        {isFirstTurn && (
+          <span className="pointer-events-none absolute -inset-2 z-30 rounded-lg ring-2 ring-gold-bright animate-gentle-flash" />
+        )}
       </div>
 
-      <span className="text-[10px] font-bold uppercase tracking-wider text-ivory/50">K</span>
     </div>
   );
 }
@@ -819,7 +850,9 @@ function FlightView({ flight }: { flight: Flight }) {
         transform: `translate(${dx}px, ${dy}px)`,
       }}
     >
-      <ClockCardFace card={flight.card} />
+      <div style={{ transform: `rotate(${flight.rotation}deg)` }}>
+        <ClockCardFace card={flight.card} />
+      </div>
     </div>
   );
 }

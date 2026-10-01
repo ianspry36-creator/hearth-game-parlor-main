@@ -552,28 +552,88 @@ function TrianglesTable() {
         </AlertDialogContent>
       </AlertDialog>
       <div>
-        {/* Opponent — top of the table */}
-        <section className="flex items-center gap-3 rounded-2xl border border-gold/15 bg-brand/50 px-1.5 py-4 sm:px-2.5">
-          <div className="relative inline-block">
-            <img
-              src={opponentAvatar ?? ADA_AVATAR}
-              alt={opponentName}
-              width={64}
-              height={64}
-              className="size-14 shrink-0 rounded-full border-2 border-player-teal/50 bg-surface object-cover"
-            />
-            {state.turn === "cpu" && countdown > 0 && <CountdownBadge seconds={countdown} />}
+        {/* Players — top of the table */}
+        <section className="grid grid-cols-2 gap-3 rounded-2xl border border-gold/15 bg-brand/50 p-4 sm:flex sm:items-center">
+          {/* Ada (left) */}
+          <div className="flex flex-col items-center gap-1.5 sm:flex-row sm:items-center sm:gap-2">
+            <div className="relative inline-block">
+              <img
+                src={opponentAvatar ?? ADA_AVATAR}
+                alt={opponentName}
+                width={64}
+                height={64}
+                className="size-14 rounded-full ring-2 ring-player-teal/50 bg-surface object-cover"
+              />
+              {state.turn === "cpu" && countdown > 0 && <CountdownBadge seconds={countdown} />}
+            </div>
+            <div className="text-center sm:hidden">
+              <div className="flex items-center justify-center gap-2">
+                <p className="truncate font-display text-lg font-bold">{opponentName}</p>
+                <PlayerFlag flag={opponentFlag} />
+              </div>
+              <p className="text-xs text-ivory/60">
+                {state.turn === "cpu" && state.phase === "play" ? "Their turn" : "Waiting"}
+              </p>
+            </div>
+            <p className="font-display text-2xl font-bold text-player-teal sm:hidden">{theirs}</p>
           </div>
-          <div className="min-w-0 flex-1">
+
+          {/* Ada name/status + score (desktop middle) */}
+          <div className="hidden min-w-0 flex-1 sm:block">
             <div className="flex items-center gap-2">
-              <p className="font-display text-lg font-bold">{opponentName}</p>
+              <p className="truncate font-display text-lg font-bold">{opponentName}</p>
               <PlayerFlag flag={opponentFlag} />
+              <p className="font-display text-2xl font-bold text-player-teal">{theirs}</p>
             </div>
             <p className="text-xs text-ivory/60">
               {state.turn === "cpu" && state.phase === "play" ? "Their turn" : "Waiting"}
             </p>
           </div>
-          <p className="font-display text-2xl font-bold text-player-teal">{theirs}</p>
+
+          {/* Player score + name/flag/status (desktop middle-right) */}
+          <div className="hidden min-w-0 flex-1 text-right sm:block">
+            <div className="flex items-center justify-end gap-2">
+              <p className="font-display text-2xl font-bold text-player-coral">{mine}</p>
+              <NicknameDialog
+                onSaved={setPlayerName}
+                trigger={
+                  <button
+                    type="button"
+                    className="min-w-0 truncate text-right font-display text-lg font-bold hover:text-gold"
+                  >
+                    {playerName}
+                  </button>
+                }
+              />
+              <PlayerFlag flag={flag} onClick={() => setFlagOpen(true)} className="size-6" />
+            </div>
+            <p className="text-xs text-ivory/60">{myTurn ? "Your turn" : "Waiting"}</p>
+          </div>
+
+          {/* Player (right) */}
+          <div className="flex flex-col items-center gap-1.5 sm:flex-row sm:items-center sm:gap-2">
+            <PlayerAvatar
+              avatar={playerAvatar}
+              onSelect={setPlayerAvatar}
+              size="size-14"
+              countdown={state.turn === "human" ? countdown : 0}
+            />
+            <div className="flex items-center gap-2 sm:hidden">
+              <NicknameDialog
+                onSaved={setPlayerName}
+                trigger={
+                  <button
+                    type="button"
+                    className="min-w-0 truncate text-right font-display text-lg font-bold hover:text-gold"
+                  >
+                    {playerName}
+                  </button>
+                }
+              />
+              <PlayerFlag flag={flag} onClick={() => setFlagOpen(true)} className="size-6" />
+            </div>
+            <p className="font-display text-2xl font-bold text-player-coral sm:hidden">{mine}</p>
+          </div>
         </section>
 
         {/* The board fills a little more of a phone screen (90% → 99%); from the
@@ -678,30 +738,6 @@ function TrianglesTable() {
           </p>
         </section>
 
-        {/* Player — bottom of the table */}
-        <section className="mt-8 flex items-center gap-3 rounded-2xl border border-gold/15 bg-brand/50 px-1.5 py-4 sm:mt-4 sm:px-2.5">
-          <PlayerAvatar
-            avatar={playerAvatar}
-            onSelect={setPlayerAvatar}
-            size="size-14"
-            countdown={state.turn === "human" ? countdown : 0}
-          />
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <NicknameDialog
-                onSaved={setPlayerName}
-                trigger={
-                  <button type="button" className="font-display text-lg font-bold hover:text-gold">
-                    {playerName}
-                  </button>
-                }
-              />
-              <PlayerFlag flag={flag} className="size-6" onClick={() => setFlagOpen(true)} />
-            </div>
-            <p className="text-xs text-ivory/60">{myTurn ? "Your turn" : "Waiting"}</p>
-          </div>
-          <p className="font-display text-2xl font-bold text-player-coral">{mine}</p>
-        </section>
       </div>
     </TableShell>
   );

@@ -15,6 +15,7 @@ import { RulesDialog } from "@/components/parlor/RulesDialog";
 import { getGame } from "@/lib/games";
 import { FavouriteSwitch } from "@/components/parlor/FavouriteSwitch";
 import { StatisticsDialog } from "@/components/parlor/StatisticsDialog";
+import { HistoryDialog } from "@/components/parlor/HistoryDialog";
 import { useSolitaireStats } from "@/lib/solitaireStats";
 import { CardMark } from "@/components/parlor/CardMark";
 import { RANK_LABEL, SUIT_SYMBOL, cardLabel, type Card } from "@/lib/cribbage";
@@ -421,7 +422,7 @@ function FreeCellTable() {
                     />
                   ))}
                 </div>
-                <div className="flex gap-1 sm:gap-2">
+                <div className="flex gap-1 sm:ml-auto sm:gap-2">
                   {state.foundations.map((pile, index) => (
                     <FoundationSlot
                       key={index}
@@ -498,6 +499,14 @@ function FreeCellTable() {
                     </Button>
                   }
                 />
+                <HistoryDialog
+                  game={game}
+                  trigger={
+                    <Button variant="parlorGhost" className="w-full">
+                      History
+                    </Button>
+                  }
+                />
                 <Button
                   variant="parlorGhost"
                   className="w-full"
@@ -537,6 +546,7 @@ function FreeCellTable() {
             <AlertDialogCancel>Keep playing</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
+                recordResult("abandoned");
                 if (confirming === "home") void navigate({ to: "/" });
                 else if (confirming === "new") reset();
                 setConfirming(null);

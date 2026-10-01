@@ -16,6 +16,7 @@ import { RulesDialog } from "@/components/parlor/RulesDialog";
 import { getGame } from "@/lib/games";
 import { FavouriteSwitch } from "@/components/parlor/FavouriteSwitch";
 import { StatisticsDialog } from "@/components/parlor/StatisticsDialog";
+import { HistoryDialog } from "@/components/parlor/HistoryDialog";
 import { useSolitaireStats } from "@/lib/solitaireStats";
 import { RANK_LABEL, SUIT_SYMBOL, cardLabel, type Card } from "@/lib/cribbage";
 import {
@@ -113,11 +114,11 @@ function YukonTable() {
     setSelection(null);
     setFinishedElapsed(null);
     setElapsed(0);
-    startRef.current = Date.now();
+    startRef.current = 0;
     endedRef.current = false;
 
     const id = window.setInterval(() => {
-      if (!endedRef.current) setElapsed(Math.floor((Date.now() - startRef.current) / 1000));
+      if (!endedRef.current && startRef.current !== 0) setElapsed(Math.floor((Date.now() - startRef.current) / 1000));
     }, 250);
 
     try {
@@ -130,6 +131,11 @@ function YukonTable() {
 
     return () => window.clearInterval(id);
   }, []);
+
+  // Start the clock on the first move rather than when the hand is dealt.
+  useEffect(() => {
+    if (startRef.current === 0 && state.moves > 0) startRef.current = Date.now();
+  }, [state.moves]);
 
   useEffect(() => {
     endedRef.current = state.won;
@@ -165,7 +171,7 @@ function YukonTable() {
     setSelection(null);
     setFinishedElapsed(null);
     setElapsed(0);
-    startRef.current = Date.now();
+    startRef.current = 0;
     endedRef.current = false;
   };
 
@@ -490,6 +496,14 @@ function YukonTable() {
                     </Button>
                   }
                 />
+                <HistoryDialog
+                  game={game}
+                  trigger={
+                    <Button variant="parlorGhost" className="w-full">
+                      History
+                    </Button>
+                  }
+                />
                 <Button
                   variant="parlorGhost"
                   className="w-full"
@@ -529,6 +543,7 @@ function YukonTable() {
             <AlertDialogCancel>Keep playing</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
+                recordResult("abandoned");
                 if (confirming === "home") void navigate({ to: "/" });
                 else if (confirming === "new") reset();
                 setConfirming(null);

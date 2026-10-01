@@ -13,6 +13,7 @@ import { PlayerFlag } from "@/components/parlor/PlayerFlag";
 import { NicknameDialog } from "@/components/parlor/NicknameDialog";
 import { getNickname, TURN_WARNING_SECONDS, useMatch, useTurnTimer } from "@/lib/multiplayer";
 import { useRecordMatchResult } from "@/lib/stats";
+import { useSolitaireStats } from "@/lib/solitaireStats";
 import {
   applyMove,
   chooseMove,
@@ -99,6 +100,18 @@ function mirror(state: State): State {
   };
 }
 
+/** A small computer badge shown in place of a flag for the CPU opponent (Ada). */
+function ComputerIcon({ className = "size-4" }: { className?: string }) {
+  return (
+    <img
+      src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f4bb.svg"
+      alt="Computer"
+      title="Computer"
+      className={`${className} shrink-0 rounded-sm border border-black/20 object-cover align-middle shadow-sm shadow-black/30`}
+    />
+  );
+}
+
 function ReversiTable() {
   const game = getGame("reversi");
   const navigate = useNavigate();
@@ -124,6 +137,23 @@ function ReversiTable() {
   const isMulti = Boolean(matchId);
   const opponentName = liveOpponent ?? opponent ?? "Ada";
   const [playerName, setPlayerName] = useState(() => getNickname() ?? "You");
+
+  // Solo games against Ada are recorded locally so they show in Statistics
+  // alongside the multiplayer leaderboard; live matches are handled by
+  // useRecordMatchResult above instead.
+  const { recordResult: recordSoloResult } = useSolitaireStats(game.id);
+  const prevSoloWinnerRef = useRef<Player | "draw" | null>(null);
+  useEffect(() => {
+    if (
+      !isMulti &&
+      state.winner &&
+      state.winner !== "draw" &&
+      state.winner !== prevSoloWinnerRef.current
+    ) {
+      recordSoloResult(state.winner === "human" ? "win" : "loss");
+    }
+    prevSoloWinnerRef.current = state.winner;
+  }, [state.winner, isMulti, recordSoloResult]);
 
   const apply = (fn: (current: State) => State) => {
     const next = fn(stateRef.current);
@@ -264,6 +294,9 @@ function ReversiTable() {
         reset();
       }}
       onNewGame={() => (isMulti ? navigate({ to: "/reversi" }) : reset())}
+      onAbandon={() => {
+        if (!isMulti) recordSoloResult("abandoned");
+      }}
       rail={null}
       menuExtra={
         <TurnOffTimerControl
@@ -295,26 +328,89 @@ function ReversiTable() {
         timedOut={state.timedOut}
         onPlayAgain={reset}
       />
-      <div className="space-y-8">
-        {/* Opponent — top of the table */}
-        <section className="flex items-center gap-3 rounded-2xl border border-gold/15 bg-brand/50 p-4">
-          <div className="relative inline-block">
-            <img
-              src={opponentAvatar ?? ADA_AVATAR}
-              alt={opponentName}
-              width={64}
-              height={64}
-              className="size-14 rounded-full border-2 border-player-teal/50 bg-surface object-cover"
-            />
-            {state.turn === "cpu" && countdown > 0 && <CountdownBadge seconds={countdown} />}
+      <div className="space-y-4">
+        {/* Players — top of the table */}
+        <section className="grid grid-cols-2 gap-3 rounded-2xl border border-gold/15 bg-brand/50 p-4 sm:flex sm:items-center">
+          {/* Ada (left) */}
+          <div className="flex flex-col items-center gap-1.5 sm:flex-row sm:items-center sm:gap-2">
+            <div className="relative inline-block">
+              <img
+                src={opponentAvatar ?? ADA_AVATAR}
+                alt={opponentName}
+                width={64}
+                height={64}
+                className="size-14 rounded-full ring-2 ring-player-teal/50 bg-surface object-cover"
+              />
+              {state.turn === "cpu" && countdown > 0 && <CountdownBadge seconds={countdown} />}
+            </div>
+            <div className="text-center sm:hidden">
+              <div className="flex items-center justify-center gap-2">
+                <p className="truncate font-display text-lg font-bold">{opponentName}</p>
+                {!isMulti && <ComputerIcon className="size-5" />}
+              </div>
+              <p className="text-xs text-ivory/60">
+                {state.turn === "cpu" && state.phase === "play" ? "Their turn" : "Waiting"}
+              </p>
+            </div>
+            <p className="font-display text-2xl font-bold text-player-teal sm:hidden">{cpu}</p>
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="truncate font-display text-lg font-bold">{opponentName}</p>
+
+          {/* Ada name/status + score (desktop middle) */}
+          <div className="hidden min-w-0 flex-1 sm:block">
+            <div className="flex items-center gap-2">
+              <p className="truncate font-display text-lg font-bold">{opponentName}</p>
+              {!isMulti && <ComputerIcon className="size-5" />}
+              <p className="font-display text-2xl font-bold text-player-teal">{cpu}</p>
+            </div>
             <p className="text-xs text-ivory/60">
               {state.turn === "cpu" && state.phase === "play" ? "Their turn" : "Waiting"}
             </p>
           </div>
-          <p className="font-display text-2xl font-bold text-player-teal">{cpu}</p>
+
+          {/* Player score + name/flag/status (desktop middle-right) */}
+          <div className="hidden min-w-0 flex-1 text-right sm:block">
+            <div className="flex items-center justify-end gap-2">
+              <p className="font-display text-2xl font-bold text-player-coral">{human}</p>
+              <NicknameDialog
+                onSaved={setPlayerName}
+                trigger={
+                  <button
+                    type="button"
+                    className="min-w-0 truncate text-right font-display text-lg font-bold hover:text-gold"
+                  >
+                    {playerName}
+                  </button>
+                }
+              />
+              <PlayerFlag flag={flag} onClick={() => setFlagOpen(true)} className="size-6" />
+            </div>
+            <p className="text-xs text-ivory/60">{myTurn ? "Your turn" : "Waiting"}</p>
+          </div>
+
+          {/* Player (right) */}
+          <div className="flex flex-col items-center gap-1.5 sm:flex-row sm:items-center sm:gap-2">
+            <PlayerAvatar
+              avatar={playerAvatar}
+              onSelect={setPlayerAvatar}
+              size="size-14"
+              countdown={state.turn === "human" ? countdown : 0}
+            />
+            <div className="flex items-center gap-2 sm:hidden">
+              <NicknameDialog
+                onSaved={setPlayerName}
+                trigger={
+                  <button
+                    type="button"
+                    className="min-w-0 truncate text-right font-display text-lg font-bold hover:text-gold"
+                  >
+                    {playerName}
+                  </button>
+                }
+              />
+              <PlayerFlag flag={flag} onClick={() => setFlagOpen(true)} className="size-6" />
+            </div>
+            <p className="font-display text-2xl font-bold text-player-coral sm:hidden">{human}</p>
+          </div>
         </section>
 
         {/* Board */}
@@ -371,33 +467,6 @@ function ReversiTable() {
           </p>
         </section>
 
-        {/* Player — bottom of the table */}
-        <section className="flex items-center gap-3 rounded-2xl border border-gold/15 bg-brand/50 p-4">
-          <PlayerAvatar
-            avatar={playerAvatar}
-            onSelect={setPlayerAvatar}
-            size="size-14"
-            countdown={state.turn === "human" ? countdown : 0}
-          />
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <NicknameDialog
-                onSaved={setPlayerName}
-                trigger={
-                  <button
-                    type="button"
-                    className="min-w-0 truncate text-left font-display text-lg font-bold hover:text-gold"
-                  >
-                    {playerName}
-                  </button>
-                }
-              />
-              <PlayerFlag flag={flag} onClick={() => setFlagOpen(true)} className="size-6" />
-            </div>
-            <p className="text-xs text-ivory/60">{myTurn ? "Your turn" : "Waiting"}</p>
-          </div>
-          <p className="font-display text-2xl font-bold text-player-coral">{human}</p>
-        </section>
       </div>
     </TableShell>
   );

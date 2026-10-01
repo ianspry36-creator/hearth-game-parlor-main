@@ -23,6 +23,7 @@ import type { GameMeta } from "@/lib/games";
 import {
   fetchLeaderboard,
   fetchOpponentStats,
+  isHybridGame,
   isSoloGame,
   type LeaderboardEntry,
   type OpponentStats,
@@ -34,7 +35,10 @@ import type { ReactNode } from "react";
 
 export function StatisticsDialog({ game, trigger }: { game: GameMeta; trigger: ReactNode }) {
   const solo = isSoloGame(game.id);
-  const { played, won, lost, reset } = useSolitaireStats(game.id);
+  const hybrid = isHybridGame(game.id);
+  const showSolo = solo || hybrid;
+  const showMulti = !solo;
+  const { played, won, lost, abandoned, reset } = useSolitaireStats(game.id);
   const [confirmReset, setConfirmReset] = useState(false);
 
   return (
@@ -50,36 +54,53 @@ export function StatisticsDialog({ game, trigger }: { game: GameMeta; trigger: R
             <DialogDescription className="text-ivory/70">
               {solo
                 ? "Your single-player wins and losses for this table."
-                : "See the top players at this table, or your own record against each opponent."}
+                : hybrid
+                  ? "Your record against Ada, plus the top players online."
+                  : "See the top players at this table, or your own record against each opponent."}
             </DialogDescription>
           </DialogHeader>
-          {solo ? (
-            <SoloStats played={played} won={won} lost={lost} />
-          ) : (
-            <Tabs defaultValue="top">
-              <TabsList className="grid w-full grid-cols-2 rounded-xl border border-gold/25 bg-surface p-1">
-                <TabsTrigger
-                  value="top"
-                  className="data-[state=active]:bg-gold data-[state=active]:text-brand"
-                >
-                  Top 10 Players
-                </TabsTrigger>
-                <TabsTrigger
-                  value="wins"
-                  className="data-[state=active]:bg-gold data-[state=active]:text-brand"
-                >
-                  Your Wins / Losses
-                </TabsTrigger>
-              </TabsList>
-              <TabsContent value="top" className="h-[26rem] overflow-y-auto">
-                <Leaderboard game={game} />
-              </TabsContent>
-              <TabsContent value="wins" className="h-[26rem] overflow-y-auto">
-                <Opponents game={game} />
-              </TabsContent>
-            </Tabs>
+          {showSolo && (
+            <>
+              {hybrid && (
+                <p className="mt-1 text-xs font-semibold uppercase tracking-[0.18em] text-ivory/50">
+                  vs Ada
+                </p>
+              )}
+              <SoloStats played={played} won={won} lost={lost} abandoned={abandoned} />
+            </>
           )}
-          {solo && played > 0 && (
+          {showMulti && (
+            <>
+              {hybrid && (
+                <p className="mt-4 text-xs font-semibold uppercase tracking-[0.18em] text-ivory/50">
+                  Online
+                </p>
+              )}
+              <Tabs defaultValue="top">
+                <TabsList className="grid w-full grid-cols-2 rounded-xl border border-gold/25 bg-surface p-1">
+                  <TabsTrigger
+                    value="top"
+                    className="data-[state=active]:bg-gold data-[state=active]:text-brand"
+                  >
+                    Top 10 Players
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="wins"
+                    className="data-[state=active]:bg-gold data-[state=active]:text-brand"
+                  >
+                    Your Wins / Losses
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent value="top" className="h-[26rem] overflow-y-auto">
+                  <Leaderboard game={game} />
+                </TabsContent>
+                <TabsContent value="wins" className="h-[26rem] overflow-y-auto">
+                  <Opponents game={game} />
+                </TabsContent>
+              </Tabs>
+            </>
+          )}
+          {showSolo && played > 0 && (
             <div className="flex justify-end">
               <Button variant="parlorOutline" size="sm" onClick={() => setConfirmReset(true)}>
                 Reset
@@ -136,36 +157,62 @@ function Leaderboard({ game }: { game: GameMeta }) {
   return <StatTable rows={rows} />;
 }
 
-function SoloStats({ played, won, lost }: { played: number; won: number; lost: number }) {
+function SoloStats({
+  played,
+  won,
+  lost,
+  abandoned,
+}: {
+  played: number;
+  won: number;
+  lost: number;
+  abandoned: number;
+}) {
   const nickname = getNickname();
   const rows: LeaderboardEntry[] = [
     { nickname: nickname ?? "You", played, won, lost },
   ];
   if (played === 0) return <EmptyState />;
-  return <StatTable rows={rows} />;
+  return <StatTable rows={rows} abandoned={abandoned} />;
 }
 
-function StatTable({ rows }: { rows: LeaderboardEntry[] }) {
+function StatTable({
+  rows,
+  abandoned,
+}: {
+  rows: LeaderboardEntry[];
+  abandoned?: number;
+}) {
+  const showAbandoned = abandoned !== undefined;
+  const cols = showAbandoned
+    ? "grid-cols-[2rem_1fr_4rem_4rem_4rem_4rem]"
+    : "grid-cols-[2rem_1fr_4.5rem_4.5rem_4.5rem]";
   return (
     <div className="mt-1">
-      <div className="sticky top-0 z-10 grid grid-cols-[2rem_1fr_4.5rem_4.5rem_4.5rem] gap-2 border-b border-gold/15 bg-surface py-2 text-[11px] uppercase tracking-[0.18em] text-ivory/50">
+      <div
+        className={`sticky top-0 z-10 grid ${cols} gap-2 border-b border-gold/15 bg-surface py-2 text-[11px] uppercase tracking-[0.18em] text-ivory/50`}
+      >
         <span>#</span>
         <span>Player</span>
         <span className="text-right">Played</span>
         <span className="text-right">Won</span>
         <span className="text-right">Lost</span>
+        {showAbandoned && <span className="text-right">Abandoned</span>}
       </div>
       <ul>
         {rows.map((row, i) => (
           <li
             key={row.nickname + i}
-            className="grid grid-cols-[2rem_1fr_4.5rem_4.5rem_4.5rem] items-center gap-2 border-b border-gold/10 py-2.5 text-sm last:border-0"
+            className={`grid ${cols} items-center gap-2 border-b border-gold/10 py-2.5 text-sm last:border-0`}
           >
             <span className="text-ivory/45">{i + 1}</span>
             <span className="truncate font-medium">{row.nickname}</span>
             <span className="text-right text-ivory/80">{row.played}</span>
             <span className="text-right text-gold">{row.won}</span>
             <span className="text-right text-ivory/60">{row.lost}</span>
+            {showAbandoned && (
+              <span className="text-right text-ivory/60">{abandoned}</span>
+            )}
           </li>
         ))}
       </ul>

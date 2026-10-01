@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TableShell } from "@/components/parlor/TableShell";
 import { GameOverDialog } from "@/components/parlor/GameOverDialog";
 import { Button } from "@/components/ui/button";
@@ -33,6 +33,7 @@ import {
   countPieces,
   flip,
   hasLegalMove,
+  idx,
   isCapture,
   isDark,
   legalDestinations,
@@ -42,6 +43,7 @@ import {
   squareName,
   wasPromoted,
   type Board,
+  type Piece,
   type Player,
 } from "@/lib/checkers";
 
@@ -91,6 +93,13 @@ type State = {
 };
 
 const note = (log: LogEntry[], entry: LogEntry) => [entry, ...log].slice(0, 40);
+
+// Milliseconds one jump (and its capture) animates for, so a multi-jump capture
+// plays out one hop at a time rather than teleporting straight to the last square.
+const CPU_STEP_MS = 320;
+
+/** A captured piece held in the overlay briefly so it can fade out instead of vanishing. */
+type DyingPiece = { key: number; id: number; owner: Player; king: boolean; index: number };
 
 const freshState = (): State => {
   const board = makeInitialBoard();
@@ -187,6 +196,18 @@ function mirror(state: State): State {
   };
 }
 
+/** A small computer badge shown in place of a flag for the CPU opponent (Ada). */
+function ComputerIcon({ className = "size-4" }: { className?: string }) {
+  return (
+    <img
+      src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f4bb.svg"
+      alt="Computer"
+      title="Computer"
+      className={`${className} shrink-0 rounded-sm border border-black/20 object-cover align-middle shadow-sm shadow-black/30`}
+    />
+  );
+}
+
 function CheckersTable() {
   const game = getGame("checkers");
   const navigate = useNavigate();
@@ -216,6 +237,9 @@ function CheckersTable() {
   const [viewingBoard, setViewingBoard] = useState(false);
   // Whether the concede confirmation dialog is open.
   const [concedeOpen, setConcedeOpen] = useState(false);
+  // Captured pieces kept in the overlay briefly so they can fade out instead of vanishing.
+  const [dying, setDying] = useState<DyingPiece[]>([]);
+  const dyingKeyRef = useRef(0);
 
   const apply = (fn: (current: State) => State) => {
     const next = fn(stateRef.current);
@@ -223,6 +247,21 @@ function CheckersTable() {
     setState(next);
     if (isMulti) void publish(isHost ? next : mirror(next));
   };
+
+  // Fade a captured piece out (and drop it from the board) instead of vanishing it.
+  const scheduleCapture = useCallback((board: Board, from: number, to: number) => {
+    if (!isCapture(board, from, to)) return;
+    const a = cellRC(from);
+    const b = cellRC(to);
+    const mid = idx((a.row + b.row) / 2, (a.col + b.col) / 2);
+    const victim = board[mid];
+    if (!victim) return;
+    const key = dyingKeyRef.current++;
+    setDying((list) => [...list, { key, id: victim.id, owner: victim.owner, king: victim.king, index: mid }]);
+    window.setTimeout(() => {
+      setDying((list) => list.filter((p) => p.key !== key));
+    }, 300);
+  }, []);
 
   // Concede the game: award the win to the opponent (Ada or the live player).
   const concede = () => {
@@ -265,6 +304,7 @@ function CheckersTable() {
   const reset = () => {
     proposedTimerOffRef.current = false;
     setViewingBoard(false);
+    setDying([]);
     const fresh = freshState();
     stateRef.current = fresh;
     setState(fresh);
@@ -301,6 +341,19 @@ function CheckersTable() {
   );
   const selectedDestSet = useMemo(() => new Set(selectedDests), [selectedDests]);
 
+  // Pieces in a stable order (by id) so React never reorders their DOM nodes.
+  // Reordering a node cancels the CSS transition that animates a piece's move —
+  // which is why a piece sliding "down" the list (Ada's normal direction) snapped.
+  const pieces = useMemo(() => {
+    const out: { cell: Piece; index: number }[] = [];
+    for (let index = 0; index < state.board.length; index += 1) {
+      const cell = state.board[index];
+      if (cell) out.push({ cell, index });
+    }
+    out.sort((a, b) => a.cell.id - b.cell.id);
+    return out;
+  }, [state.board]);
+
   const onSquareClick = (index: number) => {
     if (!myTurn) return;
     const cell = state.board[index];
@@ -311,6 +364,7 @@ function CheckersTable() {
         const to = index;
         const capture = isCapture(state.board, from, to);
         if (capture) {
+          scheduleCapture(state.board, from, to);
           const nextBoard = applyStep(state.board, from, to);
           if (!wasPromoted(state.board, from, to) && canContinueCapture(nextBoard, to)) {
             apply((s) => ({
@@ -351,42 +405,60 @@ function CheckersTable() {
     if (cell?.owner === "human" && humanMovable.has(index)) selectPiece(index);
   };
 
-  // Ada's move (solo play only).
+  // Ada's move (solo play only). Each jump of a multi-capture is applied as its
+  // own state change, spaced a step apart, so the piece animates one hop at a
+  // time — and each captured piece fades out at its own jump rather than the
+  // whole chain snapping straight to the final square.
   useEffect(() => {
     if (isMulti) return;
     if (state.phase !== "play" || state.turn !== "cpu") return;
-    const timer = setTimeout(() => {
-      setState((current) => {
-        if (current.phase !== "play" || current.turn !== "cpu") return current;
-        const mv = chooseMove(current.board, "cpu");
-        if (!mv) return current;
-        let board = current.board;
-        let captured = false;
-        let cur = mv.from;
-        for (const to of mv.path) {
-          captured = captured || isCapture(board, cur, to);
-          board = applyStep(board, cur, to);
+
+    const timers: number[] = [];
+    const start = window.setTimeout(() => {
+      const mv = chooseMove(stateRef.current.board, "cpu");
+      if (!mv) return;
+
+      let captured = false;
+      let cur = mv.from;
+      mv.path.forEach((to, i) => {
+        const t = window.setTimeout(() => {
+          const current = stateRef.current;
+          if (current.phase !== "play" || current.turn !== "cpu") return;
+
+          captured = captured || isCapture(current.board, cur, to);
+          scheduleCapture(current.board, cur, to);
+          const nextBoard = applyStep(current.board, cur, to);
           cur = to;
-        }
-        const lastTo = mv.path[mv.path.length - 1]!;
-        const next = endTurn(
-          {
-            ...current,
-            board,
-            capturedThisTurn: captured,
-            log: note(current.log, {
-              side: "cpu",
-              text: `${captured ? "capture" : "move"} ${squareName(mv.from)} to ${squareName(lastTo)}${mv.path.length > 1 ? `, ${mv.path.length} jumps` : ""}.`,
-            }),
-          },
-          "cpu",
-        );
-        stateRef.current = next;
-        return next;
+          const last = i === mv.path.length - 1;
+
+          if (last) {
+            apply((s) =>
+              endTurn(
+                {
+                  ...s,
+                  board: nextBoard,
+                  capturedThisTurn: captured,
+                  log: note(s.log, {
+                    side: "cpu",
+                    text: `${captured ? "capture" : "move"} ${squareName(mv.from)} to ${squareName(to)}${mv.path.length > 1 ? `, ${mv.path.length} jumps` : ""}.`,
+                  }),
+                },
+                "cpu",
+              ),
+            );
+          } else {
+            apply((s) => ({ ...s, board: nextBoard, capturedThisTurn: captured }));
+          }
+        }, i * CPU_STEP_MS);
+        timers.push(t);
       });
     }, 850);
-    return () => clearTimeout(timer);
-  }, [isMulti, state.phase, state.turn, state.board]);
+    timers.push(start);
+
+    return () => {
+      for (const t of timers) window.clearTimeout(t);
+    };
+  }, [isMulti, state.phase, state.turn, scheduleCapture]);
 
   const { human, cpu } = countPieces(state.board);
 
@@ -425,6 +497,7 @@ function CheckersTable() {
       }}
       onNewGame={() => (isMulti ? navigate({ to: "/checkers" }) : reset())}
       rail={null}
+      boxClassName="pt-2.5 sm:pt-4"
       menuExtra={
         <>
         <TurnOffTimerControl
@@ -491,87 +564,202 @@ function CheckersTable() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <div className="space-y-8">
-        {/* Opponent — top of the table */}
-        <section className="flex items-center gap-3 rounded-2xl border border-gold/15 bg-brand/50 p-4">
-          <div className="relative inline-block">
-            <img
-              src={opponentAvatar ?? ADA_AVATAR}
-              alt={opponentName}
-              width={64}
-              height={64}
-              className="size-14 rounded-full border-2 border-player-teal/50 bg-surface object-cover"
-            />
-            {state.turn === "cpu" && countdown > 0 && <CountdownBadge seconds={countdown} />}
+      <div className="space-y-4">
+        {/* Players — top of the table */}
+        <section className="grid grid-cols-2 gap-3 rounded-2xl border border-gold/15 bg-brand/50 p-4 sm:flex sm:items-center">
+          {/* Ada (left) */}
+          <div className="flex flex-col items-center gap-1.5 sm:flex-row sm:items-center sm:gap-2">
+            <div className="relative inline-block">
+              <img
+                src={opponentAvatar ?? ADA_AVATAR}
+                alt={opponentName}
+                width={64}
+                height={64}
+                className="size-14 rounded-full ring-2 ring-player-teal/50 bg-surface object-cover"
+              />
+              {state.turn === "cpu" && countdown > 0 && <CountdownBadge seconds={countdown} />}
+            </div>
+            <div className="text-center sm:hidden">
+              <div className="flex items-center justify-center gap-2">
+                <p className="truncate font-display text-lg font-bold">{opponentName}</p>
+                {!isMulti && <ComputerIcon className="size-5" />}
+              </div>
+              <p className="text-xs text-ivory/60">
+                {state.turn === "cpu" && state.phase === "play" ? "Their turn" : "Waiting"}
+              </p>
+            </div>
+            <p className="font-display text-2xl font-bold text-player-teal sm:hidden">{cpu}</p>
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="truncate font-display text-lg font-bold">{opponentName}</p>
+
+          {/* Ada name/status + score (desktop middle) */}
+          <div className="hidden min-w-0 flex-1 sm:block">
+            <div className="flex items-center gap-2">
+              <p className="truncate font-display text-lg font-bold">{opponentName}</p>
+              {!isMulti && <ComputerIcon className="size-5" />}
+              <p className="font-display text-2xl font-bold text-player-teal">{cpu}</p>
+            </div>
             <p className="text-xs text-ivory/60">
               {state.turn === "cpu" && state.phase === "play" ? "Their turn" : "Waiting"}
             </p>
           </div>
-          <p className="font-display text-2xl font-bold text-player-teal">{cpu}</p>
+
+          {/* Player score + name/flag/status (desktop middle-right) */}
+          <div className="hidden min-w-0 flex-1 text-right sm:block">
+            <div className="flex items-center justify-end gap-2">
+              <p className="font-display text-2xl font-bold text-player-coral">{human}</p>
+              <NicknameDialog
+                onSaved={setPlayerName}
+                trigger={
+                  <button
+                    type="button"
+                    className="min-w-0 truncate text-right font-display text-lg font-bold hover:text-gold"
+                  >
+                    {playerName}
+                  </button>
+                }
+              />
+              <PlayerFlag flag={flag} onClick={() => setFlagOpen(true)} className="size-6" />
+            </div>
+            <p className="text-xs text-ivory/60">{myTurn ? "Your turn" : "Waiting"}</p>
+          </div>
+
+          {/* Player (right) */}
+          <div className="flex flex-col items-center gap-1.5 sm:flex-row sm:items-center sm:gap-2">
+            <PlayerAvatar
+              avatar={playerAvatar}
+              onSelect={setPlayerAvatar}
+              size="size-14"
+              countdown={state.turn === "human" ? countdown : 0}
+            />
+            <div className="flex items-center gap-2 sm:hidden">
+              <NicknameDialog
+                onSaved={setPlayerName}
+                trigger={
+                  <button
+                    type="button"
+                    className="min-w-0 truncate text-right font-display text-lg font-bold hover:text-gold"
+                  >
+                    {playerName}
+                  </button>
+                }
+              />
+              <PlayerFlag flag={flag} onClick={() => setFlagOpen(true)} className="size-6" />
+            </div>
+            <p className="font-display text-2xl font-bold text-player-coral sm:hidden">{human}</p>
+          </div>
         </section>
 
         {/* Board */}
         <section className="rounded-2xl border border-gold/25 bg-brand/70 p-4 shadow-2xl shadow-black/40 sm:p-6">
-          <div className="mx-auto grid w-full max-w-md grid-cols-8 overflow-hidden rounded-lg border-4 border-[#4a3524] shadow-xl">
-            {state.board.map((cell, index) => {
-              const { row, col } = cellRC(index);
-              const dark = isDark(row, col);
-              const isSelected = state.selected === index;
-              const isDest = selectedDestSet.has(index);
-              const isMovable = myTurn && state.selected === null && humanMovable.has(index);
-              const destIsCapture =
-                state.selected !== null && isDest && isCapture(state.board, state.selected, index);
-              return (
-                <button
-                  key={index}
-                  type="button"
-                  disabled={!dark}
-                  onClick={() => onSquareClick(index)}
-                  aria-label={
-                    dark
-                      ? cell
-                        ? `${cell.owner === "human" ? "Your" : `${opponentName}'s`} ${cell.king ? "king" : "man"} on ${squareName(index)}`
-                        : `Empty square ${squareName(index)}`
-                      : undefined
-                  }
-                  className={`relative aspect-square transition-colors ${
-                    dark ? "bg-[#7a5230]" : "bg-[#e6d2a5]"
-                  } ${isSelected ? "ring-2 ring-inset ring-gold" : ""}`}
-                >
-                  {cell && (
-                    <span
-                      className={`absolute inset-[10%] rounded-full border-2 shadow-md ${
-                        cell.owner === "human"
-                          ? "border-black/30 bg-player-coral"
-                          : "border-black/10 bg-player-teal"
-                      } ${isMovable ? "animate-checker-shine" : ""}`}
-                    >
-                      {cell.king && (
-                        <svg
-                          viewBox="0 0 24 24"
-                          className="absolute inset-0 m-auto size-[58%] text-gold"
-                          fill="currentColor"
-                          aria-hidden
-                        >
-                          <path d="M3 17h18l-1.4-8.4-3.6 3.2L12 5l-4 6.8-3.6-3.2L3 17z" />
-                        </svg>
-                      )}
-                    </span>
-                  )}
+          <div className="relative mx-auto w-full max-w-md overflow-hidden rounded-lg border-4 border-[#4a3524] shadow-xl">
+            <div className="grid grid-cols-8">
+              {state.board.map((cell, index) => {
+                const { row, col } = cellRC(index);
+                const dark = isDark(row, col);
+                const isSelected = state.selected === index;
+                const isDest = selectedDestSet.has(index);
+                const destIsCapture =
+                  state.selected !== null && isDest && isCapture(state.board, state.selected, index);
+                return (
+                  <button
+                    key={index}
+                    type="button"
+                    disabled={!dark}
+                    onClick={() => onSquareClick(index)}
+                    aria-label={
+                      dark
+                        ? cell
+                          ? `${cell.owner === "human" ? "Your" : `${opponentName}'s`} ${cell.king ? "king" : "man"} on ${squareName(index)}`
+                          : `Empty square ${squareName(index)}`
+                        : undefined
+                    }
+                    className={`relative aspect-square transition-colors ${
+                      dark ? "bg-[#7a5230]" : "bg-[#e6d2a5]"
+                    } ${isSelected ? "ring-2 ring-inset ring-gold" : ""}`}
+                  >
+                    {dark && isDest && (
+                      <span
+                        className={`absolute inset-0 m-auto ${
+                          destIsCapture
+                            ? "size-[72%] rounded-full border-2 border-player-coral"
+                            : "size-4 rounded-full bg-player-coral/50"
+                        }`}
+                      />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
 
-                  {dark && isDest && (
-                    <span
-                      className={`absolute inset-0 m-auto ${
-                        destIsCapture
-                          ? "size-[72%] rounded-full border-2 border-player-coral"
-                          : "size-4 rounded-full bg-player-coral/50"
-                      }`}
-                    />
-                  )}
-                </button>
+            {/* Pieces — rendered as an overlay so moves animate between squares. */}
+            {pieces.map(({ cell, index }) => {
+              const { row, col } = cellRC(index);
+              const isMovable = myTurn && state.selected === null && humanMovable.has(index);
+              return (
+                <div
+                  key={cell.id}
+                  className="pointer-events-none absolute left-0 top-0"
+                  style={{
+                    width: "12.5%",
+                    height: "12.5%",
+                    transform: `translate(${col * 100}%, ${row * 100}%)`,
+                    transition: "transform 300ms ease-out",
+                  }}
+                >
+                  <span
+                    className={`absolute inset-[10%] rounded-full border-2 shadow-md ${
+                      cell.owner === "human"
+                        ? "border-black/30 bg-player-coral"
+                        : "border-black/10 bg-player-teal"
+                    } ${isMovable ? "animate-checker-shine" : ""}`}
+                  >
+                    {cell.king && (
+                      <svg
+                        viewBox="0 0 24 24"
+                        className="absolute inset-0 m-auto size-[58%] text-gold"
+                        fill="currentColor"
+                        aria-hidden
+                      >
+                        <path d="M3 17h18l-1.4-8.4-3.6 3.2L12 5l-4 6.8-3.6-3.2L3 17z" />
+                      </svg>
+                    )}
+                  </span>
+                </div>
+              );
+            })}
+
+            {/* Captured pieces fade out here before leaving the board. */}
+            {dying.map((p) => {
+              const { row, col } = cellRC(p.index);
+              return (
+                <div
+                  key={p.key}
+                  className="pointer-events-none absolute left-0 top-0"
+                  style={{
+                    width: "12.5%",
+                    height: "12.5%",
+                    transform: `translate(${col * 100}%, ${row * 100}%)`,
+                  }}
+                >
+                  <span
+                    className={`absolute inset-[10%] rounded-full border-2 shadow-md animate-checker-captured ${
+                      p.owner === "human"
+                        ? "border-black/30 bg-player-coral"
+                        : "border-black/10 bg-player-teal"
+                    }`}
+                  >
+                    {p.king && (
+                      <svg
+                        viewBox="0 0 24 24"
+                        className="absolute inset-0 m-auto size-[58%] text-gold"
+                        fill="currentColor"
+                        aria-hidden
+                      >
+                        <path d="M3 17h18l-1.4-8.4-3.6 3.2L12 5l-4 6.8-3.6-3.2L3 17z" />
+                      </svg>
+                    )}
+                  </span>
+                </div>
               );
             })}
           </div>
@@ -600,33 +788,6 @@ function CheckersTable() {
           </p>
         </section>
 
-        {/* Player — bottom of the table */}
-        <section className="flex items-center gap-3 rounded-2xl border border-gold/15 bg-brand/50 p-4">
-          <PlayerAvatar
-            avatar={playerAvatar}
-            onSelect={setPlayerAvatar}
-            size="size-14"
-            countdown={state.turn === "human" ? countdown : 0}
-          />
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <NicknameDialog
-                onSaved={setPlayerName}
-                trigger={
-                  <button
-                    type="button"
-                    className="min-w-0 truncate text-left font-display text-lg font-bold hover:text-gold"
-                  >
-                    {playerName}
-                  </button>
-                }
-              />
-              <PlayerFlag flag={flag} onClick={() => setFlagOpen(true)} className="size-6" />
-            </div>
-            <p className="text-xs text-ivory/60">{myTurn ? "Your turn" : "Waiting"}</p>
-          </div>
-          <p className="font-display text-2xl font-bold text-player-coral">{human}</p>
-        </section>
       </div>
     </TableShell>
   );

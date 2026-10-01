@@ -15,6 +15,7 @@ import { RulesDialog } from "@/components/parlor/RulesDialog";
 import { getGame } from "@/lib/games";
 import { FavouriteSwitch } from "@/components/parlor/FavouriteSwitch";
 import { StatisticsDialog } from "@/components/parlor/StatisticsDialog";
+import { HistoryDialog } from "@/components/parlor/HistoryDialog";
 import { useSolitaireStats } from "@/lib/solitaireStats";
 import { CardMark } from "@/components/parlor/CardMark";
 import { RANK_LABEL, SUIT_SYMBOL, cardLabel, type Card } from "@/lib/cribbage";
@@ -439,6 +440,14 @@ function SolitaireTable() {
                     </Button>
                   }
                 />
+                <HistoryDialog
+                  game={game}
+                  trigger={
+                    <Button variant="parlorGhost" className="w-full">
+                      History
+                    </Button>
+                  }
+                />
                 <Button
                   variant="parlorGhost"
                   className="w-full"
@@ -478,6 +487,7 @@ function SolitaireTable() {
             <AlertDialogCancel>Keep playing</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
+                recordResult("abandoned");
                 if (confirming === "home") void navigate({ to: "/" });
                 else if (confirming === "new") reset();
                 setConfirming(null);

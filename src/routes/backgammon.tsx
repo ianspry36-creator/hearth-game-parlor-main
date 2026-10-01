@@ -205,6 +205,18 @@ function CloudChat({ text }: { text: string }) {
   );
 }
 
+/** A small computer badge shown in place of a flag for the CPU opponent (Ada). */
+function ComputerIcon({ className = "size-4" }: { className?: string }) {
+  return (
+    <img
+      src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f4bb.svg"
+      alt="Computer"
+      title="Computer"
+      className={`${className} shrink-0 rounded-sm border border-black/20 object-cover align-middle shadow-sm shadow-black/30`}
+    />
+  );
+}
+
 function BackgammonTable() {
   const game = getGame("backgammon");
   const navigate = useNavigate();
@@ -784,7 +796,7 @@ function BackgammonTable() {
       onNewGame={() => (isMulti ? navigate({ to: "/backgammon" }) : reset())}
       rail={null}
       containerClassName="px-3 sm:px-6"
-      boxClassName="px-2.5 sm:px-8"
+      boxClassName="px-2.5 pt-[5px] sm:px-8 sm:pt-2"
       menuExtra={
         <>
           <TableOptionsDialog tableGraphic={tableGraphic} onSelect={setTableGraphic} />
@@ -883,15 +895,20 @@ function BackgammonTable() {
 
       <div className="space-y-6 sm:space-y-1.5">
         {/* Opponent — top of the table */}
-        <div className="flex items-center justify-between gap-4 rounded-2xl border border-gold/15 bg-brand/50 p-4">
+        <div className="flex items-center justify-between gap-4 rounded-2xl border border-gold/15 bg-brand/50 p-3">
           <div className="flex items-center gap-3">
             <div className="relative inline-block">
               <img
                 src={opponentAvatar ?? ADA_AVATAR}
                 alt={opponentName}
-                width={64}
-                height={64}
+                width={56}
+                height={56}
                 className="size-14 rounded-full border-2 border-gold/40 bg-surface object-cover"
+              />
+              <span
+                aria-hidden
+                title="Opponent piece"
+                className="pointer-events-none absolute -bottom-0.5 -right-0.5 size-5 rounded-full border border-gold/40 bg-black"
               />
               {state.turn === "cpu" && countdown > 0 && <CountdownBadge seconds={countdown} />}
               {passBubble === "cpu" && <CloudChat text="Pass!" />}
@@ -900,7 +917,7 @@ function BackgammonTable() {
             <div>
               <div className="flex items-center gap-2">
                 <p className="font-display text-lg font-bold">{opponentName}</p>
-                <PlayerFlag flag={opponentFlag} />
+                {isMulti ? <PlayerFlag flag={opponentFlag} /> : <ComputerIcon className="size-5" />}
               </div>
               <p className="text-xs text-ivory/60">
                 {opponentComment}
@@ -960,17 +977,24 @@ function BackgammonTable() {
         {/* Player — bottom of the table */}
         <div className="flex items-center gap-4 rounded-2xl border border-gold/15 bg-brand/50 p-4">
           <div className="flex shrink-0 items-center gap-3">
-            <PlayerAvatar
-              avatar={playerAvatar}
-              onSelect={setPlayerAvatar}
-              size="size-14"
-              countdown={turnKey === "human" ? countdown : 0}
-              {...(passBubble === "human"
-                ? { message: "Pass!" }
-                : starterBubble === "human"
-                  ? { message: "I win starter throw. I go first" }
-                  : {})}
-            />
+            <div className="relative">
+              <PlayerAvatar
+                avatar={playerAvatar}
+                onSelect={setPlayerAvatar}
+                size="size-14"
+                countdown={turnKey === "human" ? countdown : 0}
+                {...(passBubble === "human"
+                  ? { message: "Pass!" }
+                  : starterBubble === "human"
+                    ? { message: "I win starter throw. I go first" }
+                    : {})}
+              />
+              <span
+                aria-hidden
+                title="Your piece"
+                className="pointer-events-none absolute bottom-[5px] right-[5px] size-5 rounded-full border border-black/20 bg-white"
+              />
+            </div>
             <div>
               <div className="flex items-center gap-2">
                 <NicknameDialog
@@ -1187,11 +1211,13 @@ function Board({
     if (!boardEl) return;
     const boardRect = boardEl.getBoundingClientRect();
     // Responsive checker metrics (mirrors the Tailwind classes on the checkers
-    // and points: size-4/sm:size-7.5, gap-0.5/sm:gap-1, p-0.5/sm:p-1.5).
+    // and points: size-4/sm:size-7, gap-0.5/sm:gap-0, p-0.5/sm:p-1.5).
     const isSm = window.matchMedia("(min-width: 640px)").matches;
-    const size = isSm ? 30 : 16;
-    const gap = isSm ? 4 : 2;
+    const size = isSm ? 28 : 16;
+    const gap = isSm ? 0 : 2;
     const pad = isSm ? 6 : 2;
+    // Desktop stacks of 5+ checkers overlap by 10% of the checker diameter.
+    const overlap = size * 0.1;
 
     // The fly container is `absolute inset-0` inside the board, so its (0,0)
     // sits at the board's *padding box* (inside the `border-4`), not the
@@ -1219,9 +1245,12 @@ function Board({
       // so the newest checker lands `count-1` steps above the base — i.e. above
       // the highest piece already sitting on the triangle.
       const stackIndex = Math.max(0, Math.min(count - 1, 7));
+      // Desktop checkers touch (gap 0), but a 5+ stack overlaps each checker by
+      // 10% instead, so the step between centres shrinks by `overlap`.
+      const step = count >= 5 && isSm ? size - overlap : size + gap;
       const y = top
-        ? r.top + pad + stackIndex * (size + gap) + size / 2 - boardRect.top - borderTop
-        : r.bottom - pad - size / 2 - stackIndex * (size + gap) - boardRect.top - borderTop;
+        ? r.top + pad + stackIndex * step + size / 2 - boardRect.top - borderTop
+        : r.bottom - pad - size / 2 - stackIndex * step - boardRect.top - borderTop;
       return { x, y };
     };
 
@@ -1373,7 +1402,7 @@ function Board({
           pointRefs.current[index] = el;
         }}
         onClick={() => (isDestination ? onMoveTo(index) : isSelectable ? onSelect(index) : undefined)}
-        className={`relative flex min-h-32 sm:min-h-63 flex-col ${top ? "justify-start" : "justify-end"} gap-0.5 p-0.5 sm:gap-1 sm:p-1.5 transition-shadow ${
+        className={`relative flex min-h-32 sm:min-h-49 flex-col ${top ? "justify-start" : "justify-end"} gap-0.5 p-0.5 sm:gap-0 sm:p-1.5 transition-shadow ${
           isDestination
             ? "ring-2 ring-gold ring-offset-1 ring-offset-[var(--board-surface)]"
             : isSelected
@@ -1397,9 +1426,9 @@ function Board({
           return (
             <span
               key={i}
-              className={`relative z-10 mx-auto flex size-4 items-center justify-center sm:size-7.5 rounded-full border ${
+              className={`relative z-10 mx-auto flex size-4 items-center justify-center sm:size-7 rounded-full border ${
                 count > 0 ? "border-[#6b5233] bg-white" : "border-[var(--opp-piece-border)] bg-[var(--opp-piece)]"
-              }`}
+              } ${i > 0 && Math.abs(count) >= 5 ? "sm:-mt-[2.8px]" : ""}`}
             >
               {isLast && overflow > 0 && (
                 <span className={`text-[9px] font-bold leading-none ${count > 0 ? "text-[#4a3520]" : "text-cream"}`}>
@@ -1416,7 +1445,7 @@ function Board({
   return (
     <div
       ref={boardRef}
-      className="relative flex flex-col gap-3 rounded-2xl border-4 border-[var(--board-border)] bg-[var(--board-surface)] p-3 shadow-2xl shadow-black/40"
+      className="relative flex w-full flex-col gap-3 rounded-2xl border-4 border-[var(--board-border)] bg-[var(--board-surface)] p-3 shadow-2xl shadow-black/40"
       style={
         {
           "--board-surface": p.surface,
@@ -1446,7 +1475,7 @@ function Board({
                 type="button"
                 title="Your piece — click to re-enter"
                 onClick={() => (selectable.includes("bar") ? onSelect("bar") : undefined)}
-                className={`relative flex size-4 sm:size-7.5 items-center justify-center rounded-full border p-0 transition-colors ${
+                className={`relative flex size-4 sm:size-7 items-center justify-center rounded-full border p-0 transition-colors ${
                   selected === "bar" ? "border-gold bg-white" : "border-[#6b5233] bg-white"
                 } ${
                   selectable.includes("bar") ? "cursor-pointer" : "cursor-default"
@@ -1464,7 +1493,7 @@ function Board({
               <span
                 key={`bar-opp-${i}`}
                 title="Opponent piece"
-                className="size-4 sm:size-7.5 rounded-full border border-[var(--opp-piece-border)] bg-[var(--opp-piece)]"
+                className="size-4 sm:size-7 rounded-full border border-[var(--opp-piece-border)] bg-[var(--opp-piece)]"
               />
             ))}
             {board.bar.human === 0 && board.bar.cpu === 0 && (
@@ -1510,7 +1539,7 @@ function Board({
           {flies.map((f) => (
             <span
               key={f.key}
-              className={`absolute flex size-4 sm:size-7.5 items-center justify-center -translate-x-1/2 -translate-y-1/2 rounded-full border-2 transition-all duration-1000 ease-in-out ${
+              className={`absolute flex size-4 sm:size-7 items-center justify-center -translate-x-1/2 -translate-y-1/2 rounded-full border-2 transition-all duration-1000 ease-in-out ${
                 f.side === "human" ? "border-[#6b5233] bg-white" : "border-[var(--opp-piece-border)] bg-[var(--opp-piece)]"
               } ${f.arrived && f.settled ? "opacity-0" : "opacity-100"}`}
               style={{

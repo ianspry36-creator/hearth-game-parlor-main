@@ -28,6 +28,7 @@ export function TableShell({
   opponentStatus,
   onMatched,
   onNewGame,
+  onAbandon,
   gameInProgress = false,
   rail,
   middle,
@@ -55,6 +56,7 @@ export function TableShell({
   opponentStatus: string;
   onMatched: (opponent: string, matchId: string) => void;
   onNewGame: () => void;
+  onAbandon?: () => void;
   gameInProgress?: boolean;
   rail?: ReactNode;
   middle?: ReactNode;
@@ -259,6 +261,7 @@ export function TableShell({
                     <AlertDialogCancel>Keep playing</AlertDialogCancel>
                     <AlertDialogAction
                       onClick={() => {
+                        onAbandon?.();
                         if (confirming === "home") void navigate({ to: "/" });
                         else if (confirming === "human") setHumanOpen(true);
                         else if (confirming === "new") onNewGame();

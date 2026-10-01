@@ -15,6 +15,7 @@ import { RulesDialog } from "@/components/parlor/RulesDialog";
 import { getGame } from "@/lib/games";
 import { FavouriteSwitch } from "@/components/parlor/FavouriteSwitch";
 import { StatisticsDialog } from "@/components/parlor/StatisticsDialog";
+import { HistoryDialog } from "@/components/parlor/HistoryDialog";
 import { useSolitaireStats } from "@/lib/solitaireStats";
 import { CardMark } from "@/components/parlor/CardMark";
 import { RANK_LABEL, SUIT_SYMBOL, cardLabel, type Card, type Suit } from "@/lib/cribbage";
@@ -107,11 +108,11 @@ function AddictionTable() {
     setSelection(null);
     setFinishedElapsed(null);
     setElapsed(0);
-    startRef.current = Date.now();
+    startRef.current = 0;
     endedRef.current = false;
 
     const id = window.setInterval(() => {
-      if (!endedRef.current) setElapsed(Math.floor((Date.now() - startRef.current) / 1000));
+      if (!endedRef.current && startRef.current !== 0) setElapsed(Math.floor((Date.now() - startRef.current) / 1000));
     }, 250);
 
     try {
@@ -124,6 +125,11 @@ function AddictionTable() {
 
     return () => window.clearInterval(id);
   }, []);
+
+  // Start the clock on the first move rather than when the hand is dealt.
+  useEffect(() => {
+    if (startRef.current === 0 && state.moves > 0) startRef.current = Date.now();
+  }, [state.moves]);
 
   useEffect(() => {
     const over = state.won || lost;
@@ -151,6 +157,17 @@ function AddictionTable() {
   const targets = selection ? legalTargets(state.board, selection) : [];
   const targetSet = new Set(targets.map((t) => `${t.row}:${t.col}`));
 
+  // Every card that currently has at least one legal empty slot to move into.
+  const movableSet = new Set<string>();
+  for (let r = 0; r < state.board.length; r += 1) {
+    for (let c = 0; c < state.board[r]!.length; c += 1) {
+      const card = state.board[r]![c];
+      if (card && legalTargets(state.board, { row: r, col: c }).length > 0) {
+        movableSet.add(`${r}:${c}`);
+      }
+    }
+  }
+
   const apply = (candidate: GameState) => {
     if (candidate === state) return;
     setHistory((h) => [...h, state]);
@@ -164,7 +181,7 @@ function AddictionTable() {
     setSelection(null);
     setFinishedElapsed(null);
     setElapsed(0);
-    startRef.current = Date.now();
+    startRef.current = 0;
     endedRef.current = false;
   };
 
@@ -219,8 +236,8 @@ function AddictionTable() {
   const remaining = shufflesRemaining(state);
 
   return (
-    <div className="min-h-screen text-cream">
-      <div className="mx-auto max-w-6xl px-1.5 py-8 sm:px-6">
+    <div className="text-cream">
+      <div className="mx-auto max-w-6xl px-1.5 pt-8 pb-1.5 sm:px-6">
         <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <Link
@@ -274,6 +291,7 @@ function AddictionTable() {
                             selected={selected}
                             isTarget={isTarget}
                             correct={correct}
+                            movable={movableSet.has(`${r}:${c}`)}
                             onClick={() => clickSlot(pos)}
                             onDoubleClick={() => doubleClickSlot(pos)}
                           />
@@ -353,6 +371,14 @@ function AddictionTable() {
                     </Button>
                   }
                 />
+                <HistoryDialog
+                  game={game}
+                  trigger={
+                    <Button variant="parlorGhost" className="w-full">
+                      History
+                    </Button>
+                  }
+                />
                 <Button
                   variant="parlorGhost"
                   className="w-full"
@@ -392,6 +418,7 @@ function AddictionTable() {
             <AlertDialogCancel>Keep playing</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
+                recordResult("abandoned");
                 if (confirming === "home") void navigate({ to: "/" });
                 else if (confirming === "new") reset();
                 setConfirming(null);
@@ -421,6 +448,7 @@ function CardCell({
   selected,
   isTarget,
   correct,
+  movable,
   onClick,
   onDoubleClick,
 }: {
@@ -428,6 +456,7 @@ function CardCell({
   selected: boolean;
   isTarget: boolean;
   correct: boolean;
+  movable: boolean;
   onClick: () => void;
   onDoubleClick: () => void;
 }) {
@@ -459,7 +488,7 @@ function CardCell({
       aria-label={cardLabel(card)}
       className={`relative block h-[var(--ad-card-h)] w-[var(--ad-card-w)] shrink-0 select-none rounded-lg border border-black/10 bg-white text-left shadow-md shadow-black/30 transition-transform ${
         red ? "text-[#c0392b]" : "text-ink"
-      } ${selected ? "-translate-y-1 ring-2 ring-gold" : ""}`}
+      } ${selected ? "-translate-y-1 ring-2 ring-gold" : movable ? "ring-2 ring-gold/60" : ""}`}
     >
       <span className="absolute left-0.5 top-0.5 flex flex-col items-center font-display text-[9px] font-bold leading-none sm:left-1 sm:top-1 sm:text-sm">
         <span>{RANK_LABEL[card.rank]}</span>

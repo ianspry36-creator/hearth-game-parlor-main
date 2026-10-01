@@ -551,6 +551,36 @@
   animation: deal-out 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
 }
 
+@keyframes deal-out-left {
+  0% {
+    opacity: 0;
+    transform: translate(-140px, 20px) scale(0.85);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+}
+
+@utility animate-deal-out-left {
+  animation: deal-out-left 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+
+@keyframes deal-out-right {
+  0% {
+    opacity: 0;
+    transform: translate(140px, 20px) scale(0.85);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+}
+
+@utility animate-deal-out-right {
+  animation: deal-out-right 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+
 @keyframes deal-in-player {
   0% {
     opacity: 0;
@@ -825,14 +855,14 @@
 :root {
   --clock-card-h: 86px;
   --clock-card-w: 62px;
-  --clock-overlap: 72px;
+  --clock-overlap: 18px;
 }
 
 @media (max-width: 639.98px) {
   :root {
     --clock-card-h: 50px;
     --clock-card-w: 36px;
-    --clock-overlap: 41.5px;
+    --clock-overlap: 10.4px;
   }
 }
 
@@ -856,10 +886,10 @@
 
 /* Tri Peaks Solitaire responsive card sizing — three peaks plus a stock and waste */
 :root {
-  --tripeaks-card-h: 76px;
-  --tripeaks-card-w: 52px;
+  --tripeaks-card-h: 101px;
+  --tripeaks-card-w: 69px;
   /* Cards sit side by side with no horizontal overlap, a few pixels apart. */
-  --tripeaks-step-x: 56px;
+  --tripeaks-step-x: 75px;
   /* Every tier overlaps the one below it by half a card's height. */
   --tripeaks-step-y: calc(var(--tripeaks-card-h) / 2);
 }
@@ -917,4 +947,20 @@
 
 @utility animate-checker-shine {
   animation: checker-shine 1.2s ease-in-out infinite;
+}
+
+/* Checkers — a captured piece fades and shrinks away instead of vanishing. */
+@keyframes checker-captured {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+}
+
+@utility animate-checker-captured {
+  animation: checker-captured 300ms ease-out forwards;
 }

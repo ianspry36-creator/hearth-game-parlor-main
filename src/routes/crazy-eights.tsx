@@ -48,6 +48,8 @@ import { Clock } from "lucide-react";
 
 const FLIGHT_MS = 550;
 const STAGGER_MS = 400;
+/** Deal reveal interval — slowed 100% from the original 210ms. */
+const DEAL_STEP_MS = 420;
 /** Pause before the end-of-hand scorecard appears so the winning play can land. */
 const SCORECARD_DELAY_MS = 3000;
 
@@ -324,6 +326,8 @@ function CrazyEightsTable() {
   const [flagOpen, setFlagOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [dealt, setDealt] = useState(HAND_SIZE * 2);
+  /** Whether the player has pressed "Deal" for the current hand. */
+  const [dealRequested, setDealRequested] = useState(Boolean(matchId) || Boolean(roomId));
   const [flying, setFlying] = useState<FlyingCard[]>([]);
   /** Card currently being drawn from the stock; hidden in its hand until the flight lands. */
   const [drawingId, setDrawingId] = useState<string | null>(null);
@@ -341,6 +345,9 @@ function CrazyEightsTable() {
   const drawingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** Re-entrancy guard so a second lay can't start while one is mid-flight. */
   const layingRef = useRef(false);
+  /** Cards just laid by the player (and the draw count at the time), kept to
+   *  take back a wild eight from the suit chooser. */
+  const lastPlayedRef = useRef<{ cards: Card[]; drew: number }>({ cards: [], drew: 0 });
   const stateRef = useRef(state);
   stateRef.current = state;
   // Remember that we asked to switch off the timer, so the accept/decline
@@ -367,18 +374,24 @@ function CrazyEightsTable() {
   // Key on the deal id rather than `pile[0]` — recycling the discard pile would
   // otherwise change the key and replay the whole deal mid-game.
   const handKey = state.dealId ?? state.pile[0]?.id ?? "";
+  // Reset the deal whenever a fresh hand is turned up. Live tables deal as soon
+  // as the new state arrives; solo games wait for the player to press "Deal".
   useEffect(() => {
     setDealt(0);
+    setDealRequested(isLive);
+  }, [handKey, activeCount, isLive]);
+  useEffect(() => {
+    if (!dealRequested) return;
     let step = 0;
     const total = HAND_SIZE * activeCount;
     const timer = setInterval(() => {
       step += 1;
       setDealt(step);
       if (step >= total) clearInterval(timer);
-    }, 140);
+    }, DEAL_STEP_MS);
     return () => clearInterval(timer);
-  }, [handKey, activeCount]);
-  const dealing = dealt < HAND_SIZE * activeCount;
+  }, [dealRequested, handKey, activeCount]);
+  const dealing = !dealRequested || dealt < HAND_SIZE * activeCount;
 
   // Dismiss the "View hand" overlay whenever a fresh hand is dealt — including a
   // rematch accepted by the opponent, which starts a new game over the wire and
@@ -728,6 +741,7 @@ function CrazyEightsTable() {
   const playCardsNow = (cards: Card[]) => {
     if (layingRef.current) return;
     layingRef.current = true;
+    lastPlayedRef.current = { cards, drew: stateRef.current.drew };
     const pileRect = pileRef.current?.getBoundingClientRect();
     const flights: FlyingCard[] = [];
     if (pileRect) {
@@ -775,6 +789,54 @@ function CrazyEightsTable() {
   const pickSuit = (suit: Suit) => {
     if (!iChooseSuit) return;
     apply((current) => nominate(current, "you", suit));
+  };
+
+  /** Take back a wild eight: return the laid eights to the hand and fly them home. */
+  const cancelSuit = () => {
+    if (!iChooseSuit) return;
+    const { cards: played, drew } = lastPlayedRef.current;
+    if (!played.length) return;
+    const pileRect = pileRef.current?.getBoundingClientRect();
+    setSelectedIds([]);
+    // Hide the returned eights in the hand until their flight back lands.
+    setLayingIds(played.map((c) => c.id));
+    apply((current) => ({
+      ...current,
+      pile: current.pile.slice(0, current.pile.length - played.length),
+      hands: { ...current.hands, you: [...current.hands.you, ...played] },
+      phase: "play",
+      wildSuit: null,
+      drew,
+      log: note(current.log, { side: "you", text: "take back the eight." }),
+    }));
+    lastPlayedRef.current = { cards: [], drew: 0 };
+    if (!pileRect) {
+      setLayingIds([]);
+      return;
+    }
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const flights: FlyingCard[] = played
+          .map((card, index) => {
+            const el = handEls.current.get(card.id);
+            const rect = el?.getBoundingClientRect();
+            return rect
+              ? {
+                  key: Date.now() + index,
+                  card,
+                  from: { x: pileRect.left, y: pileRect.top },
+                  to: { x: rect.left, y: rect.top },
+                }
+              : null;
+          })
+          .filter((f): f is FlyingCard => f !== null);
+        scheduleFlights(flights);
+        window.setTimeout(
+          () => setLayingIds([]),
+          (flights.length - 1) * STAGGER_MS + FLIGHT_MS,
+        );
+      });
+    });
   };
 
   const draw = () => {
@@ -1030,7 +1092,7 @@ function CrazyEightsTable() {
   // fill the row. On small screens the hand starts overlapping once it reaches
   // OVERLAP_AT cards so it stays comfortably on screen. `CARD_W - 1` keeps at
   // least 1px of every card visible.
-  const CARD_W = isMobile ? 65 : 81;
+  const CARD_W = isMobile ? 37 : activeCount === 2 ? 87 : 79;
   const MIN_GAP = 5;
   /** Number of cards at which a small-screen hand starts to overlap. */
   const OVERLAP_AT = 5;
@@ -1041,6 +1103,20 @@ function CrazyEightsTable() {
     if (fit <= 0) return isMobile && n >= OVERLAP_AT ? MIN_GAP : -MIN_GAP;
     return Math.min(CARD_W - 1, fit);
   })();
+
+  // Number of cards currently on the player's fan. During the deal cards are
+  // revealed one at a time, so the fan grows card by card; once dealt it simply
+  // tracks the hand size.
+  const handShownCount = dealing
+    ? Math.min(HAND_SIZE, Math.max(0, Math.floor((dealt - 1) / playerCount) + 1))
+    : myHand.length;
+  // Current pixel width of the fan, and the left shift that keeps it centred in
+  // the measured hand row. Animating `handShift` (a CSS transition on the hand
+  // row's transform) makes already-dealt cards slide left smoothly as each new
+  // card lands instead of snapping.
+  const fanWidth =
+    handShownCount <= 0 ? 0 : CARD_W + (handShownCount - 1) * Math.max(0, CARD_W - handOverlap);
+  const handShift = Math.max(0, (handWidth - fanWidth) / 2);
 
   // Rematch flow: "you" means we asked; any other seat means someone asked us.
   const rematchOutgoing = isLive && state.rematch === "you";
@@ -1075,7 +1151,7 @@ function CrazyEightsTable() {
         });
         reset();
       }}
-      onNewGame={() => (isLive ? navigate({ to: "/crazy-eights" }) : startGame(2))}
+      onNewGame={() => (isLive ? navigate({ to: "/crazy-eights" }) : startGame(playerCount))}
       rail={null}
       menuExtra={
         <TurnOffTimerControl
@@ -1164,7 +1240,7 @@ function CrazyEightsTable() {
         </section>
 
         {/* Opponents: Ada up top (centered); Ace and Leo flank the stock */}
-        <div className="flex justify-center">
+        <div className="-mt-1.5 flex justify-center sm:-mt-3">
           <OpponentSeat
             name={seatName("ada")}
             timedOut={(state.timedOut ?? []).includes("ada")}
@@ -1184,7 +1260,7 @@ function CrazyEightsTable() {
           />
         </div>
 
-        <div className="grid grid-cols-[1fr_auto_1fr] items-center justify-items-center gap-3">
+        <div className="-mt-2 grid min-h-[147px] grid-cols-[1fr_auto_1fr] items-start justify-items-center gap-3 sm:min-h-[239px] sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:-mt-4">
           <div className="flex items-center">
             {hasAce ? (
               <OpponentSeat
@@ -1210,55 +1286,67 @@ function CrazyEightsTable() {
           </div>
 
           {/* Stock and discard */}
-          <section className="relative justify-self-center">
+          <section className="relative mt-14 flex min-w-[124px] justify-center justify-self-center md:mt-20 md:min-w-[164px]">
             <div className="flex flex-wrap items-center justify-center gap-1.5">
+              {/* Deck (face-down stock) — always visible; it becomes the draw pile after the deal */}
               <div className="text-center">
-                <button
-                  type="button"
-                  onClick={draw}
-                  disabled={!myTurn || state.drew >= MAX_DRAWS || !state.deck.length || canPlayNow}
-                  aria-label="Draw a card"
-                  ref={stockRef}
-                  className="block transition-transform enabled:hover:-translate-y-1 disabled:opacity-60"
-                >
+                {dealRequested ? (
+                  <button
+                    type="button"
+                    onClick={draw}
+                    disabled={!myTurn || state.drew >= MAX_DRAWS || !state.deck.length || canPlayNow}
+                    aria-label="Draw a card"
+                    ref={stockRef}
+                    className="block transition-transform enabled:hover:-translate-y-1 disabled:opacity-60"
+                  >
+                    <FaceDownCard table />
+                  </button>
+                ) : (
                   <FaceDownCard table />
-                </button>
+                )}
               </div>
-              <div className="text-center" ref={pileRef}>
-                <div className="relative">
-                  <PlayingCard card={top} table />
-                  {state.wildSuit && (
-                    <span
-                      aria-hidden
-                      className="pointer-events-none absolute inset-0 z-10 grid place-items-center"
-                    >
+              {/* Deal button sits to the right of the deck; the up card replaces it once dealt */}
+              {!dealRequested ? (
+                <Button variant="parlor" onClick={() => setDealRequested(true)}>
+                  Deal
+                </Button>
+              ) : (
+                <div className="text-center" ref={pileRef}>
+                  <div className={`relative ${dealing ? "invisible" : ""}`}>
+                    <PlayingCard card={top} table />
+                    {state.wildSuit && (
                       <span
-                        className={`grid size-[35px] place-items-center rounded-full border border-gold/60 bg-white/95 font-display text-xl shadow-lg shadow-black/40 ${
-                          isRed(state.wildSuit) ? "text-destructive" : "text-ink"
-                        }`}
+                        aria-hidden
+                        className="pointer-events-none absolute inset-0 z-10 grid place-items-center"
                       >
-                        {SUIT_SYMBOL[state.wildSuit]}
+                        <span
+                          className={`grid size-[35px] place-items-center rounded-full border border-gold/60 bg-white/95 font-display text-xl shadow-lg shadow-black/40 ${
+                            isRed(state.wildSuit) ? "text-destructive" : "text-ink"
+                          }`}
+                        >
+                          {SUIT_SYMBOL[state.wildSuit]}
+                        </span>
                       </span>
-                    </span>
-                  )}
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
             {iChooseSuit && (
               <div
                 role="dialog"
                 aria-label="Name a suit"
-                className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-1.5 rounded-2xl bg-brand/95 p-3"
+                className="absolute left-1/2 top-1/2 z-20 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center gap-2.5 rounded-2xl bg-brand/95 px-6 py-5 shadow-2xl shadow-black/40"
               >
-                <p className="text-[12.5px] uppercase tracking-[0.2em] text-gold">Name a suit</p>
-                <div className="flex gap-1.5">
+                <p className="text-base uppercase tracking-[0.2em] text-gold">Name a suit</p>
+                <div className="flex gap-2">
                   {SUITS.map((suit) => (
                     <button
                       key={suit}
                       type="button"
                       onClick={() => pickSuit(suit)}
                       aria-label={SUIT_NAME[suit]}
-                      className={`grid size-[35px] place-items-center rounded-md border border-gold/40 bg-cream font-display text-xl transition-transform hover:-translate-y-0.5 hover:border-gold ${
+                      className={`grid size-11 place-items-center rounded-md border border-gold/40 bg-white font-display text-2xl transition-transform hover:-translate-y-0.5 hover:border-gold ${
                         isRed(suit) ? "text-destructive" : "text-ink"
                       }`}
                     >
@@ -1266,6 +1354,13 @@ function CrazyEightsTable() {
                     </button>
                   ))}
                 </div>
+                <button
+                  type="button"
+                  onClick={cancelSuit}
+                  className="mt-0.5 text-[11px] uppercase tracking-[0.18em] text-ivory/60 transition-colors hover:text-ivory"
+                >
+                  Cancel
+                </button>
               </div>
             )}
           </section>
@@ -1297,19 +1392,26 @@ function CrazyEightsTable() {
         </div>
 
         {/* Your hand */}
-        <section>
+        <section className="-mt-2 sm:-mt-4">
           <div className="mb-2 flex justify-center">
             <div
               className={`rounded-full border px-4 py-1.5 font-display text-sm tracking-wide ${
                 state.turn === "you" && state.phase !== "over"
                   ? "border-gold/60 bg-gold/10 text-gold"
                   : "border-ivory/15 bg-ivory/5 text-ivory/70"
-              }`}
+              } ${dealRequested ? "" : "invisible"}`}
             >
               {turnLabel}
             </div>
           </div>
-          <div ref={handRef} className="flex items-end justify-center">
+          <div
+            ref={handRef}
+            className="flex items-end transition-transform duration-300 ease-out"
+            style={{
+              transform: `translateX(${handShift}px)`,
+              ...(dealing ? { minHeight: isMobile ? 57 : 119 } : {}),
+            }}
+          >
             {myHand.map((card, index) => {
               const arrived = !dealing || dealt > index * playerCount;
               if (!arrived) return null;
@@ -1335,60 +1437,65 @@ function CrazyEightsTable() {
                     drawingId === card.id || layingIds.includes(card.id) ? "invisible" : ""
                   }`}
                 >
-                  <PlayingCard card={card} medium highlighted={chosen} />
+                  <PlayingCard card={card} small highlighted={chosen} />
                 </button>
               );
             })}
           </div>
-          <div className="mt-3 flex items-center justify-center gap-3">
-            <div className="relative">
-              <PlayerAvatar
-                avatar={playerAvatar}
-                onSelect={setPlayerAvatar}
-                size="size-[54px]"
-                countdown={state.turn === "you" ? countdown : 0}
-              />
-              {(state.timedOut ?? []).includes("you") && (
-                <span className="absolute bottom-0 left-1/2 z-10 grid size-5 -translate-x-1/2 translate-y-1/2 place-items-center rounded-full bg-red-600 text-cream ring-2 ring-brand">
-                  <Clock className="size-3" />
-                </span>
+          <div className="mt-3 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+            <div className="flex items-center justify-start">
+              {myTurn && !canPlaySelected && !canPlayNow && state.drew < MAX_DRAWS && state.deck.length > 0 && (
+                <Button variant="parlor" onClick={draw}>
+                  Draw a card
+                </Button>
               )}
             </div>
-            <div className="flex items-center gap-2">
-              <NicknameDialog
-                onSaved={() => setNicknameVersion((v) => v + 1)}
-                trigger={
-                  <button
-                    type="button"
-                    className="text-[12.5px] uppercase tracking-[0.22em] text-ivory/45 hover:text-gold"
-                  >
-                    {seatName("you")}
-                  </button>
-                }
-              />
-              <PlayerFlag flag={flag} className="size-6" onClick={() => setFlagOpen(true)} />
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <PlayerAvatar
+                  avatar={playerAvatar}
+                  onSelect={setPlayerAvatar}
+                  size="size-[49px] md:size-[68px]"
+                  countdown={state.turn === "you" ? countdown : 0}
+                />
+                {(state.timedOut ?? []).includes("you") && (
+                  <span className="absolute bottom-0 left-1/2 z-10 grid size-5 -translate-x-1/2 translate-y-1/2 place-items-center rounded-full bg-red-600 text-cream ring-2 ring-brand">
+                    <Clock className="size-3" />
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <NicknameDialog
+                  onSaved={() => setNicknameVersion((v) => v + 1)}
+                  trigger={
+                    <button
+                      type="button"
+                      className="text-[12.5px] uppercase tracking-[0.22em] text-ivory/45 hover:text-gold"
+                    >
+                      {seatName("you")}
+                    </button>
+                  }
+                />
+                <PlayerFlag flag={flag} className="size-6" onClick={() => setFlagOpen(true)} />
+              </div>
             </div>
-          </div>
-          <div className="mt-5 flex min-h-9 flex-wrap items-center gap-3">
-            {canPlaySelected && (
-              <Button variant="parlor" onClick={playSelected}>
-                Play {selectedCards.map(cardLabel).join(", ")}
-              </Button>
-            )}
-            {myTurn && !canPlaySelected && !canPlayNow && state.drew < MAX_DRAWS && state.deck.length > 0 && (
-              <Button variant="parlor" onClick={draw}>
-                Draw a card
-              </Button>
-            )}
-            <Button
-              variant="parlorOutline"
-              onClick={sortHand}
-              disabled={!myHand.length}
-              aria-label="Sort your hand"
-              className="ml-auto"
-            >
-              Sort
-            </Button>
+            <div className="flex items-center justify-end gap-3">
+              {canPlaySelected && (
+                <Button variant="parlor" onClick={playSelected}>
+                  Play {selectedCards.map(cardLabel).join(", ")}
+                </Button>
+              )}
+              {!dealing && (
+                <Button
+                  variant="parlorOutline"
+                  onClick={sortHand}
+                  disabled={!myHand.length}
+                  aria-label="Sort your hand"
+                >
+                  Sort
+                </Button>
+              )}
+            </div>
           </div>
         </section>
       </div>
@@ -1438,6 +1545,26 @@ function OpponentSeat({
   timedOut?: boolean;
   countdown?: number;
 }) {
+  const isMobile = useIsMobile();
+  // Face-down cards are 57px tall on mobile and 119px on desktop.
+  const cardH = isMobile ? 57 : 119;
+  // The normal overlap leaves this much of each card visible.
+  const normalReveal = isMobile ? 15 : 20;
+  // Reserve room for a full 7-card hand at the normal reveal.
+  const reserve = cardH + 6 * normalReveal;
+  // For hands larger than 7 cards, tighten the reveal so the stack never
+  // outgrows the reserved space.
+  const reveal = Math.min(normalReveal, (reserve - cardH) / Math.max(1, cards.length - 1));
+  const overlap = cardH - reveal;
+  // Direction the freshly-dealt cards fly in from: Ada's rise up from the pack
+  // below, while the flanking seats (Ace/Leo) fly in from the centre of the table.
+  const dealAnim = dealing
+    ? vertical
+      ? avatarSide === "right"
+        ? "animate-deal-out-left"
+        : "animate-deal-out-right"
+      : "animate-deal-out"
+    : "";
   return (
     <div className={vertical ? `flex items-center gap-2 md:gap-4 ${avatarSide === "right" ? "flex-row-reverse" : ""}` : ""}>
       <div className={`flex items-center gap-3 ${vertical ? "flex-col gap-1" : "mb-2 justify-center"}`}>
@@ -1446,9 +1573,9 @@ function OpponentSeat({
             src={avatar}
             alt=""
             aria-hidden="true"
-            className={`rounded-full border object-cover ${
-              vertical ? "size-[54px] md:size-[90px]" : "size-[54px] md:size-[75px]"
-            } ${active ? "border-gold ring-2 ring-gold/40" : "border-gold/40"}`}
+            className={`rounded-full border object-cover size-[49px] md:size-[68px] ${
+              active ? "border-gold ring-2 ring-gold/40" : "border-gold/40"
+            }`}
           />
           {timedOut && (
             <span className="absolute bottom-0 left-1/2 z-10 grid size-5 -translate-x-1/2 translate-y-1/2 place-items-center rounded-full bg-red-600 text-cream ring-2 ring-brand">
@@ -1485,10 +1612,10 @@ function OpponentSeat({
           </div>
         )}
       </div>
-      {/* Reserve vertical space for up to 10 stacked cards (h-[63px] minus -mt-[47px]
-          overlap = 16px each, so 63 + 9*16 = 207px) so the side seats don't
-          make the screen grow deeper card-by-card while dealing. */}
-      <div className={vertical ? "flex min-h-[207px] flex-col items-center md:min-h-[335px]" : "flex"}>
+      <div
+        className={vertical ? "flex flex-col items-center" : "flex"}
+        style={dealing ? { minHeight: vertical ? reserve : cardH } : undefined}
+      >
         {cards.map((card, index) => {
           const arrived = !dealing || dealt > index * playerCount + seatIndex;
           if (!arrived) return null;
@@ -1499,9 +1626,10 @@ function OpponentSeat({
                 if (el) handEls.set(card.id, el);
                 else handEls.delete(card.id);
               }}
-              className={`${vertical ? "-mt-[47px] first:mt-0 md:-mt-[85px]" : "-ml-[26px] first:ml-0 md:-ml-[48px]"} ${
-                dealing ? "animate-deal-out" : ""
-              } ${hiddenId === card.id || layingIds.includes(card.id) ? "invisible" : ""}`}
+              className={`${vertical ? "" : "-ml-[23px] first:ml-0 md:-ml-[43px]"} ${dealAnim} ${
+                hiddenId === card.id || layingIds.includes(card.id) ? "invisible" : ""
+              }`}
+              style={vertical ? { marginTop: index === 0 ? 0 : -overlap } : undefined}
             >
               <FaceDownCard small className={rotation} />
             </span>
@@ -1560,7 +1688,11 @@ function FaceDownCard({
       aria-hidden="true"
       loading="lazy"
       className={`block rounded-lg object-cover shadow-md shadow-black/30 ${
-        small ? "h-[63px] w-[41px] md:h-[110px] md:w-[73px]" : table ? "h-[95px] w-[65px] md:h-[108px] md:w-[74px]" : "h-[96px] w-16 md:h-[108px] md:w-[72px]"
+        small
+          ? "h-[57px] w-[37px] md:h-[119px] md:w-[79px]"
+          : table
+            ? "h-[86px] w-[59px] md:h-[119px] md:w-[79px]"
+            : "h-[96px] w-16 md:h-[108px] md:w-[72px]"
       } ${className}`}
     />
   );
@@ -1591,11 +1723,11 @@ function PlayingCard({
         tiny
           ? "h-16 w-[44px] md:h-[72px] md:w-[50px]"
           : small
-            ? "h-[72px] w-12 md:h-[81px] md:w-[54px]"
+            ? "h-[57px] w-[37px] md:h-[119px] md:w-[79px]"
             : medium
               ? "h-[97px] w-[65px] md:h-[122px] md:w-[81px]"
               : table
-                ? "h-[95px] w-[65px] md:h-[108px] md:w-[74px]"
+                ? "h-[86px] w-[59px] md:h-[119px] md:w-[79px]"
                 : "h-[112px] w-[76px] md:h-[126px] md:w-[86px]"
       } ${highlighted ? "border-gold ring-2 ring-gold" : "border-black/10"} ${
         red ? "text-destructive" : "text-ink"
