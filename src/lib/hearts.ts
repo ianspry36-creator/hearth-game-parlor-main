@@ -70,7 +70,7 @@ export function emptyPoints(): Record<Seat, number> {
 
 const SUIT_ORDER: Record<Suit, number> = { C: 0, D: 1, S: 2, H: 3 };
 
-function sortHand(hand: Card[]): Card[] {
+export function sortHand(hand: Card[]): Card[] {
   // Ace sorts high (above the king) so it sits at the far end of the fan.
   return [...hand].sort(
     (a, b) => SUIT_ORDER[a.suit] - SUIT_ORDER[b.suit] || rankValue(a) - rankValue(b),
@@ -79,15 +79,19 @@ function sortHand(hand: Card[]): Card[] {
 
 let dealCounter = 0;
 
-export function dealHand(random: () => number): { hands: Record<Seat, Card[]>; holder: Seat } {
+export function dealHand(
+  random: () => number,
+  sortYou = true,
+): { hands: Record<Seat, Card[]>; holder: Seat } {
   const deck = freshDeck(random);
   const hands: Record<Seat, Card[]> = { you: [], ace: [], ada: [], leo: [] };
   SEATS.forEach((seat, i) => {
     const cards = deck.slice(i * 13, i * 13 + 13);
-    // Only the player's hand is sorted for readability. Computer hands stay in
-    // dealt (shuffled) order so their chosen pass cards aren't clustered at the
-    // tail of the fan.
-    hands[seat] = seat === "you" ? sortHand(cards) : cards;
+    // The player's hand is normally sorted for readability. When `sortYou` is
+    // false (the animated solo deal) it keeps its dealt (shuffled) order so the
+    // cards fly out randomly and are sorted once they land. Computer hands stay
+    // in dealt order so their chosen pass cards aren't clustered at the tail.
+    hands[seat] = seat === "you" && sortYou ? sortHand(cards) : cards;
   });
   let holder: Seat = "you";
   for (const seat of SEATS) {
@@ -100,9 +104,10 @@ export function initGame(
   random: () => number,
   handNumber = 1,
   points: Record<Seat, number> = emptyPoints(),
+  sortYou = true,
 ): State {
   const direction = passDirectionForHand(handNumber);
-  const { hands, holder } = dealHand(random);
+  const { hands, holder } = dealHand(random, sortYou);
   return {
     phase: direction === "hold" ? "playing" : "passing",
     turn: holder,
@@ -224,17 +229,39 @@ export function setPass(state: State, seat: Seat, cardIds: string[]): State {
 }
 
 function applyPass(state: State): State {
-  const hands = { ...state.hands };
+  const hands: Record<Seat, Card[]> = { you: [], ace: [], ada: [], leo: [] };
   const receiving: Record<Seat, Card[]> = { you: [], ace: [], ada: [], leo: [] };
+  const gaps: Record<Seat, number[]> = { you: [], ace: [], ada: [], leo: [] };
   for (const from of SEATS) {
     const target = passTarget(state.order, from, state.passDirection);
     const ids = new Set(state.passSelections[from] ?? []);
-    const toPass = (state.hands[from] ?? []).filter((c) => ids.has(c.id));
-    hands[from] = (state.hands[from] ?? []).filter((c) => !ids.has(c.id));
-    receiving[target] = [...(receiving[target] ?? []), ...toPass];
+    const kept: Card[] = [];
+    const gap: number[] = [];
+    (state.hands[from] ?? []).forEach((c, i) => {
+      if (ids.has(c.id)) {
+        gap.push(i);
+        receiving[target] = [...(receiving[target] ?? []), c];
+      } else {
+        kept.push(c);
+      }
+    });
+    hands[from] = kept;
+    gaps[from] = gap;
   }
   for (const s of SEATS) {
-    hands[s] = [...(hands[s] ?? []), ...(receiving[s] ?? [])];
+    // Reinsert received cards into the positions the outgoing cards vacated, so
+    // each fan keeps its 13-card footprint and incoming cards fill the gaps.
+    const kept = hands[s] ?? [];
+    const gap = gaps[s] ?? [];
+    const received = receiving[s] ?? [];
+    const merged: Card[] = [];
+    let ki = 0;
+    let ri = 0;
+    for (let i = 0; i < kept.length + received.length; i++) {
+      if (gap.includes(i)) merged.push(received[ri++]!);
+      else merged.push(kept[ki++]!);
+    }
+    hands[s] = merged;
   }
   hands.you = sortHand(hands.you ?? []);
 

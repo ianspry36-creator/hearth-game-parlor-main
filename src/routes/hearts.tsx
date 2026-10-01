@@ -33,6 +33,7 @@ import {
   resolvePass,
   resolveTrick,
   setPass,
+  sortHand,
   trickPenalty,
   trickWinner,
   type PlayedCard,
@@ -174,11 +175,13 @@ function HeartsTable() {
   const [commentary, setCommentary] = useState<string | null>(null);
   const [sweepWinner, setSweepWinner] = useState<Seat | null>(null);
   const [cryingSeat, setCryingSeat] = useState<Seat | null>(null);
+  const [incoming, setIncoming] = useState<Record<Seat, string[]> | null>(null);
   const packRef = useRef<HTMLDivElement>(null);
   const trickRowRef = useRef<HTMLDivElement>(null);
   const seatRefs = useRef<Partial<Record<Seat, HTMLDivElement | null>>>({});
   const trickRefs = useRef<Partial<Record<Seat, HTMLDivElement | null>>>({});
   const flightKeyRef = useRef(0);
+  const playInFlightRef = useRef(false);
   const stateRef = useRef(state);
 
   useEffect(() => {
@@ -231,7 +234,10 @@ function HeartsTable() {
     (seat: Seat): boolean => {
       if (!isRoom) return seat !== "you";
       const occ = roomPlayers.find((p) => p.seat === roomSeatOf(seat));
-      return Boolean(occ?.is_bot);
+      // A seat with no player row (a human left mid-game, or never joined) is
+      // played by a computer, otherwise the table stalls waiting for a card
+      // selection that will never arrive.
+      return !occ || occ.is_bot;
     },
     [isRoom, roomPlayers, roomSeatOf],
   );
@@ -278,6 +284,7 @@ function HeartsTable() {
       window.setTimeout(() => {
         setFlying((current) => current.filter((f) => f.key !== key));
         setState(next);
+        playInFlightRef.current = false;
         if (isRoom) void publishRoom(remapState(next, mySeat));
         // A completed trick: pause, then sweep its four cards into the winner's pile.
         if (completing) {
@@ -387,17 +394,26 @@ function HeartsTable() {
     return () => window.clearTimeout(timer);
   }, [state.phase, state.turn, state.trick.length, animatePlay, isRoom, roomIsHost, isBotSeat]);
 
-  // After a scored hand the table sits in "dealing" briefly, then deals again.
+  // After a scored hand the table sits in "dealing" briefly. In a live room the
+  // host re-deals and publishes the next hand automatically; in solo play the
+  // table returns to "ready" so the next hand is dealt from the pack through the
+  // Deal button, matching the opening deal's flight animation.
   useEffect(() => {
     if (state.phase !== "dealing") return;
     if (isRoom && !roomIsHost) return;
     const timer = window.setTimeout(() => {
       const current = stateRef.current;
       if (current.phase !== "dealing") return;
-      const next = redeal(current, Math.random);
-      stateRef.current = next;
-      setState(next);
-      if (isRoom) void publishRoom(remapState(next, mySeat));
+      if (isRoom) {
+        const next = redeal(current, Math.random);
+        stateRef.current = next;
+        setState(next);
+        void publishRoom(remapState(next, mySeat));
+      } else {
+        const next = idleState(current.points, current.handNumber + 1);
+        stateRef.current = next;
+        setState(next);
+      }
       setPassSelection([]);
       setCommentary(null);
     }, 1800);
@@ -449,6 +465,53 @@ function HeartsTable() {
     const timer = window.setTimeout(() => setCryingSeat(null), 4000);
     return () => window.clearTimeout(timer);
   }, [queenHolder]);
+
+  // FLIP: when the player's hand is re-sorted after a deal, glide each card from
+  // its dealt (shuffled) fan slot to its sorted one instead of letting it snap.
+  const handLeftRef = useRef<Record<string, number>>({});
+  const handOrderRef = useRef<string[]>([]);
+  useLayoutEffect(() => {
+    const container = seatRefs.current.you;
+    if (!container) return;
+    const els = Array.from(container.querySelectorAll<HTMLElement>("[data-card-id]"));
+    const order = els.map((el) => el.getAttribute("data-card-id") ?? "");
+    const lefts: Record<string, number> = {};
+    for (const el of els) {
+      const id = el.getAttribute("data-card-id");
+      if (id) lefts[id] = el.getBoundingClientRect().left;
+    }
+    const prevOrder = handOrderRef.current;
+    const prevLefts = handLeftRef.current;
+    const reordered =
+      prevOrder.length > 0 &&
+      prevOrder.length === order.length &&
+      prevOrder.every((id) => order.includes(id)) &&
+      prevOrder.join(",") !== order.join(",");
+
+    if (reordered) {
+      for (const el of els) {
+        const id = el.getAttribute("data-card-id");
+        if (!id) continue;
+        const prev = prevLefts[id];
+        const next = lefts[id];
+        if (prev == null || next == null) continue;
+        const delta = prev - next;
+        if (Math.abs(delta) > 0.5) {
+          el.style.transition = "none";
+          el.style.transform = `translateX(${delta}px)`;
+          void el.offsetHeight;
+          el.style.transition = "transform 350ms ease";
+          el.style.transform = "";
+          window.setTimeout(() => {
+            el.style.transition = "";
+          }, 400);
+        }
+      }
+    }
+
+    handOrderRef.current = order;
+    handLeftRef.current = lefts;
+  }, [myHand]);
 
   const [playerAvatar, setPlayerAvatar] = useState<string>(() => readAvatar());
   const [playerFlag, setPlayerFlag] = useState<string | null>(readFlag);
@@ -516,6 +579,8 @@ function HeartsTable() {
     setCryingSeat(null);
     setCommentary(null);
     setSweepWinner(null);
+    setIncoming(null);
+    playInFlightRef.current = false;
   }, []);
 
   const setSeatRef = (seat: Seat) => (el: HTMLDivElement | null) => {
@@ -533,8 +598,10 @@ function HeartsTable() {
       ? centreOn(packRect)
       : fallbackPoint();
 
-    // Deal the next hand up front so the player's cards can fly face-up.
-    const next = initGame(Math.random, state.handNumber, state.points);
+    // Deal the next hand up front so the player's cards can fly face-up. The
+    // player's cards keep their dealt (shuffled) order here so they fly out
+    // randomly; they are sorted once the deal lands.
+    const next = initGame(Math.random, state.handNumber, state.points, false);
     const playerCards = next.hands.you ?? [];
 
     const flights: FlyingCard[] = [];
@@ -565,7 +632,15 @@ function HeartsTable() {
       setState((current) => (current.phase === "ready" ? next : current));
       setPassSelection([]);
       setIsDealing(false);
-    }, (flights.length - 1) * DEAL_STAGGER_MS + FLIGHT_MS + 80);
+      // Cards land in dealt (shuffled) order, then glide into sorted fan order.
+      window.setTimeout(() => {
+        setState((current) =>
+          current.phase === "ready"
+            ? current
+            : { ...current, hands: { ...current.hands, you: sortHand(current.hands.you ?? []) } },
+        );
+      }, 200);
+    }, (flights.length - 1) * DEAL_STAGGER_MS + FLIGHT_MS);
   };
 
   const togglePass = (id: string) => {
@@ -598,18 +673,38 @@ function HeartsTable() {
     const resolved = resolvePass({ ...state, passSelections: selections });
     if (!resolved) return;
 
+    // Move every hand to its final 13-card arrangement immediately, rendering
+    // the cards still in flight as empty slots. Keeping each fan at 13 cards
+    // (instead of removing the three outgoing cards) stops it condensing, and
+    // the incoming cards land in the exact gaps the outgoing cards left behind.
+    const incoming: Record<Seat, string[]> = { you: [], ace: [], ada: [], leo: [] };
+    for (const t of resolved.transfers) incoming[t.to].push(t.card.id);
+    setIncoming(incoming);
+    setPassSelection([]);
+    setState({ ...state, hands: resolved.next.hands, passSelections: selections });
+
     // Fly each passed card from its hand to its new hand, then commit.
     const fallback = fallbackPoint();
     const flights = resolved.transfers.map((t) => {
       const srcRect = seatRefs.current[t.from]?.getBoundingClientRect();
       const dstRect = seatRefs.current[t.to]?.getBoundingClientRect();
-      const index = (state.hands[t.from] ?? []).findIndex((c) => c.id === t.card.id);
-      const orientation =
+      const fromIndex = (state.hands[t.from] ?? []).findIndex((c) => c.id === t.card.id);
+      const fromOrientation =
         t.from === "you" || t.from === "ada" ? ("horizontal" as const) : ("vertical" as const);
       const from = srcRect
-        ? fanSlotPosition(srcRect, index, 13, orientation, fanStep(t.from, orientation))
+        ? fanSlotPosition(srcRect, fromIndex, 13, fromOrientation, fanStep(t.from, fromOrientation))
         : fallback;
-      const to = dstRect ? centreOn(dstRect) : fallback;
+      // Land each incoming card in its final sorted slot so it slips into the
+      // gap its own hand created instead of dropping onto the hand's centre.
+      const toIndex = (resolved.next.hands[t.to] ?? []).findIndex((c) => c.id === t.card.id);
+      const toOrientation =
+        t.to === "you" || t.to === "ada" ? ("horizontal" as const) : ("vertical" as const);
+      const to =
+        dstRect && toIndex >= 0
+          ? fanSlotPosition(dstRect, toIndex, 13, toOrientation, fanStep(t.to, toOrientation))
+          : dstRect
+            ? centreOn(dstRect)
+            : fallback;
       const rotateFrom = seatRotation(t.from);
       const rotate = seatRotation(t.to);
       return {
@@ -631,12 +726,15 @@ function HeartsTable() {
     window.setTimeout(() => {
       setState(resolved.next);
       setPassSelection([]);
-    }, (flights.length - 1) * DEAL_STAGGER_MS + PLAY_FLIGHT_MS + 80);
+      setIncoming(null);
+    }, (flights.length - 1) * DEAL_STAGGER_MS + PLAY_FLIGHT_MS);
   };
 
   const playCard = (card: Card) => {
+    if (playInFlightRef.current) return;
     if (state.phase !== "playing" || state.turn !== "you") return;
     if (!legalPlays(state, "you").some((c) => c.id === card.id)) return;
+    playInFlightRef.current = true;
     animatePlay("you", card);
   };
 
@@ -658,7 +756,7 @@ function HeartsTable() {
         <HeartsLobby game={game} open={open} onOpenChange={onOpenChange} onPlay={handlePlay} />
       )}
       containerClassName="px-1.5 sm:px-3"
-      boxClassName="pl-[5px] sm:pl-8"
+      boxClassName="pl-[5px] sm:pl-8 pt-2.5 sm:pt-4"
     >
       <GameOverDialog
         open={state.phase === "over"}
@@ -689,6 +787,7 @@ function HeartsTable() {
             isBot={isBotSeat("ada")}
             hand={state.hands.ada ?? []}
             selectedIds={state.passSelections.ada ?? []}
+            incomingIds={incoming?.ada ?? []}
             isTurn={state.turn === "ada" && state.phase === "playing"}
             cardRef={setSeatRef("ada")}
             trickRef={setTrickRef("ada")}
@@ -700,7 +799,7 @@ function HeartsTable() {
         </div>
 
         <div className="mb-[3px] flex items-center gap-0.5">
-          <div className="shrink-0">
+          <div className="shrink-0 sm:-translate-y-12">
             <SeatPanel
               avatar={seatAvatar("ace")}
               name={seatName("ace")}
@@ -708,6 +807,7 @@ function HeartsTable() {
               isBot={isBotSeat("ace")}
               hand={state.hands.ace ?? []}
               selectedIds={state.passSelections.ace ?? []}
+              incomingIds={incoming?.ace ?? []}
               isTurn={state.turn === "ace" && state.phase === "playing"}
               cardRef={setSeatRef("ace")}
               trickRef={setTrickRef("ace")}
@@ -729,7 +829,7 @@ function HeartsTable() {
               {isDealing ? (
                 <p className="text-sm text-ivory/70">Dealing…</p>
               ) : (
-                <Button variant="parlor" onClick={dealCards}>Deal</Button>
+                <Button variant="parlor" className="min-w-32" onClick={dealCards}>Deal</Button>
               )}
             </div>
           )}
@@ -743,7 +843,11 @@ function HeartsTable() {
                 Waiting for opponents to choose their cards…
               </p>
             ))}
-          {state.phase === "dealing" && <p className="text-sm text-ivory/70">Dealing the next hand…</p>}
+          {state.phase === "dealing" && (
+            <p className="text-sm text-ivory/70">
+              {isRoom ? "Dealing the next hand…" : "Hand scored — ready to deal"}
+            </p>
+          )}
           {state.phase === "playing" && (
             <>
               {/* Fixed-height status block: pin the text to the top so the turn,
@@ -764,7 +868,7 @@ function HeartsTable() {
               </div>
               {/* Fixed-height trick row: reserve the four-card footprint so the text
                   above stays put while cards enter and leave the table. */}
-              <div ref={trickRowRef} className="flex min-h-[115px] items-center justify-center sm:min-h-[160px]">
+              <div ref={trickRowRef} className="flex min-h-[94px] items-center justify-center sm:min-h-[101px]">
                 {state.trick.length > 0 ? (
                   <TrickRow trick={state.trick} names={seatNames} />
                 ) : (
@@ -774,7 +878,9 @@ function HeartsTable() {
             </>
           )}
         </div>
-          <div className="shrink-0">
+          {/* Leo is raised toward the scoreboard (top-right); Ace mirrors the same
+              lift on the left so the side seats stay level. */}
+          <div className="shrink-0 sm:-translate-y-12">
             <SeatPanel
               avatar={seatAvatar("leo")}
               name={seatName("leo")}
@@ -782,6 +888,7 @@ function HeartsTable() {
               isBot={isBotSeat("leo")}
               hand={state.hands.leo ?? []}
               selectedIds={state.passSelections.leo ?? []}
+              incomingIds={incoming?.leo ?? []}
               isTurn={state.turn === "leo" && state.phase === "playing"}
               cardRef={setSeatRef("leo")}
               trickRef={setTrickRef("leo")}
@@ -794,29 +901,43 @@ function HeartsTable() {
         </div>
 
         <div>
-          <div ref={setSeatRef("you")} className="flex min-h-24 items-end justify-center sm:min-h-[150px]">
-            {myHand.map((card, i) => {
-              const selected = passSelection.includes(card.id);
-              const legal = myTurn && legalIds.has(card.id);
-              const dimmed = needsToPass && passSelection.length >= 3 && !selected;
-              return (
-                <HeartsCard
-                  key={card.id}
-                  card={card}
-                  corner
-                  selected={selected}
-                  highlighted={legal}
-                  dimmed={dimmed}
-                  onClick={needsToPass || myTurn ? () => handleCardClick(card) : undefined}
-                  className={i > 0 ? "-ml-[32px] sm:-ml-[21px]" : ""}
-                />
-              );
-            })}
+          <div ref={setSeatRef("you")} className="flex min-h-[85px] items-end justify-center sm:min-h-[101px]">
+            <div className="flex items-end">
+              {myHand.map((card, i) => {
+                const isIncoming = incoming?.["you"]?.includes(card.id);
+                const selected = passSelection.includes(card.id);
+                const legal = myTurn && legalIds.has(card.id);
+                const dimmed = needsToPass && passSelection.length >= 3 && !selected;
+                const margin = i > 0 ? "-ml-[32px] sm:-ml-[21px]" : "";
+                if (isIncoming) {
+                  return (
+                    <div
+                      key={card.id}
+                      className={`h-[73px] w-[56px] shrink-0 sm:h-[97px] sm:w-[75px] ${margin}`}
+                    />
+                  );
+                }
+                return (
+                  <HeartsCard
+                    key={card.id}
+                    card={card}
+                    corner
+                    selected={selected}
+                    highlighted={legal}
+                    dimmed={dimmed}
+                    onClick={needsToPass || myTurn ? () => handleCardClick(card) : undefined}
+                    className={margin}
+                  />
+                );
+              })}
+            </div>
           </div>
           <div className="mt-2 flex items-center justify-center gap-2">
             <div className="relative">
               <div className={cryingSeat === "you" ? "animate-cry" : undefined}>
-                <AvatarPicker avatar={playerAvatar} onSelect={setPlayerAvatar} size="size-[30px] sm:size-[72px]" />
+                <div className={`w-fit rounded-full ${myTurn ? "ring-4 ring-gold" : ""}`}>
+                  <AvatarPicker avatar={playerAvatar} onSelect={setPlayerAvatar} size="size-[25.5px] sm:size-[48.96px]" />
+                </div>
               </div>
               {cryingSeat === "you" && <CryingTears />}
             </div>
@@ -918,8 +1039,8 @@ function SeatAvatar({
         <img
           src={avatar}
           alt={name}
-          className={`size-[30px] rounded-full object-cover sm:size-[72px] ${
-            isTurn ? "ring-2 ring-gold" : "ring-1 ring-ivory/20"
+          className={`size-[25.5px] rounded-full object-cover sm:size-[48.96px] ${
+            isTurn ? "ring-4 ring-gold" : "ring-1 ring-ivory/20"
           }`}
         />
       </div>
@@ -986,7 +1107,7 @@ function Scoreboard({ points, names }: { points: Record<Seat, number>; names: Re
   }, [order]);
 
   return (
-    <div className="rounded-xl border-2 border-gold/30 bg-surface/80 px-[8.82px] py-[6.3px] shadow-md shadow-black/30 sm:px-[12.6px] sm:py-[9px]">
+    <div className="rounded-xl border-2 border-gold/30 bg-surface/80 px-[8.82px] py-[5.36px] shadow-md shadow-black/30 sm:origin-top-right sm:scale-[0.85] sm:px-[12.6px] sm:py-[7.65px]">
       <p className="mb-[2.52px] text-center text-[10.08px] uppercase tracking-[0.18em] text-gold sm:mb-[3.6px] sm:text-[14.4px]">Scoreboard</p>
       <div className="space-y-[2.52px] sm:space-y-[3.6px]">
         {order.map((seat) => (
@@ -997,8 +1118,8 @@ function Scoreboard({ points, names }: { points: Record<Seat, number>; names: Re
             }}
             className="flex items-center justify-between gap-[15.12px] text-[11.34px] sm:gap-[21.6px] sm:text-[16.2px]"
           >
-            <span className="scoreboard-text text-ivory/80">{names[seat]}</span>
-            <span className="scoreboard-text font-display font-bold text-gold">{points[seat] ?? 0}</span>
+            <span className="scoreboard-text font-bold text-ivory/80">{names[seat]}</span>
+            <span className="scoreboard-text font-display font-extrabold text-gold">{points[seat] ?? 0}</span>
           </div>
         ))}
       </div>
@@ -1032,6 +1153,7 @@ function SeatPanel({
   crying = false,
   flag = null,
   isBot = false,
+  incomingIds = [],
 }: {
   avatar: string;
   name: string;
@@ -1046,6 +1168,7 @@ function SeatPanel({
   crying?: boolean;
   flag?: string | null;
   isBot?: boolean;
+  incomingIds?: string[];
 }) {
   const badge = isBot ? (
     <ComputerIcon className="size-3.5" />
@@ -1072,7 +1195,11 @@ function SeatPanel({
       <div className="flex flex-col items-center">
         {hand.map((card, i) => {
           const selected = selectedIds.includes(card.id);
+          const arriving = incomingIds.includes(card.id);
           const base = `${rotation} ${i > 0 ? "-mt-[41px] sm:-mt-[77.8px]" : ""}`;
+          if (arriving) {
+            return <div key={card.id} className={`h-[49px] w-[38px] sm:h-[97px] sm:w-[75px] ${base}`} />;
+          }
           const offset = selected
             ? `${side === "left" ? "translate-x-2" : "-translate-x-2"} ring-2 ring-gold`
             : "";
@@ -1086,11 +1213,16 @@ function SeatPanel({
       <div className="flex items-end">
         {hand.map((card, i) => {
           const selected = selectedIds.includes(card.id);
+          const arriving = incomingIds.includes(card.id);
+          const margin = i > 0 ? "-ml-[32px] sm:-ml-[60.6px]" : "";
+          if (arriving) {
+            return <div key={card.id} className={`h-[49px] w-[38px] sm:h-[97px] sm:w-[75px] ${margin}`} />;
+          }
           const offset = selected ? "translate-y-2 ring-2 ring-gold" : "";
           return (
             <CardBack
               key={card.id}
-              className={`h-[49px] w-[38px] sm:h-[97px] sm:w-[75px] ${i > 0 ? "-ml-[32px] sm:-ml-[60.6px]" : ""} ${offset}`}
+              className={`h-[49px] w-[38px] sm:h-[97px] sm:w-[75px] ${margin} ${offset}`}
             />
           );
         })}
@@ -1130,9 +1262,9 @@ function SeatPanel({
             <p className="font-display text-sm font-bold">{name}</p>
             {badge}
           </div>
-          <div ref={trickRef} className="flex items-center gap-1.5">
-            <TrickPile tricks={tricks} horizontal hideLastTrick={hideLastTrick} />
-          </div>
+        </div>
+        <div ref={trickRef} className="flex items-center gap-1.5">
+          <TrickPile tricks={tricks} horizontal hideLastTrick={hideLastTrick} />
         </div>
       </div>
       <div ref={cardRef} className="flex min-h-[49px] items-end justify-center sm:min-h-[97px]">
@@ -1211,6 +1343,7 @@ function HeartsCard({
       type="button"
       onClick={onClick}
       disabled={!onClick}
+      data-card-id={card.id}
       className={`relative flex shrink-0 flex-col items-center justify-center rounded-lg border bg-white shadow-md shadow-black/30 ${
         corner ? "h-[73px] w-[56px] sm:h-[97px] sm:w-[75px]" : small ? "h-[158px] w-[110px]" : "h-[202px] w-[136px] sm:h-[238px] sm:w-[158px]"
       } ${red ? "text-destructive" : "text-ink"} ${

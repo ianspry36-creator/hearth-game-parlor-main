@@ -1,5 +1,5 @@
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -80,6 +80,11 @@ function AddictionTable() {
   const [confirming, setConfirming] = useState<"new" | "home" | null>(null);
   const { recordResult } = useSolitaireStats(game.id);
   const prevWonRef = useRef(false);
+  // FLIP animation bookkeeping: the board container for measuring card slots,
+  // plus the rectangles captured just before a shuffle so moved cards can glide
+  // to their new slots.
+  const boardRef = useRef<HTMLDivElement>(null);
+  const flipRectsRef = useRef<Map<string, DOMRect> | null>(null);
   useEffect(() => {
     if (state.won && !prevWonRef.current) recordResult("win");
     prevWonRef.current = state.won;
@@ -199,8 +204,66 @@ function AddictionTable() {
 
   const shuffle = () => {
     const next = shuffleBoard(state);
-    if (next !== state) apply(next);
+    if (next === state) return;
+    // Capture where every card currently sits so the FLIP effect below can
+    // glide each card from its old slot to its new one after the redeal.
+    const rects = new Map<string, DOMRect>();
+    boardRef.current?.querySelectorAll<HTMLButtonElement>("[data-card-id]").forEach((el) => {
+      const id = el.dataset.cardId;
+      if (id) rects.set(id, el.getBoundingClientRect());
+    });
+    flipRectsRef.current = rects;
+    apply(next);
   };
+
+  // FLIP: after a shuffle, animate each surviving card from its old slot to its
+  // new one. The board is keyed by position, so React reuses each slot's element
+  // and only the card content swaps; here we offset that element back to where
+  // the card started and transition it home.
+  useLayoutEffect(() => {
+    const prev = flipRectsRef.current;
+    if (!prev) return;
+    flipRectsRef.current = null;
+    const boardEl = boardRef.current;
+    if (!boardEl) return;
+    const flips: { el: HTMLElement; dx: number; dy: number }[] = [];
+    boardEl.querySelectorAll<HTMLButtonElement>("[data-card-id]").forEach((el) => {
+      const id = el.dataset.cardId;
+      if (!id) return;
+      const from = prev.get(id);
+      if (!from) return;
+      const to = el.getBoundingClientRect();
+      const dx = from.left - to.left;
+      const dy = from.top - to.top;
+      if (dx === 0 && dy === 0) return;
+      flips.push({ el, dx, dy });
+    });
+    if (flips.length === 0) return;
+    for (const f of flips) {
+      f.el.style.transition = "none";
+      f.el.style.transform = `translate(${f.dx}px, ${f.dy}px)`;
+    }
+    const raf = requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        for (const f of flips) {
+          f.el.style.transition = "transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1)";
+          f.el.style.transform = "";
+        }
+      });
+    });
+    const clear = () => {
+      for (const f of flips) {
+        f.el.style.transition = "";
+        f.el.style.transform = "";
+      }
+    };
+    const timer = window.setTimeout(clear, 500);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(timer);
+      clear();
+    };
+  }, [state.board]);
 
   const clickSlot = (pos: Position) => {
     const card = state.board[pos.row]?.[pos.col];
@@ -275,7 +338,7 @@ function AddictionTable() {
                 <Stat label="Best moves" value={best.moves > 0 ? String(best.moves) : "—"} />
               </div>
 
-              <div className="overflow-x-auto">
+              <div ref={boardRef} className="overflow-x-auto">
                 <div className="mx-auto flex w-max flex-col gap-1.5 sm:gap-2">
                   {state.board.map((row, r) => (
                     <div key={r} className="flex gap-1 sm:gap-1.5">
@@ -483,6 +546,7 @@ function CardCell({
   return (
     <button
       type="button"
+      data-card-id={card.id}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
       aria-label={cardLabel(card)}

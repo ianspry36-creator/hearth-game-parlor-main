@@ -893,7 +893,7 @@ function BackgammonTable() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <div className="space-y-6 sm:space-y-1.5">
+      <div className="space-y-1 sm:space-y-1.5">
         {/* Opponent — top of the table */}
         <div className="flex items-center justify-between gap-4 rounded-2xl border border-gold/15 bg-brand/50 p-3">
           <div className="flex items-center gap-3">
@@ -931,7 +931,7 @@ function BackgammonTable() {
                 <span
                   key={`off-cpu-${i}`}
                   title="Opponent piece"
-                  className="size-4 rounded-full border border-gold/40 bg-surface"
+                  className="size-4 rounded-full border border-gold/40 bg-black"
                 />
               ))}
               {state.board.off.cpu === 0 && (
