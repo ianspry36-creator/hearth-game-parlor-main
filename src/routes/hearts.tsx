@@ -41,7 +41,7 @@ import {
   type State,
 } from "@/lib/hearts";
 import { playHeartsBroken } from "@/lib/hearts-sounds";
-import { isStalePlayingRoom, leaveRoom, useCrazyEightsRoom } from "@/lib/crazyEightsLobby";
+import { isStalePlayingRoom, leaveRoom, useCrazyEightsRoom, type GameRoomPlayer } from "@/lib/crazyEightsLobby";
 import { HeartsLobby } from "@/components/parlor/HeartsLobby";
 
 const BOTS: Seat[] = ["ace", "ada", "leo"];
@@ -241,6 +241,31 @@ function HeartsTable() {
     },
     [isRoom, roomPlayers, roomSeatOf],
   );
+
+  // Detect when a human resigns mid-game: their room row is deleted and the
+  // computer takes over their seat. We remember every seat a human has held so a
+  // seat that disappears is flagged "resigned" for the rest of the match rather
+  // than silently reverting to a computer opponent.
+  const humanSeatsRef = useRef<Map<Seat, GameRoomPlayer>>(new Map());
+  const [resignedSeats, setResignedSeats] = useState<Set<Seat>>(new Set());
+  useEffect(() => {
+    if (!isRoom) {
+      humanSeatsRef.current = new Map();
+      setResignedSeats(new Set());
+      return;
+    }
+    const now = new Map<Seat, GameRoomPlayer>();
+    for (const seat of SEATS) {
+      const occ = roomPlayers.find((p) => p.seat === roomSeatOf(seat));
+      if (occ && !occ.is_bot) now.set(seat, occ);
+    }
+    const resigned = new Set<Seat>();
+    for (const seat of humanSeatsRef.current.keys()) {
+      if (seat !== "you" && !now.has(seat)) resigned.add(seat);
+    }
+    for (const [seat, occ] of now) humanSeatsRef.current.set(seat, occ);
+    setResignedSeats(resigned);
+  }, [isRoom, roomPlayers, roomSeatOf]);
 
   // Fly a played card from its seat to its slot in the trick, then commit the play.
   const animatePlay = useCallback(
@@ -521,20 +546,25 @@ function HeartsTable() {
     if (seat === "you") return playerName;
     if (!isRoom) return SEAT_NAMES[seat];
     const occ = roomPlayers.find((p) => p.seat === roomSeatOf(seat));
-    return occ ? occ.nickname : SEAT_NAMES[seat];
+    if (occ) return occ.nickname;
+    // A resigned player's row is gone; keep showing the name they played under.
+    return humanSeatsRef.current.get(seat)?.nickname ?? SEAT_NAMES[seat];
   };
   const seatAvatar = (seat: Seat): string => {
     if (seat === "you") return playerAvatar;
     if (!isRoom) return seat === "ace" ? ACE_AVATAR : seat === "ada" ? ADA_AVATAR : LEO_AVATAR;
     const occ = roomPlayers.find((p) => p.seat === roomSeatOf(seat));
     if (occ?.avatar) return occ.avatar;
+    const prev = humanSeatsRef.current.get(seat)?.avatar;
+    if (prev) return prev;
     return seat === "ace" ? ACE_AVATAR : seat === "ada" ? ADA_AVATAR : LEO_AVATAR;
   };
   const seatFlag = (seat: Seat): string | null => {
     if (seat === "you") return playerFlag;
     if (!isRoom) return null;
     const occ = roomPlayers.find((p) => p.seat === roomSeatOf(seat));
-    return occ?.flag ?? null;
+    if (occ) return occ.flag;
+    return humanSeatsRef.current.get(seat)?.flag ?? null;
   };
 
   const isPassing = state.phase === "passing";
@@ -777,7 +807,7 @@ function HeartsTable() {
 
       <div className="relative flex flex-col">
         <div className="absolute right-0 top-0 z-20">
-          <Scoreboard points={state.points} names={seatNames} />
+          <Scoreboard points={state.points} names={seatNames} resigned={resignedSeats} />
         </div>
         <div className="mb-4 flex justify-center">
           <SeatPanel
@@ -785,6 +815,7 @@ function HeartsTable() {
             name={seatName("ada")}
             flag={seatFlag("ada")}
             isBot={isBotSeat("ada")}
+            resigned={resignedSeats.has("ada")}
             hand={state.hands.ada ?? []}
             selectedIds={state.passSelections.ada ?? []}
             incomingIds={incoming?.ada ?? []}
@@ -805,6 +836,7 @@ function HeartsTable() {
               name={seatName("ace")}
               flag={seatFlag("ace")}
               isBot={isBotSeat("ace")}
+              resigned={resignedSeats.has("ace")}
               hand={state.hands.ace ?? []}
               selectedIds={state.passSelections.ace ?? []}
               incomingIds={incoming?.ace ?? []}
@@ -870,7 +902,7 @@ function HeartsTable() {
                   above stays put while cards enter and leave the table. */}
               <div ref={trickRowRef} className="flex min-h-[94px] items-center justify-center sm:min-h-[101px]">
                 {state.trick.length > 0 ? (
-                  <TrickRow trick={state.trick} names={seatNames} />
+                  <TrickRow trick={state.trick} names={seatNames} resigned={resignedSeats} />
                 ) : (
                   <p className="text-xs text-ivory/40">Lead a card to start the trick</p>
                 )}
@@ -886,6 +918,7 @@ function HeartsTable() {
               name={seatName("leo")}
               flag={seatFlag("leo")}
               isBot={isBotSeat("leo")}
+              resigned={resignedSeats.has("leo")}
               hand={state.hands.leo ?? []}
               selectedIds={state.passSelections.leo ?? []}
               incomingIds={incoming?.leo ?? []}
@@ -979,7 +1012,15 @@ function shortenName(name: string): string {
   return name.length > 4 ? `${name.slice(0, 4)}..` : name;
 }
 
-function TrickRow({ trick, names }: { trick: PlayedCard[]; names: Record<Seat, string> }) {
+function TrickRow({
+  trick,
+  names,
+  resigned,
+}: {
+  trick: PlayedCard[];
+  names: Record<Seat, string>;
+  resigned?: Set<Seat>;
+}) {
   const rowRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const prevLeft = useRef<Record<string, number>>({});
 
@@ -1010,18 +1051,28 @@ function TrickRow({ trick, names }: { trick: PlayedCard[]; names: Record<Seat, s
 
   return (
     <div className="flex items-center">
-      {trick.map((played, i) => (
-        <div
-          key={played.card.id}
-          ref={(el) => {
-            rowRefs.current[played.card.id] = el;
-          }}
-          className={`relative ${i > 0 ? "-ml-6" : ""}`}
-        >
-          <HeartsCard card={played.card} corner />
-          <span className="pointer-events-none absolute left-1/2 top-full mt-1 -translate-x-1/2 whitespace-nowrap text-[10px] text-ivory/60">{shortenName(names[played.seat])}</span>
-        </div>
-      ))}
+      {trick.map((played, i) => {
+        const isResigned = resigned?.has(played.seat) ?? false;
+        return (
+          <div
+            key={played.card.id}
+            ref={(el) => {
+              rowRefs.current[played.card.id] = el;
+            }}
+            className={`relative ${i > 0 ? "-ml-6" : ""}`}
+          >
+            <HeartsCard card={played.card} corner />
+            <span className="pointer-events-none absolute left-1/2 top-full mt-1 -translate-x-1/2 whitespace-nowrap text-[10px] text-ivory/60">{shortenName(names[played.seat])}</span>
+            {isResigned && (
+              <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
+                <span className="-rotate-[25deg] rounded-sm bg-destructive/95 px-1 py-px text-[7px] font-extrabold uppercase leading-none tracking-wider text-white shadow-md shadow-black/40 sm:text-[9px]">
+                  Resigned
+                </span>
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -1031,11 +1082,13 @@ function SeatAvatar({
   name,
   isTurn,
   crying = false,
+  resigned = false,
 }: {
   avatar: string;
   name: string;
   isTurn: boolean;
   crying?: boolean;
+  resigned?: boolean;
 }) {
   return (
     <div className="relative">
@@ -1045,15 +1098,30 @@ function SeatAvatar({
           alt={name}
           className={`size-[25.5px] rounded-full object-cover sm:size-[48.96px] ${
             isTurn ? "ring-4 ring-gold" : "ring-1 ring-ivory/20"
-          }`}
+          } ${resigned ? "opacity-60 grayscale" : ""}`}
         />
       </div>
       {crying && <CryingTears />}
+      {resigned && (
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
+          <span className="-rotate-[20deg] rounded-sm bg-destructive/95 px-1 py-px text-[6px] font-extrabold uppercase leading-none tracking-wider text-white shadow-md shadow-black/40 sm:text-[9px]">
+            Resigned
+          </span>
+        </div>
+      )}
     </div>
   );
 }
 
-function Scoreboard({ points, names }: { points: Record<Seat, number>; names: Record<Seat, string> }) {
+function Scoreboard({
+  points,
+  names,
+  resigned,
+}: {
+  points: Record<Seat, number>;
+  names: Record<Seat, string>;
+  resigned?: Set<Seat>;
+}) {
   // Lowest score wins in Hearts, so the leader (lowest) sits at the top. When
   // everyone is tied (e.g. at the start of a game) players are listed alphabetically.
   const order = useMemo(
@@ -1114,18 +1182,21 @@ function Scoreboard({ points, names }: { points: Record<Seat, number>; names: Re
     <div className="rounded-xl border-2 border-gold/30 bg-surface/80 px-[6.62px] py-[3.42px] shadow-md shadow-black/30 sm:origin-top-right sm:scale-[0.85] sm:px-[12.6px] sm:py-[7.65px]">
       <p className="mb-[1.61px] text-center text-[7.56px] uppercase tracking-[0.18em] text-gold sm:mb-[3.6px] sm:text-[14.4px]">Scoreboard</p>
       <div className="space-y-[1.61px] sm:space-y-[3.6px]">
-        {order.map((seat) => (
-          <div
-            key={seat}
-            ref={(el) => {
-              rowRefs.current[seat] = el;
-            }}
-            className="flex items-center justify-between gap-[11.34px] text-[8.51px] sm:gap-[21.6px] sm:text-[16.2px]"
-          >
-            <span className="scoreboard-text font-bold text-ivory/80">{names[seat]}</span>
-            <span className="scoreboard-text font-display font-extrabold text-gold">{points[seat] ?? 0}</span>
-          </div>
-        ))}
+        {order.map((seat) => {
+          const isResigned = resigned?.has(seat) ?? false;
+          return (
+            <div
+              key={seat}
+              ref={(el) => {
+                rowRefs.current[seat] = el;
+              }}
+              className="flex items-center justify-between gap-[11.34px] text-[8.51px] sm:gap-[21.6px] sm:text-[16.2px]"
+            >
+              <span className={`scoreboard-text font-bold ${isResigned ? "text-ivory/40 line-through" : "text-ivory/80"}`}>{names[seat]}</span>
+              <span className={`scoreboard-text font-display font-extrabold ${isResigned ? "text-gold/40 line-through" : "text-gold"}`}>{points[seat] ?? 0}</span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -1158,6 +1229,7 @@ function SeatPanel({
   flag = null,
   isBot = false,
   incomingIds = [],
+  resigned = false,
 }: {
   avatar: string;
   name: string;
@@ -1173,6 +1245,7 @@ function SeatPanel({
   flag?: string | null;
   isBot?: boolean;
   incomingIds?: string[];
+  resigned?: boolean;
 }) {
   const badge = isBot ? (
     <ComputerIcon className="size-3.5" />
@@ -1182,7 +1255,7 @@ function SeatPanel({
 
   const identity = (
     <div className="flex flex-col items-center gap-1">
-      <SeatAvatar avatar={avatar} name={name} isTurn={isTurn} crying={crying} />
+      <SeatAvatar avatar={avatar} name={name} isTurn={isTurn} crying={crying} resigned={resigned} />
       <div className="flex items-center gap-1">
         <p className="font-display text-sm font-bold">{name}</p>
         {badge}
@@ -1260,7 +1333,7 @@ function SeatPanel({
   return (
     <div className="flex flex-col items-center gap-2">
       <div className="flex items-center gap-2">
-        <SeatAvatar avatar={avatar} name={name} isTurn={isTurn} crying={crying} />
+        <SeatAvatar avatar={avatar} name={name} isTurn={isTurn} crying={crying} resigned={resigned} />
         <div className="flex flex-col items-start gap-0.5">
           <div className="flex items-center gap-1">
             <p className="font-display text-sm font-bold">{name}</p>
