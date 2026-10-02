@@ -67,6 +67,9 @@ export const Route = createFileRoute("/canfield")({
 // avoiding a hydration mismatch before the deck is reshuffled on mount.
 const SSR_SEED = 20260908;
 
+// How long a card takes to glide from the reserve onto a tableau pile.
+const FLIGHT_MS = 350;
+
 function formatElapsed(seconds: number): string {
   const minutes = Math.floor(seconds / 60);
   const rest = seconds % 60;
@@ -90,6 +93,13 @@ type DropTarget =
   | { type: "tableau"; index: number }
   | null;
 
+type FlyingCard = {
+  key: number;
+  card: Card;
+  from: { x: number; y: number };
+  to: { x: number; y: number };
+};
+
 function CanfieldTable() {
   const navigate = useNavigate();
   const game = getGame("canfield");
@@ -101,6 +111,12 @@ function CanfieldTable() {
   const [confirming, setConfirming] = useState<"new" | "home" | null>(null);
   const [conceded, setConceded] = useState(false);
   const { recordResult } = useSolitaireStats(game.id);
+  // Card-flight animation bookkeeping: the reserve card currently gliding onto a
+  // tableau pile, plus refs used to measure the reserve's top card and each pile.
+  const [flying, setFlying] = useState<FlyingCard[]>([]);
+  const flightKeyRef = useRef(0);
+  const reserveTopRef = useRef<HTMLDivElement | null>(null);
+  const tableauRefs = useRef<(HTMLDivElement | null)[]>([]);
   const prevWonRef = useRef(false);
   useEffect(() => {
     if (state.won && !prevWonRef.current) recordResult("win");
@@ -175,8 +191,51 @@ function CanfieldTable() {
     setState(candidate);
   };
 
+  const animateReserveToTableau = (toIndex: number) => {
+    const before = stateRef.current;
+    if (before.reserve.length === 0) return;
+    const next = moveReserveToTableau(before, toIndex);
+    if (next === before) return;
+
+    const card = before.reserve[before.reserve.length - 1]!;
+    const sourceRect = reserveTopRef.current?.getBoundingClientRect();
+    const pileRect = tableauRefs.current[toIndex]?.getBoundingClientRect();
+
+    // Without a measured source or target (e.g. before the board paints) just move.
+    if (!sourceRect || !pileRect) {
+      apply(next);
+      return;
+    }
+
+    const visible =
+      parseFloat(
+        getComputedStyle(document.documentElement).getPropertyValue("--canfield-visible"),
+      ) || 24;
+    const key = flightKeyRef.current++;
+    const to = {
+      x: pileRect.left,
+      y: pileRect.top + before.tableau[toIndex]!.length * visible,
+    };
+
+    // Lift the card out of the reserve right away so it visibly flies off, then
+    // commit the whole move (recording `before` in history) once it lands.
+    setState((current) => ({ ...current, reserve: current.reserve.slice(0, -1) }));
+    setSelection(null);
+    setFlying((current) => [
+      ...current,
+      { key, card, from: { x: sourceRect.left, y: sourceRect.top }, to },
+    ]);
+
+    window.setTimeout(() => {
+      setFlying((current) => current.filter((f) => f.key !== key));
+      setHistory((h) => [...h, before]);
+      setState(!next.won && canAutoComplete(next) ? autoComplete(next) : next);
+    }, FLIGHT_MS);
+  };
+
   const reset = () => {
     setState(freshGame());
+    setFlying([]);
     setHistory([]);
     setSelection(null);
     setFinishedElapsed(null);
@@ -262,7 +321,7 @@ function CanfieldTable() {
     }
     if (selection) {
       if (selection.type === "waste") apply(moveWasteToTableau(state, index));
-      else if (selection.type === "reserve") apply(moveReserveToTableau(state, index));
+      else if (selection.type === "reserve") animateReserveToTableau(index);
       else if (selection.type === "foundation")
         apply(moveFoundationToTableau(state, selection.index, index));
       else if (selection.type === "tableau")
@@ -355,7 +414,7 @@ function CanfieldTable() {
     if (!src) return;
     const s = stateRef.current;
     if (src.type === "waste") apply(moveWasteToTableau(s, index));
-    else if (src.type === "reserve") apply(moveReserveToTableau(s, index));
+    else if (src.type === "reserve") animateReserveToTableau(index);
     else if (src.type === "foundation") apply(moveFoundationToTableau(s, src.index, index));
     else if (src.type === "tableau") apply(moveTableauToTableau(s, src.index, src.cardIndex, index));
   };
@@ -437,6 +496,7 @@ function CanfieldTable() {
                   onDoubleClick={doubleClickReserve}
                   onDragStart={(e) => beginDrag({ type: "reserve" }, e)}
                   onDragEnd={clearDrag}
+                  topRef={(el) => (reserveTopRef.current = el)}
                 />
                 <span className="text-[10px] uppercase tracking-[0.18em] text-ivory/45">
                   Reserve
@@ -456,6 +516,7 @@ function CanfieldTable() {
                     onDragOver={highlightTableau(index)}
                     onDrop={dropOnTableau(index)}
                     isDropTarget={dragOverTarget?.type === "tableau" && dragOverTarget.index === index}
+                    containerRef={(el) => (tableauRefs.current[index] = el)}
                   />
                 ))}
               </div>
@@ -582,6 +643,9 @@ function CanfieldTable() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {flying.map((flight) => (
+        <FlyingCardView key={flight.key} flight={flight} />
+      ))}
     </div>
   );
 }
@@ -795,6 +859,7 @@ function ReservePile({
   onDoubleClick,
   onDragStart,
   onDragEnd,
+  topRef,
 }: {
   cards: Card[];
   selected: boolean;
@@ -802,6 +867,7 @@ function ReservePile({
   onDoubleClick: () => void;
   onDragStart: (e: DragEvent<HTMLButtonElement>) => void;
   onDragEnd: () => void;
+  topRef?: (el: HTMLDivElement | null) => void;
 }) {
   const top = cards[cards.length - 1];
   return (
@@ -821,7 +887,7 @@ function ReservePile({
               <CardBack />
             </div>
           ))}
-          <div className="relative z-10">
+          <div className="relative z-10" ref={topRef}>
             <CardFace
               card={top}
               selected={selected}
@@ -849,6 +915,7 @@ function TableauPile({
   onDragOver,
   onDrop,
   isDropTarget,
+  containerRef,
 }: {
   pile: Card[];
   index: number;
@@ -860,10 +927,12 @@ function TableauPile({
   onDragOver: (e: DragEvent<HTMLDivElement>) => void;
   onDrop: (e: DragEvent<HTMLDivElement>) => void;
   isDropTarget: boolean;
+  containerRef?: (el: HTMLDivElement | null) => void;
 }) {
   const empty = pile.length === 0;
   return (
     <div
+      ref={containerRef}
       className={`flex flex-col items-stretch rounded-md ${isDropTarget ? "ring-2 ring-gold" : ""}`}
       onDragOver={onDragOver}
       onDrop={onDrop}
@@ -891,6 +960,47 @@ function TableauPile({
         );
       })}
       {empty && <EmptySlot />}
+    </div>
+  );
+}
+
+function FlyingCardView({ flight }: { flight: FlyingCard }) {
+  const [moved, setMoved] = useState(false);
+  useEffect(() => {
+    let raf = 0;
+    raf = requestAnimationFrame(() => {
+      raf = requestAnimationFrame(() => setMoved(true));
+    });
+    return () => cancelAnimationFrame(raf);
+  }, []);
+  const dx = moved ? flight.to.x - flight.from.x : 0;
+  const dy = moved ? flight.to.y - flight.from.y : 0;
+  const red = isRed(flight.card.suit);
+  const isFaceCard = flight.card.rank === 1 || flight.card.rank > 10;
+  return (
+    <div
+      aria-hidden
+      className="pointer-events-none fixed z-50 transition-transform ease-out"
+      style={{
+        left: flight.from.x,
+        top: flight.from.y,
+        transform: `translate(${dx}px, ${dy}px)`,
+        transitionDuration: `${FLIGHT_MS}ms`,
+      }}
+    >
+      <div
+        className={`relative block h-[var(--canfield-card-h)] w-[var(--canfield-card-w)] select-none rounded-md border border-black/10 bg-white text-left shadow-md shadow-black/30 ${
+          red ? "text-[#c0392b]" : "text-ink"
+        }`}
+      >
+        <span className="absolute left-0.5 top-0.5 flex flex-col items-center font-display text-[9px] font-bold leading-none sm:left-1 sm:top-1 sm:text-sm">
+          <span>{RANK_LABEL[flight.card.rank]}</span>
+          <span className="mt-0.5 text-[8px] sm:text-xs">{SUIT_SYMBOL[flight.card.suit]}</span>
+        </span>
+        <span className="absolute inset-0 grid place-items-center text-sm sm:text-2xl">
+          {isFaceCard ? RANK_LABEL[flight.card.rank] : SUIT_SYMBOL[flight.card.suit]}
+        </span>
+      </div>
     </div>
   );
 }
