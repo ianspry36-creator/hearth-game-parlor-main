@@ -17,6 +17,7 @@ import { getGame } from "@/lib/games";
 import { FavouriteSwitch } from "@/components/parlor/FavouriteSwitch";
 import { StatisticsDialog } from "@/components/parlor/StatisticsDialog";
 import { HistoryDialog } from "@/components/parlor/HistoryDialog";
+import { ConcedeButton } from "@/components/parlor/ConcedeButton";
 import { useSolitaireStats } from "@/lib/solitaireStats";
 import { RANK_LABEL, SUIT_SYMBOL, cardLabel, type Card } from "@/lib/cribbage";
 import {
@@ -90,6 +91,7 @@ function YukonTable() {
   const [history, setHistory] = useState<GameState[]>([]);
   const [selection, setSelection] = useState<Selection>(null);
   const [confirming, setConfirming] = useState<"new" | "home" | null>(null);
+  const [conceded, setConceded] = useState(false);
   const { recordResult } = useSolitaireStats(game.id);
   const prevWonRef = useRef(false);
   useEffect(() => {
@@ -173,6 +175,13 @@ function YukonTable() {
     setElapsed(0);
     startRef.current = 0;
     endedRef.current = false;
+    setConceded(false);
+  };
+
+  const concede = () => {
+    if (state.won || conceded) return;
+    recordResult("loss");
+    setConceded(true);
   };
 
   const gameInProgress = state.moves > 0;
@@ -180,7 +189,7 @@ function YukonTable() {
   const confirmHome = () => (gameInProgress ? setConfirming("home") : void navigate({ to: "/" }));
 
   const undo = () => {
-    if (history.length === 0 || state.won) return;
+    if (history.length === 0 || state.won || conceded) return;
     const prev = history[history.length - 1]!;
     // Each undo counts as a move.
     setState({ ...prev, moves: prev.moves + 1 });
@@ -477,6 +486,22 @@ function YukonTable() {
                 </div>
               </div>
             )}
+            {conceded && (
+              <div className="absolute inset-0 z-10 grid place-items-center rounded-2xl bg-brand/80 p-6 backdrop-blur-sm">
+                <div className="space-y-4 text-center">
+                  <div className="text-5xl">🏳️</div>
+                  <h2 className="font-display text-3xl font-bold text-red-300">
+                    You conceded
+                  </h2>
+                  <p className="mx-auto max-w-sm text-ivory/70">
+                    This game is recorded as a loss after {state.moves} moves.
+                  </p>
+                  <Button variant="parlor" onClick={reset}>
+                    Deal again
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
 
           <aside className="space-y-4">
@@ -488,6 +513,12 @@ function YukonTable() {
                 <Button variant="parlor" className="w-full" onClick={confirmReset}>
                   New game
                 </Button>
+                <ConcedeButton
+                  moves={state.moves}
+                  disabled={state.won || conceded}
+                  onConcede={concede}
+                  className="w-full"
+                />
                 <RulesDialog
                   game={game}
                   trigger={
@@ -508,7 +539,7 @@ function YukonTable() {
                   variant="parlorGhost"
                   className="w-full"
                   onClick={undo}
-                  disabled={history.length === 0 || state.won}
+                  disabled={history.length === 0 || state.won || conceded}
                 >
                   Undo
                 </Button>

@@ -17,6 +17,7 @@ import { getGame } from "@/lib/games";
 import { FavouriteSwitch } from "@/components/parlor/FavouriteSwitch";
 import { StatisticsDialog } from "@/components/parlor/StatisticsDialog";
 import { HistoryDialog } from "@/components/parlor/HistoryDialog";
+import { ConcedeButton } from "@/components/parlor/ConcedeButton";
 import { useSolitaireStats } from "@/lib/solitaireStats";
 import { RANK_LABEL, SUIT_SYMBOL, cardLabel, type Card } from "@/lib/cribbage";
 import {
@@ -116,6 +117,7 @@ function TriPeaksTable() {
   const [confirming, setConfirming] = useState<"new" | "home" | null>(null);
   const [resultOpen, setResultOpen] = useState(false);
   const { recordResult } = useSolitaireStats(game.id);
+  const [conceded, setConceded] = useState(false);
   const prevWonRef = useRef(false);
   useEffect(() => {
     if (state.won && !prevWonRef.current) recordResult("win");
@@ -177,9 +179,16 @@ function TriPeaksTable() {
     setElapsed(0);
     startRef.current = 0;
     endedRef.current = false;
+    setConceded(false);
   };
 
   const newRandomGame = () => deal(Math.floor(Math.random() * MAX_GAMES) + 1);
+
+  const concede = () => {
+    if (state.won || state.lost || conceded) return;
+    recordResult("loss");
+    setConceded(true);
+  };
 
   const evaluateResult = (s: GameState): string => {
     const cardsLeft = cardsRemaining(s);
@@ -227,7 +236,7 @@ function TriPeaksTable() {
   };
 
   const undo = () => {
-    if (history.length === 0 || state.won) return;
+    if (history.length === 0 || state.won || conceded) return;
     const prev = history[history.length - 1]!;
     // Each undo counts as a move.
     setState({ ...prev, moves: prev.moves + 1 });
@@ -381,6 +390,21 @@ function TriPeaksTable() {
                 )}
               </div>
             </div>
+
+            {conceded && (
+              <div className="absolute inset-0 z-10 grid place-items-center rounded-2xl bg-brand/80 p-6 backdrop-blur-sm">
+                <div className="space-y-4 text-center">
+                  <div className="text-5xl">🏳️</div>
+                  <h2 className="font-display text-3xl font-bold text-red-300">You conceded</h2>
+                  <p className="mx-auto max-w-sm text-ivory/70">
+                    This game is recorded as a loss after {state.moves} moves.
+                  </p>
+                  <Button variant="parlor" onClick={newRandomGame}>
+                    Deal again
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
 
           <aside className="space-y-4">
@@ -392,6 +416,12 @@ function TriPeaksTable() {
                 <Button variant="parlor" className="w-full" onClick={confirmReset}>
                   New game
                 </Button>
+                <ConcedeButton
+                  moves={state.moves}
+                  disabled={state.won || state.lost || conceded}
+                  onConcede={concede}
+                  className="w-full"
+                />
                 <RulesDialog
                   game={game}
                   trigger={
@@ -412,7 +442,7 @@ function TriPeaksTable() {
                   variant="parlorGhost"
                   className="w-full"
                   onClick={undo}
-                  disabled={history.length === 0 || state.won}
+                  disabled={history.length === 0 || state.won || conceded}
                 >
                   Undo
                 </Button>

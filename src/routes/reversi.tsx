@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { TableShell } from "@/components/parlor/TableShell";
 import { GameOverDialog } from "@/components/parlor/GameOverDialog";
+import { ConcedeButton } from "@/components/parlor/ConcedeButton";
 import { PlayerAvatar } from "@/components/parlor/PlayerAvatar";
 import { CountdownBadge } from "@/components/parlor/CountdownBadge";
 import { TurnOffTimerControl } from "@/components/parlor/TurnOffTimerControl";
@@ -162,6 +163,16 @@ function ReversiTable() {
     if (isMulti) void publish(isHost ? next : mirror(next));
   };
 
+  // Concede the game: award the win to the opponent (Ada or the live player).
+  const concede = () => {
+    apply((current) => ({
+      ...current,
+      phase: "over",
+      winner: "cpu",
+      log: note(current.log, { side: "human", text: `${playerName} conceded.` }),
+    }));
+  };
+
   // Live matches run a 1-minute clock on the active seat; running out forfeits
   // the game to the other player.
   const turnSecondsLeft = useTurnTimer({
@@ -263,6 +274,7 @@ function ReversiTable() {
 
   const { human, cpu } = countDiscs(state.board);
   const moved = human + cpu > 4; // beyond the opening four discs
+  const moves = human + cpu - 4; // discs placed since the opening four
 
   const status =
     isMulti && !match
@@ -299,6 +311,7 @@ function ReversiTable() {
       }}
       rail={null}
       menuExtra={
+        <>
         <TurnOffTimerControl
           showButton={
             isMulti && state.phase === "play" && !state.winner && !state.timerOff && !state.timerProposed
@@ -314,6 +327,20 @@ function ReversiTable() {
           onAccept={() => apply((current) => ({ ...current, timerOff: true, timerAgreed: true, timerRequest: null }))}
           onDecline={() => apply((current) => ({ ...current, timerRequest: null, timerDeclined: true }))}
         />
+        {!state.winner && state.phase === "play" && (
+          <ConcedeButton
+            moves={moves}
+            onConcede={concede}
+            size="sm"
+            className="w-full h-6"
+            description={
+              isMulti
+                ? `You'll forfeit the match and ${opponentName} will win.`
+                : "You'll forfeit the game and Ada will win."
+            }
+          />
+        )}
+        </>
       }
     >
       <FlagPicker open={flagOpen} onOpenChange={setFlagOpen} onSelect={setFlag} />

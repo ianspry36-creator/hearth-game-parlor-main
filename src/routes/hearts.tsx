@@ -2,6 +2,16 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { TableShell } from "@/components/parlor/TableShell";
 import { GameOverDialog } from "@/components/parlor/GameOverDialog";
 import { CryingTears } from "@/components/parlor/CryingTears";
@@ -41,7 +51,7 @@ import {
   type State,
 } from "@/lib/hearts";
 import { playHeartsBroken } from "@/lib/hearts-sounds";
-import { isStalePlayingRoom, leaveRoom, useCrazyEightsRoom, type GameRoomPlayer } from "@/lib/crazyEightsLobby";
+import { isStalePlayingRoom, leaveRoom, touchRoom, useCrazyEightsRoom, type GameRoomPlayer } from "@/lib/crazyEightsLobby";
 import { HeartsLobby } from "@/components/parlor/HeartsLobby";
 
 const BOTS: Seat[] = ["ace", "ada", "leo"];
@@ -61,6 +71,12 @@ type FlyingCard = {
 const FLIGHT_MS = 500; // deal flight duration
 const PLAY_FLIGHT_MS = 1000; // card movement (play/pass/collect) — twice as slow as the deal
 const DEAL_STAGGER_MS = 100;
+// Each seated human reports in this often while a live table is open, so the
+// others can tell they are still here. A human who goes silent for
+// PLAYER_STALE_MS (closed the tab, lost their connection) is treated as having
+// left and their seat is handed to the computer.
+const HEARTBEAT_MS = 20_000;
+const PLAYER_STALE_MS = 45_000;
 // Mobile (<640px) uses compact cards; desktop uses larger ones. The breakpoint
 // matches the `sm:` classes used for the rendered cards below.
 const isDesktop = () =>
@@ -237,7 +253,10 @@ function HeartsTable() {
       // A seat with no player row (a human left mid-game, or never joined) is
       // played by a computer, otherwise the table stalls waiting for a card
       // selection that will never arrive.
-      return !occ || occ.is_bot;
+      if (!occ || occ.is_bot) return true;
+      // A human whose heartbeat has gone silent has left (closed the tab or lost
+      // their connection); the computer takes over so the table keeps moving.
+      return Date.now() - Date.parse(occ.last_seen_at) > PLAYER_STALE_MS;
     },
     [isRoom, roomPlayers, roomSeatOf],
   );
@@ -259,13 +278,27 @@ function HeartsTable() {
       const occ = roomPlayers.find((p) => p.seat === roomSeatOf(seat));
       if (occ && !occ.is_bot) now.set(seat, occ);
     }
+    const cutoff = Date.now() - PLAYER_STALE_MS;
     const resigned = new Set<Seat>();
     for (const seat of humanSeatsRef.current.keys()) {
-      if (seat !== "you" && !now.has(seat)) resigned.add(seat);
+      if (seat === "you") continue;
+      const occ = now.get(seat);
+      // Gone for good (row deleted) or gone silent (stopped heartbeating): both
+      // mean the human has left, so flag the seat "resigned" for the match.
+      if (!occ || Date.parse(occ.last_seen_at) <= cutoff) resigned.add(seat);
     }
     for (const [seat, occ] of now) humanSeatsRef.current.set(seat, occ);
     setResignedSeats(resigned);
   }, [isRoom, roomPlayers, roomSeatOf]);
+
+  // Keep our own seat alive while the table is open, so the other players can
+  // tell we are still here (and we can tell when they have gone silent).
+  useEffect(() => {
+    if (!isRoom || !roomId) return;
+    touchRoom(roomId);
+    const interval = window.setInterval(() => touchRoom(roomId), HEARTBEAT_MS);
+    return () => window.clearInterval(interval);
+  }, [isRoom, roomId]);
 
   // Fly a played card from its seat to its slot in the trick, then commit the play.
   const animatePlay = useCallback(
@@ -592,6 +625,26 @@ function HeartsTable() {
   const [playerFlag, setPlayerFlag] = useState<string | null>(readFlag);
   const [flagOpen, setFlagOpen] = useState(false);
   const [playerName, setPlayerName] = useState<string>(() => getNickname() ?? "You");
+  const [concedeOpen, setConcedeOpen] = useState(false);
+
+  // Concede the game: forfeit and award the win to the lowest-scoring opponent.
+  const concede = useCallback(() => {
+    setConcedeOpen(false);
+    setState((current) => {
+      const others = SEATS.filter((s) => s !== "you");
+      const min = Math.min(...others.map((s) => current.points[s] ?? 0));
+      const winner = others.find((s) => (current.points[s] ?? 0) === min) ?? "ada";
+      const next: State = {
+        ...current,
+        phase: "over",
+        winner,
+        log: [{ side: "you", text: `${playerName} conceded.` }, ...current.log].slice(0, 40),
+      };
+      if (isRoom) void publishRoom(remapState(next, mySeat));
+      return next;
+    });
+  }, [isRoom, mySeat, playerName, publishRoom]);
+
   const seatName = (seat: Seat): string => {
     if (seat === "you") return playerName;
     if (!isRoom) return SEAT_NAMES[seat];
@@ -837,6 +890,13 @@ function HeartsTable() {
       )}
       containerClassName="px-1.5 sm:px-3"
       boxClassName="pl-[5px] sm:pl-8 pt-2.5 sm:pt-4"
+      menuExtra={
+        state.phase !== "ready" && state.phase !== "over" ? (
+          <Button variant="parlorGhost" size="sm" className="w-full h-6" onClick={() => setConcedeOpen(true)}>
+            Concede
+          </Button>
+        ) : null
+      }
     >
       <GameOverDialog
         open={state.phase === "over"}
@@ -854,6 +914,21 @@ function HeartsTable() {
           </Button>
         }
       />
+
+      <AlertDialog open={concedeOpen} onOpenChange={setConcedeOpen}>
+        <AlertDialogContent className="border-gold/25 bg-brand text-cream">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-display text-2xl">Concede the game?</AlertDialogTitle>
+            <AlertDialogDescription className="text-ivory/65">
+              You'll forfeit the game and the lowest-scoring opponent will win.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep playing</AlertDialogCancel>
+            <AlertDialogAction onClick={concede}>Concede</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <div className="relative flex flex-col">
         <div className="absolute right-0 top-0 z-20">
@@ -1019,7 +1094,7 @@ function HeartsTable() {
             <div className="relative">
               <div className={cryingSeat === "you" ? "animate-cry" : undefined}>
                 <div className={`w-fit rounded-full ${myTurn ? "ring-4 ring-gold" : ""}`}>
-                  <AvatarPicker avatar={playerAvatar} onSelect={setPlayerAvatar} size="size-[25.5px] sm:size-[48.96px]" />
+                  <AvatarPicker avatar={playerAvatar} onSelect={setPlayerAvatar} size="size-[31.88px] sm:size-[48.96px]" />
                 </div>
               </div>
               {cryingSeat === "you" && <CryingTears />}
@@ -1146,7 +1221,7 @@ function SeatAvatar({
         <img
           src={avatar}
           alt={name}
-          className={`size-[25.5px] rounded-full object-cover sm:size-[48.96px] ${
+          className={`size-[31.88px] rounded-full object-cover sm:size-[48.96px] ${
             isTurn ? "ring-4 ring-gold" : "ring-1 ring-ivory/20"
           } ${resigned ? "opacity-60 grayscale" : ""}`}
         />

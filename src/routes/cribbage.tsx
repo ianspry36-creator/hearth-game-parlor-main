@@ -21,6 +21,7 @@ import { CribBoard, ScoreGrid } from "@/components/parlor/CribBoard";
 import { CribBoardOptionsDialog } from "@/components/parlor/CribBoardOptionsDialog";
 import { CountdownBadge } from "@/components/parlor/CountdownBadge";
 import { TurnOffTimerControl } from "@/components/parlor/TurnOffTimerControl";
+import { ConcedeButton } from "@/components/parlor/ConcedeButton";
 import { getGame } from "@/lib/games";
 import { getNickname, RECONNECT_SECONDS, TURN_WARNING_SECONDS, useMatch, useTurnTimer } from "@/lib/multiplayer";
 import { useRecordMatchResult } from "@/lib/stats";
@@ -116,6 +117,8 @@ type State = {
   timerProposed: boolean;
   timerDeclined: boolean;
   timerAgreed: boolean;
+  /** Cards laid to the pegging pile so far (cumulative across hands). */
+  moves: number;
 };
 
 type FlyingCard = {
@@ -157,7 +160,12 @@ const responsiveCardOverlap = () => {
   return desktop ? 50.4 : 12;
 };
 
-function dealHand(dealer: Side, scores: Record<Side, number>, log: LogEntry[]): State {
+function dealHand(
+  dealer: Side,
+  scores: Record<Side, number>,
+  log: LogEntry[],
+  moves = 0,
+): State {
   const deck = freshDeck();
   return {
     phase: "discard",
@@ -191,6 +199,7 @@ function dealHand(dealer: Side, scores: Record<Side, number>, log: LogEntry[]): 
     playerCut: null,
     cpuCut: null,
     lastPeg: null,
+    moves,
   };
 }
 
@@ -347,6 +356,7 @@ function playCard(state: State, side: Side, card: Card): State {
   const s: State = { ...state };
   const lines = scorePegging(s.pile, card);
   s.pile = [...s.pile, card];
+  s.moves += 1;
   s.lastPeg = null;
   if (side === "player") s.playerHand = s.playerHand.filter((c) => c.id !== card.id);
   else s.cpuHand = s.cpuHand.filter((c) => c.id !== card.id);
@@ -609,6 +619,16 @@ function CribbageTable() {
     stateRef.current = next;
     setState(next);
     if (isMulti) void publish(isHost ? next : mirror(next));
+  };
+
+  // Concede the game: award the win to the opponent (Ada or the live player).
+  const concede = () => {
+    apply((current) => ({
+      ...current,
+      phase: "over",
+      winner: "cpu",
+      log: note(current.log, { side: "player", text: `${playerName} conceded.` }),
+    }));
   };
 
   // Live matches run a 1-minute clock on the active seat; running out forfeits
@@ -1087,7 +1107,12 @@ function CribbageTable() {
     if (!isMulti || !isHost) return;
     if (state.phase !== "show" || !state.showReady.player || !state.showReady.cpu) return;
     apply((current) => ({
-      ...dealHand(other(current.dealer), current.pendingScores ?? current.scores, current.log),
+      ...dealHand(
+        other(current.dealer),
+        current.pendingScores ?? current.scores,
+        current.log,
+        current.moves,
+      ),
       lastPeg: null,
       timerOff: current.timerOff,
       timerProposed: current.timerProposed,
@@ -1202,7 +1227,12 @@ function CribbageTable() {
       // Solo (or a single human seat): no opponent to wait for — deal straight away.
       if (!isMulti) {
         return {
-          ...dealHand(other(current.dealer), current.pendingScores ?? current.scores, current.log),
+          ...dealHand(
+            other(current.dealer),
+            current.pendingScores ?? current.scores,
+            current.log,
+            current.moves,
+          ),
           lastPeg: null,
           timerOff: current.timerOff,
           timerProposed: current.timerProposed,
@@ -1340,6 +1370,19 @@ function CribbageTable() {
               apply((current) => ({ ...current, timerRequest: null, timerDeclined: true }))
             }
           />
+          {!state.winner && state.phase !== "over" && (
+            <ConcedeButton
+              moves={state.moves}
+              onConcede={concede}
+              size="sm"
+              className="w-full h-6"
+              description={
+                isMulti
+                  ? `You'll forfeit the match and ${opponentName} will win.`
+                  : "You'll forfeit the game and Ada will win."
+              }
+            />
+          )}
         </>
       }
       containerClassName="px-3 sm:px-6"

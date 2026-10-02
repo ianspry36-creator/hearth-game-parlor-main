@@ -844,10 +844,10 @@
 
 @media (max-width: 639.98px) {
   :root {
-    --canfield-card-h: 71px;
-    --canfield-card-w: 50px;
-    --canfield-visible: 12px;
-    --canfield-reserve-visible: 16px;
+    --canfield-card-h: 64px;
+    --canfield-card-w: 45px;
+    --canfield-visible: 11px;
+    --canfield-reserve-visible: 14px;
   }
 }
 

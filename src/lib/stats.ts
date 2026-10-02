@@ -198,6 +198,39 @@ export async function fetchOpponentStats(
 }
 
 /**
+ * Developer-only cleanup: remove every match a player took part in for `game`.
+ * Identify the player either by nickname (leaderboard rows) or session id
+ * (opponent rows). Only exposed in the UI while Developer Mode is active.
+ */
+export async function deletePlayerMatches(
+  game: GameId,
+  key: { nickname?: string; session?: string },
+): Promise<void> {
+  const nickname = key.nickname?.trim();
+  const session = key.session?.trim();
+
+  if (nickname) {
+    const quoted = JSON.stringify(nickname);
+    const { error } = await supabase
+      .from("matches")
+      .delete()
+      .eq("game", game)
+      .or(`host_nickname.eq.${quoted},guest_nickname.eq.${quoted}`);
+    if (error) throw error;
+    return;
+  }
+
+  if (session) {
+    const { error } = await supabase
+      .from("matches")
+      .delete()
+      .eq("game", game)
+      .or(`host_session.eq.${session},guest_session.eq.${session}`);
+    if (error) throw error;
+  }
+}
+
+/**
  * Turn a game's winner seat into a local result. A null winner means the game
  * is still in progress. `"draw"` maps to a draw; the computer/bot seats map to
  * a loss; every other seat (`"human"`, `"you"`, `"player"`) is the local player.

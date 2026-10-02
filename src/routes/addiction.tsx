@@ -1,5 +1,5 @@
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -16,6 +16,7 @@ import { getGame } from "@/lib/games";
 import { FavouriteSwitch } from "@/components/parlor/FavouriteSwitch";
 import { StatisticsDialog } from "@/components/parlor/StatisticsDialog";
 import { HistoryDialog } from "@/components/parlor/HistoryDialog";
+import { ConcedeButton } from "@/components/parlor/ConcedeButton";
 import { useSolitaireStats } from "@/lib/solitaireStats";
 import { CardMark } from "@/components/parlor/CardMark";
 import { RANK_LABEL, SUIT_SYMBOL, cardLabel, type Card, type Suit } from "@/lib/cribbage";
@@ -77,8 +78,10 @@ function AddictionTable() {
   const [state, setState] = useState<GameState>(() => freshGame(mulberry32(SSR_SEED)));
   const [history, setHistory] = useState<GameState[]>([]);
   const [selection, setSelection] = useState<Position | null>(null);
+  const [hinting, setHinting] = useState(false);
   const [confirming, setConfirming] = useState<"new" | "home" | null>(null);
   const { recordResult } = useSolitaireStats(game.id);
+  const [conceded, setConceded] = useState(false);
   const prevWonRef = useRef(false);
   // FLIP animation bookkeeping: the board container for measuring card slots,
   // plus the rectangles captured just before a shuffle so moved cards can glide
@@ -162,16 +165,49 @@ function AddictionTable() {
   const targets = selection ? legalTargets(state.board, selection) : [];
   const targetSet = new Set(targets.map((t) => `${t.row}:${t.col}`));
 
-  // Every card that currently has at least one legal empty slot to move into.
-  const movableSet = new Set<string>();
-  for (let r = 0; r < state.board.length; r += 1) {
-    for (let c = 0; c < state.board[r]!.length; c += 1) {
-      const card = state.board[r]![c];
-      if (card && legalTargets(state.board, { row: r, col: c }).length > 0) {
-        movableSet.add(`${r}:${c}`);
+  // Every card that currently has at least one legal empty slot to move into,
+  // kept as an ordered list (for the auto-hint tour) and a set (for the ring).
+  const movablePositions = useMemo(() => {
+    const out: Position[] = [];
+    for (let r = 0; r < state.board.length; r += 1) {
+      for (let c = 0; c < state.board[r]!.length; c += 1) {
+        const card = state.board[r]![c];
+        if (card && legalTargets(state.board, { row: r, col: c }).length > 0) {
+          out.push({ row: r, col: c });
+        }
       }
     }
-  }
+    return out;
+  }, [state.board]);
+  const movableSet = useMemo(
+    () => new Set(movablePositions.map((p) => `${p.row}:${p.col}`)),
+    [movablePositions],
+  );
+
+  // Auto-hint: every ten seconds, flash every card that can move red at once,
+  // hold the flash briefly, then clear until the next cycle.
+  useEffect(() => {
+    if (state.won || lost || movablePositions.length === 0) {
+      setHinting(false);
+      return;
+    }
+
+    let hideTimer: number | null = null;
+
+    const flash = () => {
+      setHinting(true);
+      if (hideTimer !== null) window.clearTimeout(hideTimer);
+      hideTimer = window.setTimeout(() => setHinting(false), 800);
+    };
+
+    flash();
+    const tourTimer = window.setInterval(flash, 10000);
+
+    return () => {
+      window.clearInterval(tourTimer);
+      if (hideTimer !== null) window.clearTimeout(hideTimer);
+    };
+  }, [state.won, lost, movablePositions]);
 
   const apply = (candidate: GameState) => {
     if (candidate === state) return;
@@ -188,6 +224,13 @@ function AddictionTable() {
     setElapsed(0);
     startRef.current = 0;
     endedRef.current = false;
+    setConceded(false);
+  };
+
+  const concede = () => {
+    if (state.won || lost || conceded) return;
+    recordResult("loss");
+    setConceded(true);
   };
 
   const gameInProgress = state.moves > 0 && !state.won && !lost;
@@ -195,7 +238,7 @@ function AddictionTable() {
   const confirmHome = () => (gameInProgress ? setConfirming("home") : void navigate({ to: "/" }));
 
   const undo = () => {
-    if (history.length === 0 || state.won || lost) return;
+    if (history.length === 0 || state.won || lost || conceded) return;
     const prev = history[history.length - 1]!;
     setState(prev);
     setHistory(history.slice(0, -1));
@@ -355,6 +398,7 @@ function AddictionTable() {
                             isTarget={isTarget}
                             correct={correct}
                             movable={movableSet.has(`${r}:${c}`)}
+                            hint={hinting && movableSet.has(`${r}:${c}`)}
                             onClick={() => clickSlot(pos)}
                             onDoubleClick={() => doubleClickSlot(pos)}
                           />
@@ -415,6 +459,22 @@ function AddictionTable() {
                 </div>
               </div>
             )}
+            {conceded && (
+              <div className="absolute inset-0 z-10 grid place-items-center rounded-2xl bg-brand/85 p-6 backdrop-blur-sm">
+                <div className="space-y-4 text-center">
+                  <div className="text-5xl">🏳️</div>
+                  <h2 className="font-display text-3xl font-bold text-red-300">
+                    You conceded
+                  </h2>
+                  <p className="mx-auto max-w-sm text-ivory/70">
+                    This game is recorded as a loss after {state.moves} moves.
+                  </p>
+                  <Button variant="parlor" onClick={reset}>
+                    Deal again
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
 
           <aside className="space-y-4">
@@ -426,6 +486,12 @@ function AddictionTable() {
                 <Button variant="parlor" className="w-full" onClick={confirmReset}>
                   New game
                 </Button>
+                <ConcedeButton
+                  moves={state.moves}
+                  disabled={state.won || lost || conceded}
+                  onConcede={concede}
+                  className="w-full"
+                />
                 <RulesDialog
                   game={game}
                   trigger={
@@ -446,7 +512,7 @@ function AddictionTable() {
                   variant="parlorGhost"
                   className="w-full"
                   onClick={undo}
-                  disabled={history.length === 0 || state.won || lost}
+                  disabled={history.length === 0 || state.won || lost || conceded}
                 >
                   Undo
                 </Button>
@@ -512,6 +578,7 @@ function CardCell({
   isTarget,
   correct,
   movable,
+  hint,
   onClick,
   onDoubleClick,
 }: {
@@ -520,6 +587,7 @@ function CardCell({
   isTarget: boolean;
   correct: boolean;
   movable: boolean;
+  hint: boolean;
   onClick: () => void;
   onDoubleClick: () => void;
 }) {
@@ -552,7 +620,15 @@ function CardCell({
       aria-label={cardLabel(card)}
       className={`relative block h-[var(--ad-card-h)] w-[var(--ad-card-w)] shrink-0 select-none rounded-lg border border-black/10 bg-white text-left shadow-md shadow-black/30 transition-transform ${
         red ? "text-[#c0392b]" : "text-ink"
-      } ${selected ? "-translate-y-1 ring-2 ring-gold" : movable ? "ring-2 ring-gold/60" : ""}`}
+      } ${
+        selected
+          ? "-translate-y-1 ring-2 ring-gold"
+          : hint
+            ? "-translate-y-1 ring-2 ring-[#c0392b] bg-[#fdeceb] shadow-[0_0_0_3px_rgba(192,57,43,0.4)]"
+            : movable
+              ? "ring-2 ring-gold/60"
+              : ""
+      }`}
     >
       <span className="absolute left-0.5 top-0.5 flex flex-col items-center font-display text-[9px] font-bold leading-none sm:left-1 sm:top-1 sm:text-sm">
         <span>{RANK_LABEL[card.rank]}</span>

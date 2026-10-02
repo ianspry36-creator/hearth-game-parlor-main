@@ -16,6 +16,7 @@ import { getGame } from "@/lib/games";
 import { FavouriteSwitch } from "@/components/parlor/FavouriteSwitch";
 import { StatisticsDialog } from "@/components/parlor/StatisticsDialog";
 import { HistoryDialog } from "@/components/parlor/HistoryDialog";
+import { ConcedeButton } from "@/components/parlor/ConcedeButton";
 import { useSolitaireStats } from "@/lib/solitaireStats";
 import { CardMark } from "@/components/parlor/CardMark";
 import { RANK_LABEL, SUIT_SYMBOL, cardLabel, type Card } from "@/lib/cribbage";
@@ -95,6 +96,7 @@ function ClockTable() {
   const [state, setState] = useState<GameState>(() => freshGame(mulberry32(SSR_SEED)));
   const [confirming, setConfirming] = useState<"new" | "home" | null>(null);
   const { recordResult } = useSolitaireStats(game.id);
+  const [conceded, setConceded] = useState(false);
   const prevWonRef = useRef(false);
   useEffect(() => {
     if (state.won && !prevWonRef.current) recordResult("win");
@@ -309,6 +311,13 @@ function ClockTable() {
     setIsDragging(false);
     setDragOffset({ x: 0, y: 0 });
     dragStartRef.current = null;
+    setConceded(false);
+  };
+
+  const concede = () => {
+    if (state.won || state.lost || conceded) return;
+    recordResult("loss");
+    setConceded(true);
   };
 
   const gameInProgress = state.revealed > 0 && !state.won && !state.lost;
@@ -405,6 +414,22 @@ function ClockTable() {
                 </div>
               </div>
             )}
+            {conceded && (
+              <div className="absolute inset-0 z-10 grid place-items-center rounded-2xl bg-brand/80 p-6 backdrop-blur-sm">
+                <div className="space-y-4 text-center">
+                  <div className="text-5xl">🏳️</div>
+                  <h2 className="font-display text-3xl font-bold text-red-300">
+                    You conceded
+                  </h2>
+                  <p className="mx-auto max-w-sm text-ivory/70">
+                    This game is recorded as a loss.
+                  </p>
+                  <Button variant="parlor" onClick={reset}>
+                    Deal again
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
 
           <aside className="space-y-4">
@@ -416,6 +441,12 @@ function ClockTable() {
                 <Button variant="parlor" className="w-full" onClick={confirmReset}>
                   New game
                 </Button>
+                <ConcedeButton
+                  moves={state.revealed}
+                  disabled={state.won || state.lost || conceded}
+                  onConcede={concede}
+                  className="w-full"
+                />
                 <RulesDialog
                   game={game}
                   trigger={

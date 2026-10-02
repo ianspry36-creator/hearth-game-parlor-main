@@ -334,6 +334,8 @@ function CrazyEightsTable() {
   /** Cards currently in flight from a hand to the up card; hidden in place until they land. */
   const [layingIds, setLayingIds] = useState<string[]>([]);
   const [viewingHand, setViewingHand] = useState(false);
+  // Whether the concede confirmation dialog is open.
+  const [concedeOpen, setConcedeOpen] = useState(false);
   const [sortDesc, setSortDesc] = useState(false);
   const [handWidth, setHandWidth] = useState(0);
   const isMobile = useIsMobile();
@@ -467,6 +469,20 @@ function CrazyEightsTable() {
     setState(next);
     if (isRoom) void publishRoom(remapState(next, mySeat, activeCount));
     else if (isMulti) void publish(isHost ? next : mirror(next));
+  };
+
+  // Concede the game: award the win to the opponent (Ada, a bot, or a live player).
+  const concede = () => {
+    setConcedeOpen(false);
+    apply((current) => {
+      const opponent = current.order.find((seat) => seat !== "you") ?? "ada";
+      return {
+        ...current,
+        phase: "over",
+        winner: opponent,
+        log: note(current.log, { side: "you", text: `${getNickname() ?? "You"} conceded.` }),
+      };
+    });
   };
 
   const startGame = (count: PlayerCount) => {
@@ -1154,6 +1170,7 @@ function CrazyEightsTable() {
       onNewGame={() => (isLive ? navigate({ to: "/crazy-eights" }) : startGame(playerCount))}
       rail={null}
       menuExtra={
+        <>
         <TurnOffTimerControl
           showButton={
             isLive && state.phase !== "over" && !state.winner && !state.timerOff && !state.timerProposed
@@ -1171,6 +1188,12 @@ function CrazyEightsTable() {
           }
           onDecline={() => apply((current) => ({ ...current, timerRequest: null, timerDeclined: true }))}
         />
+        {!state.winner && state.phase !== "over" && (
+          <Button variant="parlorGhost" size="sm" className="w-full h-6" onClick={() => setConcedeOpen(true)}>
+            Concede
+          </Button>
+        )}
+        </>
       }
       containerClassName="px-1.5 sm:px-3"
       boxClassName="px-[5px] py-[5px] sm:px-2 sm:py-2"
@@ -1223,6 +1246,22 @@ function CrazyEightsTable() {
                 Decline
               </Button>
             </AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={concedeOpen} onOpenChange={setConcedeOpen}>
+        <AlertDialogContent className="border-gold/25 bg-brand text-cream">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-display text-2xl">Concede the game?</AlertDialogTitle>
+            <AlertDialogDescription className="text-ivory/65">
+              {isLive
+                ? `You'll forfeit the match and ${opponentName} will win.`
+                : "You'll forfeit the game and Ada will win."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep playing</AlertDialogCancel>
+            <AlertDialogAction onClick={concede}>Concede</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

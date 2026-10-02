@@ -172,12 +172,25 @@ function TrianglesTable() {
   const isMulti = Boolean(matchId);
   const opponentName = liveOpponent ?? opponent ?? "Ada";
   const [playerName, setPlayerName] = useState(() => getNickname() ?? "You");
+  // Whether the concede confirmation dialog is open.
+  const [concedeOpen, setConcedeOpen] = useState(false);
 
   const apply = (fn: (current: State) => State) => {
     const next = fn(stateRef.current);
     stateRef.current = next;
     setState(next);
     if (isMulti) void publish(isHost ? next : mirror(next));
+  };
+
+  // Concede the game: award the win to the opponent (Ada or the live player).
+  const concede = () => {
+    setConcedeOpen(false);
+    apply((current) => ({
+      ...current,
+      phase: "over",
+      winner: "cpu",
+      log: note(current.log, { side: "human", text: `${playerName} conceded.` }),
+    }));
   };
 
   // Live matches run a 1-minute clock on the active seat; running out forfeits
@@ -480,6 +493,7 @@ function TrianglesTable() {
       rail={null}
       containerClassName="px-2.5 sm:px-6"
       menuExtra={
+        <>
         <TurnOffTimerControl
           showButton={
             isMulti && state.phase === "play" && !state.winner && !state.timerOff && !state.timerProposed
@@ -495,6 +509,12 @@ function TrianglesTable() {
           onAccept={() => apply((current) => ({ ...current, timerOff: true, timerAgreed: true, timerRequest: null }))}
           onDecline={() => apply((current) => ({ ...current, timerRequest: null, timerDeclined: true }))}
         />
+        {!state.winner && state.phase === "play" && (
+          <Button variant="parlorGhost" size="sm" className="w-full h-6" onClick={() => setConcedeOpen(true)}>
+            Concede
+          </Button>
+        )}
+        </>
       }
       // sm:pt-4 halves the space above the opponent box (p-5/sm:p-8 on the game
       // box puts 32px there from the sm breakpoint on).
@@ -548,6 +568,22 @@ function TrianglesTable() {
                 Decline
               </Button>
             </AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={concedeOpen} onOpenChange={setConcedeOpen}>
+        <AlertDialogContent className="border-gold/25 bg-brand text-cream">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-display text-2xl">Concede the game?</AlertDialogTitle>
+            <AlertDialogDescription className="text-ivory/65">
+              {isMulti
+                ? `You'll forfeit the match and ${opponentName} will win.`
+                : "You'll forfeit the game and Ada will win."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep playing</AlertDialogCancel>
+            <AlertDialogAction onClick={concede}>Concede</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

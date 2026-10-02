@@ -23,6 +23,7 @@ import type { GameMeta } from "@/lib/games";
 import {
   fetchLeaderboard,
   fetchOpponentStats,
+  deletePlayerMatches,
   isHybridGame,
   isSoloGame,
   type LeaderboardEntry,
@@ -30,6 +31,7 @@ import {
 } from "@/lib/stats";
 import { useSolitaireStats } from "@/lib/solitaireStats";
 import { getNickname, getSessionId } from "@/lib/multiplayer";
+import { useDeveloperMode } from "@/lib/dev-mode";
 import { flagName, flagUrl } from "@/lib/flags";
 import type { ReactNode } from "react";
 
@@ -139,6 +141,8 @@ export function StatisticsDialog({ game, trigger }: { game: GameMeta; trigger: R
 function Leaderboard({ game }: { game: GameMeta }) {
   const [rows, setRows] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [reload, setReload] = useState(0);
+  const devMode = useDeveloperMode();
 
   useEffect(() => {
     let live = true;
@@ -150,11 +154,16 @@ function Leaderboard({ game }: { game: GameMeta }) {
     return () => {
       live = false;
     };
-  }, [game.id]);
+  }, [game.id, reload]);
+
+  const remove = async (nickname: string) => {
+    await deletePlayerMatches(game.id, { nickname });
+    setReload((n) => n + 1);
+  };
 
   if (loading) return <p className="py-8 text-center text-sm text-ivory/55">Loading…</p>;
   if (rows.length === 0) return <EmptyState />;
-  return <StatTable rows={rows} />;
+  return <StatTable rows={rows} devMode={devMode} onDelete={remove} />;
 }
 
 function SoloStats({
@@ -179,9 +188,13 @@ function SoloStats({
 function StatTable({
   rows,
   abandoned,
+  devMode,
+  onDelete,
 }: {
   rows: LeaderboardEntry[];
   abandoned?: number;
+  devMode?: boolean;
+  onDelete?: (nickname: string) => void;
 }) {
   const showAbandoned = abandoned !== undefined;
   const cols = showAbandoned
@@ -206,7 +219,20 @@ function StatTable({
             className={`grid ${cols} items-center gap-2 border-b border-gold/10 py-2.5 text-sm last:border-0`}
           >
             <span className="text-ivory/45">{i + 1}</span>
-            <span className="truncate font-medium">{row.nickname}</span>
+            <span className="flex min-w-0 items-center gap-1.5">
+              <span className="truncate font-medium">{row.nickname}</span>
+              {devMode && onDelete && (
+                <button
+                  type="button"
+                  onClick={() => onDelete(row.nickname)}
+                  aria-label={`Delete ${row.nickname}`}
+                  title={`Delete ${row.nickname}`}
+                  className="grid size-5 shrink-0 cursor-pointer place-items-center rounded-full bg-destructive/15 text-[11px] font-bold leading-none text-destructive transition-colors hover:bg-destructive/40"
+                >
+                  ✕
+                </button>
+              )}
+            </span>
             <span className="text-right text-ivory/80">{row.played}</span>
             <span className="text-right text-gold">{row.won}</span>
             <span className="text-right text-ivory/60">{row.lost}</span>
@@ -231,6 +257,8 @@ function EmptyState() {
 function Opponents({ game }: { game: GameMeta }) {
   const [rows, setRows] = useState<OpponentStats[]>([]);
   const [loading, setLoading] = useState(true);
+  const [reload, setReload] = useState(0);
+  const devMode = useDeveloperMode();
 
   useEffect(() => {
     let live = true;
@@ -242,14 +270,27 @@ function Opponents({ game }: { game: GameMeta }) {
     return () => {
       live = false;
     };
-  }, [game.id]);
+  }, [game.id, reload]);
+
+  const remove = async (opponentSession: string) => {
+    await deletePlayerMatches(game.id, { session: opponentSession });
+    setReload((n) => n + 1);
+  };
 
   if (loading) return <p className="py-8 text-center text-sm text-ivory/55">Loading…</p>;
   if (rows.length === 0) return <EmptyState />;
-  return <OpponentTable rows={rows} />;
+  return <OpponentTable rows={rows} devMode={devMode} onDelete={remove} />;
 }
 
-function OpponentTable({ rows }: { rows: OpponentStats[] }) {
+function OpponentTable({
+  rows,
+  devMode,
+  onDelete,
+}: {
+  rows: OpponentStats[];
+  devMode?: boolean;
+  onDelete?: (opponentSession: string) => void;
+}) {
   return (
     <div className="mt-1">
       <div className="sticky top-0 z-10 grid grid-cols-[1fr_3.5rem_3.5rem_3.5rem] gap-2 border-b border-gold/15 bg-surface py-2 text-[11px] uppercase tracking-[0.18em] text-ivory/50 sm:grid-cols-[1fr_3.5rem_3.5rem_3.5rem_4rem]">
@@ -285,6 +326,17 @@ function OpponentTable({ rows }: { rows: OpponentStats[] }) {
                   title={flagName(row.flag) ?? ""}
                   className="size-5 shrink-0 rounded-sm border border-black/20 object-cover shadow-sm shadow-black/30"
                 />
+              )}
+              {devMode && onDelete && (
+                <button
+                  type="button"
+                  onClick={() => onDelete(row.opponentSession)}
+                  aria-label={`Delete ${row.nickname}`}
+                  title={`Delete ${row.nickname}`}
+                  className="grid size-5 shrink-0 cursor-pointer place-items-center rounded-full bg-destructive/15 text-[11px] font-bold leading-none text-destructive transition-colors hover:bg-destructive/40"
+                >
+                  ✕
+                </button>
               )}
             </div>
             <span className="text-right text-ivory/80">{row.played}</span>
