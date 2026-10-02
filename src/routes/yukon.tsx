@@ -394,7 +394,7 @@ function YukonTable() {
 
   return (
     <div className="min-h-screen text-cream">
-      <div className="relative mx-auto max-w-6xl px-4 pb-10 pt-6 sm:px-6">
+      <div className="relative mx-auto max-w-6xl pl-[3px] pr-4 pb-10 pt-6 sm:px-6">
         <header className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <Link
@@ -424,9 +424,9 @@ function YukonTable() {
         <div className="flex flex-wrap items-center justify-center gap-6 border-y border-gold/15 py-4 text-center">
           <Stat label="Moves" value={String(state.moves)} />
           <Stat label="Time" value={formatElapsed(shownElapsed)} />
-          <Stat label="Cards home" value={String(cardsHome(state))} />
-          <Stat label="Best moves" value={best.moves > 0 ? String(best.moves) : "—"} />
-          <Stat label="Best time" value={best.time > 0 ? formatElapsed(best.time) : "—"} />
+          <Stat label="Cards home" value={String(cardsHome(state))} className="hidden sm:flex" />
+          <Stat label="Best moves" value={best.moves > 0 ? String(best.moves) : "—"} className="hidden sm:flex" />
+          <Stat label="Best time" value={best.time > 0 ? formatElapsed(best.time) : "—"} className="hidden sm:flex" />
         </div>
 
         <div className="mt-8 grid items-start gap-6 lg:grid-cols-[1fr_260px]">
@@ -607,9 +607,17 @@ function YukonTable() {
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({
+  label,
+  value,
+  className = "",
+}: {
+  label: string;
+  value: string;
+  className?: string;
+}) {
   return (
-    <div className="flex flex-col items-center">
+    <div className={`flex flex-col items-center ${className}`}>
       <span className="text-[10px] uppercase tracking-[0.2em] text-ivory/45">{label}</span>
       <span className="font-display text-xl font-bold leading-tight">{value}</span>
     </div>
@@ -675,13 +683,23 @@ function CardBack({ onClick }: { onClick?: () => void }) {
   );
 }
 
-function EmptySlot({ onClick, symbol }: { onClick?: () => void; symbol?: string }) {
+function EmptySlot({
+  onClick,
+  symbol,
+  red,
+}: {
+  onClick?: () => void;
+  symbol?: string;
+  red?: boolean;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
       aria-label="Empty pile"
-      className="grid h-[var(--yukon-card-h)] w-[var(--yukon-card-w)] place-items-center rounded-md border border-dashed border-gold/30 text-lg text-gold/30"
+      className={`grid h-[var(--yukon-card-h)] w-[var(--yukon-card-w)] place-items-center rounded-md border border-dashed border-gold/30 text-lg ${
+        red ? "text-[#c0392b]" : "text-gold/30"
+      }`}
     >
       {symbol ?? "♚"}
     </button>
@@ -707,11 +725,12 @@ function FoundationSlot({
 }) {
   const top = pile[pile.length - 1];
   const suit = FOUNDATION_SUITS[suitIndex];
-  const suitSymbol = suit ? SUIT_SYMBOL[suit] : "";
+  const redSuit = suit ? isRed(suit) : false;
+  const suitSymbol = suit && redSuit ? SUIT_SYMBOL[suit] : "";
   return (
     <div className="relative" data-drop="foundation">
       {!top ? (
-        <EmptySlot onClick={onClick} symbol={suitSymbol} />
+        <EmptySlot onClick={onClick} symbol={suitSymbol} red={redSuit} />
       ) : (
         <>
           {pile.length > 1 && (
