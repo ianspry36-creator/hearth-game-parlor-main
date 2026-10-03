@@ -27,6 +27,9 @@ function write(game: GameId, stats: SolitaireStats) {
   }
 }
 
+/** Fired whenever single-player statistics change so open dialogs stay in sync. */
+const STATS_CHANGED_EVENT = "parlor.stats.changed";
+
 /** Record a finished single-player game (played = won + lost + abandoned). */
 export function recordSolitaireResult(game: GameId, result: "win" | "loss" | "abandoned") {
   const stats = read(game);
@@ -34,6 +37,9 @@ export function recordSolitaireResult(game: GameId, result: "win" | "loss" | "ab
   else if (result === "loss") stats.lost += 1;
   else stats.abandoned += 1;
   write(game, stats);
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent<GameId>(STATS_CHANGED_EVENT, { detail: game }));
+  }
 }
 
 /**
@@ -45,6 +51,11 @@ export function useSolitaireStats(game: GameId) {
 
   useEffect(() => {
     setStats(read(game));
+    const sync = (e: Event) => {
+      if ((e as CustomEvent<GameId>).detail === game) setStats(read(game));
+    };
+    window.addEventListener(STATS_CHANGED_EVENT, sync);
+    return () => window.removeEventListener(STATS_CHANGED_EVENT, sync);
   }, [game]);
 
   const recordResult = useCallback(

@@ -145,7 +145,7 @@ function FreeCellTable() {
     setConceded(true);
   };
 
-  const gameInProgress = state.moves > 0;
+  const gameInProgress = state.moves > 0 && !state.won && !conceded;
   const confirmReset = () => (gameInProgress ? setConfirming("new") : reset());
   const confirmHome = () => (gameInProgress ? setConfirming("home") : void navigate({ to: "/" }));
 
@@ -431,7 +431,7 @@ function FreeCellTable() {
                     />
                   ))}
                 </div>
-                <div className="flex gap-1 sm:ml-auto sm:gap-2">
+                <div className="ml-auto flex gap-1 sm:gap-2">
                   {state.foundations.map((pile, index) => (
                     <FoundationSlot
                       key={index}
@@ -447,7 +447,7 @@ function FreeCellTable() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-8 gap-1 sm:gap-2">
+              <div className="grid grid-cols-8 gap-px sm:gap-2">
                 {state.tableau.map((pile, index) => (
                   <TableauPile
                     key={index}
@@ -467,9 +467,13 @@ function FreeCellTable() {
                 <span className="text-sm text-ivory/60">
                   {state.moves} {state.moves === 1 ? "move" : "moves"}
                 </span>
-                <span className="text-xs uppercase tracking-[0.2em] text-ivory/40">
-                  Free cells · Foundations · Eight piles
-                </span>
+                <Button
+                  variant="parlorGhost"
+                  onClick={undo}
+                  disabled={history.length === 0 || autocompleting || conceded}
+                >
+                  Undo
+                </Button>
               </div>
             </div>
 
@@ -497,7 +501,7 @@ function FreeCellTable() {
                     You conceded
                   </h2>
                   <p className="mx-auto max-w-sm text-ivory/70">
-                    This game is recorded as a loss after {state.moves} moves.
+                    This game is recorded as a loss.
                   </p>
                   <Button variant="parlor" onClick={reset}>
                     Deal again
@@ -538,14 +542,6 @@ function FreeCellTable() {
                     </Button>
                   }
                 />
-                <Button
-                  variant="parlorGhost"
-                  className="w-full"
-                  onClick={undo}
-                  disabled={history.length === 0 || autocompleting || conceded}
-                >
-                  Undo
-                </Button>
                 <StatisticsDialog
                   game={game}
                   trigger={
@@ -653,13 +649,23 @@ function CardFace({
   );
 }
 
-function EmptySlot({ onClick, symbol }: { onClick?: () => void; symbol?: string }) {
+function EmptySlot({
+  onClick,
+  symbol,
+  red,
+}: {
+  onClick?: () => void;
+  symbol?: string;
+  red?: boolean;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
       aria-label="Empty pile"
-      className="grid h-[var(--fc-card-h)] w-[var(--fc-card-w)] place-items-center rounded-lg border border-dashed border-gold/30 text-base text-gold/30 sm:text-2xl"
+      className={`grid h-[var(--fc-card-h)] w-[var(--fc-card-w)] place-items-center rounded-lg border border-dashed border-gold/30 text-base sm:text-2xl ${
+        red ? "text-[#c0392b]" : symbol ? "text-[var(--yukon-ink)]" : "text-gold/30"
+      }`}
     >
       {symbol ?? ""}
     </button>
@@ -723,6 +729,7 @@ function FoundationSlot({
 }) {
   const top = pile[pile.length - 1];
   const suit = FOUNDATION_SUITS[suitIndex];
+  const redSuit = suit ? isRed(suit) : false;
   const suitSymbol = suit ? SUIT_SYMBOL[suit] : "";
   return (
     <div className="relative" data-drop="foundation">
@@ -736,7 +743,7 @@ function FoundationSlot({
           onPointerUp={onPointerUp}
         />
       ) : (
-        <EmptySlot onClick={onClick} symbol={suitSymbol} />
+        <EmptySlot onClick={onClick} symbol={suitSymbol} red={redSuit} />
       )}
     </div>
   );

@@ -80,10 +80,6 @@ type DragSource =
   | { type: "tableau"; index: number; cardIndex: number }
   | { type: "foundation"; index: number };
 
-const CARD_H = 135; // px — matches h-[135px]
-const FACE_DOWN_VISIBLE = 22;
-const FACE_UP_VISIBLE = 22;
-
 function SolitaireTable() {
   const navigate = useNavigate();
   const game = getGame("solitaire");
@@ -130,7 +126,7 @@ function SolitaireTable() {
     setConceded(true);
   };
 
-  const gameInProgress = state.moves > 0;
+  const gameInProgress = state.moves > 0 && !state.won && !conceded;
   const confirmReset = () => (gameInProgress ? setConfirming("new") : reset());
   const confirmHome = () => (gameInProgress ? setConfirming("home") : void navigate({ to: "/" }));
 
@@ -361,7 +357,7 @@ function SolitaireTable() {
 
         <div className="grid items-start gap-6 lg:grid-cols-[1fr_260px]">
           <div className="select-none relative rounded-2xl border border-gold/20 bg-surface/40 p-5 sm:p-8">
-            <div className="space-y-8">
+            <div>
               <div className="flex flex-wrap items-start justify-between gap-6">
                 <div className="flex items-start gap-4">
                   <StockPile count={state.stock.length} onClick={clickStock} />
@@ -391,7 +387,7 @@ function SolitaireTable() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-7 gap-2">
+              <div className="mt-4 grid grid-cols-7 gap-2">
                 {state.tableau.map((pile, index) => (
                   <TableauPile
                     key={index}
@@ -407,10 +403,17 @@ function SolitaireTable() {
                 ))}
               </div>
 
-              <div className="border-t border-gold/15 pt-4 text-center">
+              <div className="mt-8 flex items-center justify-center gap-3 border-t border-gold/15 pt-4">
                 <span className="text-sm text-ivory/60">
                   {state.moves} {state.moves === 1 ? "move" : "moves"}
                 </span>
+                <Button
+                  variant="parlorGhost"
+                  onClick={undo}
+                  disabled={history.length === 0 || conceded}
+                >
+                  Undo
+                </Button>
               </div>
             </div>
 
@@ -438,7 +441,7 @@ function SolitaireTable() {
                     You conceded
                   </h2>
                   <p className="mx-auto max-w-sm text-ivory/70">
-                    This game is recorded as a loss after {state.moves} moves.
+                    This game is recorded as a loss.
                   </p>
                   <Button variant="parlor" onClick={reset}>
                     Deal again
@@ -479,14 +482,6 @@ function SolitaireTable() {
                     </Button>
                   }
                 />
-                <Button
-                  variant="parlorGhost"
-                  className="w-full"
-                  onClick={undo}
-                  disabled={history.length === 0 || conceded}
-                >
-                  Undo
-                </Button>
                 <StatisticsDialog
                   game={game}
                   trigger={
@@ -533,13 +528,16 @@ function SolitaireTable() {
       {dragGhost && (
         <div
           className="pointer-events-none fixed z-50"
-          style={{ left: dragGhost.x - 48, top: dragGhost.y - 67.5 }}
+          style={{
+            left: `calc(${dragGhost.x}px - var(--solitaire-card-w) / 2)`,
+            top: `calc(${dragGhost.y}px - var(--solitaire-card-h) / 2)`,
+          }}
         >
           <div className="flex flex-col items-stretch">
             {dragGhost.cards.map((card, i) => (
               <div
                 key={card.id}
-                style={{ marginTop: i === 0 ? 0 : -(CARD_H - FACE_UP_VISIBLE) }}
+                style={{ marginTop: i === 0 ? 0 : "calc(var(--solitaire-visible) - var(--solitaire-card-h))" }}
               >
                 <CardFace card={card} />
               </div>
@@ -579,7 +577,7 @@ function CardFace({
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       aria-label={cardLabel(card)}
-      className={`relative block h-[135px] w-24 touch-none select-none rounded-md border border-black/10 bg-white text-left shadow-md shadow-black/30 transition-transform ${
+      className={`relative block h-[var(--solitaire-card-h)] w-[var(--solitaire-card-w)] touch-none select-none rounded-md border border-black/10 bg-white text-left shadow-md shadow-black/30 transition-transform ${
         red ? "text-[#c0392b]" : "text-ink"
       } ${selected ? "-translate-y-1 ring-2 ring-gold" : ""}`}
     >
@@ -600,20 +598,30 @@ function CardBack({ onClick }: { onClick?: () => void }) {
       type="button"
       onClick={onClick}
       aria-label="Face-down card"
-      className="relative block h-[135px] w-24 overflow-hidden rounded-md shadow-md shadow-black/30"
+      className="relative block h-[var(--solitaire-card-h)] w-[var(--solitaire-card-w)] overflow-hidden rounded-md shadow-md shadow-black/30"
     >
       <img src={cardBackAsset} alt="" aria-hidden className="h-full w-full object-cover" />
     </button>
   );
 }
 
-function EmptySlot({ onClick, symbol }: { onClick?: () => void; symbol?: string }) {
+function EmptySlot({
+  onClick,
+  symbol,
+  red,
+}: {
+  onClick?: () => void;
+  symbol?: string;
+  red?: boolean;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
       aria-label="Empty pile"
-      className="grid h-[135px] w-24 place-items-center rounded-md border border-dashed border-gold/30 text-2xl text-gold/30"
+      className={`grid h-[var(--solitaire-card-h)] w-[var(--solitaire-card-w)] place-items-center rounded-md border border-dashed border-gold/30 text-2xl ${
+        red ? "text-[#c0392b]" : symbol ? "text-[var(--yukon-ink)]" : "text-gold/30"
+      }`}
     >
       {symbol ?? ""}
     </button>
@@ -696,11 +704,12 @@ function FoundationSlot({
 }) {
   const top = pile[pile.length - 1];
   const suit = FOUNDATION_SUITS[suitIndex];
+  const redSuit = suit ? isRed(suit) : false;
   const suitSymbol = suit ? SUIT_SYMBOL[suit] : "";
   return (
     <div className="relative" data-drop="foundation">
       {!top ? (
-        <EmptySlot onClick={onClick} symbol={suitSymbol} />
+        <EmptySlot onClick={onClick} symbol={suitSymbol} red={redSuit} />
       ) : (
         <>
           {pile.length > 1 && (
@@ -751,7 +760,7 @@ function TableauPile({
         {pile.faceDown.map((card, i) => {
           const isTop = i === pile.faceDown.length - 1;
           return (
-            <div key={card.id} style={{ marginTop: i === 0 ? 0 : -(CARD_H - FACE_DOWN_VISIBLE) }}>
+            <div key={card.id} style={{ marginTop: i === 0 ? 0 : "calc(var(--solitaire-visible) - var(--solitaire-card-h))" }}>
               {canFlip && isTop ? <CardBack onClick={() => onCardClick(index, 0)} /> : <CardBack />}
             </div>
           );
@@ -763,7 +772,10 @@ function TableauPile({
             <div
               key={card.id}
               style={{
-                marginTop: pile.faceDown.length === 0 && i === 0 ? 0 : -(CARD_H - FACE_UP_VISIBLE),
+                marginTop:
+                  pile.faceDown.length === 0 && i === 0
+                    ? 0
+                    : "calc(var(--solitaire-visible) - var(--solitaire-card-h))",
               }}
             >
               <CardFace

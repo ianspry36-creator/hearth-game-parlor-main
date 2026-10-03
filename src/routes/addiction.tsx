@@ -233,7 +233,7 @@ function AddictionTable() {
     setConceded(true);
   };
 
-  const gameInProgress = state.moves > 0 && !state.won && !lost;
+  const gameInProgress = state.moves > 0 && !state.won && !lost && !conceded;
   const confirmReset = () => (gameInProgress ? setConfirming("new") : reset());
   const confirmHome = () => (gameInProgress ? setConfirming("home") : void navigate({ to: "/" }));
 
@@ -467,7 +467,7 @@ function AddictionTable() {
                     You conceded
                   </h2>
                   <p className="mx-auto max-w-sm text-ivory/70">
-                    This game is recorded as a loss after {state.moves} moves.
+                    This game is recorded as a loss.
                   </p>
                   <Button variant="parlor" onClick={reset}>
                     Deal again

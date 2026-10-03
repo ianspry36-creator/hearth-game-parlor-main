@@ -193,7 +193,7 @@ function KingsInTheCornerTable() {
     setConceded(true);
   };
 
-  const gameInProgress = state.moves > 0;
+  const gameInProgress = state.moves > 0 && !state.won && !state.lost && !conceded;
   const confirmReset = () => (gameInProgress ? setConfirming("new") : reset());
   const confirmHome = () => (gameInProgress ? setConfirming("home") : void navigate({ to: "/" }));
 
@@ -354,14 +354,33 @@ function KingsInTheCornerTable() {
           <Stat label="Best time" value={best.time > 0 ? formatElapsed(best.time) : "—"} />
         </div>
 
-        <div className="mt-8 grid items-start gap-6 lg:grid-cols-[1fr_260px]">
-          <div className="select-none relative rounded-2xl border border-gold/15 bg-surface/40 p-5 sm:p-8">
-            <div className="mb-6 flex items-start justify-center gap-5">
-              <div className="relative">
-                {state.stock.length > 0 ? <CardBack /> : <EmptySlot />}
-                <span className="absolute -bottom-4 left-1/2 -translate-x-1/2 text-[10px] text-ivory/50">
-                  {state.stock.length}
-                </span>
+        <div className="mt-1.5 grid items-start gap-6 lg:grid-cols-[1fr_260px]">
+          <div className="select-none relative rounded-2xl border border-gold/15 bg-surface/40 px-5 pb-5 pt-1 sm:p-8">
+            <div className="mb-1 flex items-start justify-center gap-5 sm:mb-6">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-ivory/50">{state.stock.length}</span>
+                <div className="relative">
+                  {state.stock.length > 0 ? (
+                    <>
+                      {state.stock.length > 1 && (
+                        <div className="pointer-events-none absolute inset-0" aria-hidden>
+                          {Array.from({ length: Math.min(state.stock.length - 1, 3) }).map((_, i) => (
+                            <img
+                              key={i}
+                              src={cardBackAsset}
+                              alt=""
+                              className="absolute h-[var(--kic-card-h)] w-[var(--kic-card-w)] overflow-hidden rounded-lg object-cover shadow-md shadow-black/30"
+                              style={{ top: `${-(i + 1) * 2}px`, left: `${-(i + 1) * 2}px` }}
+                            />
+                          ))}
+                        </div>
+                      )}
+                      <CardBack />
+                    </>
+                  ) : (
+                    <EmptySlot />
+                  )}
+                </div>
               </div>
               <div className="flex flex-col items-center gap-1">
                 {state.draw ? (
@@ -374,11 +393,10 @@ function KingsInTheCornerTable() {
                 ) : (
                   <EmptySlot />
                 )}
-                <span className="text-[10px] uppercase tracking-[0.18em] text-ivory/45">Draw</span>
               </div>
               <Button
                 variant="parlorGhost"
-                className="self-center"
+                className="self-center text-[var(--yukon-ink)]"
                 onClick={undo}
                 disabled={history.length === 0 || state.won || conceded || (state.lost && !viewingBoard)}
               >
@@ -484,7 +502,7 @@ function KingsInTheCornerTable() {
                   <div className="text-5xl">🏳️</div>
                   <h2 className="font-display text-3xl font-bold text-red-300">You conceded</h2>
                   <p className="mx-auto max-w-sm text-ivory/70">
-                    This game is recorded as a loss after {state.moves} moves.
+                    This game is recorded as a loss.
                   </p>
                   <Button variant="parlor" onClick={reset}>
                     Deal again

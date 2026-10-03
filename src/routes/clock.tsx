@@ -320,7 +320,7 @@ function ClockTable() {
     setConceded(true);
   };
 
-  const gameInProgress = state.revealed > 0 && !state.won && !state.lost;
+  const gameInProgress = state.revealed > 0 && !state.won && !state.lost && !conceded;
   const confirmReset = () => (gameInProgress ? setConfirming("new") : reset());
   const confirmHome = () => (gameInProgress ? setConfirming("home") : void navigate({ to: "/" }));
 

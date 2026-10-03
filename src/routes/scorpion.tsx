@@ -175,7 +175,7 @@ function ScorpionTable() {
     setConceded(true);
   };
 
-  const gameInProgress = state.moves > 0;
+  const gameInProgress = state.moves > 0 && !state.won && !conceded;
   const confirmReset = () => (gameInProgress ? setConfirming("new") : reset());
   const confirmHome = () => (gameInProgress ? setConfirming("home") : void navigate({ to: "/" }));
 
@@ -353,7 +353,7 @@ function ScorpionTable() {
                     You conceded
                   </h2>
                   <p className="mx-auto max-w-sm text-ivory/70">
-                    This game is recorded as a loss after {state.moves} moves.
+                    This game is recorded as a loss.
                   </p>
                   <Button variant="parlor" onClick={reset}>
                     Deal again
@@ -503,11 +503,11 @@ function CardFace({
         red ? "text-[#c0392b]" : "text-ink"
       } ${selected ? "-translate-y-1 ring-2 ring-gold" : ""}`}
     >
-      <span className="absolute left-0.5 top-0.5 flex flex-col items-center font-display text-[9px] font-bold leading-none sm:left-1 sm:top-1 sm:text-sm">
+      <span className="absolute left-0.5 top-0.5 flex flex-col items-center font-display text-[10.5px] font-bold leading-none sm:left-1 sm:top-1 sm:text-sm">
         <span>{RANK_LABEL[card.rank]}</span>
-        <span className="mt-0.5 text-[8px] sm:text-xs">{SUIT_SYMBOL[card.suit]}</span>
+        <span className="mt-0.5 text-[9px] sm:text-xs">{SUIT_SYMBOL[card.suit]}</span>
       </span>
-      <span className="absolute inset-0 grid place-items-center text-sm sm:text-2xl">
+      <span className="absolute inset-0 grid place-items-center text-base sm:text-2xl">
         {isFaceCard ? RANK_LABEL[card.rank] : SUIT_SYMBOL[card.suit]}
       </span>
     </button>

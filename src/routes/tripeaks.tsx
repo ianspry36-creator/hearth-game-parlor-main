@@ -259,7 +259,7 @@ function TriPeaksTable() {
     deal(Number.isFinite(parsed) ? parsed : gameNumberRef.current);
   };
 
-  const gameInProgress = state.moves > 0;
+  const gameInProgress = state.moves > 0 && !state.won && !conceded;
   const confirmReset = () => (gameInProgress ? setConfirming("new") : newRandomGame());
   const confirmHome = () => (gameInProgress ? setConfirming("home") : void navigate({ to: "/" }));
 
@@ -275,7 +275,7 @@ function TriPeaksTable() {
         : "No more moves — undo or deal a new game.";
   return (
     <div className="min-h-screen text-cream">
-      <div className="relative mx-auto max-w-6xl px-4 pb-10 pt-6 sm:px-6">
+      <div className="relative mx-auto max-w-6xl px-[3px] pb-10 pt-6 sm:px-6">
         <header className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <Link
@@ -391,13 +391,24 @@ function TriPeaksTable() {
               </div>
             </div>
 
+            <div className="mt-6 flex justify-center">
+              <Button
+                variant="parlorGhost"
+                onClick={undo}
+                disabled={history.length === 0 || state.won || conceded}
+              >
+                Undo
+              </Button>
+            </div>
+
+
             {conceded && (
               <div className="absolute inset-0 z-10 grid place-items-center rounded-2xl bg-brand/80 p-6 backdrop-blur-sm">
                 <div className="space-y-4 text-center">
                   <div className="text-5xl">🏳️</div>
                   <h2 className="font-display text-3xl font-bold text-red-300">You conceded</h2>
                   <p className="mx-auto max-w-sm text-ivory/70">
-                    This game is recorded as a loss after {state.moves} moves.
+                    This game is recorded as a loss.
                   </p>
                   <Button variant="parlor" onClick={newRandomGame}>
                     Deal again
@@ -438,14 +449,6 @@ function TriPeaksTable() {
                     </Button>
                   }
                 />
-                <Button
-                  variant="parlorGhost"
-                  className="w-full"
-                  onClick={undo}
-                  disabled={history.length === 0 || state.won || conceded}
-                >
-                  Undo
-                </Button>
                 <StatisticsDialog
                   game={game}
                   trigger={

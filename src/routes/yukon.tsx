@@ -184,7 +184,7 @@ function YukonTable() {
     setConceded(true);
   };
 
-  const gameInProgress = state.moves > 0;
+  const gameInProgress = state.moves > 0 && !state.won && !conceded;
   const confirmReset = () => (gameInProgress ? setConfirming("new") : reset());
   const confirmHome = () => (gameInProgress ? setConfirming("home") : void navigate({ to: "/" }));
 
@@ -414,24 +414,33 @@ function YukonTable() {
             <button
               type="button"
               onClick={confirmHome}
-              className="cursor-pointer bg-transparent text-xs uppercase tracking-[0.2em] text-ivory/50 transition-colors hover:text-gold"
+              className="cursor-pointer bg-transparent text-xs uppercase tracking-[0.2em] text-[var(--yukon-ink)] transition-colors hover:text-gold"
             >
               ← BACK TO THE GAME ROOM
             </button>
           </div>
         </header>
 
-        <div className="flex flex-wrap items-center justify-center gap-6 border-y border-gold/15 py-4 text-center">
+        <div className="flex flex-wrap items-center justify-center gap-3 border-y border-gold/15 py-4 text-center sm:gap-6">
           <Stat label="Moves" value={String(state.moves)} />
           <Stat label="Time" value={formatElapsed(shownElapsed)} />
           <Stat label="Cards home" value={String(cardsHome(state))} className="hidden sm:flex" />
           <Stat label="Best moves" value={best.moves > 0 ? String(best.moves) : "—"} className="hidden sm:flex" />
           <Stat label="Best time" value={best.time > 0 ? formatElapsed(best.time) : "—"} className="hidden sm:flex" />
+          <Button
+            variant="parlorGhost"
+            size="sm"
+            className={`ml-auto min-w-[96px] sm:min-w-[120px] ${history.length === 0 || state.won || conceded ? "" : "bg-[var(--yukon-undo-bg)] text-ink"}`}
+            onClick={undo}
+            disabled={history.length === 0 || state.won || conceded}
+          >
+            Undo
+          </Button>
         </div>
 
         <div className="mt-8 grid items-start gap-6 lg:grid-cols-[1fr_260px]">
-          <div className="select-none relative rounded-2xl border border-gold/15 bg-surface/40 p-4 sm:p-6">
-            <div className="mb-6 flex justify-end gap-2">
+          <div className="select-none relative rounded-2xl border border-gold/15 bg-surface/40 py-4 px-0 sm:py-6 sm:px-0">
+            <div className="mb-6 flex justify-center gap-2">
               {state.foundations.map((pile, index) => (
                 <FoundationSlot
                   key={index}
@@ -446,7 +455,7 @@ function YukonTable() {
               ))}
             </div>
 
-            <div className="flex items-start justify-center gap-1 sm:gap-3">
+            <div className="flex items-start justify-center gap-0.5 sm:gap-1.5">
               {state.tableau.map((pile, index) => (
                 <TableauPile
                   key={index}
@@ -494,7 +503,7 @@ function YukonTable() {
                     You conceded
                   </h2>
                   <p className="mx-auto max-w-sm text-ivory/70">
-                    This game is recorded as a loss after {state.moves} moves.
+                    This game is recorded as a loss.
                   </p>
                   <Button variant="parlor" onClick={reset}>
                     Deal again
@@ -535,14 +544,6 @@ function YukonTable() {
                     </Button>
                   }
                 />
-                <Button
-                  variant="parlorGhost"
-                  className="w-full"
-                  onClick={undo}
-                  disabled={history.length === 0 || state.won || conceded}
-                >
-                  Undo
-                </Button>
                 <StatisticsDialog
                   game={game}
                   trigger={
@@ -618,8 +619,8 @@ function Stat({
 }) {
   return (
     <div className={`flex flex-col items-center ${className}`}>
-      <span className="text-[10px] uppercase tracking-[0.2em] text-ivory/45">{label}</span>
-      <span className="font-display text-xl font-bold leading-tight">{value}</span>
+      <span className="text-[10px] uppercase tracking-[0.2em] text-[var(--yukon-ink)]">{label}</span>
+      <span className="font-display text-lg font-bold leading-tight text-[var(--yukon-ink)] sm:text-xl">{value}</span>
     </div>
   );
 }
@@ -656,11 +657,11 @@ function CardFace({
         red ? "text-[#c0392b]" : "text-ink"
       } ${selected ? "-translate-y-1 ring-2 ring-gold" : ""}`}
     >
-      <span className="absolute left-0.5 top-0.5 flex flex-col items-center font-display text-[9px] font-bold leading-none sm:left-1 sm:top-1 sm:text-sm">
+      <span className="absolute left-0.5 top-0.5 flex flex-col items-center font-display text-[18px] font-bold leading-none sm:left-1 sm:top-1 sm:text-[28px]">
         <span>{RANK_LABEL[card.rank]}</span>
-        <span className="mt-0.5 text-[8px] sm:text-xs">{SUIT_SYMBOL[card.suit]}</span>
+        <span className="mt-0.5 text-[16px] sm:text-[24px]">{SUIT_SYMBOL[card.suit]}</span>
       </span>
-      <span className="absolute inset-0 grid place-items-center text-sm sm:text-2xl">
+      <span className="absolute inset-0 grid place-items-center text-[28px] sm:text-[48px]">
         {isFaceCard ? RANK_LABEL[card.rank] : SUIT_SYMBOL[card.suit]}
       </span>
     </button>
@@ -698,7 +699,7 @@ function EmptySlot({
       onClick={onClick}
       aria-label="Empty pile"
       className={`grid h-[var(--yukon-card-h)] w-[var(--yukon-card-w)] place-items-center rounded-md border border-dashed border-gold/30 text-lg ${
-        red ? "text-[#c0392b]" : "text-gold/30"
+        red ? "text-[#c0392b]" : symbol ? "text-[var(--yukon-ink)]" : "text-gold/30"
       }`}
     >
       {symbol ?? "♚"}
@@ -726,7 +727,7 @@ function FoundationSlot({
   const top = pile[pile.length - 1];
   const suit = FOUNDATION_SUITS[suitIndex];
   const redSuit = suit ? isRed(suit) : false;
-  const suitSymbol = suit && redSuit ? SUIT_SYMBOL[suit] : "";
+  const suitSymbol = suit ? SUIT_SYMBOL[suit] : "";
   return (
     <div className="relative" data-drop="foundation">
       {!top ? (

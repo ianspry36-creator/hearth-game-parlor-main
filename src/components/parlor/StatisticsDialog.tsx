@@ -198,12 +198,12 @@ function StatTable({
 }) {
   const showAbandoned = abandoned !== undefined;
   const cols = showAbandoned
-    ? "grid-cols-[2rem_1fr_4rem_4rem_4rem_4rem]"
-    : "grid-cols-[2rem_1fr_4.5rem_4.5rem_4.5rem]";
+    ? "grid-cols-[1.25rem_minmax(0,1fr)_2.75rem_2rem_2rem_4rem] sm:grid-cols-[2rem_1fr_4rem_4rem_4rem_4rem]"
+    : "grid-cols-[1.25rem_minmax(0,1fr)_2.75rem_2rem_2rem] sm:grid-cols-[2rem_1fr_4.5rem_4.5rem_4.5rem]";
   return (
     <div className="mt-1">
       <div
-        className={`sticky top-0 z-10 grid ${cols} gap-2 border-b border-gold/15 bg-surface py-2 text-[11px] uppercase tracking-[0.18em] text-ivory/50`}
+        className={`sticky top-0 z-10 grid ${cols} gap-1.5 border-b border-gold/15 bg-surface py-2 text-[10px] uppercase tracking-[0.04em] text-ivory/50 sm:gap-2 sm:text-[11px] sm:tracking-[0.18em]`}
       >
         <span>#</span>
         <span>Player</span>
@@ -216,7 +216,7 @@ function StatTable({
         {rows.map((row, i) => (
           <li
             key={row.nickname + i}
-            className={`grid ${cols} items-center gap-2 border-b border-gold/10 py-2.5 text-sm last:border-0`}
+            className={`grid ${cols} items-center gap-1.5 border-b border-gold/10 py-2.5 text-sm last:border-0 sm:gap-2`}
           >
             <span className="text-ivory/45">{i + 1}</span>
             <span className="flex min-w-0 items-center gap-1.5">

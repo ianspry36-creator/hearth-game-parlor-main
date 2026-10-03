@@ -800,9 +800,9 @@
 
 @media (max-width: 639.98px) {
   :root {
-    --fc-card-h: 50px;
-    --fc-card-w: 36px;
-    --fc-visible: 11px;
+    --fc-card-h: 57.75px; /* 55 * 1.05 — cards 5% bigger */
+    --fc-card-w: 41.58px; /* 39.6 * 1.05 */
+    --fc-visible: 15.25px; /* 12.71 * 1.2 — reveal 20% bigger */
   }
 }
 
@@ -827,8 +827,8 @@
 
 @media (max-width: 639.98px) {
   :root {
-    --kic-card-h: 98px;
-    --kic-card-w: 72px;
+    --kic-card-h: 88.2px; /* 98 * 0.9 — cards 10% smaller */
+    --kic-card-w: 64.8px; /* 72 * 0.9 */
   }
 }
 
@@ -877,10 +877,10 @@
 
 @media (max-width: 639.98px) {
   :root {
-    --scorpion-card-h: 66px;
-    --scorpion-card-w: 45px;
-    --scorpion-visible: 19px;
-    --scorpion-down: 4px;
+    --scorpion-card-h: 72.6px; /* 66 * 1.1 — cards 10% bigger */
+    --scorpion-card-w: 49.5px; /* 45 * 1.1 */
+    --scorpion-visible: 20.9px; /* 19 * 1.1 */
+    --scorpion-down: 4.4px; /* 4 * 1.1 */
   }
 }
 
@@ -896,9 +896,9 @@
 
 @media (max-width: 639.98px) {
   :root {
-    --tripeaks-card-h: 44px;
-    --tripeaks-card-w: 30px;
-    --tripeaks-step-x: 33px;
+    --tripeaks-card-h: 50.6px; /* 44 * 1.15 — cards 15% bigger */
+    --tripeaks-card-w: 34.5px; /* 30 * 1.15 */
+    --tripeaks-step-x: 37.95px; /* 33 * 1.15 */
   }
 }
 
@@ -906,19 +906,54 @@
    The desktop tier is 1.5x the original card faces (76x52 -> 114x78); the phone
    tier below keeps the smaller cards untouched. */
 :root {
-  --yukon-card-h: 114px;
-  --yukon-card-w: 78px;
+  --yukon-card-h: 125px;
+  --yukon-card-w: 86px;
   --yukon-visible: 24px;
   --yukon-down: 8px;
 }
 
 @media (max-width: 639.98px) {
   :root {
-    --yukon-card-h: 70px;
-    --yukon-card-w: 47px;
+    --yukon-card-h: 77px;
+    --yukon-card-w: 52px;
     --yukon-visible: 20px;
     --yukon-down: 7px;
   }
+}
+
+/* Solitaire (Klondike) responsive card sizing — mobile cards 10% smaller again */
+:root {
+  --solitaire-card-h: 135px;
+  --solitaire-card-w: 96px;
+  --solitaire-visible: 22px;
+}
+
+@media (max-width: 639.98px) {
+  :root {
+    --solitaire-card-h: 70.23px; /* 135 * 0.5202 */
+    --solitaire-card-w: 49.94px; /* 96 * 0.5202 */
+    --solitaire-visible: 11.44px; /* 22 * 0.5202 */
+  }
+}
+
+/* Yukon ink: white on the dark colour schemes, black on the light colour
+   schemes. Used for foundation suit symbols and text that must contrast with
+   the table surface. */
+:root {
+  --yukon-ink: var(--cream);
+  --yukon-undo-bg: var(--cream);
+}
+
+:root[data-theme="blush"],
+:root[data-theme="seafoam"],
+:root[data-theme="butter"],
+:root[data-theme="peach"],
+:root[data-theme="sky"],
+:root[data-theme="leaf"],
+:root[data-theme="wisteria"],
+:root[data-theme="sand"] {
+  --yukon-ink: var(--ink);
+  --yukon-undo-bg: transparent;
 }
 
 /* Warship - circular targeting reticle cursor over the enemy firing grid.
