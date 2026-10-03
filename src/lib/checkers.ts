@@ -198,20 +198,47 @@ export function boardSignature(board: Board, turn: Player): string {
   return a < b ? a : b;
 }
 
-/** The longest capture chain available from `from`, respecting the crown-then-stop rule. */
-function bestCaptureChain(board: Board, from: number): number[] {
+/** Every capture chain available from `from`, respecting the crown-then-stop rule. */
+function allCaptureChains(board: Board, from: number): number[][] {
   const piece = board[from];
   if (!piece) return [];
   const landings = captureMoves(board, from);
   if (landings.length === 0) return [];
-  let best: number[] = [];
+  const chains: number[][] = [];
   for (const to of landings) {
     const next = applyStep(board, from, to);
-    const rest = wasPromoted(board, from, to) ? [] : bestCaptureChain(next, to);
-    const path = [to, ...rest];
-    if (path.length > best.length) best = path;
+    const rest = wasPromoted(board, from, to) ? [] : allCaptureChains(next, to);
+    if (rest.length === 0) chains.push([to]);
+    else for (const r of rest) chains.push([to, ...r]);
   }
-  return best;
+  return chains;
+}
+
+/** Every legal move for `player`: full capture chains when capturing is compulsory, single steps otherwise. */
+function allLegalMoves(board: Board, player: Player): { from: number; path: number[] }[] {
+  const mustCapture = hasAnyCapture(board, player);
+  const moves: { from: number; path: number[] }[] = [];
+  for (let from = 0; from < board.length; from += 1) {
+    const piece = board[from];
+    if (!piece || piece.owner !== player) continue;
+    if (mustCapture) {
+      for (const path of allCaptureChains(board, from)) moves.push({ from, path });
+    } else {
+      for (const to of normalMoves(board, from)) moves.push({ from, path: [to] });
+    }
+  }
+  return moves;
+}
+
+/** Apply a whole path (a single move, or a multi-jump capture) to the board. */
+function applyPath(board: Board, from: number, path: number[]): Board {
+  let b = board;
+  let cur = from;
+  for (const to of path) {
+    b = applyStep(b, cur, to);
+    cur = to;
+  }
+  return b;
 }
 
 /** A rough value for a move: captures first, then crowning, then forward progress. */
@@ -235,28 +262,115 @@ function scorePath(board: Board, from: number, path: number[]): number {
   return score;
 }
 
-/**
- * Ada's move. When a capture is available it is compulsory; among the options
- * she prefers the longest chain, a crown, then forward progress.
- */
-export function chooseMove(board: Board, player: Player): { from: number; path: number[] } | null {
-  const mustCapture = hasAnyCapture(board, player);
-  let best: { from: number; path: number[]; score: number } | null = null;
+/** Material and positional value of the board, positive when the computer is ahead. */
+function evaluate(board: Board): number {
+  let score = 0;
+  for (let i = 0; i < board.length; i += 1) {
+    const piece = board[i];
+    if (!piece) continue;
+    const { row, col } = cellRC(i);
+    let value = piece.king ? 160 : 100;
+    // Reward progress toward the promotion row.
+    value += piece.owner === "cpu" ? row * 4 : (SIZE - 1 - row) * 4;
+    // Reward pieces nearer the centre files.
+    value += (3 - Math.abs(col - 3.5)) * 2;
+    score += piece.owner === "cpu" ? value : -value;
+  }
+  return score;
+}
 
-  for (let from = 0; from < board.length; from += 1) {
-    const piece = board[from];
-    if (!piece || piece.owner !== player) continue;
-    if (mustCapture) {
-      const path = bestCaptureChain(board, from);
-      if (path.length === 0) continue;
-      const score = scorePath(board, from, path);
-      if (!best || score > best.score) best = { from, path, score };
-    } else {
-      for (const to of normalMoves(board, from)) {
-        const score = scorePath(board, from, [to]);
-        if (!best || score > best.score) best = { from, path: [to], score };
+const SEARCH_DEPTH = 4;
+const SEARCH_WIN = 100_000;
+
+/**
+ * Negamax with alpha–beta pruning, returning the position value from `player`'s
+ * perspective. A player with no legal move has lost.
+ */
+function negamax(board: Board, player: Player, depth: number, alpha: number, beta: number): number {
+  const moves = allLegalMoves(board, player);
+  if (moves.length === 0) return -SEARCH_WIN + depth;
+  if (depth === 0) return player === "cpu" ? evaluate(board) : -evaluate(board);
+
+  let best = -Infinity;
+  for (const move of moves) {
+    const next = applyPath(board, move.from, move.path);
+    const value = -negamax(next, flip(player), depth - 1, -beta, -alpha);
+    if (value > best) best = value;
+    if (best > alpha) alpha = best;
+    if (alpha >= beta) break;
+  }
+  return best;
+}
+
+export type Difficulty = "easy" | "medium" | "hard";
+
+const DIFFICULTY_ORDER: Difficulty[] = ["easy", "medium", "hard"];
+
+/** The next difficulty when the toggle is clicked, wrapping hard → easy. */
+export function nextDifficulty(difficulty: Difficulty): Difficulty {
+  const index = DIFFICULTY_ORDER.indexOf(difficulty);
+  return DIFFICULTY_ORDER[(index + 1) % DIFFICULTY_ORDER.length]!;
+}
+
+const DIFFICULTY_KEY = "parlor.checkers.difficulty";
+
+/** Read the saved checkers difficulty, defaulting to "easy". */
+export function readDifficulty(): Difficulty {
+  if (typeof window === "undefined") return "easy";
+  try {
+    const stored = window.localStorage.getItem(DIFFICULTY_KEY);
+    return stored === "medium" || stored === "hard" ? stored : "easy";
+  } catch {
+    return "easy";
+  }
+}
+
+/** Persist the chosen checkers difficulty. */
+export function writeDifficulty(difficulty: Difficulty) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(DIFFICULTY_KEY, difficulty);
+  } catch {
+    // Ignore storage failures (private browsing, etc.).
+  }
+}
+
+/**
+ * Ada's move. When a capture is available it is compulsory. The difficulty
+ * controls how hard she tries: easy plays at random, medium uses a greedy
+ * heuristic, and hard searches a few plies ahead.
+ */
+export function chooseMove(
+  board: Board,
+  player: Player,
+  difficulty: Difficulty = "medium",
+): { from: number; path: number[] } | null {
+  const moves = allLegalMoves(board, player);
+  if (moves.length === 0) return null;
+
+  if (difficulty === "easy") {
+    return moves[Math.floor(Math.random() * moves.length)]!;
+  }
+
+  if (difficulty === "hard") {
+    let best: { from: number; path: number[] } | null = null;
+    let bestValue = -Infinity;
+    for (const move of moves) {
+      const next = applyPath(board, move.from, move.path);
+      const value = -negamax(next, flip(player), SEARCH_DEPTH - 1, -Infinity, Infinity);
+      if (value > bestValue) {
+        bestValue = value;
+        best = { from: move.from, path: move.path };
       }
     }
+    return best;
+  }
+
+  // medium: greedy — most captures, then a crown, then forward progress.
+  let best: { from: number; path: number[]; score: number } | null = null;
+  for (const move of moves) {
+    const score = scorePath(board, move.from, move.path);
+    if (!best || score > best.score) best = { from: move.from, path: move.path, score };
   }
   return best ? { from: best.from, path: best.path } : null;
 }

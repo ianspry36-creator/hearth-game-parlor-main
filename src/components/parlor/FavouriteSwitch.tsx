@@ -8,7 +8,7 @@ export function FavouriteSwitch({ gameId }: { gameId: GameId }) {
   const id = `favourite-${gameId}`;
 
   return (
-    <label htmlFor={id} className="flex cursor-pointer select-none items-center gap-2.5">
+    <label htmlFor={id} className="flex w-full cursor-pointer select-none items-center justify-between gap-2.5">
       <span className="text-xs uppercase tracking-[0.2em] text-ivory/50">Favourite</span>
       <Switch id={id} checked={isFavourite(gameId)} onCheckedChange={() => toggleFavourite(gameId)} />
     </label>

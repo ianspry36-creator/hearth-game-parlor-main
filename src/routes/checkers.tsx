@@ -40,9 +40,13 @@ import {
   makeInitialBoard,
   mirroredBoard,
   movablePieces,
+  nextDifficulty,
+  readDifficulty,
   squareName,
   wasPromoted,
+  writeDifficulty,
   type Board,
+  type Difficulty,
   type Piece,
   type Player,
 } from "@/lib/checkers";
@@ -241,6 +245,20 @@ function CheckersTable() {
   const [dying, setDying] = useState<DyingPiece[]>([]);
   const dyingKeyRef = useRef(0);
 
+  // Ada's difficulty for solo play — easy / medium / hard, remembered between games.
+  const [difficulty, setDifficulty] = useState<Difficulty>(() => readDifficulty());
+  const difficultyRef = useRef(difficulty);
+  difficultyRef.current = difficulty;
+  // Difficulty is fixed once the first move has been made.
+  const difficultyLocked = state.history.length > 1;
+  const cycleDifficulty = () => {
+    setDifficulty((prev) => {
+      const next = nextDifficulty(prev);
+      writeDifficulty(next);
+      return next;
+    });
+  };
+
   const apply = (fn: (current: State) => State) => {
     const next = fn(stateRef.current);
     stateRef.current = next;
@@ -415,7 +433,7 @@ function CheckersTable() {
 
     const timers: number[] = [];
     const start = window.setTimeout(() => {
-      const mv = chooseMove(stateRef.current.board, "cpu");
+      const mv = chooseMove(stateRef.current.board, "cpu", difficultyRef.current);
       if (!mv) return;
 
       let captured = false;
@@ -519,6 +537,24 @@ function CheckersTable() {
           <Button variant="parlorGhost" size="sm" className="w-full h-6" onClick={() => setConcedeOpen(true)}>
             Concede
           </Button>
+        )}
+        {!isMulti && (
+          <div className="flex w-full items-center justify-between gap-2.5">
+            <span className="text-xs uppercase tracking-[0.2em] text-ivory/50">Difficulty</span>
+            <button
+              type="button"
+              onClick={cycleDifficulty}
+              disabled={difficultyLocked}
+              className="rounded-full border border-gold/25 bg-gold/5 px-2.5 py-0.5 text-xs capitalize text-cream transition-colors hover:border-gold/60 disabled:cursor-not-allowed disabled:opacity-50"
+              title={
+                difficultyLocked
+                  ? "Difficulty is locked once the first move has been made"
+                  : "Change difficulty"
+              }
+            >
+              {difficulty}
+            </button>
+          </div>
         )}
         </>
       }
