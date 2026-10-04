@@ -49,8 +49,8 @@ import { Clock } from "lucide-react";
 
 const FLIGHT_MS = 550;
 const STAGGER_MS = 400;
-/** Deal reveal interval — slowed 100% from the original 210ms. */
-const DEAL_STEP_MS = 420;
+/** Deal reveal interval — sped up 25% from 420ms. */
+const DEAL_STEP_MS = 315;
 /** Pause before the end-of-hand scorecard appears so the winning play can land. */
 const SCORECARD_DELAY_MS = 3000;
 
@@ -1140,7 +1140,7 @@ function CrazyEightsTable() {
   // fill the row. On small screens the hand starts overlapping once it reaches
   // OVERLAP_AT cards so it stays comfortably on screen. `CARD_W - 1` keeps at
   // least 1px of every card visible.
-  const CARD_W = isMobile ? 46.25 : activeCount === 2 ? 87 : 79;
+  const CARD_W = isMobile ? 55.5 : activeCount === 2 ? 87 : 79;
   const MIN_GAP = 5;
   /** Number of cards at which a small-screen hand starts to overlap. */
   const OVERLAP_AT = 5;
@@ -1395,7 +1395,7 @@ function CrazyEightsTable() {
                         className="pointer-events-none absolute inset-0 z-10 grid place-items-center"
                       >
                         <span
-                          className={`grid size-[35px] place-items-center rounded-full border border-gold/60 bg-white/95 font-display text-xl shadow-lg shadow-black/40 ${
+                          className={`grid size-[52.5px] place-items-center rounded-full border border-gold/60 bg-white/95 font-display text-3xl shadow-lg shadow-black/40 ${
                             isRed(state.wildSuit) ? "text-destructive" : "text-ink"
                           }`}
                         >
@@ -1484,7 +1484,7 @@ function CrazyEightsTable() {
             className="flex items-end transition-transform duration-300 ease-out"
             style={{
               transform: `translateX(${handShift}px)`,
-              ...(dealing ? { minHeight: isMobile ? 71.25 : 119 } : {}),
+              ...(dealing ? { minHeight: isMobile ? 85.5 : 119 } : {}),
             }}
           >
             {myHand.map((card, index) => {
@@ -1621,8 +1621,8 @@ function OpponentSeat({
   countdown?: number;
 }) {
   const isMobile = useIsMobile();
-  // Face-down cards are 71.25px tall on mobile (25% larger) and 119px on desktop.
-  const cardH = isMobile ? 71.25 : 119;
+  // Face-down cards are 85.5px tall on mobile (20% larger) and 119px on desktop.
+  const cardH = isMobile ? 85.5 : 119;
   // The normal overlap leaves this much of each card visible.
   const normalReveal = isMobile ? 15 : 20;
   // Reserve room for a full 7-card hand at the normal reveal.
@@ -1764,7 +1764,7 @@ function FaceDownCard({
       loading="lazy"
       className={`block rounded-lg object-cover shadow-md shadow-black/30 ${
         small
-          ? "h-[71.25px] w-[46.25px] md:h-[119px] md:w-[79px]"
+          ? "h-[85.5px] w-[55.5px] md:h-[119px] md:w-[79px]"
           : table
             ? "h-[107.5px] w-[73.75px] md:h-[119px] md:w-[79px]"
             : "h-[120px] w-20 md:h-[108px] md:w-[72px]"
@@ -1798,7 +1798,7 @@ function PlayingCard({
         tiny
           ? "h-20 w-[55px] md:h-[72px] md:w-[50px]"
           : small
-            ? "h-[71.25px] w-[46.25px] md:h-[119px] md:w-[79px]"
+            ? "h-[85.5px] w-[55.5px] md:h-[119px] md:w-[79px]"
             : medium
               ? "h-[121.25px] w-[81.25px] md:h-[122px] md:w-[81px]"
               : table

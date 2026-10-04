@@ -100,6 +100,11 @@ export function CrazyEightsLobby({
     // Don't route into a table the host abandoned before dealing; the lobby
     // refresh already leaves it, but guard here too as a safety net.
     if (isStalePlayingRoom(myRoom)) return;
+    // A finished table must not drag us back in: the room stays "playing"
+    // after the hand ends, so re-opening the lobby would otherwise bounce
+    // straight back into the completed table and slam the dialog shut.
+    const gameState = myRoom.state as { phase?: string } | null;
+    if (gameState && gameState.phase === "over") return;
     playingRef.current = true;
     onOpenChange(false);
     onPlay(myRoomId);
