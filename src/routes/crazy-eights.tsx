@@ -1328,6 +1328,7 @@ function CrazyEightsTable() {
             flag={seatFlag("ada")}
             cards={state.hands.ada ?? []}
             handEls={seatHandEls.current}
+            rotation={isMobile ? "rotate-90" : ""}
             active={state.turn === "ada"}
             countdown={countdown}
             dealing={dealing}
@@ -1771,7 +1772,7 @@ function FaceDownCard({
         small
           ? "h-[85.5px] w-[55.5px] md:h-[119px] md:w-[79px]"
           : table
-            ? "h-[107.5px] w-[73.75px] md:h-[119px] md:w-[79px]"
+            ? "h-[96.75px] w-[66.4px] md:h-[119px] md:w-[79px]"
             : "h-[120px] w-20 md:h-[108px] md:w-[72px]"
       } ${className}`}
     />
@@ -1807,7 +1808,7 @@ function PlayingCard({
             : medium
               ? "h-[121.25px] w-[81.25px] md:h-[122px] md:w-[81px]"
               : table
-                ? "h-[107.5px] w-[73.75px] md:h-[119px] md:w-[79px]"
+                ? "h-[96.75px] w-[66.4px] md:h-[119px] md:w-[79px]"
                 : "h-[140px] w-[95px] md:h-[126px] md:w-[86px]"
       } ${highlighted ? "border-gold ring-2 ring-gold" : "border-black/10"} ${
         red ? "text-destructive" : "text-ink"

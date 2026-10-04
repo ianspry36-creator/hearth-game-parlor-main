@@ -280,12 +280,13 @@ function HeartsTable() {
   // If every other human has left, we're the last one standing and win.
   useEffect(() => {
     if (!isRoom || roomLoading || state.phase === "over") return;
+    if (!roomIsHost) return;
     if (!hadLeaver || remainingHumans !== 1) return;
     const next: State = { ...stateRef.current, phase: "over", winner: "you" };
     stateRef.current = next;
     setState(next);
-    if (roomIsHost) void publishRoom(remapState(next, mySeat));
-  }, [isRoom, roomLoading, state.phase, hadLeaver, remainingHumans, roomIsHost, mySeat, publishRoom]);
+    void publishRoom(remapState(next, mySeat));
+  }, [isRoom, roomLoading, state.phase, roomIsHost, hadLeaver, remainingHumans, mySeat, publishRoom]);
 
   // Detect when a human resigns mid-game: their room row is deleted and the
   // computer takes over their seat. We remember every seat a human has held so a
