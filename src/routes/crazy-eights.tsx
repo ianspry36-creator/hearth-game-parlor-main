@@ -1108,7 +1108,7 @@ function CrazyEightsTable() {
   // fill the row. On small screens the hand starts overlapping once it reaches
   // OVERLAP_AT cards so it stays comfortably on screen. `CARD_W - 1` keeps at
   // least 1px of every card visible.
-  const CARD_W = isMobile ? 37 : activeCount === 2 ? 87 : 79;
+  const CARD_W = isMobile ? 46.25 : activeCount === 2 ? 87 : 79;
   const MIN_GAP = 5;
   /** Number of cards at which a small-screen hand starts to overlap. */
   const OVERLAP_AT = 5;
@@ -1448,7 +1448,7 @@ function CrazyEightsTable() {
             className="flex items-end transition-transform duration-300 ease-out"
             style={{
               transform: `translateX(${handShift}px)`,
-              ...(dealing ? { minHeight: isMobile ? 57 : 119 } : {}),
+              ...(dealing ? { minHeight: isMobile ? 71.25 : 119 } : {}),
             }}
           >
             {myHand.map((card, index) => {
@@ -1585,8 +1585,8 @@ function OpponentSeat({
   countdown?: number;
 }) {
   const isMobile = useIsMobile();
-  // Face-down cards are 57px tall on mobile and 119px on desktop.
-  const cardH = isMobile ? 57 : 119;
+  // Face-down cards are 71.25px tall on mobile (25% larger) and 119px on desktop.
+  const cardH = isMobile ? 71.25 : 119;
   // The normal overlap leaves this much of each card visible.
   const normalReveal = isMobile ? 15 : 20;
   // Reserve room for a full 7-card hand at the normal reveal.
@@ -1728,10 +1728,10 @@ function FaceDownCard({
       loading="lazy"
       className={`block rounded-lg object-cover shadow-md shadow-black/30 ${
         small
-          ? "h-[57px] w-[37px] md:h-[119px] md:w-[79px]"
+          ? "h-[71.25px] w-[46.25px] md:h-[119px] md:w-[79px]"
           : table
-            ? "h-[86px] w-[59px] md:h-[119px] md:w-[79px]"
-            : "h-[96px] w-16 md:h-[108px] md:w-[72px]"
+            ? "h-[107.5px] w-[73.75px] md:h-[119px] md:w-[79px]"
+            : "h-[120px] w-20 md:h-[108px] md:w-[72px]"
       } ${className}`}
     />
   );
@@ -1760,14 +1760,14 @@ function PlayingCard({
     <span
       className={`relative block overflow-hidden rounded-lg border bg-white shadow-md shadow-black/30 transition-transform ${
         tiny
-          ? "h-16 w-[44px] md:h-[72px] md:w-[50px]"
+          ? "h-20 w-[55px] md:h-[72px] md:w-[50px]"
           : small
-            ? "h-[57px] w-[37px] md:h-[119px] md:w-[79px]"
+            ? "h-[71.25px] w-[46.25px] md:h-[119px] md:w-[79px]"
             : medium
-              ? "h-[97px] w-[65px] md:h-[122px] md:w-[81px]"
+              ? "h-[121.25px] w-[81.25px] md:h-[122px] md:w-[81px]"
               : table
-                ? "h-[86px] w-[59px] md:h-[119px] md:w-[79px]"
-                : "h-[112px] w-[76px] md:h-[126px] md:w-[86px]"
+                ? "h-[107.5px] w-[73.75px] md:h-[119px] md:w-[79px]"
+                : "h-[140px] w-[95px] md:h-[126px] md:w-[86px]"
       } ${highlighted ? "border-gold ring-2 ring-gold" : "border-black/10"} ${
         red ? "text-destructive" : "text-ink"
       }`}
