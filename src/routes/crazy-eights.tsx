@@ -369,8 +369,19 @@ function CrazyEightsTable() {
   const isMulti = Boolean(matchId);
   const isRoom = Boolean(roomId);
   const isLive = isMulti || isRoom;
+  // The seat count is fixed once the hand is dealt: a human who leaves is handed
+  // to a bot in the SAME seat, so the count never changes mid-game. `roomPlayerCount`
+  // only dips transiently while a leaver's row is deleted and re-seated, and letting
+  // `activeCount` shrink during that window remaps (and corrupts) the canonical
+  // state — the source of the "both humans win" desync. Clamp against the current
+  // hand's seat order so the count stays stable through the hand-over.
   const activeCount: PlayerCount = isRoom
-    ? (roomPlayerCount >= 2 && roomPlayerCount <= 4 ? (roomPlayerCount as PlayerCount) : 2)
+    ? (() => {
+        const fromRoom = roomPlayerCount >= 2 && roomPlayerCount <= 4 ? roomPlayerCount : 2;
+        const fromHand = state.order?.length ?? 0;
+        const n = Math.max(fromRoom, fromHand);
+        return (n >= 2 && n <= 4 ? n : 2) as PlayerCount;
+      })()
     : playerCount;
 
   // Detect humans leaving the live table: hand their seat to a named computer
@@ -1328,7 +1339,6 @@ function CrazyEightsTable() {
             flag={seatFlag("ada")}
             cards={state.hands.ada ?? []}
             handEls={seatHandEls.current}
-            rotation={isMobile ? "rotate-90" : ""}
             active={state.turn === "ada"}
             countdown={countdown}
             dealing={dealing}
@@ -1352,7 +1362,7 @@ function CrazyEightsTable() {
                 cards={state.hands.ace ?? []}
                 handEls={seatHandEls.current}
                 vertical
-                rotation={isMobile ? "" : "-rotate-90"}
+                rotation="-rotate-90"
                 active={state.turn === "ace"}
                 countdown={countdown}
                 dealing={dealing}
