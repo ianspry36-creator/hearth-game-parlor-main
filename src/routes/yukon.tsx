@@ -81,8 +81,7 @@ type Selection =
   | null;
 
 type DragSource =
-  | { type: "tableau"; index: number; cardIndex: number }
-  | { type: "foundation"; index: number };
+  { type: "tableau"; index: number; cardIndex: number } | { type: "foundation"; index: number };
 
 function YukonTable() {
   const navigate = useNavigate();
@@ -120,7 +119,8 @@ function YukonTable() {
     endedRef.current = false;
 
     const id = window.setInterval(() => {
-      if (!endedRef.current && startRef.current !== 0) setElapsed(Math.floor((Date.now() - startRef.current) / 1000));
+      if (!endedRef.current && startRef.current !== 0)
+        setElapsed(Math.floor((Date.now() - startRef.current) / 1000));
     }, 250);
 
     try {
@@ -305,6 +305,9 @@ function YukonTable() {
     h: number;
     visible: number;
   } | null>(null);
+  // Card ids currently being dragged, so the originals can be hidden while the
+  // ghost follows the pointer (avoids a duplicate card left behind at the source).
+  const draggingIds = dragGhost ? new Set(dragGhost.cards.map((c) => c.id)) : null;
 
   const cardsFor = (source: DragSource): Card[] => {
     const s = stateRef.current;
@@ -331,7 +334,14 @@ function YukonTable() {
     if (cards.length === 0) return;
     e.currentTarget.setPointerCapture?.(e.pointerId);
     const dims = cardDims();
-    dragRef.current = { source, cards, startX: e.clientX, startY: e.clientY, moved: false, ...dims };
+    dragRef.current = {
+      source,
+      cards,
+      startX: e.clientX,
+      startY: e.clientY,
+      moved: false,
+      ...dims,
+    };
     setDragGhost({ cards, x: e.clientX, y: e.clientY, ...dims });
   };
 
@@ -425,8 +435,16 @@ function YukonTable() {
           <Stat label="Moves" value={String(state.moves)} />
           <Stat label="Time" value={formatElapsed(shownElapsed)} />
           <Stat label="Cards home" value={String(cardsHome(state))} className="hidden sm:flex" />
-          <Stat label="Best moves" value={best.moves > 0 ? String(best.moves) : "—"} className="hidden sm:flex" />
-          <Stat label="Best time" value={best.time > 0 ? formatElapsed(best.time) : "—"} className="hidden sm:flex" />
+          <Stat
+            label="Best moves"
+            value={best.moves > 0 ? String(best.moves) : "—"}
+            className="hidden sm:flex"
+          />
+          <Stat
+            label="Best time"
+            value={best.time > 0 ? formatElapsed(best.time) : "—"}
+            className="hidden sm:flex"
+          />
           <Button
             variant="parlorGhost"
             size="sm"
@@ -451,6 +469,7 @@ function YukonTable() {
                   onPointerDown={beginDrag({ type: "foundation", index })}
                   onPointerMove={moveDrag}
                   onPointerUp={endDrag}
+                  draggingIds={draggingIds}
                 />
               ))}
             </div>
@@ -462,11 +481,14 @@ function YukonTable() {
                   pile={pile}
                   selection={selection}
                   index={index}
+                  draggingIds={draggingIds}
                   onCardClick={clickTableau}
                   onDoubleClick={doubleClickTableau}
                   onFaceDownClick={clickFaceDown}
                   onEmptyClick={clickEmpty}
-                  onPointerDownCard={(cardIndex) => beginDrag({ type: "tableau", index, cardIndex })}
+                  onPointerDownCard={(cardIndex) =>
+                    beginDrag({ type: "tableau", index, cardIndex })
+                  }
                   onPointerMove={moveDrag}
                   onPointerUp={endDrag}
                 />
@@ -499,12 +521,8 @@ function YukonTable() {
               <div className="absolute inset-0 z-10 grid place-items-center rounded-2xl bg-brand/80 p-6 backdrop-blur-sm">
                 <div className="space-y-4 text-center">
                   <div className="text-5xl">🏳️</div>
-                  <h2 className="font-display text-3xl font-bold text-red-300">
-                    You conceded
-                  </h2>
-                  <p className="mx-auto max-w-sm text-ivory/70">
-                    This game is recorded as a loss.
-                  </p>
+                  <h2 className="font-display text-3xl font-bold text-red-300">You conceded</h2>
+                  <p className="mx-auto max-w-sm text-ivory/70">This game is recorded as a loss.</p>
                   <Button variant="parlor" onClick={reset}>
                     Deal again
                   </Button>
@@ -619,8 +637,12 @@ function Stat({
 }) {
   return (
     <div className={`flex flex-col items-center ${className}`}>
-      <span className="text-[10px] uppercase tracking-[0.2em] text-[var(--yukon-ink)]">{label}</span>
-      <span className="font-display text-lg font-bold leading-tight text-[var(--yukon-ink)] sm:text-xl">{value}</span>
+      <span className="text-[10px] uppercase tracking-[0.2em] text-[var(--yukon-ink)]">
+        {label}
+      </span>
+      <span className="font-display text-lg font-bold leading-tight text-[var(--yukon-ink)] sm:text-xl">
+        {value}
+      </span>
     </div>
   );
 }
@@ -628,6 +650,7 @@ function Stat({
 function CardFace({
   card,
   selected = false,
+  hidden = false,
   onClick,
   onDoubleClick,
   onPointerDown,
@@ -636,6 +659,7 @@ function CardFace({
 }: {
   card: Card;
   selected?: boolean;
+  hidden?: boolean;
   onClick?: () => void;
   onDoubleClick?: () => void;
   onPointerDown?: (e: ReactPointerEvent) => void;
@@ -655,7 +679,7 @@ function CardFace({
       aria-label={cardLabel(card)}
       className={`relative block h-[var(--yukon-card-h)] w-[var(--yukon-card-w)] touch-none select-none rounded-md border border-black/10 bg-white text-left shadow-md shadow-black/30 transition-transform ${
         red ? "text-[#c0392b]" : "text-ink"
-      } ${selected ? "-translate-y-1 ring-2 ring-gold" : ""}`}
+      } ${selected ? "-translate-y-1 ring-2 ring-gold" : ""} ${hidden ? "invisible" : ""}`}
     >
       <span className="absolute left-0.5 top-0.5 flex flex-col items-center font-display text-[18px] font-bold leading-none sm:left-1 sm:top-1 sm:text-[28px]">
         <span>{RANK_LABEL[card.rank]}</span>
@@ -711,6 +735,7 @@ function FoundationSlot({
   pile,
   suitIndex,
   selected,
+  draggingIds,
   onClick,
   onPointerDown,
   onPointerMove,
@@ -719,6 +744,7 @@ function FoundationSlot({
   pile: Card[];
   suitIndex: number;
   selected: boolean;
+  draggingIds?: Set<string> | null;
   onClick: () => void;
   onPointerDown: (e: ReactPointerEvent) => void;
   onPointerMove: (e: ReactPointerEvent) => void;
@@ -743,6 +769,7 @@ function FoundationSlot({
             <CardFace
               card={top}
               selected={selected}
+              hidden={draggingIds?.has(top.id)}
               onClick={onClick}
               onPointerDown={onPointerDown}
               onPointerMove={onPointerMove}
@@ -759,6 +786,7 @@ function TableauPile({
   pile,
   index,
   selection,
+  draggingIds,
   onCardClick,
   onDoubleClick,
   onFaceDownClick,
@@ -770,6 +798,7 @@ function TableauPile({
   pile: TableauPile;
   index: number;
   selection: Selection;
+  draggingIds?: Set<string> | null;
   onCardClick: (index: number, cardIndex: number) => void;
   onDoubleClick: (index: number, cardIndex: number) => void;
   onFaceDownClick: (index: number) => void;
@@ -808,6 +837,7 @@ function TableauPile({
             <CardFace
               card={card}
               selected={isSelected}
+              hidden={draggingIds?.has(card.id)}
               onClick={() => onCardClick(index, i)}
               onDoubleClick={() => onDoubleClick(index, i)}
               onPointerDown={onPointerDownCard(i)}

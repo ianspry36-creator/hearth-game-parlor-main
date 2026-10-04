@@ -1,5 +1,11 @@
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import { Button } from "@/components/ui/button";
 import { CardMark } from "@/components/parlor/CardMark";
 import {
@@ -152,7 +158,8 @@ function TriPeaksTable() {
     setRecords(loadRecords());
 
     const id = window.setInterval(() => {
-      if (!endedRef.current && startRef.current !== 0) setElapsed(Math.floor((Date.now() - startRef.current) / 1000));
+      if (!endedRef.current && startRef.current !== 0)
+        setElapsed(Math.floor((Date.now() - startRef.current) / 1000));
     }, 250);
     return () => window.clearInterval(id);
   }, []);
@@ -245,7 +252,55 @@ function TriPeaksTable() {
   };
 
   const clickPeak = (row: number, col: number) => {
+    if (suppressClickRef.current) {
+      suppressClickRef.current = false;
+      return;
+    }
     const candidate = moveToWaste(stateRef.current, row, col);
+    if (candidate !== stateRef.current) apply(candidate);
+  };
+
+  // --- Drag-and-drop (pointer-based so it also works with touch on mobile) ---
+  const dragRef = useRef<{
+    row: number;
+    col: number;
+    card: Card;
+    startX: number;
+    startY: number;
+    moved: boolean;
+  } | null>(null);
+  const suppressClickRef = useRef(false);
+  const [dragGhost, setDragGhost] = useState<{ card: Card; x: number; y: number } | null>(null);
+  // The card currently being dragged, so the original can be hidden while the
+  // ghost follows the pointer (avoids a duplicate card left behind at the source).
+  const draggingIds = dragGhost ? new Set([dragGhost.card.id]) : null;
+
+  const beginDrag = (row: number, col: number, card: Card) => (e: ReactPointerEvent) => {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    dragRef.current = { row, col, card, startX: e.clientX, startY: e.clientY, moved: false };
+    setDragGhost({ card, x: e.clientX, y: e.clientY });
+  };
+
+  const moveDrag = (e: ReactPointerEvent) => {
+    const drag = dragRef.current;
+    if (!drag) return;
+    if (!drag.moved && Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY) > 8)
+      drag.moved = true;
+    setDragGhost({ card: drag.card, x: e.clientX, y: e.clientY });
+  };
+
+  const endDrag = () => {
+    const drag = dragRef.current;
+    if (!drag) return;
+    dragRef.current = null;
+    setDragGhost(null);
+    if (!drag.moved) return; // it was a tap — let onClick handle it
+    suppressClickRef.current = true;
+    setTimeout(() => {
+      suppressClickRef.current = false;
+    }, 0);
+    const candidate = moveToWaste(stateRef.current, drag.row, drag.col);
     if (candidate !== stateRef.current) apply(candidate);
   };
 
@@ -374,10 +429,14 @@ function TriPeaksTable() {
                           <CardFace
                             card={slot.card}
                             dimmed={!open}
+                            hidden={draggingIds?.has(slot.card.id)}
                             {...(open
                               ? {
                                   onClick: () => clickPeak(row, col),
                                   onDoubleClick: () => clickPeak(row, col),
+                                  onPointerDown: beginDrag(row, col, slot.card),
+                                  onPointerMove: moveDrag,
+                                  onPointerUp: endDrag,
                                 }
                               : {})}
                           />
@@ -401,15 +460,12 @@ function TriPeaksTable() {
               </Button>
             </div>
 
-
             {conceded && (
               <div className="absolute inset-0 z-10 grid place-items-center rounded-2xl bg-brand/80 p-6 backdrop-blur-sm">
                 <div className="space-y-4 text-center">
                   <div className="text-5xl">🏳️</div>
                   <h2 className="font-display text-3xl font-bold text-red-300">You conceded</h2>
-                  <p className="mx-auto max-w-sm text-ivory/70">
-                    This game is recorded as a loss.
-                  </p>
+                  <p className="mx-auto max-w-sm text-ivory/70">This game is recorded as a loss.</p>
                   <Button variant="parlor" onClick={newRandomGame}>
                     Deal again
                   </Button>
@@ -526,6 +582,18 @@ function TriPeaksTable() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {dragGhost && (
+        <div
+          className="pointer-events-none fixed z-50"
+          style={{
+            left: `calc(${dragGhost.x}px - var(--tripeaks-card-w) / 2)`,
+            top: `calc(${dragGhost.y}px - var(--tripeaks-card-h) / 2)`,
+          }}
+        >
+          <CardFace card={dragGhost.card} />
+        </div>
+      )}
     </div>
   );
 }
@@ -543,11 +611,19 @@ function CardFace({
   onClick,
   onDoubleClick,
   dimmed = false,
+  hidden = false,
+  onPointerDown,
+  onPointerMove,
+  onPointerUp,
 }: {
   card: Card;
   onClick?: () => void;
   onDoubleClick?: () => void;
   dimmed?: boolean;
+  hidden?: boolean;
+  onPointerDown?: (e: ReactPointerEvent) => void;
+  onPointerMove?: (e: ReactPointerEvent) => void;
+  onPointerUp?: (e: ReactPointerEvent) => void;
 }) {
   const red = isRed(card.suit);
   const isFaceCard = card.rank === 1 || card.rank > 10;
@@ -556,13 +632,16 @@ function CardFace({
       type="button"
       onClick={onClick}
       onDoubleClick={onDoubleClick}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
       disabled={!onClick}
       aria-label={cardLabel(card)}
-      className={`relative block h-[var(--tripeaks-card-h)] w-[var(--tripeaks-card-w)] select-none rounded-md border border-black/10 bg-white text-left shadow-md shadow-black/30 transition-transform ${
+      className={`relative block h-[var(--tripeaks-card-h)] w-[var(--tripeaks-card-w)] touch-none select-none rounded-md border border-black/10 bg-white text-left shadow-md shadow-black/30 transition-transform ${
         red ? "text-[#c0392b]" : "text-ink"
       } ${onClick ? "cursor-pointer hover:-translate-y-0.5 hover:ring-1 hover:ring-gold" : "cursor-default"} ${
         dimmed ? "saturate-50" : ""
-      }`}
+      } ${hidden ? "invisible" : ""}`}
     >
       <span className="absolute left-0.5 top-0.5 flex flex-col items-center font-display text-[8px] font-bold leading-none sm:left-1 sm:top-1 sm:text-xs">
         <span>{RANK_LABEL[card.rank]}</span>

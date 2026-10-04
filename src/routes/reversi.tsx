@@ -23,8 +23,12 @@ import {
   isGameOver,
   legalMoves,
   makeInitialBoard,
+  nextDifficulty,
+  readDifficulty,
   squareName,
+  writeDifficulty,
   type Board,
+  type Difficulty,
   type Player,
 } from "@/lib/reversi";
 
@@ -139,10 +143,22 @@ function ReversiTable() {
   const opponentName = liveOpponent ?? opponent ?? "Ada";
   const [playerName, setPlayerName] = useState(() => getNickname() ?? "You");
 
-  // Solo games against Ada are recorded locally so they show in Statistics
-  // alongside the multiplayer leaderboard; live matches are handled by
-  // useRecordMatchResult above instead.
-  const { recordResult: recordSoloResult } = useSolitaireStats(game.id);
+  // Ada's difficulty for solo play — easy / medium / hard, remembered between games.
+  const [difficulty, setDifficulty] = useState<Difficulty>(() => readDifficulty());
+  const difficultyRef = useRef(difficulty);
+  difficultyRef.current = difficulty;
+  const cycleDifficulty = () => {
+    setDifficulty((prev) => {
+      const next = nextDifficulty(prev);
+      writeDifficulty(next);
+      return next;
+    });
+  };
+
+  // Solo games against Ada are recorded locally, scoped to the difficulty in
+  // effect, so they show in Statistics alongside the multiplayer leaderboard;
+  // live matches are handled by useRecordMatchResult above instead.
+  const { recordResult: recordSoloResult } = useSolitaireStats(game.id, difficulty);
   const prevSoloWinnerRef = useRef<Player | "draw" | null>(null);
   useEffect(() => {
     if (
@@ -176,7 +192,8 @@ function ReversiTable() {
   // Live matches run a 1-minute clock on the active seat; running out forfeits
   // the game to the other player.
   const turnSecondsLeft = useTurnTimer({
-    enabled: isMulti && opponentConnected && state.phase === "play" && !state.winner && !state.timerOff,
+    enabled:
+      isMulti && opponentConnected && state.phase === "play" && !state.winner && !state.timerOff,
     turn: state.turn,
     paused: state.timerRequest !== null,
     onTimeout: () =>
@@ -191,7 +208,8 @@ function ReversiTable() {
         }),
       })),
   });
-  const countdown = turnSecondsLeft > 0 && turnSecondsLeft <= TURN_WARNING_SECONDS ? turnSecondsLeft : 0;
+  const countdown =
+    turnSecondsLeft > 0 && turnSecondsLeft <= TURN_WARNING_SECONDS ? turnSecondsLeft : 0;
 
   const [playerAvatar, setPlayerAvatar] = useState<string>(readAvatar);
   const [flag, setFlag] = useState<string | null>(readFlag);
@@ -262,7 +280,7 @@ function ReversiTable() {
     const timer = setTimeout(() => {
       setState((current) => {
         if (current.phase !== "play" || current.turn !== "cpu") return current;
-        const target = chooseMove(current.board, "cpu");
+        const target = chooseMove(current.board, "cpu", difficultyRef.current);
         if (target === null) return current;
         const next = placeDisc(current, target, "cpu");
         stateRef.current = next;
@@ -274,6 +292,8 @@ function ReversiTable() {
 
   const { human, cpu } = countDiscs(state.board);
   const moved = human + cpu > 4; // beyond the opening four discs
+  // Difficulty is fixed once the first disc has been placed.
+  const difficultyLocked = moved;
   const moves = human + cpu - 4; // discs placed since the opening four
 
   const status =
@@ -312,34 +332,65 @@ function ReversiTable() {
       rail={null}
       menuExtra={
         <>
-        <TurnOffTimerControl
-          showButton={
-            isMulti && state.phase === "play" && !state.winner && !state.timerOff && !state.timerProposed
-          }
-          showPrompt={state.timerRequest === "cpu"}
-          opponentName={opponentName}
-          declined={proposedTimerOffRef.current && state.timerDeclined}
-          agreed={proposedTimerOffRef.current && state.timerAgreed}
-          onRequest={() => {
-            proposedTimerOffRef.current = true;
-            apply((current) => ({ ...current, timerProposed: true, timerRequest: "human" }));
-          }}
-          onAccept={() => apply((current) => ({ ...current, timerOff: true, timerAgreed: true, timerRequest: null }))}
-          onDecline={() => apply((current) => ({ ...current, timerRequest: null, timerDeclined: true }))}
-        />
-        {!state.winner && state.phase === "play" && (
-          <ConcedeButton
-            moves={moves}
-            onConcede={concede}
-            size="sm"
-            className="w-full h-6"
-            description={
-              isMulti
-                ? `You'll forfeit the match and ${opponentName} will win.`
-                : "You'll forfeit the game and Ada will win."
+          <TurnOffTimerControl
+            showButton={
+              isMulti &&
+              state.phase === "play" &&
+              !state.winner &&
+              !state.timerOff &&
+              !state.timerProposed
+            }
+            showPrompt={state.timerRequest === "cpu"}
+            opponentName={opponentName}
+            declined={proposedTimerOffRef.current && state.timerDeclined}
+            agreed={proposedTimerOffRef.current && state.timerAgreed}
+            onRequest={() => {
+              proposedTimerOffRef.current = true;
+              apply((current) => ({ ...current, timerProposed: true, timerRequest: "human" }));
+            }}
+            onAccept={() =>
+              apply((current) => ({
+                ...current,
+                timerOff: true,
+                timerAgreed: true,
+                timerRequest: null,
+              }))
+            }
+            onDecline={() =>
+              apply((current) => ({ ...current, timerRequest: null, timerDeclined: true }))
             }
           />
-        )}
+          {!state.winner && state.phase === "play" && (
+            <ConcedeButton
+              moves={moves}
+              onConcede={concede}
+              size="sm"
+              className="w-full h-6"
+              description={
+                isMulti
+                  ? `You'll forfeit the match and ${opponentName} will win.`
+                  : "You'll forfeit the game and Ada will win."
+              }
+            />
+          )}
+          {!isMulti && (
+            <div className="flex w-full items-center justify-between gap-2.5">
+              <span className="text-xs uppercase tracking-[0.2em] text-ivory/50">Difficulty</span>
+              <button
+                type="button"
+                onClick={cycleDifficulty}
+                disabled={difficultyLocked}
+                className="rounded-full border border-gold/25 bg-gold/5 px-2.5 py-0.5 text-xs capitalize text-cream transition-colors hover:border-gold/60 disabled:cursor-not-allowed disabled:opacity-50"
+                title={
+                  difficultyLocked
+                    ? "Difficulty is locked once the first move has been made"
+                    : "Change difficulty"
+                }
+              >
+                {difficulty}
+              </button>
+            </div>
+          )}
         </>
       }
     >
@@ -493,9 +544,7 @@ function ReversiTable() {
               : "Discs you sandwich in a straight line flip to your colour."}
           </p>
         </section>
-
       </div>
     </TableShell>
   );
 }
-

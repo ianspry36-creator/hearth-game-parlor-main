@@ -75,9 +75,7 @@ const BEST_TIME_KEY = "kings-in-the-corner-best-time";
 
 type Best = { moves: number; time: number };
 
-type DragSource =
-  | { type: "draw" }
-  | { type: "board"; pos: Position };
+type DragSource = { type: "draw" } | { type: "board"; pos: Position };
 
 function KingsInTheCornerTable() {
   const navigate = useNavigate();
@@ -123,7 +121,8 @@ function KingsInTheCornerTable() {
     endedRef.current = false;
 
     const id = window.setInterval(() => {
-      if (!endedRef.current && startRef.current !== 0) setElapsed(Math.floor((Date.now() - startRef.current) / 1000));
+      if (!endedRef.current && startRef.current !== 0)
+        setElapsed(Math.floor((Date.now() - startRef.current) / 1000));
     }, 250);
 
     try {
@@ -249,6 +248,9 @@ function KingsInTheCornerTable() {
   } | null>(null);
   const suppressClickRef = useRef(false);
   const [dragGhost, setDragGhost] = useState<{ card: Card; x: number; y: number } | null>(null);
+  // The card currently being dragged, so the original can be hidden while the
+  // ghost follows the pointer (avoids a duplicate card left behind at the source).
+  const draggingIds = dragGhost ? new Set([dragGhost.card.id]) : null;
 
   const beginDrag = (source: DragSource, card: Card) => (e: ReactPointerEvent) => {
     if (e.pointerType === "mouse" && e.button !== 0) return;
@@ -364,15 +366,17 @@ function KingsInTheCornerTable() {
                     <>
                       {state.stock.length > 1 && (
                         <div className="pointer-events-none absolute inset-0" aria-hidden>
-                          {Array.from({ length: Math.min(state.stock.length - 1, 3) }).map((_, i) => (
-                            <img
-                              key={i}
-                              src={cardBackAsset}
-                              alt=""
-                              className="absolute h-[var(--kic-card-h)] w-[var(--kic-card-w)] overflow-hidden rounded-lg object-cover shadow-md shadow-black/30"
-                              style={{ top: `${-(i + 1) * 2}px`, left: `${-(i + 1) * 2}px` }}
-                            />
-                          ))}
+                          {Array.from({ length: Math.min(state.stock.length - 1, 3) }).map(
+                            (_, i) => (
+                              <img
+                                key={i}
+                                src={cardBackAsset}
+                                alt=""
+                                className="absolute h-[var(--kic-card-h)] w-[var(--kic-card-w)] overflow-hidden rounded-lg object-cover shadow-md shadow-black/30"
+                                style={{ top: `${-(i + 1) * 2}px`, left: `${-(i + 1) * 2}px` }}
+                              />
+                            ),
+                          )}
                         </div>
                       )}
                       <CardBack />
@@ -386,6 +390,7 @@ function KingsInTheCornerTable() {
                 {state.draw ? (
                   <CardFace
                     card={state.draw}
+                    hidden={draggingIds?.has(state.draw.id)}
                     onPointerDown={beginDrag({ type: "draw" }, state.draw)}
                     onPointerMove={moveDrag}
                     onPointerUp={endDrag}
@@ -398,7 +403,9 @@ function KingsInTheCornerTable() {
                 variant="parlorGhost"
                 className="self-center text-[var(--yukon-ink)]"
                 onClick={undo}
-                disabled={history.length === 0 || state.won || conceded || (state.lost && !viewingBoard)}
+                disabled={
+                  history.length === 0 || state.won || conceded || (state.lost && !viewingBoard)
+                }
               >
                 Undo
               </Button>
@@ -421,6 +428,7 @@ function KingsInTheCornerTable() {
                         selection !== null && selection.row === row && selection.col === col
                       }
                       isLegal={legalSet.has(key)}
+                      draggingIds={draggingIds}
                       onClick={() => clickSlot(pos)}
                       {...(card && card.rank < 10
                         ? {
@@ -444,12 +452,10 @@ function KingsInTheCornerTable() {
               <div className="absolute inset-x-0 inset-y-[15%] z-10 grid place-items-center rounded-2xl bg-brand/80 p-6 backdrop-blur-sm">
                 <div className="space-y-4 text-center">
                   <div className="text-5xl">🎉</div>
-                  <h2 className="font-display text-3xl font-bold text-gold">
-                    You won!
-                  </h2>
+                  <h2 className="font-display text-3xl font-bold text-gold">You won!</h2>
                   <p className="mx-auto max-w-sm text-ivory/70">
-                    All twelve face cards are home in{" "}
-                    {state.moves} {state.moves === 1 ? "move" : "moves"} using {undoCount}{" "}
+                    All twelve face cards are home in {state.moves}{" "}
+                    {state.moves === 1 ? "move" : "moves"} using {undoCount}{" "}
                     {undoCount === 1 ? "undo" : "undos"}.
                   </p>
                   <div className="flex flex-wrap items-center justify-center gap-2">
@@ -501,9 +507,7 @@ function KingsInTheCornerTable() {
                 <div className="space-y-2 text-center">
                   <div className="text-5xl">🏳️</div>
                   <h2 className="font-display text-3xl font-bold text-red-300">You conceded</h2>
-                  <p className="mx-auto max-w-sm text-ivory/70">
-                    This game is recorded as a loss.
-                  </p>
+                  <p className="mx-auto max-w-sm text-ivory/70">This game is recorded as a loss.</p>
                   <Button variant="parlor" onClick={reset}>
                     Deal again
                   </Button>
@@ -626,6 +630,7 @@ function SlotCell({
   kind,
   selected,
   isLegal,
+  draggingIds,
   onClick,
   onPointerDown,
   onPointerMove,
@@ -636,6 +641,7 @@ function SlotCell({
   kind: SlotKind;
   selected: boolean;
   isLegal: boolean;
+  draggingIds?: Set<string> | null;
   onClick: () => void;
   onPointerDown?: (e: ReactPointerEvent) => void;
   onPointerMove?: (e: ReactPointerEvent) => void;
@@ -677,7 +683,7 @@ function SlotCell({
       aria-label={cardLabel(card)}
       className={`relative block h-[var(--kic-card-h)] w-[var(--kic-card-w)] shrink-0 touch-none select-none rounded-lg border border-black/10 bg-white text-left shadow-md shadow-black/30 transition-transform ${
         red ? "text-[#c0392b]" : "text-ink"
-      } ${selected ? "-translate-y-1 ring-2 ring-gold" : ""}`}
+      } ${selected ? "-translate-y-1 ring-2 ring-gold" : ""} ${draggingIds?.has(card.id) ? "invisible" : ""}`}
     >
       <span className="absolute left-0.5 top-0.5 flex flex-col items-center font-display text-[18px] font-bold leading-none sm:left-1 sm:top-1 sm:text-sm">
         <span>{RANK_LABEL[card.rank]}</span>
@@ -692,11 +698,13 @@ function SlotCell({
 
 function CardFace({
   card,
+  hidden = false,
   onPointerDown,
   onPointerMove,
   onPointerUp,
 }: {
   card: Card;
+  hidden?: boolean;
   onPointerDown?: (e: ReactPointerEvent) => void;
   onPointerMove?: (e: ReactPointerEvent) => void;
   onPointerUp?: (e: ReactPointerEvent) => void;
@@ -711,7 +719,7 @@ function CardFace({
       onPointerUp={onPointerUp}
       className={`relative block h-[var(--kic-card-h)] w-[var(--kic-card-w)] touch-none select-none rounded-lg border border-black/10 bg-white text-left shadow-md shadow-black/30 ${
         red ? "text-[#c0392b]" : "text-ink"
-      }`}
+      } ${hidden ? "invisible" : ""}`}
     >
       <span className="absolute left-0.5 top-0.5 flex flex-col items-center font-display text-[18px] font-bold leading-none sm:left-1 sm:top-1 sm:text-sm">
         <span>{RANK_LABEL[card.rank]}</span>

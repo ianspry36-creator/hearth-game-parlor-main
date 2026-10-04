@@ -29,7 +29,9 @@ import {
   type LeaderboardEntry,
   type OpponentStats,
 } from "@/lib/stats";
-import { useSolitaireStats } from "@/lib/solitaireStats";
+import { clearSolitaireStats, useSolitaireStats } from "@/lib/solitaireStats";
+import { readDifficulty as readCheckersDifficulty } from "@/lib/checkers";
+import { readDifficulty as readReversiDifficulty } from "@/lib/reversi";
 import { getNickname, getSessionId } from "@/lib/multiplayer";
 import { useDeveloperMode } from "@/lib/dev-mode";
 import { flagName, flagUrl } from "@/lib/flags";
@@ -38,10 +40,68 @@ import type { ReactNode } from "react";
 export function StatisticsDialog({ game, trigger }: { game: GameMeta; trigger: ReactNode }) {
   const solo = isSoloGame(game.id);
   const hybrid = isHybridGame(game.id);
+  const isDifficultyGame = game.id === "checkers" || game.id === "reversi";
   const showSolo = solo || hybrid;
   const showMulti = !solo;
   const { played, won, lost, abandoned, reset } = useSolitaireStats(game.id);
+
+  // Checkers and reversi record their vs-Ada results per difficulty, so read
+  // all three here. These hooks are cheap (localStorage) and simply unused on
+  // other tables (the variant keys are never written there).
+  const easy = useSolitaireStats(game.id, "easy");
+  const medium = useSolitaireStats(game.id, "medium");
+  const hard = useSolitaireStats(game.id, "hard");
+  const difficultyRows: DifficultyRow[] = [
+    {
+      label: "Easy",
+      played: easy.played,
+      won: easy.won,
+      lost: easy.lost,
+      abandoned: easy.abandoned,
+    },
+    {
+      label: "Medium",
+      played: medium.played,
+      won: medium.won,
+      lost: medium.lost,
+      abandoned: medium.abandoned,
+    },
+    {
+      label: "Hard",
+      played: hard.played,
+      won: hard.won,
+      lost: hard.lost,
+      abandoned: hard.abandoned,
+    },
+  ];
+  const difficultyPlayed = easy.played + medium.played + hard.played;
+  const totalPlayed = isDifficultyGame ? difficultyPlayed : played;
   const [confirmReset, setConfirmReset] = useState(false);
+
+  const handleReset = () => {
+    if (isDifficultyGame) {
+      clearSolitaireStats(game.id, "easy");
+      clearSolitaireStats(game.id, "medium");
+      clearSolitaireStats(game.id, "hard");
+    } else {
+      reset();
+    }
+  };
+
+  const currentDifficulty =
+    game.id === "checkers" ? readCheckersDifficulty() : readReversiDifficulty();
+  const title = solo
+    ? "Your record"
+    : isDifficultyGame
+      ? `${game.name} (${capitalize(currentDifficulty)})`
+      : game.name;
+  const description = solo
+    ? "Your single-player wins and losses for this table."
+    : isDifficultyGame
+      ? "Your record against Ada by difficulty, plus the top players online."
+      : hybrid
+        ? "Your record against Ada, plus the top players online."
+        : "See the top players at this table, or your own record against each opponent.";
 
   return (
     <>
@@ -50,16 +110,8 @@ export function StatisticsDialog({ game, trigger }: { game: GameMeta; trigger: R
         <DialogContent className="max-h-[80vh] overflow-y-auto border-gold/25 bg-surface sm:max-w-lg">
           <DialogHeader>
             <p className="text-[11px] uppercase tracking-[0.3em] text-gold">Statistics</p>
-            <DialogTitle className="font-display text-3xl font-bold">
-              {solo ? "Your record" : game.name}
-            </DialogTitle>
-            <DialogDescription className="text-ivory/70">
-              {solo
-                ? "Your single-player wins and losses for this table."
-                : hybrid
-                  ? "Your record against Ada, plus the top players online."
-                  : "See the top players at this table, or your own record against each opponent."}
-            </DialogDescription>
+            <DialogTitle className="font-display text-3xl font-bold">{title}</DialogTitle>
+            <DialogDescription className="text-ivory/70">{description}</DialogDescription>
           </DialogHeader>
           {showSolo && (
             <>
@@ -68,7 +120,11 @@ export function StatisticsDialog({ game, trigger }: { game: GameMeta; trigger: R
                   vs Ada
                 </p>
               )}
-              <SoloStats played={played} won={won} lost={lost} abandoned={abandoned} />
+              {isDifficultyGame ? (
+                <DifficultyStatsTable rows={difficultyRows} />
+              ) : (
+                <SoloStats played={played} won={won} lost={lost} abandoned={abandoned} />
+              )}
             </>
           )}
           {showMulti && (
@@ -102,7 +158,7 @@ export function StatisticsDialog({ game, trigger }: { game: GameMeta; trigger: R
               </Tabs>
             </>
           )}
-          {showSolo && played > 0 && (
+          {showSolo && totalPlayed > 0 && (
             <div className="flex justify-end">
               <Button variant="parlorOutline" size="sm" onClick={() => setConfirmReset(true)}>
                 Reset
@@ -127,7 +183,7 @@ export function StatisticsDialog({ game, trigger }: { game: GameMeta; trigger: R
               <Button variant="parlorOutline">No</Button>
             </AlertDialogCancel>
             <AlertDialogAction asChild>
-              <Button variant="parlor" onClick={reset}>
+              <Button variant="parlor" onClick={handleReset}>
                 Yes
               </Button>
             </AlertDialogAction>
@@ -166,6 +222,53 @@ function Leaderboard({ game }: { game: GameMeta }) {
   return <StatTable rows={rows} devMode={devMode} onDelete={remove} />;
 }
 
+type DifficultyRow = {
+  label: string;
+  played: number;
+  won: number;
+  lost: number;
+  abandoned: number;
+};
+
+function capitalize(value: string) {
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+/** Per-difficulty record for checkers and reversi (easy / medium / hard). */
+function DifficultyStatsTable({ rows }: { rows: DifficultyRow[] }) {
+  const totalPlayed = rows.reduce((n, row) => n + row.played, 0);
+  if (totalPlayed === 0) return <EmptyState />;
+  const cols =
+    "grid-cols-[minmax(0,1fr)_2.75rem_2rem_2rem_4rem] sm:grid-cols-[1fr_4rem_4rem_4rem_4.5rem]";
+  return (
+    <div className="mt-1">
+      <div
+        className={`sticky top-0 z-10 grid ${cols} gap-1.5 border-b border-gold/15 bg-surface py-2 text-[10px] uppercase tracking-[0.04em] text-ivory/50 sm:gap-2 sm:text-[11px] sm:tracking-[0.18em]`}
+      >
+        <span>Difficulty</span>
+        <span className="text-right">Played</span>
+        <span className="text-right">Won</span>
+        <span className="text-right">Lost</span>
+        <span className="text-right">Abandoned</span>
+      </div>
+      <ul>
+        {rows.map((row) => (
+          <li
+            key={row.label}
+            className={`grid ${cols} items-center gap-1.5 border-b border-gold/10 py-2.5 text-sm last:border-0 sm:gap-2`}
+          >
+            <span className="font-medium">{row.label}</span>
+            <span className="text-right text-ivory/80">{row.played}</span>
+            <span className="text-right text-gold">{row.won}</span>
+            <span className="text-right text-ivory/60">{row.lost}</span>
+            <span className="text-right text-ivory/60">{row.abandoned}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function SoloStats({
   played,
   won,
@@ -178,9 +281,7 @@ function SoloStats({
   abandoned: number;
 }) {
   const nickname = getNickname();
-  const rows: LeaderboardEntry[] = [
-    { nickname: nickname ?? "You", played, won, lost },
-  ];
+  const rows: LeaderboardEntry[] = [{ nickname: nickname ?? "You", played, won, lost }];
   if (played === 0) return <EmptyState />;
   return <StatTable rows={rows} abandoned={abandoned} />;
 }
@@ -236,9 +337,7 @@ function StatTable({
             <span className="text-right text-ivory/80">{row.played}</span>
             <span className="text-right text-gold">{row.won}</span>
             <span className="text-right text-ivory/60">{row.lost}</span>
-            {showAbandoned && (
-              <span className="text-right text-ivory/60">{abandoned}</span>
-            )}
+            {showAbandoned && <span className="text-right text-ivory/60">{abandoned}</span>}
           </li>
         ))}
       </ul>

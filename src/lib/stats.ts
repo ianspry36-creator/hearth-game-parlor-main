@@ -19,7 +19,7 @@ const SOLO_GAMES: GameId[] = [
 export const isSoloGame = (id: GameId): boolean => SOLO_GAMES.includes(id);
 
 /** Games playable both solo (against the house bot) and against a live opponent. */
-const HYBRID_GAMES: GameId[] = ["farkle", "cribbage", "reversi"];
+const HYBRID_GAMES: GameId[] = ["farkle", "cribbage", "reversi", "checkers"];
 
 export const isHybridGame = (id: GameId): boolean => HYBRID_GAMES.includes(id);
 

@@ -3,12 +3,13 @@ import type { GameId } from "@/lib/games";
 
 export type SolitaireStats = { won: number; lost: number; abandoned: number };
 
-const key = (game: GameId) => `parlor.stats.${game}`;
+const key = (game: GameId, variant?: string) =>
+  variant ? `parlor.stats.${game}.${variant}` : `parlor.stats.${game}`;
 
-function read(game: GameId): SolitaireStats {
+function read(game: GameId, variant?: string): SolitaireStats {
   if (typeof window === "undefined") return { won: 0, lost: 0, abandoned: 0 };
   try {
-    const raw = window.localStorage.getItem(key(game));
+    const raw = window.localStorage.getItem(key(game, variant));
     if (!raw) return { won: 0, lost: 0, abandoned: 0 };
     const parsed = JSON.parse(raw) as Partial<SolitaireStats>;
     return {
@@ -21,9 +22,9 @@ function read(game: GameId): SolitaireStats {
   }
 }
 
-function write(game: GameId, stats: SolitaireStats) {
+function write(game: GameId, stats: SolitaireStats, variant?: string) {
   if (typeof window !== "undefined") {
-    window.localStorage.setItem(key(game), JSON.stringify(stats));
+    window.localStorage.setItem(key(game, variant), JSON.stringify(stats));
   }
 }
 
@@ -31,12 +32,16 @@ function write(game: GameId, stats: SolitaireStats) {
 const STATS_CHANGED_EVENT = "parlor.stats.changed";
 
 /** Record a finished single-player game (played = won + lost + abandoned). */
-export function recordSolitaireResult(game: GameId, result: "win" | "loss" | "abandoned") {
-  const stats = read(game);
+export function recordSolitaireResult(
+  game: GameId,
+  result: "win" | "loss" | "abandoned",
+  variant?: string,
+) {
+  const stats = read(game, variant);
   if (result === "win") stats.won += 1;
   else if (result === "loss") stats.lost += 1;
   else stats.abandoned += 1;
-  write(game, stats);
+  write(game, stats, variant);
   if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent<GameId>(STATS_CHANGED_EVENT, { detail: game }));
   }
@@ -45,31 +50,34 @@ export function recordSolitaireResult(game: GameId, result: "win" | "loss" | "ab
 /**
  * Local, per-game single-player record. `played` is derived from won + lost +
  * abandoned, so a hand left unfinished is recorded separately from a real loss.
+ *
+ * `variant` scopes the record to a sub-key (e.g. a difficulty level), so a game
+ * like checkers can keep separate records for easy / medium / hard.
  */
-export function useSolitaireStats(game: GameId) {
+export function useSolitaireStats(game: GameId, variant?: string) {
   const [stats, setStats] = useState<SolitaireStats>({ won: 0, lost: 0, abandoned: 0 });
 
   useEffect(() => {
-    setStats(read(game));
+    setStats(read(game, variant));
     const sync = (e: Event) => {
-      if ((e as CustomEvent<GameId>).detail === game) setStats(read(game));
+      if ((e as CustomEvent<GameId>).detail === game) setStats(read(game, variant));
     };
     window.addEventListener(STATS_CHANGED_EVENT, sync);
     return () => window.removeEventListener(STATS_CHANGED_EVENT, sync);
-  }, [game]);
+  }, [game, variant]);
 
   const recordResult = useCallback(
     (result: "win" | "loss" | "abandoned") => {
-      recordSolitaireResult(game, result);
-      setStats(read(game));
+      recordSolitaireResult(game, result, variant);
+      setStats(read(game, variant));
     },
-    [game],
+    [game, variant],
   );
 
   const reset = useCallback(() => {
-    clearSolitaireStats(game);
+    clearSolitaireStats(game, variant);
     setStats({ won: 0, lost: 0, abandoned: 0 });
-  }, [game]);
+  }, [game, variant]);
 
   return {
     won: stats.won,
@@ -82,9 +90,12 @@ export function useSolitaireStats(game: GameId) {
 }
 
 /** Remove all locally stored single-player statistics for a game (record and best scores). */
-export function clearSolitaireStats(game: GameId) {
+export function clearSolitaireStats(game: GameId, variant?: string) {
   if (typeof window === "undefined") return;
-  window.localStorage.removeItem(key(game));
-  window.localStorage.removeItem(`${game}-best-moves`);
-  window.localStorage.removeItem(`${game}-best-time`);
+  window.localStorage.removeItem(key(game, variant));
+  if (!variant) {
+    window.localStorage.removeItem(`${game}-best-moves`);
+    window.localStorage.removeItem(`${game}-best-time`);
+  }
+  window.dispatchEvent(new CustomEvent<GameId>(STATS_CHANGED_EVENT, { detail: game }));
 }

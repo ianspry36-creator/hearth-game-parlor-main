@@ -321,13 +321,18 @@ export async function leaveRoom(roomId: string): Promise<void> {
   if (!me) return;
   await supabase.from("game_room_players").delete().eq("id", (me as { id: string }).id);
 
-  // If the host leaves an idle table, close it so no one is left stranded.
+  // If the host leaves an idle table, close it so no one is left stranded. A
+  // table that has already started ("playing") must survive the host leaving so
+  // the remaining guests can keep playing; their seats are handed to the
+  // computer via the heartbeat/stale detection instead of the whole room being
+  // deleted out from under them.
   const { data: room } = await supabase
     .from("game_rooms")
-    .select("host_session")
+    .select("host_session, status")
     .eq("id", roomId)
     .maybeSingle();
-  if (room && (room as { host_session: string }).host_session === session) {
+  const row = room as { host_session: string; status: string } | null;
+  if (row && row.host_session === session && row.status === "lobby") {
     await supabase.from("game_rooms").delete().eq("id", roomId);
   }
 }
@@ -461,6 +466,31 @@ export function useCrazyEightsLobby(game: GameId) {
 }
 
 /**
+ * Shallow-compares two seat lists so the polling fallback below can skip a
+ * state update when nothing actually changed (avoiding a re-render every poll).
+ */
+function samePlayers(a: GameRoomPlayer[], b: GameRoomPlayer[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) {
+    const x = a[i]!;
+    const y = b[i]!;
+    if (
+      x.id !== y.id ||
+      x.session_id !== y.session_id ||
+      x.seat !== y.seat ||
+      x.is_bot !== y.is_bot ||
+      x.last_seen_at !== y.last_seen_at ||
+      x.nickname !== y.nickname ||
+      x.avatar !== y.avatar ||
+      x.flag !== y.flag
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
  * Subscribes to a single room for live play: returns the room, its players
  * (in seat order), the caller's own seat, and helpers to publish game state.
  * The canonical `state` is always stored from the host's (seat 0) perspective.
@@ -527,6 +557,14 @@ export function useCrazyEightsRoom(roomId: string | undefined) {
         if (r.version < version.current) return;
         version.current = r.version;
         setRoom(r);
+      });
+      // Re-fetch the seat list too. Realtime can drop a `game_room_players`
+      // event, and a disconnected human is only revealed by their `last_seen_at`
+      // going stale, so poll the rows as a fallback so stale/disconnected humans
+      // are detected promptly even when a realtime push is missed.
+      void getRoomPlayers(roomId).then((p) => {
+        if (!live) return;
+        setPlayers((current) => (samePlayers(current, p) ? current : p));
       });
     }, 2_500);
 

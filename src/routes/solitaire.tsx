@@ -251,6 +251,9 @@ function SolitaireTable() {
   } | null>(null);
   const suppressClickRef = useRef(false);
   const [dragGhost, setDragGhost] = useState<{ cards: Card[]; x: number; y: number } | null>(null);
+  // Card ids currently being dragged, so the originals can be hidden while the
+  // ghost follows the pointer (avoids a duplicate card left behind at the source).
+  const draggingIds = dragGhost ? new Set(dragGhost.cards.map((c) => c.id)) : null;
 
   const cardsFor = (source: DragSource): Card[] => {
     const s = stateRef.current;
@@ -369,6 +372,7 @@ function SolitaireTable() {
                     onPointerDown={beginDrag({ type: "waste" })}
                     onPointerMove={moveDrag}
                     onPointerUp={endDrag}
+                    draggingIds={draggingIds}
                   />
                 </div>
                 <div className="flex gap-2">
@@ -382,6 +386,7 @@ function SolitaireTable() {
                       onPointerDown={beginDrag({ type: "foundation", index })}
                       onPointerMove={moveDrag}
                       onPointerUp={endDrag}
+                      draggingIds={draggingIds}
                     />
                   ))}
                 </div>
@@ -396,9 +401,12 @@ function SolitaireTable() {
                     selection={selection}
                     onCardClick={clickTableau}
                     onDoubleClick={doubleClickTableau}
-                    onPointerDownCard={(cardIndex) => beginDrag({ type: "tableau", index, cardIndex })}
+                    onPointerDownCard={(cardIndex) =>
+                      beginDrag({ type: "tableau", index, cardIndex })
+                    }
                     onPointerMove={moveDrag}
                     onPointerUp={endDrag}
+                    draggingIds={draggingIds}
                   />
                 ))}
               </div>
@@ -437,12 +445,8 @@ function SolitaireTable() {
               <div className="absolute inset-0 z-10 grid place-items-center rounded-2xl bg-brand/80 p-6 backdrop-blur-sm">
                 <div className="space-y-4 text-center">
                   <div className="text-5xl">🏳️</div>
-                  <h2 className="font-display text-3xl font-bold text-red-300">
-                    You conceded
-                  </h2>
-                  <p className="mx-auto max-w-sm text-ivory/70">
-                    This game is recorded as a loss.
-                  </p>
+                  <h2 className="font-display text-3xl font-bold text-red-300">You conceded</h2>
+                  <p className="mx-auto max-w-sm text-ivory/70">This game is recorded as a loss.</p>
                   <Button variant="parlor" onClick={reset}>
                     Deal again
                   </Button>
@@ -537,7 +541,10 @@ function SolitaireTable() {
             {dragGhost.cards.map((card, i) => (
               <div
                 key={card.id}
-                style={{ marginTop: i === 0 ? 0 : "calc(var(--solitaire-visible) - var(--solitaire-card-h))" }}
+                style={{
+                  marginTop:
+                    i === 0 ? 0 : "calc(var(--solitaire-visible) - var(--solitaire-card-h))",
+                }}
               >
                 <CardFace card={card} />
               </div>
@@ -552,6 +559,7 @@ function SolitaireTable() {
 function CardFace({
   card,
   selected = false,
+  hidden = false,
   onClick,
   onDoubleClick,
   onPointerDown,
@@ -560,6 +568,7 @@ function CardFace({
 }: {
   card: Card;
   selected?: boolean;
+  hidden?: boolean;
   onClick?: () => void;
   onDoubleClick?: () => void;
   onPointerDown?: (e: ReactPointerEvent) => void;
@@ -579,7 +588,7 @@ function CardFace({
       aria-label={cardLabel(card)}
       className={`relative block h-[var(--solitaire-card-h)] w-[var(--solitaire-card-w)] touch-none select-none rounded-md border border-black/10 bg-white text-left shadow-md shadow-black/30 transition-transform ${
         red ? "text-[#c0392b]" : "text-ink"
-      } ${selected ? "-translate-y-1 ring-2 ring-gold" : ""}`}
+      } ${selected ? "-translate-y-1 ring-2 ring-gold" : ""} ${hidden ? "invisible" : ""}`}
     >
       <span className="absolute left-0.5 top-0.5 flex flex-col items-center font-display text-xl font-bold leading-none">
         <span>{RANK_LABEL[card.rank]}</span>
@@ -642,6 +651,7 @@ function StockPile({ count, onClick }: { count: number; onClick: () => void }) {
 function WastePile({
   cards,
   selected,
+  draggingIds,
   onClick,
   onDoubleClick,
   onPointerDown,
@@ -650,6 +660,7 @@ function WastePile({
 }: {
   cards: Card[];
   selected: boolean;
+  draggingIds?: Set<string> | null;
   onClick: () => void;
   onDoubleClick: () => void;
   onPointerDown: (e: ReactPointerEvent) => void;
@@ -674,6 +685,7 @@ function WastePile({
         <CardFace
           card={top}
           selected={selected}
+          hidden={draggingIds?.has(top.id)}
           onClick={onClick}
           onDoubleClick={onDoubleClick}
           onPointerDown={onPointerDown}
@@ -689,6 +701,7 @@ function FoundationSlot({
   pile,
   suitIndex,
   selected,
+  draggingIds,
   onClick,
   onPointerDown,
   onPointerMove,
@@ -697,6 +710,7 @@ function FoundationSlot({
   pile: Card[];
   suitIndex: number;
   selected: boolean;
+  draggingIds?: Set<string> | null;
   onClick: () => void;
   onPointerDown: (e: ReactPointerEvent) => void;
   onPointerMove: (e: ReactPointerEvent) => void;
@@ -721,6 +735,7 @@ function FoundationSlot({
             <CardFace
               card={top}
               selected={selected}
+              hidden={draggingIds?.has(top.id)}
               onClick={onClick}
               onPointerDown={onPointerDown}
               onPointerMove={onPointerMove}
@@ -737,6 +752,7 @@ function TableauPile({
   pile,
   index,
   selection,
+  draggingIds,
   onCardClick,
   onDoubleClick,
   onPointerDownCard,
@@ -746,6 +762,7 @@ function TableauPile({
   pile: TableauPileData;
   index: number;
   selection: Selection;
+  draggingIds?: Set<string> | null;
   onCardClick: (index: number, cardIndex: number) => void;
   onDoubleClick: (index: number) => void;
   onPointerDownCard: (cardIndex: number) => (e: ReactPointerEvent) => void;
@@ -760,7 +777,12 @@ function TableauPile({
         {pile.faceDown.map((card, i) => {
           const isTop = i === pile.faceDown.length - 1;
           return (
-            <div key={card.id} style={{ marginTop: i === 0 ? 0 : "calc(var(--solitaire-visible) - var(--solitaire-card-h))" }}>
+            <div
+              key={card.id}
+              style={{
+                marginTop: i === 0 ? 0 : "calc(var(--solitaire-visible) - var(--solitaire-card-h))",
+              }}
+            >
               {canFlip && isTop ? <CardBack onClick={() => onCardClick(index, 0)} /> : <CardBack />}
             </div>
           );
@@ -781,6 +803,7 @@ function TableauPile({
               <CardFace
                 card={card}
                 selected={isSelected}
+                hidden={draggingIds?.has(card.id)}
                 onClick={() => onCardClick(index, i)}
                 onDoubleClick={() => onDoubleClick(index)}
                 onPointerDown={onPointerDownCard(i)}

@@ -81,6 +81,9 @@ function ScorpionTable() {
   const [history, setHistory] = useState<GameState[]>([]);
   const [selection, setSelection] = useState<Selection>(null);
   const [dragOverTarget, setDragOverTarget] = useState<number | null>(null);
+  // The tail currently being dragged, so its originals can be hidden while the
+  // browser shows the drag image (avoids a duplicate card left behind).
+  const [dragging, setDragging] = useState<Selection>(null);
   const dragSourceRef = useRef<Selection>(null);
   const [confirming, setConfirming] = useState<"new" | "home" | null>(null);
   const [conceded, setConceded] = useState(false);
@@ -112,7 +115,8 @@ function ScorpionTable() {
     endedRef.current = false;
 
     const id = window.setInterval(() => {
-      if (!endedRef.current && startRef.current !== 0) setElapsed(Math.floor((Date.now() - startRef.current) / 1000));
+      if (!endedRef.current && startRef.current !== 0)
+        setElapsed(Math.floor((Date.now() - startRef.current) / 1000));
     }, 250);
 
     try {
@@ -214,6 +218,7 @@ function ScorpionTable() {
   const clearDrag = () => {
     dragSourceRef.current = null;
     setDragOverTarget(null);
+    setDragging(null);
   };
 
   const beginDrag = (source: Selection, e: DragEvent<HTMLButtonElement>) => {
@@ -223,8 +228,12 @@ function ScorpionTable() {
     }
     dragSourceRef.current = source;
     setSelection(null);
+    setDragging(source);
     e.dataTransfer.effectAllowed = "move";
     e.dataTransfer.setData("text/plain", JSON.stringify(source));
+    // Use the dragged card itself as the drag image so the browser shows a
+    // crisp ghost instead of an offset snapshot of the whole button.
+    if (e.currentTarget) e.dataTransfer.setDragImage(e.currentTarget, 0, 0);
   };
 
   const highlightTableau = (index: number) => (e: DragEvent<HTMLDivElement>) => {
@@ -310,6 +319,7 @@ function ScorpionTable() {
                   key={index}
                   pile={pile}
                   selection={selection}
+                  dragging={dragging}
                   index={index}
                   onCardClick={clickTableau}
                   onEmptyClick={clickEmpty}
@@ -349,12 +359,8 @@ function ScorpionTable() {
               <div className="absolute inset-0 z-10 grid place-items-center rounded-2xl bg-brand/80 p-6 backdrop-blur-sm">
                 <div className="space-y-4 text-center">
                   <div className="text-5xl">🏳️</div>
-                  <h2 className="font-display text-3xl font-bold text-red-300">
-                    You conceded
-                  </h2>
-                  <p className="mx-auto max-w-sm text-ivory/70">
-                    This game is recorded as a loss.
-                  </p>
+                  <h2 className="font-display text-3xl font-bold text-red-300">You conceded</h2>
+                  <p className="mx-auto max-w-sm text-ivory/70">This game is recorded as a loss.</p>
                   <Button variant="parlor" onClick={reset}>
                     Deal again
                   </Button>
@@ -477,6 +483,7 @@ function Stat({ label, value }: { label: string; value: string }) {
 function CardFace({
   card,
   selected = false,
+  hidden = false,
   onClick,
   draggable,
   onDragStart,
@@ -484,6 +491,7 @@ function CardFace({
 }: {
   card: Card;
   selected?: boolean;
+  hidden?: boolean;
   onClick?: () => void;
   draggable?: boolean;
   onDragStart?: (e: DragEvent<HTMLButtonElement>) => void;
@@ -501,7 +509,7 @@ function CardFace({
       aria-label={cardLabel(card)}
       className={`relative block h-[var(--scorpion-card-h)] w-[var(--scorpion-card-w)] select-none rounded-md border border-black/10 bg-white text-left shadow-md shadow-black/30 transition-transform ${
         red ? "text-[#c0392b]" : "text-ink"
-      } ${selected ? "-translate-y-1 ring-2 ring-gold" : ""}`}
+      } ${selected ? "-translate-y-1 ring-2 ring-gold" : ""} ${hidden ? "invisible" : ""}`}
     >
       <span className="absolute left-0.5 top-0.5 flex flex-col items-center font-display text-[10.5px] font-bold leading-none sm:left-1 sm:top-1 sm:text-sm">
         <span>{RANK_LABEL[card.rank]}</span>
@@ -607,6 +615,7 @@ function TableauPile({
   pile,
   index,
   selection,
+  dragging,
   onCardClick,
   onEmptyClick,
   onCardDragStart,
@@ -618,6 +627,7 @@ function TableauPile({
   pile: TableauPile;
   index: number;
   selection: Selection;
+  dragging: Selection;
   onCardClick: (index: number, cardIndex: number) => void;
   onEmptyClick: (index: number) => void;
   onCardDragStart: (cardIndex: number, e: DragEvent<HTMLButtonElement>) => void;
@@ -642,8 +652,12 @@ function TableauPile({
         </div>
       ))}
       {pile.faceUp.map((card, i) => {
+        // Selecting a card selects its whole tail (every card from it up to the
+        // top), so the run lifts together to show what will move.
         const isSelected =
-          selection?.type === "tableau" && selection.index === index && selection.cardIndex === i;
+          selection?.type === "tableau" && selection.index === index && i >= selection.cardIndex;
+        const isDragging =
+          dragging?.type === "tableau" && dragging.index === index && i >= dragging.cardIndex;
         const marginTop =
           i === 0
             ? pile.faceDown.length > 0
@@ -655,6 +669,7 @@ function TableauPile({
             <CardFace
               card={card}
               selected={isSelected}
+              hidden={isDragging}
               onClick={() => onCardClick(index, i)}
               draggable
               onDragStart={(e) => onCardDragStart(i, e)}

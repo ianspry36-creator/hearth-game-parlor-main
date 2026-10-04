@@ -12,8 +12,7 @@ export const flip = (player: Player): Player => (player === "human" ? "cpu" : "h
 
 export const idx = (row: number, col: number) => row * SIZE + col;
 export const cellRC = (i: number) => ({ row: Math.floor(i / SIZE), col: i % SIZE });
-const inBounds = (row: number, col: number) =>
-  row >= 0 && row < SIZE && col >= 0 && col < SIZE;
+const inBounds = (row: number, col: number) => row >= 0 && row < SIZE && col >= 0 && col < SIZE;
 
 const DIRECTIONS: ReadonlyArray<readonly [number, number]> = [
   [-1, -1],
@@ -109,14 +108,123 @@ export function isGameOver(board: Board): boolean {
 
 const CORNERS = new Set([idx(0, 0), idx(0, SIZE - 1), idx(SIZE - 1, 0), idx(SIZE - 1, SIZE - 1)]);
 
+export type Difficulty = "easy" | "medium" | "hard";
+
+const DIFFICULTY_ORDER: Difficulty[] = ["easy", "medium", "hard"];
+
+/** The next difficulty when the toggle is clicked, wrapping hard → easy. */
+export function nextDifficulty(difficulty: Difficulty): Difficulty {
+  const index = DIFFICULTY_ORDER.indexOf(difficulty);
+  return DIFFICULTY_ORDER[(index + 1) % DIFFICULTY_ORDER.length]!;
+}
+
+const DIFFICULTY_KEY = "parlor.reversi.difficulty";
+
+/** Read the saved reversi difficulty, defaulting to "easy". */
+export function readDifficulty(): Difficulty {
+  if (typeof window === "undefined") return "easy";
+  try {
+    const stored = window.localStorage.getItem(DIFFICULTY_KEY);
+    return stored === "medium" || stored === "hard" ? stored : "easy";
+  } catch {
+    return "easy";
+  }
+}
+
+/** Persist the chosen reversi difficulty. */
+export function writeDifficulty(difficulty: Difficulty) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(DIFFICULTY_KEY, difficulty);
+  } catch {
+    // Ignore storage failures (private browsing, etc.).
+  }
+}
+
+// Positional weights favour corners and edges while penalising the cells that
+// hand the opponent a corner (the squares adjacent to each corner).
+const POSITIONAL_WEIGHTS: number[] = [
+  100, -20, 10, 5, 5, 10, -20, 100, -20, -50, -2, -2, -2, -2, -50, -20, 10, -2, 1, 1, 1, 1, -2, 10,
+  5, -2, 1, 1, 1, 1, -2, 5, 5, -2, 1, 1, 1, 1, -2, 5, 10, -2, 1, 1, 1, 1, -2, 10, -20, -50, -2, -2,
+  -2, -2, -50, -20, 100, -20, 10, 5, 5, 10, -20, 100,
+];
+
+const HARD_DEPTH = 4;
+
+/** Score the board from `player`'s point of view using positional weights. */
+function evaluate(board: Board, player: Player): number {
+  let score = 0;
+  for (let i = 0; i < board.length; i += 1) {
+    const cell = board[i];
+    if (cell === player) score += POSITIONAL_WEIGHTS[i]!;
+    else if (cell !== null) score -= POSITIONAL_WEIGHTS[i]!;
+  }
+  return score;
+}
+
+/** Negamax search; passes the turn when a side has no legal move. */
+function negamax(board: Board, player: Player, depth: number, alpha: number, beta: number): number {
+  const moves = legalMoves(board, player);
+  if (moves.length === 0) {
+    const opponent = flip(player);
+    if (legalMoves(board, opponent).length === 0) {
+      const discs = countDiscs(board);
+      const mine = discs[player];
+      const theirs = discs[opponent];
+      return mine > theirs ? 10000 : mine < theirs ? -10000 : 0;
+    }
+    return -negamax(board, opponent, depth, -beta, -alpha);
+  }
+  if (depth === 0) return evaluate(board, player);
+
+  let best = Number.NEGATIVE_INFINITY;
+  for (const move of moves) {
+    const value = -negamax(applyMove(board, player, move), flip(player), depth - 1, -beta, -alpha);
+    if (value > best) best = value;
+    if (value > alpha) alpha = value;
+    if (alpha >= beta) break;
+  }
+  return best;
+}
+
 /**
- * Ada's move: take a corner when it's on offer, otherwise the move that
- * flips the most discs, with a small preference for the edges.
+ * Ada's move. The difficulty controls how hard she tries: easy plays at
+ * random, medium plays greedily (corner first, then most discs flipped with a
+ * small edge bonus), and hard searches a few plies ahead with positional
+ * weighting.
  */
-export function chooseMove(board: Board, player: Player): number | null {
+export function chooseMove(
+  board: Board,
+  player: Player,
+  difficulty: Difficulty = "medium",
+): number | null {
   const moves = legalMoves(board, player);
   if (!moves.length) return null;
 
+  if (difficulty === "easy") {
+    return moves[Math.floor(Math.random() * moves.length)]!;
+  }
+
+  if (difficulty === "hard") {
+    let best = moves[0]!;
+    let bestValue = Number.NEGATIVE_INFINITY;
+    for (const move of moves) {
+      const value = -negamax(
+        applyMove(board, player, move),
+        flip(player),
+        HARD_DEPTH - 1,
+        -Infinity,
+        Infinity,
+      );
+      if (value > bestValue) {
+        bestValue = value;
+        best = move;
+      }
+    }
+    return best;
+  }
+
+  // medium: greedy — corner, then most discs flipped with an edge bonus.
   const corner = moves.find((move) => CORNERS.has(move));
   if (corner !== undefined) return corner;
 

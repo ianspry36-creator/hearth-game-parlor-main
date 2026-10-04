@@ -297,7 +297,17 @@ function HeartsTable() {
     if (!isRoom || !roomId) return;
     touchRoom(roomId);
     const interval = window.setInterval(() => touchRoom(roomId), HEARTBEAT_MS);
-    return () => window.clearInterval(interval);
+    // Background tabs throttle `setInterval`, which would let our `last_seen_at`
+    // drift stale while we are actually still here. Refresh it the moment the tab
+    // becomes visible again so opponents do not hand our seat to the computer.
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") touchRoom(roomId);
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, [isRoom, roomId]);
 
   // Fly a played card from its seat to its slot in the trick, then commit the play.

@@ -24,6 +24,7 @@ import { PlayerFlag } from "@/components/parlor/PlayerFlag";
 import { NicknameDialog } from "@/components/parlor/NicknameDialog";
 import { getNickname, TURN_WARNING_SECONDS, useMatch, useTurnTimer } from "@/lib/multiplayer";
 import { useRecordMatchResult } from "@/lib/stats";
+import { useSolitaireStats } from "@/lib/solitaireStats";
 import {
   applyStep,
   boardSignature,
@@ -258,6 +259,23 @@ function CheckersTable() {
       return next;
     });
   };
+
+  // Solo games against Ada are recorded locally, scoped to the difficulty in
+  // effect, so they show in Statistics alongside the multiplayer leaderboard;
+  // live matches are handled by useRecordMatchResult above instead.
+  const { recordResult: recordSoloResult } = useSolitaireStats(game.id, difficulty);
+  const prevSoloWinnerRef = useRef<Player | "draw" | null>(null);
+  useEffect(() => {
+    if (
+      !isMulti &&
+      state.winner &&
+      state.winner !== "draw" &&
+      state.winner !== prevSoloWinnerRef.current
+    ) {
+      recordSoloResult(state.winner === "human" ? "win" : "loss");
+    }
+    prevSoloWinnerRef.current = state.winner;
+  }, [state.winner, isMulti, recordSoloResult]);
 
   const apply = (fn: (current: State) => State) => {
     const next = fn(stateRef.current);
@@ -514,6 +532,9 @@ function CheckersTable() {
         reset();
       }}
       onNewGame={() => (isMulti ? navigate({ to: "/checkers" }) : reset())}
+      onAbandon={() => {
+        if (!isMulti) recordSoloResult("abandoned");
+      }}
       rail={null}
       boxClassName="pt-2.5 sm:pt-4"
       menuExtra={
