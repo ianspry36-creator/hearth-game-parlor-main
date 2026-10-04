@@ -513,7 +513,12 @@ function CrazyEightsTable() {
       !state.timerOff,
     turn: state.turn,
     paused: state.timerRequest != null,
-    onTimeout: () =>
+    onTimeout: () => {
+      // In a live room only the host is authoritative for timing a player out.
+      // Guests keep the countdown for display, but must not publish a timeout —
+      // a late or duplicate write here can mark the wrong player (e.g. the host)
+      // as timed out and skip them for the rest of the hand.
+      if (isRoom && !roomIsHost) return;
       apply((current) => {
         const timedOut = [...(current.timedOut ?? []), current.turn];
         const remaining = current.order.filter((seat) => !timedOut.includes(seat));
@@ -533,7 +538,8 @@ function CrazyEightsTable() {
           turn: nextTurn(current.turn, current.order, timedOut),
           log: note(current.log, { side: current.turn, text: `${timedOutName} ran out of time.` }),
         };
-      }),
+      });
+    },
   });
 
   // Surface the last few seconds of a player's turn clock on their seat.
