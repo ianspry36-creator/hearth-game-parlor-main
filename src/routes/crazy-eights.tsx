@@ -388,15 +388,20 @@ function CrazyEightsTable() {
     loading: roomLoading,
   });
 
-  // If every other human has left, we're the last one standing and win.
+  // If every other human has left, we're the last one standing and win. Only
+  // the host may declare this: it owns the canonical state, and a guest's
+  // player list can lag behind the host's bot hand-over. If every remaining
+  // human let their own (possibly stale) list drive this, two clients can both
+  // conclude they are the last human and each call a win for themselves.
   useEffect(() => {
     if (!isRoom || roomLoading || state.phase === "over") return;
+    if (!roomIsHost) return;
     if (!hadLeaver || remainingHumans !== 1) return;
     const next: State = { ...stateRef.current, phase: "over", winner: "you" };
     stateRef.current = next;
     setState(next);
-    if (roomIsHost) void publishRoom(remapState(next, mySeat, activeCount));
-  }, [isRoom, roomLoading, state.phase, hadLeaver, remainingHumans, roomIsHost, mySeat, activeCount, publishRoom]);
+    void publishRoom(remapState(next, mySeat, activeCount));
+  }, [isRoom, roomLoading, state.phase, roomIsHost, hadLeaver, remainingHumans, mySeat, activeCount, publishRoom]);
 
   // Deal the hand out one card at a time whenever a new hand is turned up.
   // Key on the deal id rather than `pile[0]` — recycling the discard pile would
