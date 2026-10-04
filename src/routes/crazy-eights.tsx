@@ -1362,7 +1362,7 @@ function CrazyEightsTable() {
                 cards={state.hands.ace ?? []}
                 handEls={seatHandEls.current}
                 vertical
-                rotation="-rotate-90"
+                rotation="rotate-180"
                 active={state.turn === "ace"}
                 countdown={countdown}
                 dealing={dealing}
@@ -1466,7 +1466,7 @@ function CrazyEightsTable() {
                 cards={state.hands.leo ?? []}
                 handEls={seatHandEls.current}
                 vertical
-                rotation={isMobile ? "" : "rotate-90"}
+                rotation="-rotate-90"
                 avatarSide="right"
                 active={state.turn === "leo"}
                 countdown={countdown}
@@ -1637,8 +1637,8 @@ function OpponentSeat({
   countdown?: number;
 }) {
   const isMobile = useIsMobile();
-  // Face-down cards are 85.5px tall on mobile (20% larger) and 119px on desktop.
-  const cardH = isMobile ? 85.5 : 119;
+  // Face-down cards are 77px tall on mobile (10% smaller) and 119px on desktop.
+  const cardH = isMobile ? 77 : 119;
   // The normal overlap leaves this much of each card visible.
   const normalReveal = isMobile ? 15 : 20;
   // Reserve room for a full 7-card hand at the normal reveal.
@@ -1780,9 +1780,9 @@ function FaceDownCard({
       loading="lazy"
       className={`block rounded-lg object-cover shadow-md shadow-black/30 ${
         small
-          ? "h-[85.5px] w-[55.5px] md:h-[119px] md:w-[79px]"
+          ? "h-[77px] w-[50px] md:h-[119px] md:w-[79px]"
           : table
-            ? "h-[96.75px] w-[66.4px] md:h-[119px] md:w-[79px]"
+            ? "h-[82px] w-[56px] md:h-[119px] md:w-[79px]"
             : "h-[120px] w-20 md:h-[108px] md:w-[72px]"
       } ${className}`}
     />
@@ -1818,7 +1818,7 @@ function PlayingCard({
             : medium
               ? "h-[121.25px] w-[81.25px] md:h-[122px] md:w-[81px]"
               : table
-                ? "h-[96.75px] w-[66.4px] md:h-[119px] md:w-[79px]"
+                ? "h-[82px] w-[56px] md:h-[119px] md:w-[79px]"
                 : "h-[140px] w-[95px] md:h-[126px] md:w-[86px]"
       } ${highlighted ? "border-gold ring-2 ring-gold" : "border-black/10"} ${
         red ? "text-destructive" : "text-ink"

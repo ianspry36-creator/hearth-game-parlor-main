@@ -268,7 +268,7 @@ export function CrazyEightsLobby({
 
   return (
     <Dialog open={open} onOpenChange={close}>
-      <DialogContent className="border-gold/25 bg-surface sm:max-w-md">
+      <DialogContent className="border-gold/25 bg-surface sm:max-w-[21rem]">
         <DialogHeader>
           <p className="text-[11px] uppercase tracking-[0.3em] text-gold">
             {game.name} · multiplayer lobby
