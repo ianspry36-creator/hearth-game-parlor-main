@@ -68,18 +68,46 @@ function ContactPage() {
         </div>
 
         <div className="mt-6 rounded-2xl border border-gold/20 bg-surface/45 p-8">
-          <h2 className="font-display text-2xl font-semibold text-gold">Facebook</h2>
+          <h2 className="font-display text-2xl font-semibold text-gold">Follow us</h2>
           <p className="mt-2 text-ivory/80">
             Follow us for updates, new games and the occasional card-table story:
           </p>
-          <a
-            href="https://www.facebook.com/profile.php?id=61594837714885"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-4 inline-block text-lg font-medium text-gold underline decoration-gold/30 underline-offset-4 transition-colors hover:text-gold-bright hover:decoration-gold-bright/50"
-          >
-            Cards and Games on Facebook
-          </a>
+          <div className="mt-6 flex flex-wrap items-center gap-x-8 gap-y-5">
+            <a
+              href="https://www.facebook.com/profile.php?id=61594837714885"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Cards and Games on Facebook"
+              className="transition-opacity hover:opacity-75"
+            >
+              <img src="/facebooklogo.png" alt="Facebook" className="h-8 w-auto" />
+            </a>
+            <a
+              href="https://x.com/cardsandgames4u"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Cards and Games on X"
+              className="text-cream transition-opacity hover:opacity-75"
+            >
+              <svg
+                viewBox="0 0 300 271"
+                className="h-8 w-auto"
+                fill="currentColor"
+                aria-hidden="true"
+              >
+                <path d="m236 0h46l-101 115 118 156h-92.6l-72.5-94.8-83 94.8h-46l107-123-113-148h94.9l65.5 86.6zm-16.1 244h25.5l-165-218h-27.4z" />
+              </svg>
+            </a>
+            <a
+              href="https://bsky.app/profile/cardsandgames-fun.bsky.social"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Cards and Games on Bluesky"
+              className="transition-opacity hover:opacity-75"
+            >
+              <img src="/blusky.png" alt="Bluesky" className="h-8 w-8" />
+            </a>
+          </div>
         </div>
 
         <footer className="mt-16 border-t border-gold/12 pt-6 text-center text-[11px] uppercase tracking-[0.28em] text-ivory/30">
