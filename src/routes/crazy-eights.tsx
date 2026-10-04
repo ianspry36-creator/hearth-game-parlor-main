@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { TableShell } from "@/components/parlor/TableShell";
 import { GameOverDialog } from "@/components/parlor/GameOverDialog";
+import { PlayerLeftDialog } from "@/components/parlor/PlayerLeftDialog";
 import { CountdownBadge } from "@/components/parlor/CountdownBadge";
 import {
   AlertDialog,
@@ -25,7 +26,7 @@ import { NicknameDialog } from "@/components/parlor/NicknameDialog";
 import { getGame } from "@/lib/games";
 import { getNickname, RECONNECT_SECONDS, TURN_WARNING_SECONDS, useMatch, useTurnTimer } from "@/lib/multiplayer";
 import { useRecordMatchResult } from "@/lib/stats";
-import { isStalePlayingRoom, leaveRoom, useCrazyEightsRoom } from "@/lib/crazyEightsLobby";
+import { isStalePlayingRoom, leaveRoom, useCrazyEightsRoom, useRoomPresence } from "@/lib/crazyEightsLobby";
 import { CrazyEightsLobby } from "@/components/parlor/CrazyEightsLobby";
 import { RANK_LABEL, SUIT_SYMBOL, cardLabel, type Card, type Suit } from "@/lib/cribbage";
 import cardBackAsset from "@/assets/card-back.png";
@@ -371,6 +372,31 @@ function CrazyEightsTable() {
   const activeCount: PlayerCount = isRoom
     ? (roomPlayerCount >= 2 && roomPlayerCount <= 4 ? (roomPlayerCount as PlayerCount) : 2)
     : playerCount;
+
+  // Detect humans leaving the live table: hand their seat to a named computer
+  // (Ace/Ada/Leo, never duplicating a name) and surface a notice to everyone.
+  const {
+    notices: leftNotices,
+    dismissNotice: dismissLeftNotice,
+    remainingHumans,
+    hadLeaver,
+  } = useRoomPresence({
+    roomId,
+    enabled: isRoom && liveRoom?.status === "playing",
+    players: roomPlayers,
+    isHost: roomIsHost,
+    loading: roomLoading,
+  });
+
+  // If every other human has left, we're the last one standing and win.
+  useEffect(() => {
+    if (!isRoom || roomLoading || state.phase === "over") return;
+    if (!hadLeaver || remainingHumans !== 1) return;
+    const next: State = { ...stateRef.current, phase: "over", winner: "you" };
+    stateRef.current = next;
+    setState(next);
+    if (roomIsHost) void publishRoom(remapState(next, mySeat, activeCount));
+  }, [isRoom, roomLoading, state.phase, hadLeaver, remainingHumans, roomIsHost, mySeat, activeCount, publishRoom]);
 
   // Deal the hand out one card at a time whenever a new hand is turned up.
   // Key on the deal id rather than `pile[0]` — recycling the discard pile would
@@ -1205,6 +1231,10 @@ function CrazyEightsTable() {
       boxClassName="px-[5px] py-[5px] sm:px-2 sm:py-2"
     >
       <FlagPicker open={flagOpen} onOpenChange={setFlagOpen} onSelect={setFlag} />
+      <PlayerLeftDialog
+        notice={leftNotices[0] ?? null}
+        onDismiss={() => leftNotices[0] && dismissLeftNotice(leftNotices[0].key)}
+      />
       <GameOverDialog
         open={state.phase === "over" && scorecardReady && !viewingHand}
         result={state.winner === "you" ? "win" : "loss"}

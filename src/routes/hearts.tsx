@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { TableShell } from "@/components/parlor/TableShell";
 import { GameOverDialog } from "@/components/parlor/GameOverDialog";
+import { PlayerLeftDialog } from "@/components/parlor/PlayerLeftDialog";
 import { CryingTears } from "@/components/parlor/CryingTears";
 import { getGame } from "@/lib/games";
 import { getNickname } from "@/lib/multiplayer";
@@ -51,7 +52,7 @@ import {
   type State,
 } from "@/lib/hearts";
 import { playHeartsBroken } from "@/lib/hearts-sounds";
-import { isStalePlayingRoom, leaveRoom, touchRoom, useCrazyEightsRoom, type GameRoomPlayer } from "@/lib/crazyEightsLobby";
+import { isStalePlayingRoom, leaveRoom, touchRoom, useCrazyEightsRoom, useRoomPresence, type GameRoomPlayer } from "@/lib/crazyEightsLobby";
 import { HeartsLobby } from "@/components/parlor/HeartsLobby";
 
 const BOTS: Seat[] = ["ace", "ada", "leo"];
@@ -261,6 +262,31 @@ function HeartsTable() {
     [isRoom, roomPlayers, roomSeatOf],
   );
 
+  // Detect humans leaving the live table: hand their seat to a named computer
+  // (Ace/Ada/Leo, never duplicating a name) and surface a notice to everyone.
+  const {
+    notices: leftNotices,
+    dismissNotice: dismissLeftNotice,
+    remainingHumans,
+    hadLeaver,
+  } = useRoomPresence({
+    roomId,
+    enabled: isRoom && liveRoom?.status === "playing",
+    players: roomPlayers,
+    isHost: roomIsHost,
+    loading: roomLoading,
+  });
+
+  // If every other human has left, we're the last one standing and win.
+  useEffect(() => {
+    if (!isRoom || roomLoading || state.phase === "over") return;
+    if (!hadLeaver || remainingHumans !== 1) return;
+    const next: State = { ...stateRef.current, phase: "over", winner: "you" };
+    stateRef.current = next;
+    setState(next);
+    if (roomIsHost) void publishRoom(remapState(next, mySeat));
+  }, [isRoom, roomLoading, state.phase, hadLeaver, remainingHumans, roomIsHost, mySeat, publishRoom]);
+
   // Detect when a human resigns mid-game: their room row is deleted and the
   // computer takes over their seat. We remember every seat a human has held so a
   // seat that disappears is flagged "resigned" for the rest of the match rather
@@ -282,7 +308,13 @@ function HeartsTable() {
     const resigned = new Set<Seat>();
     for (const seat of humanSeatsRef.current.keys()) {
       if (seat === "you") continue;
-      const occ = now.get(seat);
+      const occ = roomPlayers.find((p) => p.seat === roomSeatOf(seat));
+      // A seat that has been handed to a computer is no longer a resigned human
+      // — drop it from the tracked map so the "left" badge doesn't linger.
+      if (occ?.is_bot) {
+        humanSeatsRef.current.delete(seat);
+        continue;
+      }
       // Gone for good (row deleted) or gone silent (stopped heartbeating): both
       // mean the human has left, so flag the seat "resigned" for the match.
       if (!occ || Date.parse(occ.last_seen_at) <= cutoff) resigned.add(seat);
@@ -923,6 +955,11 @@ function HeartsTable() {
             Back to game room
           </Button>
         }
+      />
+
+      <PlayerLeftDialog
+        notice={leftNotices[0] ?? null}
+        onDismiss={() => leftNotices[0] && dismissLeftNotice(leftNotices[0].key)}
       />
 
       <AlertDialog open={concedeOpen} onOpenChange={setConcedeOpen}>

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getSessionId } from "@/lib/multiplayer";
-import { readAvatar } from "@/lib/avatars";
+import { ACE_AVATAR, ADA_AVATAR, LEO_AVATAR, readAvatar } from "@/lib/avatars";
 import { readFlag } from "@/lib/flags";
 import type { GameId } from "@/lib/games";
 
@@ -44,8 +44,43 @@ const ROOM_COLUMNS =
 
 const PLAYER_COLUMNS = "id, room_id, session_id, nickname, seat, avatar, flag, is_bot, joined_at, last_seen_at";
 
+/**
+ * How often a seated human reports in while a live table is open, so the other
+ * players can tell they are still here.
+ */
+export const HEARTBEAT_MS = 20_000;
+
+/**
+ * A human whose heartbeat has gone silent for this long (closed the tab, lost
+ * their connection) is treated as having left the game.
+ */
+export const PLAYER_STALE_MS = 45_000;
+
 /** Rooms that have not reported in this long are treated as abandoned. */
 export const ROOM_STALE_MS = 90_000;
+
+/** A named computer opponent that can take over a vacated seat. */
+export type ComputerIdentity = {
+  name: string;
+  avatar: string;
+};
+
+/**
+ * The fixed pool of computer opponents, in seat order. When a human leaves a
+ * live game their seat is handed to the next available computer, so two
+ * computers never share a name at the same table.
+ */
+export const COMPUTERS: ComputerIdentity[] = [
+  { name: "Ace", avatar: ACE_AVATAR },
+  { name: "Ada", avatar: ADA_AVATAR },
+  { name: "Leo", avatar: LEO_AVATAR },
+];
+
+/** Pick the first computer whose name is not already in use at the table. */
+export function nextComputer(takenNames: Iterable<string>): ComputerIdentity {
+  const taken = new Set(takenNames);
+  return COMPUTERS.find((computer) => !taken.has(computer.name)) ?? COMPUTERS[0]!;
+}
 
 /**
  * A room that has flipped to "playing" but still has no deal on file is
@@ -225,6 +260,29 @@ export async function addBot(
 /** Remove a computer opponent from the table. */
 export async function removeBot(playerId: string): Promise<void> {
   await supabase.from("game_room_players").delete().eq("id", playerId);
+}
+
+/**
+ * Hand a vacated seat over to a named computer opponent. The existing row is
+ * flipped in place (rather than deleted and re-inserted) so the player count —
+ * and therefore the seat layout — stays stable mid-game.
+ */
+export async function replaceWithBot(
+  roomId: string,
+  playerId: string,
+  identity: ComputerIdentity,
+): Promise<void> {
+  await supabase
+    .from("game_room_players")
+    .update({
+      is_bot: true,
+      nickname: identity.name,
+      avatar: identity.avatar,
+      session_id: crypto.randomUUID(),
+      last_seen_at: new Date().toISOString(),
+    })
+    .eq("room_id", roomId)
+    .eq("id", playerId);
 }
 
 export async function createRoom(params: {
@@ -602,6 +660,136 @@ export function useCrazyEightsRoom(roomId: string | undefined) {
     status: (room?.status ?? "lobby") as RoomStatus,
     publish,
   };
+}
+
+/** A single \"someone left and was replaced\" notice for the table UI. */
+export type LeftNotice = {
+  /** Stable key so a notice can be dismissed without colliding with others. */
+  key: string;
+  playerName: string;
+  computerName: string;
+};
+
+/**
+ * Tracks live-table presence for a seated human: keeps our own heartbeat
+ * fresh, detects when another human leaves (their row is deleted or their
+ * heartbeat goes silent), and — when we are the host — hands their seat to a
+ * named computer so the game keeps running with no two computers sharing a
+ * name.
+ *
+ * The win/lose decision is left to the caller (it needs game-specific state),
+ * which can read `remainingHumans` to tell whether we are now the last human.
+ */
+export function useRoomPresence({
+  roomId,
+  enabled,
+  players,
+  isHost,
+  loading,
+}: {
+  roomId: string | undefined;
+  /** True once we are actually seated at a live (\"playing\") table. */
+  enabled: boolean;
+  players: GameRoomPlayer[];
+  isHost: boolean;
+  loading: boolean;
+}) {
+  const sessionId = typeof window === "undefined" ? "" : getSessionId();
+
+  // Keep our own seat alive so opponents don't hand it to the computer, and so
+  // we can tell when they have gone silent.
+  useEffect(() => {
+    if (!enabled || !roomId) return;
+    touchRoom(roomId);
+    const interval = window.setInterval(() => touchRoom(roomId), HEARTBEAT_MS);
+    // Background tabs throttle `setInterval`; refresh the moment the tab is
+    // visible again so our `last_seen_at` never drifts stale while we're here.
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") touchRoom(roomId);
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [enabled, roomId]);
+
+  // Remember which seats were human so a vanished row is still recognised as a
+  // leaver, and so we only hand a seat over (and raise a notice) once.
+  const humanSeatsRef = useRef<Map<number, GameRoomPlayer>>(new Map());
+  const handledRef = useRef<Set<string>>(new Set());
+  const [notices, setNotices] = useState<LeftNotice[]>([]);
+  // Flips true the first time a human leaves. Used by the caller to tell a
+  // genuine abandonment apart from a table that only ever had one human.
+  const [hadLeaver, setHadLeaver] = useState(false);
+
+  useEffect(() => {
+    if (!enabled || loading) return;
+
+    const currentHumans = new Map<number, GameRoomPlayer>();
+    for (const player of players) {
+      if (!player.is_bot && player.session_id !== sessionId) {
+        currentHumans.set(player.seat, player);
+      }
+    }
+
+    const cutoff = Date.now() - PLAYER_STALE_MS;
+    const fresh: LeftNotice[] = [];
+
+    for (const [seat, previous] of humanSeatsRef.current) {
+      if (handledRef.current.has(previous.id)) continue;
+      const current = currentHumans.get(seat);
+      const gone = !current || Date.parse(current.last_seen_at) <= cutoff;
+      if (!gone) continue;
+      handledRef.current.add(previous.id);
+
+      // Pick a computer whose name isn't already in use at the table.
+      const takenNames = players.filter((p) => p.is_bot).map((p) => p.nickname);
+      const identity = nextComputer(takenNames);
+      fresh.push({
+        key: previous.id,
+        playerName: previous.nickname,
+        computerName: identity.name,
+      });
+
+      // Only the host writes the replacement so it can't race.
+      if (isHost && roomId) {
+        // A row that still exists (human went silent) is flipped in place; a
+        // row that was deleted (human navigated away) is re-seated as a bot.
+        const target = players.find((p) => p.seat === seat && p.id === previous.id);
+        if (target) {
+          void replaceWithBot(roomId, target.id, identity);
+        } else {
+          void addBot(roomId, seat, identity.name, identity.avatar);
+        }
+      }
+    }
+
+    humanSeatsRef.current = currentHumans;
+
+    if (fresh.length) {
+      setHadLeaver(true);
+      setNotices((existing) => [...existing, ...fresh]);
+    }
+  }, [enabled, loading, players, isHost, roomId, sessionId]);
+
+  const dismissNotice = useCallback((key: string) => {
+    setNotices((existing) => existing.filter((notice) => notice.key !== key));
+  }, []);
+
+  // Humans still at the table (us included). When this is 1, we are the last
+  // human standing and should win the game.
+  const remainingHumans = enabled
+    ? 1 +
+      players.filter(
+        (p) =>
+          !p.is_bot &&
+          p.session_id !== sessionId &&
+          Date.parse(p.last_seen_at) > Date.now() - PLAYER_STALE_MS,
+      ).length
+    : players.length;
+
+  return { notices, dismissNotice, remainingHumans, hadLeaver };
 }
 
 
