@@ -686,7 +686,7 @@ function SlotCell({
       } ${selected ? "-translate-y-1 ring-2 ring-gold" : ""} ${draggingIds?.has(card.id) ? "invisible" : ""}`}
     >
       <span className="absolute left-0.5 top-0.5 flex flex-col items-center font-display text-[18px] font-bold leading-none sm:left-1 sm:top-1 sm:text-sm">
-        <span>{RANK_LABEL[card.rank]}</span>
+        <span className="font-[Times_New_Roman,serif]">{RANK_LABEL[card.rank]}</span>
         <span className="mt-0.5 text-[16px] sm:text-xs">{SUIT_SYMBOL[card.suit]}</span>
       </span>
       <span className="absolute inset-0 grid place-items-center text-[28px] sm:text-3xl">
@@ -719,10 +719,10 @@ function CardFace({
       onPointerUp={onPointerUp}
       className={`relative block h-[var(--kic-card-h)] w-[var(--kic-card-w)] touch-none select-none rounded-lg border border-black/10 bg-white text-left shadow-md shadow-black/30 ${
         red ? "text-[#c0392b]" : "text-ink"
-      } ${hidden ? "invisible" : ""}`}
+      } ${hidden ? "opacity-0" : ""}`}
     >
       <span className="absolute left-0.5 top-0.5 flex flex-col items-center font-display text-[18px] font-bold leading-none sm:left-1 sm:top-1 sm:text-sm">
-        <span>{RANK_LABEL[card.rank]}</span>
+        <span className="font-[Times_New_Roman,serif]">{RANK_LABEL[card.rank]}</span>
         <span className="mt-0.5 text-[16px] sm:text-xs">{SUIT_SYMBOL[card.suit]}</span>
       </span>
       <span className="absolute inset-0 grid place-items-center text-[28px] sm:text-3xl">

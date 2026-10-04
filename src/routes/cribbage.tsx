@@ -2097,7 +2097,7 @@ function CardChip({ card }: { card: Card }) {
   return (
     <span className="inline-flex items-center rounded border border-black/10 bg-white px-1.5 py-0.5 font-display text-xs font-bold leading-none shadow-sm">
       <span className={red ? "text-destructive" : "text-ink"}>
-        {RANK_LABEL[card.rank]}
+        <span className="font-[Times_New_Roman,serif]">{RANK_LABEL[card.rank]}</span>
         {SUIT_SYMBOL[card.suit]}
       </span>
     </span>
@@ -2183,7 +2183,7 @@ function PlayingCard({
                         : "text-xs"
         }`}
       >
-        <span>{rank}</span>
+        <span className="font-[Times_New_Roman,serif]">{rank}</span>
         <span
           className={
             tiny
@@ -2298,7 +2298,7 @@ function PlayingCard({
                         : "text-xs"
         }`}
       >
-        <span>{rank}</span>
+        <span className="font-[Times_New_Roman,serif]">{rank}</span>
         <span
           className={
             tiny

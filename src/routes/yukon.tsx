@@ -83,6 +83,16 @@ type Selection =
 type DragSource =
   { type: "tableau"; index: number; cardIndex: number } | { type: "foundation"; index: number };
 
+// How long a card takes to fly onto a foundation after being clicked.
+const FLIGHT_MS = 350;
+
+type FlyingCard = {
+  key: number;
+  card: Card;
+  from: { x: number; y: number };
+  to: { x: number; y: number };
+};
+
 function YukonTable() {
   const navigate = useNavigate();
   const game = getGame("yukon");
@@ -170,6 +180,7 @@ function YukonTable() {
   const reset = () => {
     setState(freshGame());
     setHistory([]);
+    setFlying([]);
     setSelection(null);
     setFinishedElapsed(null);
     setElapsed(0);
@@ -249,6 +260,49 @@ function YukonTable() {
     if (candidate !== stateRef.current) apply(candidate);
   };
 
+  const animateToFoundation = (fromIndex: number, card: Card) => {
+    const before = stateRef.current;
+    const target = foundationTarget(card, before.foundations);
+    if (target === null) return;
+    const next = moveTableauToFoundation(before, fromIndex, target);
+    if (next === before) return;
+    const sourceEl = tableauTopRefs.current[fromIndex];
+    const destEl = foundationRefs.current[target];
+    const sourceRect = sourceEl?.getBoundingClientRect();
+    const destRect = destEl?.getBoundingClientRect();
+    // Without a measured source or target (e.g. before the board paints) just move.
+    if (!sourceRect || !destRect) {
+      apply(next);
+      return;
+    }
+    const key = flightKeyRef.current++;
+    // Lift the top card out of the tableau pile right away so it visibly flies
+    // home, then commit the move (recording `before` in history) once it lands.
+    setState((cur) => ({
+      ...cur,
+      tableau: cur.tableau.map((p, i) =>
+        i === fromIndex ? { ...p, faceUp: p.faceUp.slice(0, -1) } : p,
+      ),
+    }));
+    setSelection(null);
+    setFlying((cur) => [
+      ...cur,
+      {
+        key,
+        card,
+        from: { x: sourceRect.left, y: sourceRect.top },
+        to: { x: destRect.left, y: destRect.top },
+      },
+    ]);
+    window.setTimeout(() => {
+      setFlying((cur) => cur.filter((f) => f.key !== key));
+      setHistory((h) => [...h, before]);
+      let committed = next;
+      if (!committed.won && canAutoComplete(committed)) committed = autoComplete(committed);
+      setState(committed);
+    }, FLIGHT_MS);
+  };
+
   const clickFoundation = (index: number) => {
     if (suppressClickRef.current) {
       suppressClickRef.current = false;
@@ -261,8 +315,7 @@ function YukonTable() {
         if (selection.cardIndex === pile.faceUp.length - 1) {
           const card = pile.faceUp[selection.cardIndex];
           if (card) {
-            const target = foundationTarget(card, current.foundations);
-            if (target !== null) apply(moveTableauToFoundation(current, selection.index, target));
+            animateToFoundation(selection.index, card);
           }
         } else {
           setSelection(null);
@@ -282,7 +335,7 @@ function YukonTable() {
     const card = pile.faceUp[cardIndex];
     if (!card) return;
     const target = foundationTarget(card, current.foundations);
-    if (target !== null) apply(moveTableauToFoundation(current, index, target));
+    if (target !== null) animateToFoundation(index, card);
     setSelection(null);
   };
 
@@ -308,6 +361,12 @@ function YukonTable() {
   // Card ids currently being dragged, so the originals can be hidden while the
   // ghost follows the pointer (avoids a duplicate card left behind at the source).
   const draggingIds = dragGhost ? new Set(dragGhost.cards.map((c) => c.id)) : null;
+
+  // Click-to-foundation animation state: cards currently flying home.
+  const [flying, setFlying] = useState<FlyingCard[]>([]);
+  const flightKeyRef = useRef(0);
+  const foundationRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const tableauTopRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   const cardsFor = (source: DragSource): Card[] => {
     const s = stateRef.current;
@@ -470,6 +529,7 @@ function YukonTable() {
                   onPointerMove={moveDrag}
                   onPointerUp={endDrag}
                   draggingIds={draggingIds}
+                  slotRef={(el) => (foundationRefs.current[index] = el)}
                 />
               ))}
             </div>
@@ -482,6 +542,7 @@ function YukonTable() {
                   selection={selection}
                   index={index}
                   draggingIds={draggingIds}
+                  topCardRef={(el) => (tableauTopRefs.current[index] = el)}
                   onCardClick={clickTableau}
                   onDoubleClick={doubleClickTableau}
                   onFaceDownClick={clickFaceDown}
@@ -622,6 +683,51 @@ function YukonTable() {
           </div>
         </div>
       )}
+
+      {flying.map((flight) => (
+        <FlyingCardView key={flight.key} flight={flight} />
+      ))}
+    </div>
+  );
+}
+
+function FlyingCardView({ flight }: { flight: FlyingCard }) {
+  const [moved, setMoved] = useState(false);
+  useEffect(() => {
+    let raf = 0;
+    raf = requestAnimationFrame(() => {
+      raf = requestAnimationFrame(() => setMoved(true));
+    });
+    return () => cancelAnimationFrame(raf);
+  }, []);
+  const dx = moved ? flight.to.x - flight.from.x : 0;
+  const dy = moved ? flight.to.y - flight.from.y : 0;
+  const red = isRed(flight.card.suit);
+  const isFaceCard = flight.card.rank === 1 || flight.card.rank > 10;
+  return (
+    <div
+      aria-hidden
+      className="pointer-events-none fixed z-50 transition-transform ease-out"
+      style={{
+        left: flight.from.x,
+        top: flight.from.y,
+        transform: `translate(${dx}px, ${dy}px)`,
+        transitionDuration: `${FLIGHT_MS}ms`,
+      }}
+    >
+      <div
+        className={`relative block h-[var(--yukon-card-h)] w-[var(--yukon-card-w)] select-none rounded-md border border-black/10 bg-white text-left shadow-md shadow-black/30 ${
+          red ? "text-[#c0392b]" : "text-ink"
+        }`}
+      >
+        <span className="absolute left-0.5 top-0.5 flex flex-col items-center font-display text-[18px] font-bold leading-none sm:left-1 sm:top-1 sm:text-[21px]">
+          <span className="font-[Times_New_Roman,serif]">{RANK_LABEL[flight.card.rank]}</span>
+          <span className="mt-0.5 text-[16px] sm:text-[18px]">{SUIT_SYMBOL[flight.card.suit]}</span>
+        </span>
+        <span className="absolute inset-0 grid place-items-center text-[28px] sm:text-[36px]">
+          {isFaceCard ? RANK_LABEL[flight.card.rank] : SUIT_SYMBOL[flight.card.suit]}
+        </span>
+      </div>
     </div>
   );
 }
@@ -679,13 +785,13 @@ function CardFace({
       aria-label={cardLabel(card)}
       className={`relative block h-[var(--yukon-card-h)] w-[var(--yukon-card-w)] touch-none select-none rounded-md border border-black/10 bg-white text-left shadow-md shadow-black/30 transition-transform ${
         red ? "text-[#c0392b]" : "text-ink"
-      } ${selected ? "-translate-y-1 ring-2 ring-gold" : ""} ${hidden ? "invisible" : ""}`}
+      } ${selected ? "-translate-y-1 ring-2 ring-gold" : ""} ${hidden ? "opacity-0" : ""}`}
     >
-      <span className="absolute left-0.5 top-0.5 flex flex-col items-center font-display text-[18px] font-bold leading-none sm:left-1 sm:top-1 sm:text-[28px]">
-        <span>{RANK_LABEL[card.rank]}</span>
-        <span className="mt-0.5 text-[16px] sm:text-[24px]">{SUIT_SYMBOL[card.suit]}</span>
+      <span className="absolute left-0.5 top-0.5 flex flex-col items-center font-display text-[18px] font-bold leading-none sm:left-1 sm:top-1 sm:text-[21px]">
+        <span className="font-[Times_New_Roman,serif]">{RANK_LABEL[card.rank]}</span>
+        <span className="mt-0.5 text-[16px] sm:text-[18px]">{SUIT_SYMBOL[card.suit]}</span>
       </span>
-      <span className="absolute inset-0 grid place-items-center text-[28px] sm:text-[48px]">
+      <span className="absolute inset-0 grid place-items-center text-[28px] sm:text-[36px]">
         {isFaceCard ? RANK_LABEL[card.rank] : SUIT_SYMBOL[card.suit]}
       </span>
     </button>
@@ -736,6 +842,7 @@ function FoundationSlot({
   suitIndex,
   selected,
   draggingIds,
+  slotRef,
   onClick,
   onPointerDown,
   onPointerMove,
@@ -745,6 +852,7 @@ function FoundationSlot({
   suitIndex: number;
   selected: boolean;
   draggingIds?: Set<string> | null;
+  slotRef?: (el: HTMLDivElement | null) => void;
   onClick: () => void;
   onPointerDown: (e: ReactPointerEvent) => void;
   onPointerMove: (e: ReactPointerEvent) => void;
@@ -755,7 +863,7 @@ function FoundationSlot({
   const redSuit = suit ? isRed(suit) : false;
   const suitSymbol = suit ? SUIT_SYMBOL[suit] : "";
   return (
-    <div className="relative" data-drop="foundation">
+    <div className="relative" data-drop="foundation" ref={slotRef}>
       {!top ? (
         <EmptySlot onClick={onClick} symbol={suitSymbol} red={redSuit} />
       ) : (
@@ -787,6 +895,7 @@ function TableauPile({
   index,
   selection,
   draggingIds,
+  topCardRef,
   onCardClick,
   onDoubleClick,
   onFaceDownClick,
@@ -799,6 +908,7 @@ function TableauPile({
   index: number;
   selection: Selection;
   draggingIds?: Set<string> | null;
+  topCardRef?: (el: HTMLDivElement | null) => void;
   onCardClick: (index: number, cardIndex: number) => void;
   onDoubleClick: (index: number, cardIndex: number) => void;
   onFaceDownClick: (index: number) => void;
@@ -826,6 +936,7 @@ function TableauPile({
       {pile.faceUp.map((card, i) => {
         const isSelected =
           selection?.type === "tableau" && selection.index === index && selection.cardIndex === i;
+        const isTop = i === pile.faceUp.length - 1;
         const marginTop =
           i === 0
             ? pile.faceDown.length > 0
@@ -833,7 +944,7 @@ function TableauPile({
               : 0
             : "calc(var(--yukon-visible) - var(--yukon-card-h))";
         return (
-          <div key={card.id} style={{ marginTop }}>
+          <div key={card.id} style={{ marginTop }} ref={isTop ? topCardRef : undefined}>
             <CardFace
               card={card}
               selected={isSelected}

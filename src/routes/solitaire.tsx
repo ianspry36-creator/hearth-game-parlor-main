@@ -80,6 +80,16 @@ type DragSource =
   | { type: "tableau"; index: number; cardIndex: number }
   | { type: "foundation"; index: number };
 
+// How long a card takes to fly onto a foundation after being clicked.
+const FLIGHT_MS = 350;
+
+type FlyingCard = {
+  key: number;
+  card: Card;
+  from: { x: number; y: number };
+  to: { x: number; y: number };
+};
+
 function SolitaireTable() {
   const navigate = useNavigate();
   const game = getGame("solitaire");
@@ -113,9 +123,64 @@ function SolitaireTable() {
     setSelection(null);
   };
 
+  const animateToFoundation = (
+    source: { type: "waste" } | { type: "tableau"; index: number },
+    card: Card,
+  ) => {
+    const before = stateRef.current;
+    const target = foundationTarget(card, before.foundations);
+    if (target === null) return;
+    const next =
+      source.type === "waste"
+        ? moveWasteToFoundation(before, target)
+        : moveTableauToFoundation(before, source.index, target);
+    if (next === before) return;
+    const sourceEl =
+      source.type === "waste" ? wasteRef.current : tableauTopRefs.current[source.index];
+    const destEl = foundationRefs.current[target];
+    const sourceRect = sourceEl?.getBoundingClientRect();
+    const destRect = destEl?.getBoundingClientRect();
+    // Without a measured source or target (e.g. before the board paints) just move.
+    if (!sourceRect || !destRect) {
+      apply(next);
+      return;
+    }
+    const key = flightKeyRef.current++;
+    // Lift the card out of its source right away so it visibly flies home, then
+    // commit the move (recording `before` in history) once it lands.
+    if (source.type === "waste") {
+      setState((cur) => ({ ...cur, waste: cur.waste.slice(0, -1) }));
+    } else {
+      setState((cur) => ({
+        ...cur,
+        tableau: cur.tableau.map((p, i) =>
+          i === source.index ? { ...p, faceUp: p.faceUp.slice(0, -1) } : p,
+        ),
+      }));
+    }
+    setSelection(null);
+    setFlying((cur) => [
+      ...cur,
+      {
+        key,
+        card,
+        from: { x: sourceRect.left, y: sourceRect.top },
+        to: { x: destRect.left, y: destRect.top },
+      },
+    ]);
+    window.setTimeout(() => {
+      setFlying((cur) => cur.filter((f) => f.key !== key));
+      setHistory((h) => [...h, before]);
+      let committed = next;
+      if (!committed.won && canAutoComplete(committed)) committed = autoComplete(committed);
+      setState(committed);
+    }, FLIGHT_MS);
+  };
+
   const reset = () => {
     setState(freshGame());
     setHistory([]);
+    setFlying([]);
     setSelection(null);
     setConceded(false);
   };
@@ -155,7 +220,7 @@ function SolitaireTable() {
     // Prefer a foundation move, then fall back to the first legal tableau pile.
     const target = foundationTarget(card, state.foundations);
     if (target !== null) {
-      apply(moveWasteToFoundation(state, target));
+      animateToFoundation({ type: "waste" }, card);
     } else {
       const to = state.tableau.findIndex((pile) => canPlaceOnTableau([card], pile));
       if (to !== -1) apply(moveWasteToTableau(state, to));
@@ -172,19 +237,12 @@ function SolitaireTable() {
     if (selection) {
       if (selection.type === "waste") {
         const card = currentState.waste[currentState.waste.length - 1];
-        if (card) {
-          const target = foundationTarget(card, currentState.foundations);
-          if (target !== null) apply(moveWasteToFoundation(currentState, target));
-        }
+        if (card) animateToFoundation({ type: "waste" }, card);
       } else if (selection.type === "tableau") {
         const pile = currentState.tableau[selection.index]!;
         if (selection.cardIndex === pile.faceUp.length - 1) {
           const card = pile.faceUp[selection.cardIndex];
-          if (card) {
-            const target = foundationTarget(card, currentState.foundations);
-            if (target !== null)
-              apply(moveTableauToFoundation(currentState, selection.index, target));
-          }
+          if (card) animateToFoundation({ type: "tableau", index: selection.index }, card);
         } else {
           setSelection(null);
         }
@@ -234,7 +292,7 @@ function SolitaireTable() {
     // Prefer a foundation move, then fall back to the first legal tableau pile.
     const target = foundationTarget(card, state.foundations);
     if (target !== null) {
-      apply(moveTableauToFoundation(state, index, target));
+      animateToFoundation({ type: "tableau", index }, card);
     } else {
       const to = state.tableau.findIndex((p, i) => i !== index && canPlaceOnTableau([card], p));
       if (to !== -1) apply(moveTableauToTableau(state, index, 1, to));
@@ -254,6 +312,11 @@ function SolitaireTable() {
   // Card ids currently being dragged, so the originals can be hidden while the
   // ghost follows the pointer (avoids a duplicate card left behind at the source).
   const draggingIds = dragGhost ? new Set(dragGhost.cards.map((c) => c.id)) : null;
+  const flightKeyRef = useRef(0);
+  const [flying, setFlying] = useState<FlyingCard[]>([]);
+  const foundationRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const wasteRef = useRef<HTMLDivElement | null>(null);
+  const tableauTopRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   const cardsFor = (source: DragSource): Card[] => {
     const s = stateRef.current;
@@ -373,6 +436,7 @@ function SolitaireTable() {
                     onPointerMove={moveDrag}
                     onPointerUp={endDrag}
                     draggingIds={draggingIds}
+                    topCardRef={(el) => (wasteRef.current = el)}
                   />
                 </div>
                 <div className="flex gap-2">
@@ -387,6 +451,7 @@ function SolitaireTable() {
                       onPointerMove={moveDrag}
                       onPointerUp={endDrag}
                       draggingIds={draggingIds}
+                      slotRef={(el) => (foundationRefs.current[index] = el)}
                     />
                   ))}
                 </div>
@@ -407,6 +472,7 @@ function SolitaireTable() {
                     onPointerMove={moveDrag}
                     onPointerUp={endDrag}
                     draggingIds={draggingIds}
+                    topCardRef={(el) => (tableauTopRefs.current[index] = el)}
                   />
                 ))}
               </div>
@@ -552,6 +618,51 @@ function SolitaireTable() {
           </div>
         </div>
       )}
+
+      {flying.map((flight) => (
+        <FlyingCardView key={flight.key} flight={flight} />
+      ))}
+    </div>
+  );
+}
+
+function FlyingCardView({ flight }: { flight: FlyingCard }) {
+  const [moved, setMoved] = useState(false);
+  useEffect(() => {
+    let raf = 0;
+    raf = requestAnimationFrame(() => {
+      raf = requestAnimationFrame(() => setMoved(true));
+    });
+    return () => cancelAnimationFrame(raf);
+  }, []);
+  const dx = moved ? flight.to.x - flight.from.x : 0;
+  const dy = moved ? flight.to.y - flight.from.y : 0;
+  const red = isRed(flight.card.suit);
+  const isFace = flight.card.rank === 1 || flight.card.rank > 10;
+  return (
+    <div
+      aria-hidden
+      className="pointer-events-none fixed z-50 transition-transform ease-out"
+      style={{
+        left: flight.from.x,
+        top: flight.from.y,
+        transform: `translate(${dx}px, ${dy}px)`,
+        transitionDuration: `${FLIGHT_MS}ms`,
+      }}
+    >
+      <div
+        className={`relative block h-[var(--solitaire-card-h)] w-[var(--solitaire-card-w)] select-none rounded-md border border-black/10 bg-white text-left shadow-md shadow-black/30 ${
+          red ? "text-[#c0392b]" : "text-ink"
+        }`}
+      >
+        <span className="absolute left-0.5 top-0.5 flex flex-col items-center font-display text-xl font-bold leading-none">
+          <span className="font-[Times_New_Roman,serif]">{RANK_LABEL[flight.card.rank]}</span>
+          <span className="text-lg">{SUIT_SYMBOL[flight.card.suit]}</span>
+        </span>
+        <span className="absolute inset-0 grid place-items-center text-4xl">
+          {isFace ? RANK_LABEL[flight.card.rank] : SUIT_SYMBOL[flight.card.suit]}
+        </span>
+      </div>
     </div>
   );
 }
@@ -588,10 +699,10 @@ function CardFace({
       aria-label={cardLabel(card)}
       className={`relative block h-[var(--solitaire-card-h)] w-[var(--solitaire-card-w)] touch-none select-none rounded-md border border-black/10 bg-white text-left shadow-md shadow-black/30 transition-transform ${
         red ? "text-[#c0392b]" : "text-ink"
-      } ${selected ? "-translate-y-1 ring-2 ring-gold" : ""} ${hidden ? "invisible" : ""}`}
+      } ${selected ? "-translate-y-1 ring-2 ring-gold" : ""} ${hidden ? "opacity-0" : ""}`}
     >
       <span className="absolute left-0.5 top-0.5 flex flex-col items-center font-display text-xl font-bold leading-none">
-        <span>{RANK_LABEL[card.rank]}</span>
+        <span className="font-[Times_New_Roman,serif]">{RANK_LABEL[card.rank]}</span>
         <span className="text-lg">{SUIT_SYMBOL[card.suit]}</span>
       </span>
       <span className="absolute inset-0 grid place-items-center text-4xl">
@@ -652,6 +763,7 @@ function WastePile({
   cards,
   selected,
   draggingIds,
+  topCardRef,
   onClick,
   onDoubleClick,
   onPointerDown,
@@ -661,6 +773,7 @@ function WastePile({
   cards: Card[];
   selected: boolean;
   draggingIds?: Set<string> | null;
+  topCardRef?: (el: HTMLDivElement | null) => void;
   onClick: () => void;
   onDoubleClick: () => void;
   onPointerDown: (e: ReactPointerEvent) => void;
@@ -681,7 +794,7 @@ function WastePile({
           <CardBack />
         </div>
       )}
-      <div className="relative">
+      <div className="relative" ref={topCardRef}>
         <CardFace
           card={top}
           selected={selected}
@@ -702,6 +815,7 @@ function FoundationSlot({
   suitIndex,
   selected,
   draggingIds,
+  slotRef,
   onClick,
   onPointerDown,
   onPointerMove,
@@ -711,6 +825,7 @@ function FoundationSlot({
   suitIndex: number;
   selected: boolean;
   draggingIds?: Set<string> | null;
+  slotRef?: (el: HTMLDivElement | null) => void;
   onClick: () => void;
   onPointerDown: (e: ReactPointerEvent) => void;
   onPointerMove: (e: ReactPointerEvent) => void;
@@ -721,7 +836,7 @@ function FoundationSlot({
   const redSuit = suit ? isRed(suit) : false;
   const suitSymbol = suit ? SUIT_SYMBOL[suit] : "";
   return (
-    <div className="relative" data-drop="foundation">
+    <div className="relative" data-drop="foundation" ref={slotRef}>
       {!top ? (
         <EmptySlot onClick={onClick} symbol={suitSymbol} red={redSuit} />
       ) : (
@@ -753,6 +868,7 @@ function TableauPile({
   index,
   selection,
   draggingIds,
+  topCardRef,
   onCardClick,
   onDoubleClick,
   onPointerDownCard,
@@ -763,6 +879,7 @@ function TableauPile({
   index: number;
   selection: Selection;
   draggingIds?: Set<string> | null;
+  topCardRef?: (el: HTMLDivElement | null) => void;
   onCardClick: (index: number, cardIndex: number) => void;
   onDoubleClick: (index: number) => void;
   onPointerDownCard: (cardIndex: number) => (e: ReactPointerEvent) => void;
@@ -790,9 +907,11 @@ function TableauPile({
         {pile.faceUp.map((card, i) => {
           const isSelected =
             selection?.type === "tableau" && selection.index === index && selection.cardIndex === i;
+          const isTop = i === pile.faceUp.length - 1;
           return (
             <div
               key={card.id}
+              ref={isTop ? topCardRef : undefined}
               style={{
                 marginTop:
                   pile.faceDown.length === 0 && i === 0

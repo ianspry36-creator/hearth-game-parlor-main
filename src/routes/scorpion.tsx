@@ -512,7 +512,7 @@ function CardFace({
       } ${selected ? "-translate-y-1 ring-2 ring-gold" : ""} ${hidden ? "invisible" : ""}`}
     >
       <span className="absolute left-0.5 top-0.5 flex flex-col items-center font-display text-[10.5px] font-bold leading-none sm:left-1 sm:top-1 sm:text-sm">
-        <span>{RANK_LABEL[card.rank]}</span>
+        <span className="font-[Times_New_Roman,serif]">{RANK_LABEL[card.rank]}</span>
         <span className="mt-0.5 text-[9px] sm:text-xs">{SUIT_SYMBOL[card.suit]}</span>
       </span>
       <span className="absolute inset-0 grid place-items-center text-base sm:text-2xl">

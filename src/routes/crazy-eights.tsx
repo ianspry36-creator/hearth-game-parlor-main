@@ -1778,7 +1778,7 @@ function PlayingCard({
           tiny ? "text-sm" : small ? "text-base" : medium ? "text-2xl" : table ? "text-xl" : "text-2xl"
         }`}
       >
-        <span>{rank}</span>
+        <span className="font-[Times_New_Roman,serif]">{rank}</span>
         <span className={tiny ? "text-[13px]" : small ? "text-[14px]" : medium ? "text-[22px]" : table ? "text-[18px]" : "text-[22px]"}>{suit}</span>
       </span>
 
@@ -1805,7 +1805,7 @@ function PlayingCard({
           tiny ? "text-sm" : small ? "text-base" : medium ? "text-2xl" : table ? "text-xl" : "text-2xl"
         }`}
       >
-        <span>{rank}</span>
+        <span className="font-[Times_New_Roman,serif]">{rank}</span>
         <span className={tiny ? "text-[13px]" : small ? "text-[14px]" : medium ? "text-[22px]" : table ? "text-[18px]" : "text-[22px]"}>{suit}</span>
       </span>
 

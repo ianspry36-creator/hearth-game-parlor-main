@@ -831,7 +831,7 @@ function ClockCardFace({ card }: { card: Card }) {
       }`}
     >
       <span className="absolute left-0.5 top-0.5 flex flex-col items-center font-display text-[10px] font-bold leading-none">
-        <span>{RANK_LABEL[card.rank]}</span>
+        <span className="font-[Times_New_Roman,serif]">{RANK_LABEL[card.rank]}</span>
         <span className="mt-0.5 text-[9px]">{SUIT_SYMBOL[card.suit]}</span>
       </span>
       <span className="absolute inset-0 grid place-items-center text-base">

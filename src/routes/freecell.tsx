@@ -649,10 +649,10 @@ function CardFace({
       aria-label={cardLabel(card)}
       className={`relative block h-[var(--fc-card-h)] w-[var(--fc-card-w)] touch-none select-none rounded-lg border border-black/10 bg-white text-left shadow-md shadow-black/30 transition-transform ${
         red ? "text-[#c0392b]" : "text-ink"
-      } ${selected ? "-translate-y-1 ring-2 ring-gold" : ""} ${hidden ? "invisible" : ""}`}
+      } ${selected ? "-translate-y-1 ring-2 ring-gold" : ""} ${hidden ? "opacity-0" : ""}`}
     >
       <span className="absolute left-1 top-1 flex flex-col items-center font-display text-xs font-bold leading-none sm:text-lg">
-        <span>{RANK_LABEL[card.rank]}</span>
+        <span className="font-[Times_New_Roman,serif]">{RANK_LABEL[card.rank]}</span>
         <span className="mt-0.5 text-[10px] sm:text-sm">{SUIT_SYMBOL[card.suit]}</span>
       </span>
       <span className="absolute inset-0 grid place-items-center text-2xl sm:text-4xl">

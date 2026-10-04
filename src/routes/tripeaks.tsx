@@ -111,6 +111,17 @@ function slotStyle(row: number, col: number): CSSProperties {
     zIndex: ROWS - row,
   };
 }
+
+// How long a card takes to fly onto the waste pile after being clicked.
+const FLIGHT_MS = 350;
+
+type FlyingCard = {
+  key: number;
+  card: Card;
+  from: { x: number; y: number };
+  to: { x: number; y: number };
+};
+
 function TriPeaksTable() {
   const navigate = useNavigate();
   const game = getGame("tripeaks");
@@ -181,6 +192,7 @@ function TriPeaksTable() {
     setNumberInput(String(g));
     setState(freshGame(mulberry32(g)));
     setHistory([]);
+    setFlying([]);
     setRecordMessage(null);
     setFinishedElapsed(null);
     setElapsed(0);
@@ -251,13 +263,56 @@ function TriPeaksTable() {
     setRecordMessage(null);
   };
 
+  const animateToWaste = (row: number, col: number) => {
+    const before = stateRef.current;
+    const slot = before.peaks[row]?.[col];
+    if (!slot?.faceUp) return;
+    const next = moveToWaste(before, row, col);
+    if (next === before) return;
+    const sourceEl = peakRefs.current[`${row}-${col}`];
+    const destEl = wasteRef.current;
+    const sourceRect = sourceEl?.getBoundingClientRect();
+    const destRect = destEl?.getBoundingClientRect();
+    // Without a measured source or target (e.g. before the board paints) just move.
+    if (!sourceRect || !destRect) {
+      apply(next);
+      return;
+    }
+    const key = flightKeyRef.current++;
+    // Lift the card out of the peak right away so it visibly flies off, then
+    // commit the move (recording `before` in history) once it lands.
+    setState((cur) => ({
+      ...cur,
+      peaks: cur.peaks.map((rowSlots, r) =>
+        r === row ? rowSlots.map((s, c) => (c === col ? null : s)) : rowSlots,
+      ),
+    }));
+    setFlying((cur) => [
+      ...cur,
+      {
+        key,
+        card: slot.card,
+        from: { x: sourceRect.left, y: sourceRect.top },
+        to: { x: destRect.left, y: destRect.top },
+      },
+    ]);
+    window.setTimeout(() => {
+      setFlying((cur) => cur.filter((f) => f.key !== key));
+      setHistory((h) => [...h, before]);
+      setState(next);
+      if (next.won || next.lost) {
+        setRecordMessage(evaluateResult(next));
+        setResultOpen(true);
+      }
+    }, FLIGHT_MS);
+  };
+
   const clickPeak = (row: number, col: number) => {
     if (suppressClickRef.current) {
       suppressClickRef.current = false;
       return;
     }
-    const candidate = moveToWaste(stateRef.current, row, col);
-    if (candidate !== stateRef.current) apply(candidate);
+    animateToWaste(row, col);
   };
 
   // --- Drag-and-drop (pointer-based so it also works with touch on mobile) ---
@@ -274,6 +329,12 @@ function TriPeaksTable() {
   // The card currently being dragged, so the original can be hidden while the
   // ghost follows the pointer (avoids a duplicate card left behind at the source).
   const draggingIds = dragGhost ? new Set([dragGhost.card.id]) : null;
+
+  // Click-to-move animation state: cards currently flying onto the waste pile.
+  const [flying, setFlying] = useState<FlyingCard[]>([]);
+  const flightKeyRef = useRef(0);
+  const wasteRef = useRef<HTMLDivElement | null>(null);
+  const peakRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const beginDrag = (row: number, col: number, card: Card) => (e: ReactPointerEvent) => {
     if (e.pointerType === "mouse" && e.button !== 0) return;
@@ -414,7 +475,7 @@ function TriPeaksTable() {
                 disabled={state.won || state.lost}
                 onClick={draw}
               />
-              <WastePile waste={state.waste} />
+              <WastePile waste={state.waste} wasteRef={(el) => (wasteRef.current = el)} />
             </div>
 
             <div className="mt-8 flex justify-center">
@@ -424,7 +485,12 @@ function TriPeaksTable() {
                     if (!slot) return null;
                     const open = isOpen(state.peaks, row, col);
                     return (
-                      <div key={`${row}-${col}`} className="absolute" style={slotStyle(row, col)}>
+                      <div
+                        key={`${row}-${col}`}
+                        className="absolute"
+                        style={slotStyle(row, col)}
+                        ref={(el) => (peakRefs.current[`${row}-${col}`] = el)}
+                      >
                         {slot.faceUp ? (
                           <CardFace
                             card={slot.card}
@@ -594,9 +660,55 @@ function TriPeaksTable() {
           <CardFace card={dragGhost.card} />
         </div>
       )}
+
+      {flying.map((flight) => (
+        <FlyingCardView key={flight.key} flight={flight} />
+      ))}
     </div>
   );
 }
+
+function FlyingCardView({ flight }: { flight: FlyingCard }) {
+  const [moved, setMoved] = useState(false);
+  useEffect(() => {
+    let raf = 0;
+    raf = requestAnimationFrame(() => {
+      raf = requestAnimationFrame(() => setMoved(true));
+    });
+    return () => cancelAnimationFrame(raf);
+  }, []);
+  const dx = moved ? flight.to.x - flight.from.x : 0;
+  const dy = moved ? flight.to.y - flight.from.y : 0;
+  const red = isRed(flight.card.suit);
+  const isFaceCard = flight.card.rank === 1 || flight.card.rank > 10;
+  return (
+    <div
+      aria-hidden
+      className="pointer-events-none fixed z-50 transition-transform ease-out"
+      style={{
+        left: flight.from.x,
+        top: flight.from.y,
+        transform: `translate(${dx}px, ${dy}px)`,
+        transitionDuration: `${FLIGHT_MS}ms`,
+      }}
+    >
+      <div
+        className={`relative block h-[var(--tripeaks-card-h)] w-[var(--tripeaks-card-w)] select-none rounded-md border border-black/10 bg-white text-left shadow-md shadow-black/30 ${
+          red ? "text-[#c0392b]" : "text-ink"
+        }`}
+      >
+        <span className="absolute left-0.5 top-0.5 flex flex-col items-center font-display text-[8px] font-bold leading-none sm:left-1 sm:top-1 sm:text-xs">
+          <span className="font-[Times_New_Roman,serif]">{RANK_LABEL[flight.card.rank]}</span>
+          <span className="mt-0.5 text-[7px] sm:text-[10px]">{SUIT_SYMBOL[flight.card.suit]}</span>
+        </span>
+        <span className="absolute inset-0 grid place-items-center text-sm sm:text-xl">
+          {isFaceCard ? RANK_LABEL[flight.card.rank] : SUIT_SYMBOL[flight.card.suit]}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex flex-col items-center">
@@ -644,7 +756,7 @@ function CardFace({
       } ${hidden ? "invisible" : ""}`}
     >
       <span className="absolute left-0.5 top-0.5 flex flex-col items-center font-display text-[8px] font-bold leading-none sm:left-1 sm:top-1 sm:text-xs">
-        <span>{RANK_LABEL[card.rank]}</span>
+        <span className="font-[Times_New_Roman,serif]">{RANK_LABEL[card.rank]}</span>
         <span className="mt-0.5 text-[7px] sm:text-[10px]">{SUIT_SYMBOL[card.suit]}</span>
       </span>
       <span className="absolute inset-0 grid place-items-center text-sm sm:text-xl">
@@ -712,11 +824,17 @@ function StockPile({
   );
 }
 
-function WastePile({ waste }: { waste: Card[] }) {
+function WastePile({
+  waste,
+  wasteRef,
+}: {
+  waste: Card[];
+  wasteRef?: (el: HTMLDivElement | null) => void;
+}) {
   const top = waste[waste.length - 1];
   return (
     <div className="flex flex-col items-center gap-1">
-      <div className="relative">
+      <div className="relative" ref={wasteRef}>
         {waste.length > 1 && (
           <div className="absolute -left-1 -top-1 opacity-40">
             <CardBack />

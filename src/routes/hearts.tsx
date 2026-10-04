@@ -1568,12 +1568,12 @@ function HeartsCard({
     >
       {corner ? (
         <>
-          <span className="absolute left-[7.2px] top-[3.6px] font-display text-[19.44px] font-bold leading-none sm:left-2 sm:top-1 sm:text-2xl">{rank}</span>
+          <span className="absolute left-[7.2px] top-[3.6px] font-[Times_New_Roman,serif] text-[19.44px] font-bold leading-none sm:left-2 sm:top-1 sm:text-2xl">{rank}</span>
           <span className="absolute left-[7.2px] top-[28.8px] text-[19.44px] leading-none sm:left-2 sm:top-8 sm:text-2xl">{suit}</span>
         </>
       ) : (
         <>
-          <span className="absolute left-2 top-1 font-display text-2xl font-bold leading-none">{rank}</span>
+          <span className="absolute left-2 top-1 font-[Times_New_Roman,serif] text-2xl font-bold leading-none">{rank}</span>
           <span className="absolute left-2 top-8 text-2xl leading-none">{suit}</span>
           <span className={small ? "text-4xl" : "text-5xl"}>{suit}</span>
         </>
