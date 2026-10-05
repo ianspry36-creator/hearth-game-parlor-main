@@ -175,6 +175,11 @@ function CrescentTable() {
   const [conceded, setConceded] = useState(false);
   const [dealKey, setDealKey] = useState(0);
   const [shuffleTick, setShuffleTick] = useState(0);
+  // During a shuffle each pile keeps its pre-shuffle cards until its own hop in
+  // the stagger plays, then swaps to the newly shuffled cards one pile at a time.
+  const [shuffleOld, setShuffleOld] = useState<Card[][] | null>(null);
+  const [shuffleRevealed, setShuffleRevealed] = useState(0);
+  const shuffleTimersRef = useRef<number[]>([]);
   const [flying, setFlying] = useState<FlyingCard[]>([]);
   const flightKeyRef = useRef(0);
   const boardRef = useRef<HTMLDivElement>(null);
@@ -204,6 +209,12 @@ function CrescentTable() {
     });
   }, [game.name]);
 
+  useEffect(() => {
+    return () => {
+      shuffleTimersRef.current.forEach((id) => window.clearTimeout(id));
+    };
+  }, []);
+
   const apply = (candidate: GameState) => {
     if (candidate === state) return;
     setHistory((h) => [...h, state]);
@@ -219,6 +230,10 @@ function CrescentTable() {
     setConceded(false);
     setDealKey((k) => k + 1);
     setShuffleTick(0);
+    shuffleTimersRef.current.forEach((id) => window.clearTimeout(id));
+    shuffleTimersRef.current = [];
+    setShuffleOld(null);
+    setShuffleRevealed(0);
     void startGame(game.name).then((id) => {
       gameRowRef.current = id;
     });
@@ -262,10 +277,28 @@ function CrescentTable() {
     if (state.won || conceded || state.shufflesLeft <= 0) return;
     const candidate = shuffleTableaus(state);
     if (candidate === state) return;
+    // Snapshot the current piles so each one can reveal its newly shuffled cards
+    // only when its own hop in the stagger plays, instead of all at once.
+    const oldTableaus = state.tableaus.map((p) => p.slice());
+    shuffleTimersRef.current.forEach((id) => window.clearTimeout(id));
+    shuffleTimersRef.current = [];
     setHistory((h) => [...h, state]);
     setSelection(null);
     setState(candidate);
     setShuffleTick((t) => t + 1);
+    setShuffleOld(oldTableaus);
+    setShuffleRevealed(0);
+    for (let i = 0; i < TABLEAU_POSITIONS.length; i++) {
+      shuffleTimersRef.current.push(
+        window.setTimeout(() => setShuffleRevealed(i + 1), i * SHUFFLE_STAGGER_MS),
+      );
+    }
+    shuffleTimersRef.current.push(
+      window.setTimeout(() => {
+        setShuffleOld(null);
+        setShuffleRevealed(0);
+      }, TABLEAU_POSITIONS.length * SHUFFLE_STAGGER_MS + SHUFFLE_MS + 50),
+    );
   };
 
   const clickTableau = (index: number) => {
@@ -516,6 +549,8 @@ function CrescentTable() {
                     flyingIds={flyingIds}
                     style={TABLEAU_POSITIONS[index]!}
                     shuffleTick={shuffleTick}
+                    shuffleOld={shuffleOld}
+                    shuffleRevealed={shuffleRevealed}
                     onClick={() => clickTableau(index)}
                     onDoubleClick={() => doubleClickTableau(index)}
                     onPointerDown={beginDrag({ type: "tableau", index })}
@@ -779,6 +814,8 @@ function TableauPile({
   draggingIds,
   flyingIds,
   shuffleTick,
+  shuffleOld,
+  shuffleRevealed,
   style,
   onClick,
   onDoubleClick,
@@ -792,6 +829,8 @@ function TableauPile({
   draggingIds?: Set<string> | null;
   flyingIds: Set<string>;
   shuffleTick: number;
+  shuffleOld: Card[][] | null;
+  shuffleRevealed: number;
   style: { left: string; top: string };
   onClick: () => void;
   onDoubleClick: () => void;
@@ -799,6 +838,9 @@ function TableauPile({
   onPointerMove: (e: ReactPointerEvent) => void;
   onPointerUp: (e: ReactPointerEvent) => void;
 }) {
+  // Keep showing the pre-shuffle cards until this pile's own hop plays, then
+  // swap in the newly shuffled cards.
+  const shown = shuffleOld && index >= shuffleRevealed ? (shuffleOld[index] ?? pile) : pile;
   return (
     <div
       className="absolute flex flex-col items-center"
@@ -822,9 +864,9 @@ function TableauPile({
             : undefined
         }
       >
-        {pile.map((card, i) => {
+        {shown.map((card, i) => {
           const isSelected =
-            selection?.type === "tableau" && selection.index === index && i === pile.length - 1;
+            selection?.type === "tableau" && selection.index === index && i === shown.length - 1;
           return (
             <div
               key={card.id}
@@ -844,7 +886,7 @@ function TableauPile({
           );
         })}
       </div>
-      {pile.length === 0 && <EmptySlot onClick={onClick} />}
+      {shown.length === 0 && <EmptySlot onClick={onClick} />}
     </div>
   );
 }
