@@ -29,12 +29,14 @@ import {
   moveTableauToTableau,
   nextDifficulty,
   readDifficulty,
+  SHUFFLES_BY_DIFFICULTY,
   shuffleTableaus,
   writeDifficulty,
   type Difficulty,
   type GameState,
 } from "@/lib/crescent";
 import { mulberry32 } from "@/lib/random";
+import { startGame, updateGameStatus } from "@/lib/games-started";
 
 export const Route = createFileRoute("/crescent")({
   validateSearch: (search: Record<string, unknown>) => ({}),
@@ -65,6 +67,10 @@ const SSR_SEED = 20261005;
 // How long a card takes to fly between piles on a click/double-click move.
 const FLIGHT_MS = 300;
 
+// Shuffle effect timing: each tableau pile animates in turn, from pile 1 to 16.
+const SHUFFLE_MS = 450;
+const SHUFFLE_STAGGER_MS = 90;
+
 type FlyingCard = {
   key: number;
   from: { x: number; y: number };
@@ -92,17 +98,20 @@ const SIDE_GAP = 140;
 const LEFT_ANCHOR = 4;
 const RIGHT_ANCHOR = 11;
 const ANCHOR_Y = archY(LEFT_ANCHOR); // == archY(RIGHT_ANCHOR), symmetric
+// Nudge the two end groups (their four fanned cards plus the anchor card) away
+// from the arch so they stop overlapping the neighbouring arch card.
+const SIDE_NUDGE = 24;
 
 /** Sixteen tableau piles arranged in an upside-down-U (crescent) arch. */
 const TABLEAU_POSITIONS = Array.from({ length: 16 }, (_, i) => {
   let x = archX(i);
   let y = archY(i);
-  if (i < LEFT_ANCHOR) {
-    x = archX(LEFT_ANCHOR);
-    y = ANCHOR_Y + (LEFT_ANCHOR - i) * SIDE_GAP;
-  } else if (i > RIGHT_ANCHOR) {
-    x = archX(RIGHT_ANCHOR);
-    y = ANCHOR_Y + (i - RIGHT_ANCHOR) * SIDE_GAP;
+  if (i <= LEFT_ANCHOR) {
+    x = archX(LEFT_ANCHOR) - SIDE_NUDGE;
+    if (i < LEFT_ANCHOR) y = ANCHOR_Y + (LEFT_ANCHOR - i) * SIDE_GAP;
+  } else if (i >= RIGHT_ANCHOR) {
+    x = archX(RIGHT_ANCHOR) + SIDE_NUDGE;
+    if (i > RIGHT_ANCHOR) y = ANCHOR_Y + (i - RIGHT_ANCHOR) * SIDE_GAP;
   }
   return { left: `${(x / BOARD_W) * 100}%`, top: `${(y / BOARD_H) * 100}%` };
 });
@@ -165,16 +174,21 @@ function CrescentTable() {
   const [confirming, setConfirming] = useState<"new" | "home" | null>(null);
   const [conceded, setConceded] = useState(false);
   const [dealKey, setDealKey] = useState(0);
+  const [shuffleTick, setShuffleTick] = useState(0);
   const [flying, setFlying] = useState<FlyingCard[]>([]);
   const flightKeyRef = useRef(0);
   const boardRef = useRef<HTMLDivElement>(null);
+  const gameRowRef = useRef<string | null>(null);
   const { recordResult } = useSolitaireStats(game.id, difficulty);
   const stateRef = useRef(state);
   stateRef.current = state;
   const prevWonRef = useRef(false);
 
   useEffect(() => {
-    if (state.won && !prevWonRef.current) recordResult("win");
+    if (state.won && !prevWonRef.current) {
+      recordResult("win");
+      void updateGameStatus(gameRowRef.current, "won");
+    }
     prevWonRef.current = state.won;
   }, [state.won, recordResult]);
 
@@ -185,7 +199,10 @@ function CrescentTable() {
     setHistory([]);
     setSelection(null);
     setDealKey((k) => k + 1);
-  }, []);
+    void startGame(game.name).then((id) => {
+      gameRowRef.current = id;
+    });
+  }, [game.name]);
 
   const apply = (candidate: GameState) => {
     if (candidate === state) return;
@@ -201,6 +218,10 @@ function CrescentTable() {
     setSelection(null);
     setConceded(false);
     setDealKey((k) => k + 1);
+    setShuffleTick(0);
+    void startGame(game.name).then((id) => {
+      gameRowRef.current = id;
+    });
   };
 
   // Difficulty is fixed once the game has started (the first card is moved).
@@ -210,16 +231,15 @@ function CrescentTable() {
     const next = nextDifficulty(difficulty);
     setDifficulty(next);
     writeDifficulty(next);
-    setState(freshGame(next));
-    setHistory([]);
-    setSelection(null);
-    setConceded(false);
-    setDealKey((k) => k + 1);
+    // Change the difficulty (and its shuffle allowance) without re-dealing, so
+    // the cards already on the table stay exactly where they are.
+    setState((s) => ({ ...s, difficulty: next, shufflesLeft: SHUFFLES_BY_DIFFICULTY[next] }));
   };
 
   const concede = () => {
     if (state.won || conceded) return;
     recordResult("loss");
+    void updateGameStatus(gameRowRef.current, "conceded");
     setConceded(true);
   };
 
@@ -245,6 +265,7 @@ function CrescentTable() {
     setHistory((h) => [...h, state]);
     setSelection(null);
     setState(candidate);
+    setShuffleTick((t) => t + 1);
   };
 
   const clickTableau = (index: number) => {
@@ -494,6 +515,7 @@ function CrescentTable() {
                     draggingIds={draggingIds}
                     flyingIds={flyingIds}
                     style={TABLEAU_POSITIONS[index]!}
+                    shuffleTick={shuffleTick}
                     onClick={() => clickTableau(index)}
                     onDoubleClick={() => doubleClickTableau(index)}
                     onPointerDown={beginDrag({ type: "tableau", index })}
@@ -634,8 +656,13 @@ function CrescentTable() {
             <AlertDialogAction
               onClick={() => {
                 recordResult("abandoned");
-                if (confirming === "home") void navigate({ to: "/" });
-                else if (confirming === "new") reset();
+                if (confirming === "home") {
+                  void updateGameStatus(gameRowRef.current, "game room");
+                  void navigate({ to: "/" });
+                } else if (confirming === "new") {
+                  void updateGameStatus(gameRowRef.current, "new game");
+                  reset();
+                }
                 setConfirming(null);
               }}
             >
@@ -751,6 +778,7 @@ function TableauPile({
   selection,
   draggingIds,
   flyingIds,
+  shuffleTick,
   style,
   onClick,
   onDoubleClick,
@@ -763,6 +791,7 @@ function TableauPile({
   selection: Selection;
   draggingIds?: Set<string> | null;
   flyingIds: Set<string>;
+  shuffleTick: number;
   style: { left: string; top: string };
   onClick: () => void;
   onDoubleClick: () => void;
@@ -782,7 +811,17 @@ function TableauPile({
         animation: `cr-deal 0.5s cubic-bezier(0.16, 1, 0.3, 1) ${Math.abs(index - 7.5) * 28}ms backwards`,
       }}
     >
-      <div className="flex flex-col items-stretch">
+      <div
+        key={shuffleTick}
+        className="flex flex-col items-stretch"
+        style={
+          shuffleTick > 0
+            ? {
+                animation: `cr-shuffle ${SHUFFLE_MS}ms ease ${index * SHUFFLE_STAGGER_MS}ms backwards`,
+              }
+            : undefined
+        }
+      >
         {pile.map((card, i) => {
           const isSelected =
             selection?.type === "tableau" && selection.index === index && i === pile.length - 1;

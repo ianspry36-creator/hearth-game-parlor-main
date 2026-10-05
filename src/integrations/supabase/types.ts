@@ -256,6 +256,39 @@ export type Database = {
           },
         ]
       }
+      games_started: {
+        Row: {
+          completed_status: string
+          created_at: string
+          game_name: string
+          id: string
+          nickname: string | null
+          session_id: string | null
+          start_date: string
+          start_time: string
+        }
+        Insert: {
+          completed_status?: string
+          created_at?: string
+          game_name: string
+          id?: string
+          nickname?: string | null
+          session_id?: string | null
+          start_date?: string
+          start_time?: string
+        }
+        Update: {
+          completed_status?: string
+          created_at?: string
+          game_name?: string
+          id?: string
+          nickname?: string | null
+          session_id?: string | null
+          start_date?: string
+          start_time?: string
+        }
+        Relationships: []
+      }
       site_visits: {
         Row: {
           id: number

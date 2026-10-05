@@ -1026,3 +1026,19 @@
     transform: translate(-50%, -50%) translateY(0) scale(1);
   }
 }
+
+/* Shuffle effect: each tableau pile hops in turn when the deck is shuffled. */
+@keyframes cr-shuffle {
+  0% {
+    transform: translateY(0) rotate(0deg);
+  }
+  30% {
+    transform: translateY(-12px) rotate(-3deg);
+  }
+  60% {
+    transform: translateY(-5px) rotate(2deg);
+  }
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+}
