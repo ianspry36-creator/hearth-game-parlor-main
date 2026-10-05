@@ -1255,7 +1255,7 @@ function CrazyEightsTable() {
       disconnectExpired={disconnectExpired}
       gameInProgress={state.phase !== "over" && state.pile.length > 1}
       hideOpponent
-      waitingRoomLabel="Human"
+      hideWaitingRoom
       lobby={({ open, onOpenChange }) => (
         <CrazyEightsLobby game={game} open={open} onOpenChange={onOpenChange} onPlay={handlePlay} />
       )}

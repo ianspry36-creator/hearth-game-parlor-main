@@ -272,6 +272,24 @@ export function GameIcon({ id, className = "" }: { id: GameId; className?: strin
           <rect x="23" y="33" width="16" height="11" rx="2" className="fill-cream/90 stroke-gold" strokeWidth="2" />
         </svg>
       );
+    case "crescent":
+      return (
+        <svg {...common}>
+          <rect
+            x="7"
+            y="13"
+            width="18"
+            height="25"
+            rx="2.5"
+            className="fill-cream/90 stroke-gold"
+            strokeWidth="2"
+            transform="rotate(-14 16 25)"
+          />
+          <g transform="translate(22 6) scale(1.6)">
+            <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" className="fill-gold" />
+          </g>
+        </svg>
+      );
     default:
       return null;
   }

@@ -999,3 +999,30 @@
 @utility animate-checker-captured {
   animation: checker-captured 300ms ease-out forwards;
 }
+
+/* Crescent Solitaire responsive card sizing — sixteen piles around a crescent. */
+:root {
+  --cr-card-h: 131.25px;
+  --cr-card-w: 93.75px;
+  --cr-visible: 0px;
+}
+
+@media (max-width: 639.98px) {
+  :root {
+    --cr-card-h: 86.25px;
+    --cr-card-w: 61.875px;
+    --cr-visible: 0px;
+  }
+}
+
+/* Deal animation: cards drop from the crescent down to their spots. */
+@keyframes cr-deal {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) translateY(-48px) scale(0.6);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -50%) translateY(0) scale(1);
+  }
+}

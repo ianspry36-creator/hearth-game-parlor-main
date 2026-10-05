@@ -24,6 +24,7 @@ import yukonMenuIcon from "@/assets/yukonMenuIcon.webp";
 import canfieldMenuIcon from "@/assets/canfieldMenuIcon.webp";
 import freecellMenuIcon from "@/assets/freecellMenuIcon.webp";
 import trianglesMenuIcon from "@/assets/trianglesMenuIcon.webp";
+import crescentMenuIcon from "@/assets/crescentMenuIcon.webp";
 import { CardMark } from "@/components/parlor/CardMark";
 import { VisitorCounter } from "@/components/parlor/VisitorCounter";
 import { Switch } from "@/components/ui/switch";
@@ -278,6 +279,12 @@ function Lobby() {
                       <img
                         src={trianglesMenuIcon}
                         alt="Triangles"
+                        className="size-[2cm] rounded-2xl object-contain"
+                      />
+                    ) : game.id === "crescent" ? (
+                      <img
+                        src={crescentMenuIcon}
+                        alt="Crescent Solitaire"
                         className="size-[2cm] rounded-2xl object-contain"
                       />
                     ) : (

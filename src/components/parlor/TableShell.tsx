@@ -41,6 +41,8 @@ export function TableShell({
   disconnectSecondsLeft = 10,
   disconnectExpired = false,
   waitingRoomLabel = "Human",
+  waitingRoomComingSoon = false,
+  hideWaitingRoom = false,
   onPlayerCount,
   playerCount,
   lobby,
@@ -68,6 +70,8 @@ export function TableShell({
   disconnectSecondsLeft?: number;
   disconnectExpired?: boolean;
   waitingRoomLabel?: string;
+  waitingRoomComingSoon?: boolean;
+  hideWaitingRoom?: boolean;
   onPlayerCount?: (count: 2 | 3 | 4) => void;
   playerCount?: 2 | 3 | 4;
   lobby?: (props: { open: boolean; onOpenChange: (open: boolean) => void }) => ReactNode;
@@ -191,18 +195,35 @@ export function TableShell({
                     </Button>
                   </div>
                 ) : null}
-                <Button variant="parlorOutline" size="sm" className="w-full h-6" onClick={openWaitingRoom}>
-                  {waitingRoomLabel}
-                </Button>
-                {lobby ? (
-                  lobby({ open: humanOpen, onOpenChange: setHumanOpen })
-                ) : (
-                  <WaitingRoom
-                    game={game}
-                    onMatched={onMatched}
-                    open={humanOpen}
-                    onOpenChange={setHumanOpen}
-                  />
+                {!hideWaitingRoom && (
+                  <>
+                    <div className="space-y-1">
+                      <Button
+                        variant="parlorOutline"
+                        size="sm"
+                        className="w-full h-6"
+                        disabled={waitingRoomComingSoon}
+                        onClick={openWaitingRoom}
+                      >
+                        {waitingRoomLabel}
+                      </Button>
+                      {waitingRoomComingSoon ? (
+                        <span className="block rounded-full border border-gold/40 bg-gold/15 px-2 py-0.5 text-center text-[10px] font-semibold uppercase tracking-[0.14em] text-gold">
+                          Coming soon
+                        </span>
+                      ) : null}
+                    </div>
+                    {lobby ? (
+                      lobby({ open: humanOpen, onOpenChange: setHumanOpen })
+                    ) : (
+                      <WaitingRoom
+                        game={game}
+                        onMatched={onMatched}
+                        open={humanOpen}
+                        onOpenChange={setHumanOpen}
+                      />
+                    )}
+                  </>
                 )}
                 <RulesDialog
                   game={game}

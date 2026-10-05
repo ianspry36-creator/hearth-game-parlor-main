@@ -1,11 +1,11 @@
-export type GameId = "cribbage" | "backgammon" | "warship" | "farkle" | "yahtzee" | "crazy-eights" | "hearts" | "triangles" | "solitaire" | "freecell" | "addiction" | "reversi" | "checkers" | "kings-in-the-corner" | "canfield" | "clock" | "scorpion" | "tripeaks" | "yukon";
+export type GameId = "cribbage" | "backgammon" | "warship" | "farkle" | "yahtzee" | "crazy-eights" | "hearts" | "triangles" | "solitaire" | "freecell" | "addiction" | "reversi" | "checkers" | "kings-in-the-corner" | "canfield" | "clock" | "scorpion" | "tripeaks" | "yukon" | "crescent";
 
 export type GameMeta = {
   id: GameId;
   name: string;
   initial: string;
   tagline: string;
-  path: "/cribbage" | "/backgammon" | "/warship" | "/farkle" | "/yahtzee" | "/crazy-eights" | "/hearts" | "/triangles" | "/solitaire" | "/freecell" | "/addiction" | "/reversi" | "/checkers" | "/kings-in-the-corner" | "/canfield" | "/clock" | "/scorpion" | "/tripeaks" | "/yukon";
+  path: "/cribbage" | "/backgammon" | "/warship" | "/farkle" | "/yahtzee" | "/crazy-eights" | "/hearts" | "/triangles" | "/solitaire" | "/freecell" | "/addiction" | "/reversi" | "/checkers" | "/kings-in-the-corner" | "/canfield" | "/clock" | "/scorpion" | "/tripeaks" | "/yukon" | "/crescent";
   rules: { heading: string; body: string }[];
   history: string;
   historySource?: string;
@@ -216,6 +216,43 @@ export const GAMES: GameMeta[] = [
       {
         heading: "Drawing",
         body: "If nothing in your hand follows, draw one card from the stock. Lay it if it fits, otherwise pass the turn.",
+      },
+    ],
+  },
+  {
+    id: "crescent",
+    name: "Crescent Solitaire",
+    initial: "C",
+    tagline: "Sixteen face-up piles in a crescent, two decks, and eight foundations built from the King down and the Ace up.",
+    path: "/crescent",
+    comingSoon: true,
+    history:
+      "Crescent Solitaire is a compact patience game played with two whole decks arranged in a distinctive crescent of sixteen face-up piles. Unusually for a solitaire, every card is dealt face up from the start, and the game is won by gathering each suit onto two rows of foundations — one built down from the King, the other up from the Ace. Its generous shuffle allowance, chosen from easy, medium, or hard, makes it far more winnable than its classic three-shuffle ancestor.",
+    historySource: "https://en.wikipedia.org/wiki/Crescent_(solitaire)",
+    rules: [
+      {
+        heading: "The object",
+        body: "Move every card from the sixteen tableau piles onto the eight foundations.",
+      },
+      {
+        heading: "The setup",
+        body: "Two decks are dealt into sixteen face-up piles of six, laid out in a crescent. The four foundations in the top row each hold a King and build down to the Ace; the four in the bottom row each hold an Ace and build up to the King.",
+      },
+      {
+        heading: "Moving on the tableaus",
+        body: "Move one card at a time onto a pile whose top card is the same suit and one rank higher or lower — an eight of clubs on a seven or nine of clubs. The sequence wraps around, so a King may take an Ace and an Ace may take a King.",
+      },
+      {
+        heading: "The foundations",
+        body: "Send a card home when it is the next rank of its suit on its foundation. You may bring a foundation card back down to the tableaus to free something useful, but the starting Kings and Aces can never be removed.",
+      },
+      {
+        heading: "Shuffling",
+        body: "When no top card will play, shuffle: the bottom card of every pile moves to the top. Easy gives nine shuffles, medium six, and hard three.",
+      },
+      {
+        heading: "Winning",
+        body: "Once every card sits in order on the foundations, the crescent is cleared.",
       },
     ],
   },

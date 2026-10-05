@@ -19,6 +19,7 @@ import { Route as CheckersRouteImport } from './routes/checkers'
 import { Route as ClockRouteImport } from './routes/clock'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as CrazyEightsRouteImport } from './routes/crazy-eights'
+import { Route as CrescentRouteImport } from './routes/crescent'
 import { Route as CribbageRouteImport } from './routes/cribbage'
 import { Route as FarkleRouteImport } from './routes/farkle'
 import { Route as FreecellRouteImport } from './routes/freecell'
@@ -83,6 +84,11 @@ const ContactRoute = ContactRouteImport.update({
 const CrazyEightsRoute = CrazyEightsRouteImport.update({
   id: '/crazy-eights',
   path: '/crazy-eights',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CrescentRoute = CrescentRouteImport.update({
+  id: '/crescent',
+  path: '/crescent',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CribbageRoute = CribbageRouteImport.update({
@@ -172,6 +178,7 @@ export interface FileRoutesByFullPath {
   '/clock': typeof ClockRoute
   '/contact': typeof ContactRoute
   '/crazy-eights': typeof CrazyEightsRoute
+  '/crescent': typeof CrescentRoute
   '/cribbage': typeof CribbageRoute
   '/farkle': typeof FarkleRoute
   '/freecell': typeof FreecellRoute
@@ -199,6 +206,7 @@ export interface FileRoutesByTo {
   '/clock': typeof ClockRoute
   '/contact': typeof ContactRoute
   '/crazy-eights': typeof CrazyEightsRoute
+  '/crescent': typeof CrescentRoute
   '/cribbage': typeof CribbageRoute
   '/farkle': typeof FarkleRoute
   '/freecell': typeof FreecellRoute
@@ -227,6 +235,7 @@ export interface FileRoutesById {
   '/clock': typeof ClockRoute
   '/contact': typeof ContactRoute
   '/crazy-eights': typeof CrazyEightsRoute
+  '/crescent': typeof CrescentRoute
   '/cribbage': typeof CribbageRoute
   '/farkle': typeof FarkleRoute
   '/freecell': typeof FreecellRoute
@@ -256,6 +265,7 @@ export interface FileRouteTypes {
     | '/clock'
     | '/contact'
     | '/crazy-eights'
+    | '/crescent'
     | '/cribbage'
     | '/farkle'
     | '/freecell'
@@ -283,6 +293,7 @@ export interface FileRouteTypes {
     | '/clock'
     | '/contact'
     | '/crazy-eights'
+    | '/crescent'
     | '/cribbage'
     | '/farkle'
     | '/freecell'
@@ -310,6 +321,7 @@ export interface FileRouteTypes {
     | '/clock'
     | '/contact'
     | '/crazy-eights'
+    | '/crescent'
     | '/cribbage'
     | '/farkle'
     | '/freecell'
@@ -338,6 +350,7 @@ export interface RootRouteChildren {
   ClockRoute: typeof ClockRoute
   ContactRoute: typeof ContactRoute
   CrazyEightsRoute: typeof CrazyEightsRoute
+  CrescentRoute: typeof CrescentRoute
   CribbageRoute: typeof CribbageRoute
   FarkleRoute: typeof FarkleRoute
   FreecellRoute: typeof FreecellRoute
@@ -425,6 +438,13 @@ declare module '@tanstack/react-router' {
       path: '/crazy-eights'
       fullPath: '/crazy-eights'
       preLoaderRoute: typeof CrazyEightsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/crescent': {
+      id: '/crescent'
+      path: '/crescent'
+      fullPath: '/crescent'
+      preLoaderRoute: typeof CrescentRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/cribbage': {
@@ -546,6 +566,7 @@ const rootRouteChildren: RootRouteChildren = {
   ClockRoute: ClockRoute,
   ContactRoute: ContactRoute,
   CrazyEightsRoute: CrazyEightsRoute,
+  CrescentRoute: CrescentRoute,
   CribbageRoute: CribbageRoute,
   FarkleRoute: FarkleRoute,
   FreecellRoute: FreecellRoute,
