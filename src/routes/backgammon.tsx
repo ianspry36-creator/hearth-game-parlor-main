@@ -27,6 +27,7 @@ import { getGame } from "@/lib/games";
 import { CLASSIC_PALETTE, readTableGraphic, type TablePalette } from "@/lib/backgammonTables";
 import { getNickname, RECONNECT_SECONDS, TURN_WARNING_SECONDS, useMatch, useTurnTimer } from "@/lib/multiplayer";
 import { useRecordMatchResult } from "@/lib/stats";
+import { useGameStarted } from "@/lib/games-started";
 import {
   applyMove,
   chooseCpuMove,
@@ -249,6 +250,15 @@ function BackgammonTable() {
     state.rematch ? null : state.winner,
     matchId ? RECONNECT_SECONDS * 1000 : 0,
   );
+  const { end, beginNew } = useGameStarted(game.name);
+  const prevGameWinnerRef = useRef<string | null>(null);
+  useEffect(() => {
+    const w = state.winner;
+    if (w && w !== prevGameWinnerRef.current) {
+      end(w === "human" ? "won" : "lost");
+    }
+    prevGameWinnerRef.current = w;
+  }, [state.winner, end]);
   // Which player is currently showing a "PASS" bubble (no legal move available).
   const [passBubble, setPassBubble] = useState<Seat | null>(null);
   const passTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -388,6 +398,7 @@ function BackgammonTable() {
     moveTimersRef.current.forEach((t) => clearTimeout(t));
     moveTimersRef.current = [];
     cpuLegsRef.current = [];
+    beginNew();
     if (isMulti) void publish(isHost ? fresh : mirror(fresh));
   };
 

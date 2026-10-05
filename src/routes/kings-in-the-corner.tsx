@@ -18,6 +18,7 @@ import { StatisticsDialog } from "@/components/parlor/StatisticsDialog";
 import { HistoryDialog } from "@/components/parlor/HistoryDialog";
 import { ConcedeButton } from "@/components/parlor/ConcedeButton";
 import { useSolitaireStats } from "@/lib/solitaireStats";
+import { useGameStarted } from "@/lib/games-started";
 import { CardMark } from "@/components/parlor/CardMark";
 import { RANK_LABEL, SUIT_SYMBOL, cardLabel, type Card, type Suit } from "@/lib/cribbage";
 import {
@@ -87,19 +88,26 @@ function KingsInTheCornerTable() {
   const [viewingBoard, setViewingBoard] = useState(false);
   const [undoCount, setUndoCount] = useState(0);
   const { recordResult } = useSolitaireStats(game.id);
+  const { end, beginNew } = useGameStarted(game.name);
   const [conceded, setConceded] = useState(false);
   const stateRef = useRef(state);
   stateRef.current = state;
   const prevWonRef = useRef(false);
   useEffect(() => {
-    if (state.won && !prevWonRef.current) recordResult("win");
+    if (state.won && !prevWonRef.current) {
+      recordResult("win");
+      end("won");
+    }
     prevWonRef.current = state.won;
-  }, [state.won, recordResult]);
+  }, [state.won, recordResult, end]);
   const prevLostRef = useRef(false);
   useEffect(() => {
-    if (state.lost && !prevLostRef.current) recordResult("loss");
+    if (state.lost && !prevLostRef.current) {
+      recordResult("loss");
+      end("lost");
+    }
     prevLostRef.current = state.lost;
-  }, [state.lost, recordResult]);
+  }, [state.lost, recordResult, end]);
 
   // Timer bookkeeping.
   const [elapsed, setElapsed] = useState(0);
@@ -184,11 +192,13 @@ function KingsInTheCornerTable() {
     startRef.current = 0;
     endedRef.current = false;
     setConceded(false);
+    beginNew();
   };
 
   const concede = () => {
     if (state.won || state.lost || conceded) return;
     recordResult("loss");
+    end("conceded");
     setConceded(true);
   };
 

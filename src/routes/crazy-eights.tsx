@@ -32,6 +32,7 @@ import {
   useTurnTimer,
 } from "@/lib/multiplayer";
 import { useRecordMatchResult } from "@/lib/stats";
+import { useGameStarted } from "@/lib/games-started";
 import {
   isStalePlayingRoom,
   leaveRoom,
@@ -380,6 +381,15 @@ function CrazyEightsTable() {
     state.rematch ? null : state.winner,
     matchId ? RECONNECT_SECONDS * 1000 : 0,
   );
+  const { end, beginNew } = useGameStarted(game.name);
+  const prevGameWinnerRef = useRef<string | null>(null);
+  useEffect(() => {
+    const w = state.winner;
+    if (w && w !== prevGameWinnerRef.current) {
+      end(w === "you" ? "won" : "lost");
+    }
+    prevGameWinnerRef.current = w;
+  }, [state.winner, end]);
 
   const isMulti = Boolean(matchId);
   const isRoom = Boolean(roomId);
@@ -562,6 +572,7 @@ function CrazyEightsTable() {
     const fresh = freshState(n);
     stateRef.current = fresh;
     setState(fresh);
+    beginNew();
     if (isRoom) void publishRoom(fresh);
     else if (isMulti) void publish(isHost ? fresh : mirror(fresh));
   };
@@ -640,6 +651,7 @@ function CrazyEightsTable() {
       const fresh = freshState(activeCount);
       stateRef.current = fresh;
       setState(fresh);
+      beginNew();
       void publishRoom(remapState(fresh, mySeat, activeCount));
       return;
     }

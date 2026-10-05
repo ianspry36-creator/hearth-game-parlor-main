@@ -25,6 +25,7 @@ import { NicknameDialog } from "@/components/parlor/NicknameDialog";
 import { getNickname, TURN_WARNING_SECONDS, useMatch, useTurnTimer } from "@/lib/multiplayer";
 import { useRecordMatchResult } from "@/lib/stats";
 import { useSolitaireStats } from "@/lib/solitaireStats";
+import { useGameStarted } from "@/lib/games-started";
 import {
   applyStep,
   boardSignature,
@@ -264,6 +265,7 @@ function CheckersTable() {
   // effect, so they show in Statistics alongside the multiplayer leaderboard;
   // live matches are handled by useRecordMatchResult above instead.
   const { recordResult: recordSoloResult } = useSolitaireStats(game.id, difficulty);
+  const { end, beginNew } = useGameStarted(game.name);
   const prevSoloWinnerRef = useRef<Player | "draw" | null>(null);
   useEffect(() => {
     if (
@@ -276,6 +278,16 @@ function CheckersTable() {
     }
     prevSoloWinnerRef.current = state.winner;
   }, [state.winner, isMulti, recordSoloResult]);
+
+  const prevGameWinnerRef = useRef<string | null>(null);
+  useEffect(() => {
+    const w = state.winner;
+    if (w && w !== prevGameWinnerRef.current) {
+      if (w === "draw") end("other");
+      else end(w === "human" ? "won" : "lost");
+    }
+    prevGameWinnerRef.current = w;
+  }, [state.winner, end]);
 
   const apply = (fn: (current: State) => State) => {
     const next = fn(stateRef.current);
@@ -345,6 +357,7 @@ function CheckersTable() {
     stateRef.current = fresh;
     setState(fresh);
     if (isMulti) void publish(isHost ? fresh : mirror(fresh));
+    beginNew();
   };
 
   useEffect(() => {

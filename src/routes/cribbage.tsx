@@ -26,6 +26,7 @@ import { getGame } from "@/lib/games";
 import { getNickname, RECONNECT_SECONDS, TURN_WARNING_SECONDS, useMatch, useTurnTimer } from "@/lib/multiplayer";
 import { useRecordMatchResult } from "@/lib/stats";
 import { useSolitaireStats } from "@/lib/solitaireStats";
+import { useGameStarted } from "@/lib/games-started";
 import {
   cardLabel,
   RANK_LABEL,
@@ -605,6 +606,7 @@ function CribbageTable() {
   // alongside the multiplayer leaderboard; live matches are handled by
   // useRecordMatchResult above instead.
   const { recordResult: recordSoloResult } = useSolitaireStats(game.id);
+  const { end, beginNew } = useGameStarted(game.name);
   const prevSoloWinnerRef = useRef<Side | null>(null);
   useEffect(() => {
     if (!isMulti && state.winner && state.winner !== prevSoloWinnerRef.current) {
@@ -612,6 +614,15 @@ function CribbageTable() {
     }
     prevSoloWinnerRef.current = state.winner;
   }, [state.winner, isMulti, recordSoloResult]);
+
+  const prevGameWinnerRef = useRef<string | null>(null);
+  useEffect(() => {
+    const w = state.winner;
+    if (w && w !== prevGameWinnerRef.current) {
+      end(w === "player" ? "won" : "lost");
+    }
+    prevGameWinnerRef.current = w;
+  }, [state.winner, end]);
 
   /** Commit a move: locally always, and to the shared table in a live match. */
   const apply = (fn: (current: State) => State) => {
@@ -669,6 +680,7 @@ function CribbageTable() {
     setCutSeated({ player: false, cpu: false });
     setViewingBoard(false);
     if (isMulti) void publish(isHost ? fresh : mirror(fresh));
+    beginNew();
   };
 
   // Rematch: the local player asks the opponent to play another game.

@@ -24,6 +24,7 @@ import { PlayerFlag } from "@/components/parlor/PlayerFlag";
 import { NicknameDialog } from "@/components/parlor/NicknameDialog";
 import { getNickname, RECONNECT_SECONDS, TURN_WARNING_SECONDS, useMatch, useTurnTimer } from "@/lib/multiplayer";
 import { useRecordMatchResult } from "@/lib/stats";
+import { useGameStarted } from "@/lib/games-started";
 import { playExplosion, playSinking, playSplash } from "@/lib/warship-sounds";
 import {
   FLEET,
@@ -171,6 +172,15 @@ function WarshipTable() {
   const proposedTimerOffRef = useRef(false);
   stateRef.current = state;
   useRecordMatchResult(match, isHost, state.rematch ? null : state.winner, matchId ? RECONNECT_SECONDS * 1000 : 0);
+  const { end, beginNew } = useGameStarted(game.name);
+  const prevGameWinnerRef = useRef<string | null>(null);
+  useEffect(() => {
+    const w = state.winner;
+    if (w && w !== prevGameWinnerRef.current) {
+      end(w === "human" ? "won" : "lost");
+    }
+    prevGameWinnerRef.current = w;
+  }, [state.winner, end]);
 
 
   const isMulti = Boolean(matchId);
@@ -241,6 +251,7 @@ function WarshipTable() {
     stateRef.current = fresh;
     setState(fresh);
     setViewingBoard(false);
+    beginNew();
     if (isMulti) void publish(isHost ? fresh : mirror(fresh));
   };
 

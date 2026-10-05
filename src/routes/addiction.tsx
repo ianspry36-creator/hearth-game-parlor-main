@@ -18,6 +18,7 @@ import { StatisticsDialog } from "@/components/parlor/StatisticsDialog";
 import { HistoryDialog } from "@/components/parlor/HistoryDialog";
 import { ConcedeButton } from "@/components/parlor/ConcedeButton";
 import { useSolitaireStats } from "@/lib/solitaireStats";
+import { useGameStarted } from "@/lib/games-started";
 import { CardMark } from "@/components/parlor/CardMark";
 import { RANK_LABEL, SUIT_SYMBOL, cardLabel, type Card, type Suit } from "@/lib/cribbage";
 import {
@@ -81,6 +82,7 @@ function AddictionTable() {
   const [hinting, setHinting] = useState(false);
   const [confirming, setConfirming] = useState<"new" | "home" | null>(null);
   const { recordResult } = useSolitaireStats(game.id);
+  const { end, beginNew } = useGameStarted(game.name);
   const [conceded, setConceded] = useState(false);
   const prevWonRef = useRef(false);
   // FLIP animation bookkeeping: the board container for measuring card slots,
@@ -89,17 +91,23 @@ function AddictionTable() {
   const boardRef = useRef<HTMLDivElement>(null);
   const flipRectsRef = useRef<Map<string, DOMRect> | null>(null);
   useEffect(() => {
-    if (state.won && !prevWonRef.current) recordResult("win");
+    if (state.won && !prevWonRef.current) {
+      recordResult("win");
+      end("won");
+    }
     prevWonRef.current = state.won;
-  }, [state.won, recordResult]);
+  }, [state.won, recordResult, end]);
 
   // Stuck with no shuffle left means the hand is lost.
   const lost = !state.won && shufflesRemaining(state) === 0 && !hasAnyMove(state.board);
   const prevLostRef = useRef(false);
   useEffect(() => {
-    if (lost && !prevLostRef.current) recordResult("loss");
+    if (lost && !prevLostRef.current) {
+      recordResult("loss");
+      end("lost");
+    }
     prevLostRef.current = lost;
-  }, [lost, recordResult]);
+  }, [lost, recordResult, end]);
 
   // Timer bookkeeping.
   const [elapsed, setElapsed] = useState(0);
@@ -225,11 +233,13 @@ function AddictionTable() {
     startRef.current = 0;
     endedRef.current = false;
     setConceded(false);
+    beginNew();
   };
 
   const concede = () => {
     if (state.won || lost || conceded) return;
     recordResult("loss");
+    end("conceded");
     setConceded(true);
   };
 

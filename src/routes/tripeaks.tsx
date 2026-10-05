@@ -25,6 +25,7 @@ import { StatisticsDialog } from "@/components/parlor/StatisticsDialog";
 import { HistoryDialog } from "@/components/parlor/HistoryDialog";
 import { ConcedeButton } from "@/components/parlor/ConcedeButton";
 import { useSolitaireStats } from "@/lib/solitaireStats";
+import { useGameStarted } from "@/lib/games-started";
 import { RANK_LABEL, SUIT_SYMBOL, cardLabel, type Card } from "@/lib/cribbage";
 import {
   PEAK_CARDS,
@@ -134,17 +135,24 @@ function TriPeaksTable() {
   const [confirming, setConfirming] = useState<"new" | "home" | null>(null);
   const [resultOpen, setResultOpen] = useState(false);
   const { recordResult } = useSolitaireStats(game.id);
+  const { end, beginNew } = useGameStarted(game.name);
   const [conceded, setConceded] = useState(false);
   const prevWonRef = useRef(false);
   useEffect(() => {
-    if (state.won && !prevWonRef.current) recordResult("win");
+    if (state.won && !prevWonRef.current) {
+      recordResult("win");
+      end("won");
+    }
     prevWonRef.current = state.won;
-  }, [state.won, recordResult]);
+  }, [state.won, recordResult, end]);
   const prevLostRef = useRef(false);
   useEffect(() => {
-    if (state.lost && !prevLostRef.current) recordResult("loss");
+    if (state.lost && !prevLostRef.current) {
+      recordResult("loss");
+      end("lost");
+    }
     prevLostRef.current = state.lost;
-  }, [state.lost, recordResult]);
+  }, [state.lost, recordResult, end]);
   const stateRef = useRef(state);
   stateRef.current = state;
   const gameNumberRef = useRef(gameNumber);
@@ -199,6 +207,7 @@ function TriPeaksTable() {
     startRef.current = 0;
     endedRef.current = false;
     setConceded(false);
+    beginNew();
   };
 
   const newRandomGame = () => deal(Math.floor(Math.random() * MAX_GAMES) + 1);
@@ -206,6 +215,7 @@ function TriPeaksTable() {
   const concede = () => {
     if (state.won || state.lost || conceded) return;
     recordResult("loss");
+    end("conceded");
     setConceded(true);
   };
 

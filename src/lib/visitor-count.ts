@@ -5,10 +5,17 @@ export async function recordVisit(): Promise<void> {
   await supabase.from("site_visits").insert({});
 }
 
-/** Total number of recorded visits. */
+/**
+ * Total number of recorded visits. Since the `id` column is an
+ * auto-incrementing identity, the latest record's id equals the running
+ * total, so we read that single row instead of counting every row.
+ */
 export async function getVisitCount(): Promise<number | null> {
-  const { count } = await supabase
+  const { data } = await supabase
     .from("site_visits")
-    .select("id", { count: "exact", head: true });
-  return count;
+    .select("id")
+    .order("id", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return data?.id ?? 0;
 }

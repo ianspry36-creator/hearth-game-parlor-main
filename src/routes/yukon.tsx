@@ -19,6 +19,7 @@ import { StatisticsDialog } from "@/components/parlor/StatisticsDialog";
 import { HistoryDialog } from "@/components/parlor/HistoryDialog";
 import { ConcedeButton } from "@/components/parlor/ConcedeButton";
 import { useSolitaireStats } from "@/lib/solitaireStats";
+import { useGameStarted } from "@/lib/games-started";
 import { RANK_LABEL, SUIT_SYMBOL, cardLabel, type Card } from "@/lib/cribbage";
 import {
   autoComplete,
@@ -102,11 +103,15 @@ function YukonTable() {
   const [confirming, setConfirming] = useState<"new" | "home" | null>(null);
   const [conceded, setConceded] = useState(false);
   const { recordResult } = useSolitaireStats(game.id);
+  const { end, beginNew } = useGameStarted(game.name);
   const prevWonRef = useRef(false);
   useEffect(() => {
-    if (state.won && !prevWonRef.current) recordResult("win");
+    if (state.won && !prevWonRef.current) {
+      recordResult("win");
+      end("won");
+    }
     prevWonRef.current = state.won;
-  }, [state.won, recordResult]);
+  }, [state.won, recordResult, end]);
   const stateRef = useRef(state);
   stateRef.current = state;
 
@@ -187,11 +192,13 @@ function YukonTable() {
     startRef.current = 0;
     endedRef.current = false;
     setConceded(false);
+    beginNew();
   };
 
   const concede = () => {
     if (state.won || conceded) return;
     recordResult("loss");
+    end("conceded");
     setConceded(true);
   };
 

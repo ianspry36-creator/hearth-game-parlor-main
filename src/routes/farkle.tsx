@@ -35,6 +35,7 @@ import {
 } from "@/lib/multiplayer";
 import { useRecordMatchResult } from "@/lib/stats";
 import { useSolitaireStats } from "@/lib/solitaireStats";
+import { useGameStarted } from "@/lib/games-started";
 import { ADA_AVATAR, readAvatar } from "@/lib/avatars";
 import { readFlag } from "@/lib/flags";
 import { FlagPicker } from "@/components/parlor/FlagPicker";
@@ -386,6 +387,7 @@ function FarkleTable() {
   // alongside the multiplayer leaderboard; live matches are handled by
   // useRecordMatchResult above instead.
   const { recordResult: recordSoloResult } = useSolitaireStats(game.id);
+  const { end, beginNew } = useGameStarted(game.name);
   const prevSoloWinnerRef = useRef<Seat | null>(null);
   useEffect(() => {
     if (!isMulti && state.winner && state.winner !== prevSoloWinnerRef.current) {
@@ -393,6 +395,15 @@ function FarkleTable() {
     }
     prevSoloWinnerRef.current = state.winner;
   }, [state.winner, isMulti, recordSoloResult]);
+
+  const prevGameWinnerRef = useRef<string | null>(null);
+  useEffect(() => {
+    const w = state.winner;
+    if (w && w !== prevGameWinnerRef.current) {
+      end(w === "human" ? "won" : "lost");
+    }
+    prevGameWinnerRef.current = w;
+  }, [state.winner, end]);
 
   const apply = (fn: (current: State) => State) => {
     const next = fn(stateRef.current);
@@ -442,6 +453,7 @@ function FarkleTable() {
     setViewingBoard(false);
     setState(fresh);
     if (isMulti) void publish(isHost ? fresh : mirror(fresh));
+    beginNew();
   };
 
   // Rematch: the local player asks the opponent to play another game.

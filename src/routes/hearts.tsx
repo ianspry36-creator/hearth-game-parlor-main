@@ -18,6 +18,7 @@ import { PlayerLeftDialog } from "@/components/parlor/PlayerLeftDialog";
 import { CryingTears } from "@/components/parlor/CryingTears";
 import { getGame } from "@/lib/games";
 import { getNickname } from "@/lib/multiplayer";
+import { useGameStarted } from "@/lib/games-started";
 import { ACE_AVATAR, ADA_AVATAR, LEO_AVATAR, readAvatar } from "@/lib/avatars";
 import { RANK_LABEL, SUIT_SYMBOL, cardLabel, type Card } from "@/lib/cribbage";
 import cardBackAsset from "@/assets/card-back.png";
@@ -204,6 +205,16 @@ function HeartsTable() {
   useEffect(() => {
     stateRef.current = state;
   }, [state]);
+
+  const { end, beginNew } = useGameStarted(game.name);
+  const prevGameWinnerRef = useRef<string | null>(null);
+  useEffect(() => {
+    const w = state.winner;
+    if (w && w !== prevGameWinnerRef.current) {
+      end(w === "you" ? "won" : "lost");
+    }
+    prevGameWinnerRef.current = w;
+  }, [state.winner, end]);
 
   const scheduleFlights = useCallback((flights: FlyingCard[]) => {
     const duration = flights[0]?.duration ?? FLIGHT_MS;
@@ -748,6 +759,7 @@ function HeartsTable() {
   }, [state.winner, state.points, playerAvatar, playerName]);
 
   const startNewGame = useCallback(() => {
+    beginNew();
     setState(idleState());
     setPassSelection([]);
     setIsDealing(false);
@@ -757,7 +769,7 @@ function HeartsTable() {
     setSweepWinner(null);
     setIncoming(null);
     playInFlightRef.current = false;
-  }, []);
+  }, [beginNew]);
 
   const setSeatRef = (seat: Seat) => (el: HTMLDivElement | null) => {
     seatRefs.current[seat] = el;
