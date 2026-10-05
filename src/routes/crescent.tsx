@@ -23,13 +23,14 @@ import { RANK_LABEL, SUIT_SYMBOL, cardLabel, type Card } from "@/lib/cribbage";
 import {
   foundationTarget,
   freshGame,
-  isDownFoundation,
   isRed,
   moveFoundationToTableau,
   moveTableauToFoundation,
   moveTableauToTableau,
+  nextDifficulty,
   readDifficulty,
   shuffleTableaus,
+  writeDifficulty,
   type Difficulty,
   type GameState,
 } from "@/lib/crescent";
@@ -74,20 +75,20 @@ type FlyingCard = {
 // Logical board geometry. Positions are expressed as percentages so the board
 // scales with its container while keeping the crescent shape intact.
 const BOARD_W = 1240;
-const BOARD_H = 1080;
+const BOARD_H = 850;
 
 // Crescent arch geometry: a half-circle swept from the left endpoint, over the
 // apex, down to the right endpoint.
 const CX = 620;
 const RX = 560;
 const RY = 360;
-const BASE_Y = 560;
+const BASE_Y = 440;
 const archX = (i: number) => CX + RX * Math.cos(Math.PI - (i / 15) * Math.PI);
 const archY = (i: number) => BASE_Y - RY * Math.sin(Math.PI - (i / 15) * Math.PI);
 
 // The four end piles on each side tuck under the 5th pile (index 4) and the
 // 12th pile (index 11), fanning downward so every card stays fully visible.
-const SIDE_GAP = 172;
+const SIDE_GAP = 140;
 const LEFT_ANCHOR = 4;
 const RIGHT_ANCHOR = 11;
 const ANCHOR_Y = archY(LEFT_ANCHOR); // == archY(RIGHT_ANCHOR), symmetric
@@ -107,8 +108,8 @@ const TABLEAU_POSITIONS = Array.from({ length: 16 }, (_, i) => {
 });
 
 /** Eight foundations in two centred rows: kings on top, aces below. */
-// The kings row is levelled with the 4th crescent card (tableau index 3).
-const KING_Y = ANCHOR_Y + SIDE_GAP;
+// The kings row is levelled with the 3rd crescent card (tableau index 2).
+const KING_Y = ANCHOR_Y + 2 * SIDE_GAP;
 const FOUNDATION_POSITIONS = Array.from({ length: 8 }, (_, i) => {
   const row = i < 4 ? 0 : 1;
   const col = i % 4;
@@ -120,6 +121,39 @@ const FOUNDATION_POSITIONS = Array.from({ length: 8 }, (_, i) => {
 type Selection = { type: "tableau"; index: number } | { type: "foundation"; index: number } | null;
 
 type DragSource = { type: "tableau"; index: number } | { type: "foundation"; index: number };
+
+/**
+ * The single card whose pile membership changed between two consecutive states
+ * (a tableau/foundation move). Used to animate an undo back to where the card
+ * came from. Returns null when nothing changed piles (e.g. a shuffle, which only
+ * rotates cards within their own piles).
+ */
+function findMovedCard(
+  current: GameState,
+  previous: GameState,
+): { card: Card; from: DragSource; to: DragSource } | null {
+  const locate = (gs: GameState, id: string): DragSource | null => {
+    for (let i = 0; i < gs.tableaus.length; i++)
+      if (gs.tableaus[i]!.some((c) => c.id === id)) return { type: "tableau", index: i };
+    for (let i = 0; i < gs.foundations.length; i++)
+      if (gs.foundations[i]!.some((c) => c.id === id)) return { type: "foundation", index: i };
+    return null;
+  };
+  const topOf = (gs: GameState, loc: DragSource): Card | undefined =>
+    loc.type === "tableau" ? gs.tableaus[loc.index]!.slice(-1)[0] : gs.foundations[loc.index]!.slice(-1)[0];
+  const ids = new Set<string>();
+  current.tableaus.forEach((p) => p.forEach((c) => ids.add(c.id)));
+  current.foundations.forEach((p) => p.forEach((c) => ids.add(c.id)));
+  for (const id of ids) {
+    const from = locate(current, id);
+    const to = locate(previous, id);
+    if (from && to && (from.type !== to.type || from.index !== to.index)) {
+      const card = topOf(current, from);
+      if (card) return { card, from, to };
+    }
+  }
+  return null;
+}
 
 function CrescentTable() {
   const navigate = useNavigate();
@@ -169,6 +203,20 @@ function CrescentTable() {
     setDealKey((k) => k + 1);
   };
 
+  // Difficulty is fixed once the game has started (the first card is moved).
+  const difficultyLocked = state.moves > 0;
+  const cycleDifficulty = () => {
+    if (difficultyLocked) return;
+    const next = nextDifficulty(difficulty);
+    setDifficulty(next);
+    writeDifficulty(next);
+    setState(freshGame(next));
+    setHistory([]);
+    setSelection(null);
+    setConceded(false);
+    setDealKey((k) => k + 1);
+  };
+
   const concede = () => {
     if (state.won || conceded) return;
     recordResult("loss");
@@ -182,6 +230,9 @@ function CrescentTable() {
   const undo = () => {
     if (history.length === 0 || conceded || state.won) return;
     const prev = history[history.length - 1]!;
+    // Fly the moved card back to where it came from before restoring the state.
+    const moved = findMovedCard(state, prev);
+    if (moved) flyCard(moved.from, moved.to, moved.card);
     setState(prev);
     setHistory(history.slice(0, -1));
     setSelection(null);
@@ -415,7 +466,7 @@ function CrescentTable() {
           </div>
         </header>
 
-        <div className="grid items-start gap-6">
+        <div className="grid items-start gap-6 lg:grid-cols-[1fr_280px]">
           <div className="relative select-none rounded-2xl border border-gold/20 bg-surface/40 p-2 sm:p-4">
             <div ref={boardRef} className="relative mx-auto w-full" style={{ aspectRatio: `${BOARD_W} / ${BOARD_H}` }}>
               <div key={dealKey} className="absolute inset-0">
@@ -543,6 +594,22 @@ function CrescentTable() {
                     </Button>
                   }
                 />
+                <div className="flex w-full items-center justify-between gap-2.5">
+                  <span className="text-xs uppercase tracking-[0.2em] text-ivory/50">Difficulty</span>
+                  <button
+                    type="button"
+                    onClick={cycleDifficulty}
+                    disabled={difficultyLocked}
+                    className="rounded-full border border-gold/25 bg-gold/5 px-2.5 py-0.5 text-xs capitalize text-cream transition-colors hover:border-gold/60 disabled:cursor-not-allowed disabled:opacity-50"
+                    title={
+                      difficultyLocked
+                        ? "Difficulty is locked once the game has started"
+                        : "Change difficulty"
+                    }
+                  >
+                    {difficulty}
+                  </button>
+                </div>
                 <FavouriteSwitch gameId="crescent" />
               </div>
             </div>
@@ -766,8 +833,13 @@ function FoundationPile({
   onPointerMove: (e: ReactPointerEvent) => void;
   onPointerUp: (e: ReactPointerEvent) => void;
 }) {
-  const top = pile[pile.length - 1];
-  const down = isDownFoundation(index);
+  // A card flying IN is already present in `pile` but stays hidden while its
+  // flight overlay crosses the board. Skip it so the foundation keeps showing
+  // the card it is about to land on, rather than vanishing until the overlay
+  // arrives to cover it.
+  let topIndex = pile.length - 1;
+  while (topIndex >= 0 && flyingIds.has(pile[topIndex]!.id)) topIndex -= 1;
+  const top = topIndex >= 0 ? pile[topIndex] : undefined;
   const isSelected = selection?.type === "foundation" && selection.index === index;
   return (
     <div
@@ -793,11 +865,6 @@ function FoundationPile({
         />
       ) : (
         <EmptySlot onClick={onClick} />
-      )}
-      {down && (
-        <span className="mt-0.5 text-[9px] font-semibold tracking-wider text-ivory/50">
-          K→A
-        </span>
       )}
     </div>
   );

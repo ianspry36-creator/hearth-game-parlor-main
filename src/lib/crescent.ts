@@ -25,6 +25,12 @@ export const DIFFICULTY_LABEL: Record<Difficulty, string> = {
 
 export const DIFFICULTIES: Difficulty[] = ["easy", "medium", "hard"];
 
+/** The next difficulty when the toggle is clicked, wrapping hard back to easy. */
+export function nextDifficulty(difficulty: Difficulty): Difficulty {
+  const index = DIFFICULTIES.indexOf(difficulty);
+  return DIFFICULTIES[(index + 1) % DIFFICULTIES.length]!;
+}
+
 export const DIFFICULTY_KEY = "parlor.crescent.difficulty";
 
 /** Read the saved difficulty (safe on the server and for corrupted storage). */
@@ -122,7 +128,9 @@ export function canPlaceOnFoundation(card: Card, foundation: Card[], index: numb
 
 /** A tableau accepts a same-suit card one rank higher or lower, wrapping at the ends. */
 export function canPlaceOnTableau(card: Card, tableau: Card[]): boolean {
-  if (tableau.length === 0) return true;
+  // Empty tableau piles stay empty for the rest of the hand; cards can only
+  // move onto a card of the same suit one rank higher or lower.
+  if (tableau.length === 0) return false;
   const top = tableau[tableau.length - 1]!;
   if (card.suit !== top.suit) return false;
   const higher = card.rank === top.rank + 1 || (top.rank === 13 && card.rank === 1);
