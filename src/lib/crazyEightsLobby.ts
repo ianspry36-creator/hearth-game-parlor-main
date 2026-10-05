@@ -42,7 +42,8 @@ export type GameRoomPlayer = {
 const ROOM_COLUMNS =
   "id, game, host_session, host_nickname, host_avatar, host_flag, password, is_public, max_seats, status, state, version, created_at, updated_at";
 
-const PLAYER_COLUMNS = "id, room_id, session_id, nickname, seat, avatar, flag, is_bot, joined_at, last_seen_at";
+const PLAYER_COLUMNS =
+  "id, room_id, session_id, nickname, seat, avatar, flag, is_bot, joined_at, last_seen_at";
 
 /**
  * How often a seated human reports in while a live table is open, so the other
@@ -108,15 +109,87 @@ export function isStalePlayingRoom(room: GameRoom | null | undefined): boolean {
  * are easy to read aloud and share without confusion.
  */
 const PASSWORD_WORDS = [
-  "moon", "star", "gold", "blue", "pine", "rose", "lake", "bird", "fish",
-  "rain", "snow", "fire", "wind", "wave", "sand", "clay", "iron", "seed",
-  "leaf", "fern", "moss", "hill", "peak", "cave", "dawn", "dusk", "mist",
-  "haze", "beam", "glow", "pear", "plum", "lime", "mint", "cove", "reef",
-  "tide", "dune", "bark", "twig", "root", "vine", "wolf", "dove", "deer", "hawk",
-  "lynx", "orca", "seal", "pike", "kite", "drum", "harp", "bell", "song",
-  "tale", "lore", "myth", "saga", "omen", "rune", "sign", "mark", "coin",
-  "onyx", "ring", "jade", "ruby", "opal", "coal", "rock", "sage", "surf",
-  "cape", "helm", "clan", "bard", "knot", "wool", "lamp", "frog",
+  "moon",
+  "star",
+  "gold",
+  "blue",
+  "pine",
+  "rose",
+  "lake",
+  "bird",
+  "fish",
+  "rain",
+  "snow",
+  "fire",
+  "wind",
+  "wave",
+  "sand",
+  "clay",
+  "iron",
+  "seed",
+  "leaf",
+  "fern",
+  "moss",
+  "hill",
+  "peak",
+  "cave",
+  "dawn",
+  "dusk",
+  "mist",
+  "haze",
+  "beam",
+  "glow",
+  "pear",
+  "plum",
+  "lime",
+  "mint",
+  "cove",
+  "reef",
+  "tide",
+  "dune",
+  "bark",
+  "twig",
+  "root",
+  "vine",
+  "wolf",
+  "dove",
+  "deer",
+  "hawk",
+  "lynx",
+  "orca",
+  "seal",
+  "pike",
+  "kite",
+  "drum",
+  "harp",
+  "bell",
+  "song",
+  "tale",
+  "lore",
+  "myth",
+  "saga",
+  "omen",
+  "rune",
+  "sign",
+  "mark",
+  "coin",
+  "onyx",
+  "ring",
+  "jade",
+  "ruby",
+  "opal",
+  "coal",
+  "rock",
+  "sage",
+  "surf",
+  "cape",
+  "helm",
+  "clan",
+  "bard",
+  "knot",
+  "wool",
+  "lamp",
+  "frog",
 ];
 
 // Passcodes must be exactly four lowercase letters (see isValidPassword), so
@@ -134,7 +207,10 @@ export function generatePassword(existing: Set<string>): string {
 
 /** Normalize a typed passcode for comparison (lowercase, trimmed). */
 export function normalizePassword(value: string): string {
-  return value.trim().toLowerCase().replace(/[^a-z]/g, "");
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z]/g, "");
 }
 
 export function isValidPassword(value: string): boolean {
@@ -377,7 +453,10 @@ export async function leaveRoom(roomId: string): Promise<void> {
     .eq("session_id", session)
     .maybeSingle();
   if (!me) return;
-  await supabase.from("game_room_players").delete().eq("id", (me as { id: string }).id);
+  await supabase
+    .from("game_room_players")
+    .delete()
+    .eq("id", (me as { id: string }).id);
 
   // If the host leaves an idle table, close it so no one is left stranded. A
   // table that has already started ("playing") must survive the host leaving so
@@ -788,6 +867,3 @@ export function useRoomPresence({
 
   return { notices, dismissNotice, remainingHumans, hadLeaver };
 }
-
-
-

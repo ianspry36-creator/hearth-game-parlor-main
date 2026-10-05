@@ -56,8 +56,14 @@ export function CrazyEightsLobby({
 }) {
   const { nickname, save } = useNickname();
   const { blockedUsers } = useBlockedUsers();
-  const { rooms, playersByRoom, myRoomId, myRoom, loading: lobbyLoading, refresh } =
-    useCrazyEightsLobby(game.id);
+  const {
+    rooms,
+    playersByRoom,
+    myRoomId,
+    myRoom,
+    loading: lobbyLoading,
+    refresh,
+  } = useCrazyEightsLobby(game.id);
   // Tables hosted by a blocked player are hidden from the lobby list.
   const visibleRooms = rooms.filter((room) => !blockedUsers.includes(room.host_nickname));
 
@@ -268,20 +274,29 @@ export function CrazyEightsLobby({
 
   return (
     <Dialog open={open} onOpenChange={close}>
-      <DialogContent className="border-gold/25 bg-surface sm:max-w-[21rem]">
+      <DialogContent className="border-gold/25 bg-surface max-w-[75vw] sm:max-w-[21rem]">
         <DialogHeader>
           <p className="text-[11px] uppercase tracking-[0.3em] text-gold">
             {game.name} · multiplayer lobby
           </p>
           <DialogTitle className="font-display text-3xl font-bold">
-            {stage === "name" ? "Your name at the table" : stage === "list" ? "Find a table" : "Your table"}
+            {stage === "name"
+              ? "Your name at the table"
+              : stage === "list"
+                ? "Find a table"
+                : "Your table"}
           </DialogTitle>
           <DialogDescription className="text-ivory/70">
-            {stage === "name"
-              ? "Enter a nickname before you join the lobby."
-              : stage === "list"
-                ? "Join an open table, or start your own for 2–4 live players."
-                : "Real players, one table, played move for move."}
+            {stage === "name" ? (
+              "Enter a nickname before you join the lobby."
+            ) : stage === "list" ? (
+              <>
+                Join an open table, or start your own for 2–4
+                <br className="sm:hidden" /> live players.
+              </>
+            ) : (
+              "Real players, one table, played move for move."
+            )}
           </DialogDescription>
         </DialogHeader>
 
@@ -326,19 +341,36 @@ export function CrazyEightsLobby({
         {stage === "list" ? (
           <div className="space-y-4">
             <div className="flex flex-col gap-2">
-              <Button variant="parlor" className="w-full" disabled={busy} onClick={() => void createPublic()}>
+              <Button
+                variant="parlor"
+                className="w-full"
+                disabled={busy}
+                onClick={() => void createPublic()}
+              >
                 Start a public table
               </Button>
-              <Button variant="parlorOutline" className="w-full" disabled={busy} onClick={() => void createPrivate()}>
+              <Button
+                variant="parlorOutline"
+                className="w-full"
+                disabled={busy}
+                onClick={() => void createPrivate()}
+              >
                 Create private table
               </Button>
-              <Button variant="parlorOutline" className="w-full" disabled={busy} onClick={() => setStage("join")}>
+              <Button
+                variant="parlorOutline"
+                className="w-full"
+                disabled={busy}
+                onClick={() => setStage("join")}
+              >
                 Join private table
               </Button>
             </div>
 
             <div>
-              <p className="mb-2 text-[11px] uppercase tracking-[0.22em] text-ivory/60">Open tables</p>
+              <p className="mb-2 text-[11px] uppercase tracking-[0.22em] text-ivory/60">
+                Open tables
+              </p>
               {lobbyLoading ? (
                 <p className="text-sm text-ivory/55">Looking for tables…</p>
               ) : visibleRooms.length === 0 ? (
@@ -365,7 +397,9 @@ export function CrazyEightsLobby({
                       )}
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <p className="truncate text-sm font-medium">{room.host_nickname}'s table</p>
+                          <p className="truncate text-sm font-medium">
+                            {room.host_nickname}'s table
+                          </p>
                           <PlayerFlag flag={room.host_flag} className="size-4" />
                         </div>
                         <p className="text-xs text-ivory/55">
@@ -568,7 +602,12 @@ export function CrazyEightsLobby({
             </div>
 
             <div className="flex gap-2">
-              <Button variant="parlorGhost" className="flex-1" disabled={busy} onClick={() => void leave()}>
+              <Button
+                variant="parlorGhost"
+                className="flex-1"
+                disabled={busy}
+                onClick={() => void leave()}
+              >
                 Leave
               </Button>
               {amHost ? (
@@ -592,6 +631,3 @@ export function CrazyEightsLobby({
     </Dialog>
   );
 }
-
-
-

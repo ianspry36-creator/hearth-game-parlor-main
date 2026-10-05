@@ -24,9 +24,21 @@ import { FlagPicker } from "@/components/parlor/FlagPicker";
 import { PlayerFlag } from "@/components/parlor/PlayerFlag";
 import { NicknameDialog } from "@/components/parlor/NicknameDialog";
 import { getGame } from "@/lib/games";
-import { getNickname, RECONNECT_SECONDS, TURN_WARNING_SECONDS, useMatch, useTurnTimer } from "@/lib/multiplayer";
+import {
+  getNickname,
+  RECONNECT_SECONDS,
+  TURN_WARNING_SECONDS,
+  useMatch,
+  useTurnTimer,
+} from "@/lib/multiplayer";
 import { useRecordMatchResult } from "@/lib/stats";
-import { isStalePlayingRoom, leaveRoom, useCrazyEightsRoom, useRoomPresence } from "@/lib/crazyEightsLobby";
+import {
+  isStalePlayingRoom,
+  leaveRoom,
+  PLAYER_STALE_MS,
+  useCrazyEightsRoom,
+  useRoomPresence,
+} from "@/lib/crazyEightsLobby";
 import { CrazyEightsLobby } from "@/components/parlor/CrazyEightsLobby";
 import { RANK_LABEL, SUIT_SYMBOL, cardLabel, type Card, type Suit } from "@/lib/cribbage";
 import cardBackAsset from "@/assets/card-back.png";
@@ -294,7 +306,10 @@ function CrazyEightsTable() {
   const navigate = useNavigate();
   const handlePlay = useCallback(
     (id: string) =>
-      navigate({ to: "/crazy-eights", search: { room: id, opponent: undefined, match: undefined } }),
+      navigate({
+        to: "/crazy-eights",
+        search: { room: id, opponent: undefined, match: undefined },
+      }),
     [navigate],
   );
   const { opponent, match: matchId, room: roomId } = Route.useSearch();
@@ -412,7 +427,17 @@ function CrazyEightsTable() {
     stateRef.current = next;
     setState(next);
     void publishRoom(remapState(next, mySeat, activeCount));
-  }, [isRoom, roomLoading, state.phase, roomIsHost, hadLeaver, remainingHumans, mySeat, activeCount, publishRoom]);
+  }, [
+    isRoom,
+    roomLoading,
+    state.phase,
+    roomIsHost,
+    hadLeaver,
+    remainingHumans,
+    mySeat,
+    activeCount,
+    publishRoom,
+  ]);
 
   // Deal the hand out one card at a time whenever a new hand is turned up.
   // Key on the deal id rather than `pile[0]` — recycling the discard pile would
@@ -473,7 +498,7 @@ function CrazyEightsTable() {
   }, []);
 
   const seatName = (seat: Seat): string => {
-    if (!isRoom) return seat === "you" ? getNickname() ?? SEAT_NAMES[seat] : SEAT_NAMES[seat];
+    if (!isRoom) return seat === "you" ? (getNickname() ?? SEAT_NAMES[seat]) : SEAT_NAMES[seat];
     const base = ORDER_BY_COUNT[activeCount];
     const viewIndex = base.indexOf(seat);
     const canonical = (mySeat + viewIndex) % activeCount;
@@ -571,7 +596,10 @@ function CrazyEightsTable() {
             timedOut,
             phase: "over",
             winner: remaining[0] ?? current.turn,
-            log: note(current.log, { side: current.turn, text: `${timedOutName} ran out of time.` }),
+            log: note(current.log, {
+              side: current.turn,
+              text: `${timedOutName} ran out of time.`,
+            }),
           };
         }
         return {
@@ -645,7 +673,16 @@ function CrazyEightsTable() {
     stateRef.current = fresh;
     setState(fresh);
     void publishRoom(fresh);
-  }, [isRoom, roomIsHost, roomRemoteState, roomLoading, liveRoom?.status, roomPlayerCount, activeCount, publishRoom]);
+  }, [
+    isRoom,
+    roomIsHost,
+    roomRemoteState,
+    roomLoading,
+    liveRoom?.status,
+    roomPlayerCount,
+    activeCount,
+    publishRoom,
+  ]);
 
   // Read the live room's canonical state into our own seat's view.
   useEffect(() => {
@@ -661,7 +698,10 @@ function CrazyEightsTable() {
     if (!isRoom || !roomId || roomLoading || !liveRoom) return;
     if (!isStalePlayingRoom(liveRoom)) return;
     void leaveRoom(roomId).then(() =>
-      navigate({ to: "/crazy-eights", search: { room: undefined, opponent: undefined, match: undefined } }),
+      navigate({
+        to: "/crazy-eights",
+        search: { room: undefined, opponent: undefined, match: undefined },
+      }),
     );
   }, [isRoom, roomId, roomLoading, liveRoom, navigate]);
 
@@ -790,9 +830,12 @@ function CrazyEightsTable() {
         setFlying((current) => [...current, flight]);
       }, index * STAGGER_MS);
     });
-    window.setTimeout(() => {
-      setFlying((current) => current.filter((f) => !flights.some((x) => x.key === f.key)));
-    }, (flights.length - 1) * STAGGER_MS + FLIGHT_MS);
+    window.setTimeout(
+      () => {
+        setFlying((current) => current.filter((f) => !flights.some((x) => x.key === f.key)));
+      },
+      (flights.length - 1) * STAGGER_MS + FLIGHT_MS,
+    );
   };
 
   /** Reveal the card being drawn once its flying copy has landed. */
@@ -827,11 +870,14 @@ function CrazyEightsTable() {
     setLayingIds(cards.map((c) => c.id));
     if (flights.length) {
       scheduleFlights(flights);
-      window.setTimeout(() => {
-        apply((current) => playCards(current, "you", cards));
-        setLayingIds([]);
-        layingRef.current = false;
-      }, (flights.length - 1) * STAGGER_MS + FLIGHT_MS);
+      window.setTimeout(
+        () => {
+          apply((current) => playCards(current, "you", cards));
+          setLayingIds([]);
+          layingRef.current = false;
+        },
+        (flights.length - 1) * STAGGER_MS + FLIGHT_MS,
+      );
     } else {
       apply((current) => playCards(current, "you", cards));
       setLayingIds([]);
@@ -895,10 +941,7 @@ function CrazyEightsTable() {
           })
           .filter((f): f is FlyingCard => f !== null);
         scheduleFlights(flights);
-        window.setTimeout(
-          () => setLayingIds([]),
-          (flights.length - 1) * STAGGER_MS + FLIGHT_MS,
-        );
+        window.setTimeout(() => setLayingIds([]), (flights.length - 1) * STAGGER_MS + FLIGHT_MS);
       });
     });
   };
@@ -942,7 +985,11 @@ function CrazyEightsTable() {
   const pass = () => {
     if (!myTurn || state.drew < MAX_DRAWS) return;
     setSelectedIds([]);
-    apply((current) => ({ ...current, turn: nextTurn("you", current.order, current.timedOut ?? []), drew: 0 }));
+    apply((current) => ({
+      ...current,
+      turn: nextTurn("you", current.order, current.timedOut ?? []),
+      drew: 0,
+    }));
   };
 
   // Speech bubble above the active computer seat while it draws, one per card.
@@ -973,7 +1020,15 @@ function CrazyEightsTable() {
       if (!roomIsHost) return;
       const turnIndex = ORDER_BY_COUNT[activeCount].indexOf(seat);
       const occupant = roomPlayers.find((p) => p.seat === turnIndex);
-      if (!occupant?.is_bot) return;
+      // A seat with no player row (a human left mid-game and hasn't been
+      // re-seated yet) or a human whose heartbeat has gone silent is driven by
+      // the computer; otherwise the table stalls waiting for a move that will
+      // never arrive.
+      const isBotSeat =
+        !occupant ||
+        occupant.is_bot ||
+        Date.now() - Date.parse(occupant.last_seen_at) > PLAYER_STALE_MS;
+      if (!isBotSeat) return;
     }
     const timer = setTimeout(() => {
       const current = stateRef.current;
@@ -1038,10 +1093,13 @@ function CrazyEightsTable() {
         // land so they don't show up on the up card before the animation ends.
         setLayingIds(played.map((c) => c.id));
         scheduleFlights(flights);
-        window.setTimeout(() => {
-          commit();
-          setLayingIds([]);
-        }, (flights.length - 1) * STAGGER_MS + FLIGHT_MS);
+        window.setTimeout(
+          () => {
+            commit();
+            setLayingIds([]);
+          },
+          (flights.length - 1) * STAGGER_MS + FLIGHT_MS,
+        );
       } else {
         commit();
       }
@@ -1075,7 +1133,6 @@ function CrazyEightsTable() {
           setDrawingId(null);
         }
       }
-
     }, 900);
     return () => clearTimeout(timer);
   }, [
@@ -1086,6 +1143,7 @@ function CrazyEightsTable() {
     roomPlayers,
     mySeat,
     activeCount,
+    publishRoom,
     state.phase,
     state.turn,
     state.drew,
@@ -1199,12 +1257,7 @@ function CrazyEightsTable() {
       hideOpponent
       waitingRoomLabel="Human"
       lobby={({ open, onOpenChange }) => (
-        <CrazyEightsLobby
-          game={game}
-          open={open}
-          onOpenChange={onOpenChange}
-          onPlay={handlePlay}
-        />
+        <CrazyEightsLobby game={game} open={open} onOpenChange={onOpenChange} onPlay={handlePlay} />
       )}
       onPlayerCount={startGame}
       playerCount={activeCount}
@@ -1219,28 +1272,44 @@ function CrazyEightsTable() {
       rail={null}
       menuExtra={
         <>
-        <TurnOffTimerControl
-          showButton={
-            isLive && state.phase !== "over" && !state.winner && !state.timerOff && !state.timerProposed
-          }
-          showPrompt={state.timerRequest != null && state.timerRequest !== "you"}
-          opponentName={opponentName}
-          declined={proposedTimerOffRef.current && state.timerDeclined}
-          agreed={proposedTimerOffRef.current && state.timerAgreed}
-          onRequest={() => {
-            proposedTimerOffRef.current = true;
-            apply((current) => ({ ...current, timerProposed: true, timerRequest: "you" }));
-          }}
-          onAccept={() =>
-            apply((current) => ({ ...current, timerOff: true, timerAgreed: true, timerRequest: null }))
-          }
-          onDecline={() => apply((current) => ({ ...current, timerRequest: null, timerDeclined: true }))}
-        />
-        {!state.winner && state.phase !== "over" && (
-          <Button variant="parlorGhost" size="sm" className="w-full h-6" onClick={() => setConcedeOpen(true)}>
-            Concede
-          </Button>
-        )}
+          <TurnOffTimerControl
+            showButton={
+              isLive &&
+              state.phase !== "over" &&
+              !state.winner &&
+              !state.timerOff &&
+              !state.timerProposed
+            }
+            showPrompt={state.timerRequest != null && state.timerRequest !== "you"}
+            opponentName={opponentName}
+            declined={proposedTimerOffRef.current && state.timerDeclined}
+            agreed={proposedTimerOffRef.current && state.timerAgreed}
+            onRequest={() => {
+              proposedTimerOffRef.current = true;
+              apply((current) => ({ ...current, timerProposed: true, timerRequest: "you" }));
+            }}
+            onAccept={() =>
+              apply((current) => ({
+                ...current,
+                timerOff: true,
+                timerAgreed: true,
+                timerRequest: null,
+              }))
+            }
+            onDecline={() =>
+              apply((current) => ({ ...current, timerRequest: null, timerDeclined: true }))
+            }
+          />
+          {!state.winner && state.phase !== "over" && (
+            <Button
+              variant="parlorGhost"
+              size="sm"
+              className="w-full h-6"
+              onClick={() => setConcedeOpen(true)}
+            >
+              Concede
+            </Button>
+          )}
         </>
       }
       containerClassName="px-1.5 sm:px-3"
@@ -1385,7 +1454,9 @@ function CrazyEightsTable() {
                   <button
                     type="button"
                     onClick={draw}
-                    disabled={!myTurn || state.drew >= MAX_DRAWS || !state.deck.length || canPlayNow}
+                    disabled={
+                      !myTurn || state.drew >= MAX_DRAWS || !state.deck.length || canPlayNow
+                    }
                     aria-label="Draw a card"
                     ref={stockRef}
                     className="block transition-transform enabled:hover:-translate-y-1 disabled:opacity-60"
@@ -1535,11 +1606,15 @@ function CrazyEightsTable() {
           </div>
           <div className="mt-3 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
             <div className="flex items-center justify-start">
-              {myTurn && !canPlaySelected && !canPlayNow && state.drew < MAX_DRAWS && state.deck.length > 0 && (
-                <Button variant="parlor" onClick={draw}>
-                  Draw a card
-                </Button>
-              )}
+              {myTurn &&
+                !canPlaySelected &&
+                !canPlayNow &&
+                state.drew < MAX_DRAWS &&
+                state.deck.length > 0 && (
+                  <Button variant="parlor" onClick={draw}>
+                    Draw a card
+                  </Button>
+                )}
             </div>
             <div className="flex items-center gap-3">
               <div className="relative">
@@ -1657,8 +1732,16 @@ function OpponentSeat({
       : "animate-deal-out"
     : "";
   return (
-    <div className={vertical ? `flex items-center gap-2 md:gap-4 ${avatarSide === "right" ? "flex-row-reverse" : ""}` : ""}>
-      <div className={`flex items-center gap-3 ${vertical ? "flex-col gap-1" : "mb-2 justify-center"}`}>
+    <div
+      className={
+        vertical
+          ? `flex items-center gap-2 md:gap-4 ${avatarSide === "right" ? "flex-row-reverse" : ""}`
+          : ""
+      }
+    >
+      <div
+        className={`flex items-center gap-3 ${vertical ? "flex-col gap-1" : "mb-2 justify-center"}`}
+      >
         <div className="relative">
           <img
             src={avatar}
@@ -1689,16 +1772,12 @@ function OpponentSeat({
         </div>
         {vertical ? (
           <div className="flex flex-col items-center gap-0.5">
-            <p className="text-[11px] uppercase tracking-[0.22em] text-ivory/45">
-              {name}
-            </p>
+            <p className="text-[11px] uppercase tracking-[0.22em] text-ivory/45">{name}</p>
             {flag ? <PlayerFlag flag={flag} className="size-4" /> : null}
           </div>
         ) : (
           <div className="flex items-center gap-1.5">
-            <p className="text-[11px] uppercase tracking-[0.22em] text-ivory/45">
-              {name}
-            </p>
+            <p className="text-[11px] uppercase tracking-[0.22em] text-ivory/45">{name}</p>
             {flag ? <PlayerFlag flag={flag} className="size-4" /> : null}
           </div>
         )}
@@ -1754,11 +1833,7 @@ function FlyingCardView({ flight }: { flight: FlyingCard }) {
         transform: `translate(${dx}px, ${dy}px)`,
       }}
     >
-      {flight.faceDown ? (
-        <FaceDownCard table />
-      ) : (
-        <PlayingCard card={flight.card} table />
-      )}
+      {flight.faceDown ? <FaceDownCard table /> : <PlayingCard card={flight.card} table />}
     </div>
   );
 }
@@ -1827,24 +1902,82 @@ function PlayingCard({
       {/* corner index */}
       <span
         className={`absolute left-1 top-0.5 flex flex-col items-center leading-none font-display font-bold ${
-          tiny ? "text-sm" : small ? "text-base" : medium ? "text-2xl" : table ? "text-xl" : "text-2xl"
+          tiny
+            ? "text-sm"
+            : small
+              ? "text-base"
+              : medium
+                ? "text-2xl"
+                : table
+                  ? "text-xl"
+                  : "text-2xl"
         }`}
       >
         <span className="font-[Times_New_Roman,serif]">{rank}</span>
-        <span className={tiny ? "text-[13px]" : small ? "text-[14px]" : medium ? "text-[22px]" : table ? "text-[18px]" : "text-[22px]"}>{suit}</span>
+        <span
+          className={
+            tiny
+              ? "text-[13px]"
+              : small
+                ? "text-[14px]"
+                : medium
+                  ? "text-[22px]"
+                  : table
+                    ? "text-[18px]"
+                    : "text-[22px]"
+          }
+        >
+          {suit}
+        </span>
       </span>
 
       {/* graphic */}
       <span
         aria-hidden
         className={`absolute inset-0 grid place-items-center font-display ${
-          tiny ? "text-3xl" : small ? "text-4xl" : medium ? "text-6xl" : table ? "text-[40.8px]" : "text-6xl"
+          tiny
+            ? "text-3xl"
+            : small
+              ? "text-4xl"
+              : medium
+                ? "text-6xl"
+                : table
+                  ? "text-[40.8px]"
+                  : "text-6xl"
         } ${isFace ? "opacity-90" : "opacity-80"}`}
       >
         {isFace ? (
           <span className="flex flex-col items-center leading-none">
-            <span className={tiny ? "text-lg" : small ? "text-xl" : medium ? "text-4xl" : table ? "text-3xl" : "text-4xl"}>{rank}</span>
-            <span className={tiny ? "text-2xl" : small ? "text-3xl" : medium ? "text-5xl" : table ? "text-[30.6px]" : "text-5xl"}>{suit}</span>
+            <span
+              className={
+                tiny
+                  ? "text-lg"
+                  : small
+                    ? "text-xl"
+                    : medium
+                      ? "text-4xl"
+                      : table
+                        ? "text-3xl"
+                        : "text-4xl"
+              }
+            >
+              {rank}
+            </span>
+            <span
+              className={
+                tiny
+                  ? "text-2xl"
+                  : small
+                    ? "text-3xl"
+                    : medium
+                      ? "text-5xl"
+                      : table
+                        ? "text-[30.6px]"
+                        : "text-5xl"
+              }
+            >
+              {suit}
+            </span>
           </span>
         ) : (
           suit
@@ -1854,11 +1987,33 @@ function PlayingCard({
       {/* mirrored bottom-right index */}
       <span
         className={`absolute bottom-0.5 right-1 flex rotate-180 flex-col items-center leading-none font-display font-bold ${
-          tiny ? "text-sm" : small ? "text-base" : medium ? "text-2xl" : table ? "text-xl" : "text-2xl"
+          tiny
+            ? "text-sm"
+            : small
+              ? "text-base"
+              : medium
+                ? "text-2xl"
+                : table
+                  ? "text-xl"
+                  : "text-2xl"
         }`}
       >
         <span className="font-[Times_New_Roman,serif]">{rank}</span>
-        <span className={tiny ? "text-[13px]" : small ? "text-[14px]" : medium ? "text-[22px]" : table ? "text-[18px]" : "text-[22px]"}>{suit}</span>
+        <span
+          className={
+            tiny
+              ? "text-[13px]"
+              : small
+                ? "text-[14px]"
+                : medium
+                  ? "text-[22px]"
+                  : table
+                    ? "text-[18px]"
+                    : "text-[22px]"
+          }
+        >
+          {suit}
+        </span>
       </span>
 
       <span className="sr-only">{cardLabel(card)}</span>
