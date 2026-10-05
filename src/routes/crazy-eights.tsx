@@ -1362,7 +1362,7 @@ function CrazyEightsTable() {
                 cards={state.hands.ace ?? []}
                 handEls={seatHandEls.current}
                 vertical
-                rotation="rotate-180"
+                rotation="-rotate-90"
                 active={state.turn === "ace"}
                 countdown={countdown}
                 dealing={dealing}
@@ -1838,13 +1838,13 @@ function PlayingCard({
       <span
         aria-hidden
         className={`absolute inset-0 grid place-items-center font-display ${
-          tiny ? "text-3xl" : small ? "text-4xl" : medium ? "text-6xl" : table ? "text-5xl" : "text-6xl"
+          tiny ? "text-3xl" : small ? "text-4xl" : medium ? "text-6xl" : table ? "text-[40.8px]" : "text-6xl"
         } ${isFace ? "opacity-90" : "opacity-80"}`}
       >
         {isFace ? (
           <span className="flex flex-col items-center leading-none">
             <span className={tiny ? "text-lg" : small ? "text-xl" : medium ? "text-4xl" : table ? "text-3xl" : "text-4xl"}>{rank}</span>
-            <span className={tiny ? "text-2xl" : small ? "text-3xl" : medium ? "text-5xl" : table ? "text-4xl" : "text-5xl"}>{suit}</span>
+            <span className={tiny ? "text-2xl" : small ? "text-3xl" : medium ? "text-5xl" : table ? "text-[30.6px]" : "text-5xl"}>{suit}</span>
           </span>
         ) : (
           suit

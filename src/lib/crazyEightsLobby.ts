@@ -778,15 +778,12 @@ export function useRoomPresence({
   }, []);
 
   // Humans still at the table (us included). When this is 1, we are the last
-  // human standing and should win the game.
+  // human standing and should win the game. A human only stops counting once
+  // their seat is handed to a computer (or their row is deleted), not when
+  // their heartbeat merely goes quiet — otherwise a slow heartbeat can briefly
+  // read as "everyone else left" and end the game early.
   const remainingHumans = enabled
-    ? 1 +
-      players.filter(
-        (p) =>
-          !p.is_bot &&
-          p.session_id !== sessionId &&
-          Date.parse(p.last_seen_at) > Date.now() - PLAYER_STALE_MS,
-      ).length
+    ? 1 + players.filter((p) => !p.is_bot && p.session_id !== sessionId).length
     : players.length;
 
   return { notices, dismissNotice, remainingHumans, hadLeaver };

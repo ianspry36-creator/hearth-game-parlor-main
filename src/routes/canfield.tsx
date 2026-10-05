@@ -23,6 +23,7 @@ import { RANK_LABEL, SUIT_SYMBOL, cardLabel, type Card } from "@/lib/cribbage";
 import {
   autoComplete,
   canAutoComplete,
+  canPlaceOnTableau,
   cardsHome,
   drawStock,
   foundationTarget,
@@ -116,6 +117,7 @@ function CanfieldTable() {
   const [flying, setFlying] = useState<FlyingCard[]>([]);
   const flightKeyRef = useRef(0);
   const reserveTopRef = useRef<HTMLDivElement | null>(null);
+  const wasteTopRef = useRef<HTMLDivElement | null>(null);
   const tableauRefs = useRef<(HTMLDivElement | null)[]>([]);
   const prevWonRef = useRef(false);
   useEffect(() => {
@@ -233,6 +235,48 @@ function CanfieldTable() {
     }, FLIGHT_MS);
   };
 
+  const animateWasteToTableau = (toIndex: number) => {
+    const before = stateRef.current;
+    if (before.waste.length === 0) return;
+    const next = moveWasteToTableau(before, toIndex);
+    if (next === before) return;
+
+    const card = before.waste[before.waste.length - 1]!;
+    const sourceRect = wasteTopRef.current?.getBoundingClientRect();
+    const pileRect = tableauRefs.current[toIndex]?.getBoundingClientRect();
+
+    // Without a measured source or target (e.g. before the board paints) just move.
+    if (!sourceRect || !pileRect) {
+      apply(next);
+      return;
+    }
+
+    const visible =
+      parseFloat(
+        getComputedStyle(document.documentElement).getPropertyValue("--canfield-visible"),
+      ) || 24;
+    const key = flightKeyRef.current++;
+    const to = {
+      x: pileRect.left,
+      y: pileRect.top + before.tableau[toIndex]!.length * visible,
+    };
+
+    // Lift the card out of the waste right away so it visibly flies off, then
+    // commit the whole move (recording `before` in history) once it lands.
+    setState((current) => ({ ...current, waste: current.waste.slice(0, -1) }));
+    setSelection(null);
+    setFlying((current) => [
+      ...current,
+      { key, card, from: { x: sourceRect.left, y: sourceRect.top }, to },
+    ]);
+
+    window.setTimeout(() => {
+      setFlying((current) => current.filter((f) => f.key !== key));
+      setHistory((h) => [...h, before]);
+      setState(!next.won && canAutoComplete(next) ? autoComplete(next) : next);
+    }, FLIGHT_MS);
+  };
+
   const reset = () => {
     setState(freshGame());
     setFlying([]);
@@ -320,7 +364,7 @@ function CanfieldTable() {
       return;
     }
     if (selection) {
-      if (selection.type === "waste") apply(moveWasteToTableau(state, index));
+      if (selection.type === "waste") animateWasteToTableau(index);
       else if (selection.type === "reserve") animateReserveToTableau(index);
       else if (selection.type === "foundation")
         apply(moveFoundationToTableau(state, selection.index, index));
@@ -337,7 +381,18 @@ function CanfieldTable() {
     if (state.waste.length === 0) return;
     const card = state.waste[state.waste.length - 1]!;
     const target = foundationTarget(card, state.foundations, state.baseRank);
-    if (target !== null) apply(moveWasteToFoundation(state, target));
+    if (target !== null) {
+      apply(moveWasteToFoundation(state, target));
+      setSelection(null);
+      return;
+    }
+    // No foundation for the card: fly it onto the first tableau pile that takes it.
+    for (let i = 0; i < state.tableau.length; i += 1) {
+      if (canPlaceOnTableau([card], state.tableau[i]!)) {
+        animateWasteToTableau(i);
+        break;
+      }
+    }
     setSelection(null);
   };
 
@@ -413,7 +468,7 @@ function CanfieldTable() {
     clearDrag();
     if (!src) return;
     const s = stateRef.current;
-    if (src.type === "waste") apply(moveWasteToTableau(s, index));
+    if (src.type === "waste") animateWasteToTableau(index);
     else if (src.type === "reserve") animateReserveToTableau(index);
     else if (src.type === "foundation") apply(moveFoundationToTableau(s, src.index, index));
     else if (src.type === "tableau") apply(moveTableauToTableau(s, src.index, src.cardIndex, index));
@@ -468,6 +523,7 @@ function CanfieldTable() {
                   onDoubleClick={doubleClickWaste}
                   onDragStart={(e) => beginDrag({ type: "waste" }, e)}
                   onDragEnd={clearDrag}
+                  topRef={(el) => (wasteTopRef.current = el)}
                 />
               </div>
               <div className="flex gap-1">
@@ -768,6 +824,7 @@ function WastePile({
   onDoubleClick,
   onDragStart,
   onDragEnd,
+  topRef,
 }: {
   cards: Card[];
   selected: boolean;
@@ -775,6 +832,7 @@ function WastePile({
   onDoubleClick: () => void;
   onDragStart: (e: DragEvent<HTMLButtonElement>) => void;
   onDragEnd: () => void;
+  topRef?: (el: HTMLDivElement | null) => void;
 }) {
   const visible = cards.slice(-3);
   if (visible.length === 0) return <EmptySlot />;
@@ -786,7 +844,7 @@ function WastePile({
           <CardBack />
         </div>
       ))}
-      <div className="relative z-10">
+      <div className="relative z-10" ref={topRef}>
         <CardFace
           card={top}
           selected={selected}
