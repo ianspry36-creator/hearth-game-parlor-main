@@ -523,7 +523,7 @@ function YukonTable() {
         </div>
 
         <div className="mt-8 grid items-start gap-6 lg:grid-cols-[1fr_260px]">
-          <div className="select-none relative rounded-2xl border border-gold/15 bg-surface/40 py-4 px-0 sm:py-6 sm:px-0">
+          <div className="select-none relative rounded-2xl border border-gold/15 bg-[#4c9a2a] py-4 px-0 text-black sm:py-6 sm:px-0">
             <div className="mb-6 flex justify-center gap-2">
               {state.foundations.map((pile, index) => (
                 <FoundationSlot
@@ -563,7 +563,7 @@ function YukonTable() {
               ))}
             </div>
 
-            <p className="mt-6 text-center text-xs text-ivory/50">
+            <p className="mt-6 text-center text-xs text-black">
               Build four suits up from the Ace. Lift any face-up card — and everything above it,
               ordered or not — onto an opposite-coloured card one rank higher. Double-click a card
               to send it home.
@@ -825,18 +825,22 @@ function EmptySlot({
   onClick,
   symbol,
   red,
+  black,
 }: {
   onClick?: () => void;
   symbol?: string;
   red?: boolean;
+  black?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       aria-label="Empty pile"
-      className={`grid h-[var(--yukon-card-h)] w-[var(--yukon-card-w)] place-items-center rounded-md border border-dashed border-gold/30 text-lg ${
-        red ? "text-[#c0392b]" : symbol ? "text-[var(--yukon-ink)]" : "text-gold/30"
+      className={`grid h-[var(--yukon-card-h)] w-[var(--yukon-card-w)] place-items-center rounded-md border border-dashed ${
+        black ? "border-black" : "border-gold/30"
+      } text-lg ${
+        red ? "text-[#c0392b]" : symbol ? "text-black" : "text-gold/30"
       }`}
     >
       {symbol ?? "♚"}
@@ -872,7 +876,7 @@ function FoundationSlot({
   return (
     <div className="relative" data-drop="foundation" ref={slotRef}>
       {!top ? (
-        <EmptySlot onClick={onClick} symbol={suitSymbol} red={redSuit} />
+        <EmptySlot onClick={onClick} symbol={suitSymbol} red={redSuit} black />
       ) : (
         <>
           {pile.length > 1 && (

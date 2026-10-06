@@ -367,10 +367,10 @@ function KingsInTheCornerTable() {
         </div>
 
         <div className="mt-1.5 grid items-start gap-6 lg:grid-cols-[1fr_260px]">
-          <div className="select-none relative rounded-2xl border border-gold/15 bg-surface/40 px-5 pb-5 pt-1 sm:p-8">
+          <div className="select-none relative rounded-2xl border border-gold/15 bg-[#4c9a2a] px-5 pb-5 pt-1 text-[#000000] sm:p-8">
             <div className="mb-1 flex items-start justify-center gap-5 sm:mb-6">
               <div className="flex items-center gap-2">
-                <span className="text-[10px] text-ivory/50">{state.stock.length}</span>
+                <span className="text-[10px] text-[#000000]">{state.stock.length}</span>
                 <div className="relative">
                   {state.stock.length > 0 ? (
                     <>
@@ -453,7 +453,7 @@ function KingsInTheCornerTable() {
               )}
             </div>
 
-            <p className="mt-6 text-center text-xs text-ivory/50">
+            <p className="mt-6 text-center text-xs text-[#000000]">
               Drag the drawn card onto an empty slot, or drag one card onto another to pair off ten.
               Tap a ten to clear it alone.
             </p>
@@ -691,15 +691,15 @@ function SlotCell({
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       aria-label={cardLabel(card)}
-      className={`relative block h-[var(--kic-card-h)] w-[var(--kic-card-w)] shrink-0 touch-none select-none rounded-lg border border-black/10 bg-white text-left shadow-md shadow-black/30 transition-transform ${
+      className={`relative block h-[var(--kic-card-h)] w-[var(--kic-card-w)] shrink-0 touch-none select-none rounded-lg border border-black bg-white text-left shadow-md shadow-black/30 transition-transform ${
         red ? "text-[#c0392b]" : "text-ink"
       } ${selected ? "-translate-y-1 ring-2 ring-gold" : ""} ${draggingIds?.has(card.id) ? "invisible" : ""}`}
     >
       <span className="absolute left-0.5 top-0.5 flex flex-col items-center font-display text-[18px] font-bold leading-none sm:left-1 sm:top-1 sm:text-sm">
-        <span className="font-[Times_New_Roman,serif]">{RANK_LABEL[card.rank]}</span>
+        <span className={`font-[Times_New_Roman,serif] ${card.rank > 10 ? "text-[#000000]" : ""}`}>{RANK_LABEL[card.rank]}</span>
         <span className="mt-0.5 text-[16px] sm:text-xs">{SUIT_SYMBOL[card.suit]}</span>
       </span>
-      <span className="absolute inset-0 grid place-items-center text-[28px] sm:text-3xl">
+      <span className={`absolute inset-0 grid place-items-center text-[28px] sm:text-3xl ${card.rank > 10 ? "text-[#000000]" : ""}`}>
         {isFaceCard ? RANK_LABEL[card.rank] : SUIT_SYMBOL[card.suit]}
       </span>
     </button>
@@ -727,15 +727,15 @@ function CardFace({
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
-      className={`relative block h-[var(--kic-card-h)] w-[var(--kic-card-w)] touch-none select-none rounded-lg border border-black/10 bg-white text-left shadow-md shadow-black/30 ${
+      className={`relative block h-[var(--kic-card-h)] w-[var(--kic-card-w)] touch-none select-none rounded-lg border border-black bg-white text-left shadow-md shadow-black/30 ${
         red ? "text-[#c0392b]" : "text-ink"
       } ${hidden ? "opacity-0" : ""}`}
     >
       <span className="absolute left-0.5 top-0.5 flex flex-col items-center font-display text-[18px] font-bold leading-none sm:left-1 sm:top-1 sm:text-sm">
-        <span className="font-[Times_New_Roman,serif]">{RANK_LABEL[card.rank]}</span>
+        <span className={`font-[Times_New_Roman,serif] ${card.rank > 10 ? "text-[#000000]" : ""}`}>{RANK_LABEL[card.rank]}</span>
         <span className="mt-0.5 text-[16px] sm:text-xs">{SUIT_SYMBOL[card.suit]}</span>
       </span>
-      <span className="absolute inset-0 grid place-items-center text-[28px] sm:text-3xl">
+      <span className={`absolute inset-0 grid place-items-center text-[28px] sm:text-3xl ${card.rank > 10 ? "text-[#000000]" : ""}`}>
         {isFaceCard ? RANK_LABEL[card.rank] : SUIT_SYMBOL[card.suit]}
       </span>
     </div>

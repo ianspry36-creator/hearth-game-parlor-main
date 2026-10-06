@@ -944,7 +944,7 @@ function HeartsTable() {
         <HeartsLobby game={game} open={open} onOpenChange={onOpenChange} onPlay={handlePlay} />
       )}
       containerClassName="px-1.5 sm:px-3"
-      boxClassName="pl-[5px] sm:pl-8 pt-2.5 sm:pt-4"
+      boxClassName="bg-[#4c9a2a] text-black pl-[5px] sm:pl-8 pt-2.5 sm:pt-4"
       menuExtra={
         state.phase !== "ready" && state.phase !== "over" ? (
           <Button variant="parlorGhost" size="sm" className="w-full h-6" onClick={() => setConcedeOpen(true)}>
@@ -1044,7 +1044,7 @@ function HeartsTable() {
                 <CardBack className="absolute left-[4px] top-[4px] h-[49px] w-[38px] sm:left-[8px] sm:top-[8px] sm:h-[117px] sm:w-[90px]" />
               </div>
               {isDealing ? (
-                <p className="text-sm text-ivory/70">Dealing…</p>
+                <p className="text-sm text-black">Dealing…</p>
               ) : (
                 <Button variant="parlor" className="min-w-32" onClick={dealCards}>Deal</Button>
               )}
@@ -1056,12 +1056,12 @@ function HeartsTable() {
                 Pass {passSelection.length}/3
               </Button>
             ) : (
-              <p className="font-display text-base text-gold">
+              <p className="font-display text-base text-black">
                 Waiting for opponents to choose their cards…
               </p>
             ))}
           {state.phase === "dealing" && (
-            <p className="text-sm text-ivory/70">
+            <p className="text-sm text-black">
               {isRoom ? "Dealing the next hand…" : "Hand scored — ready to deal"}
             </p>
           )}
@@ -1070,17 +1070,17 @@ function HeartsTable() {
               {/* Fixed-height status block: pin the text to the top so the turn,
                   hearts-broken and trick-won messages never shift as cards move. */}
               <div className="flex min-h-[68px] flex-col items-center justify-start gap-0.5">
-                <p className="text-sm text-ivory/70">
+                <p className="text-sm text-black">
                   {state.turn === "you" ? "Your turn" : `${seatName(state.turn)} is playing`}
                 </p>
                 {mustLeadTwo && (
-                  <p className="text-sm font-semibold text-gold">You must lead the 2 of Clubs</p>
+                  <p className="text-sm font-semibold text-black">You must lead the 2 of Clubs</p>
                 )}
                 {state.heartsBroken && (
                   <p className="text-xs text-destructive">Hearts have been broken</p>
                 )}
                 {commentary && (
-                  <p className="font-display text-base text-gold">{commentary}</p>
+                  <p className="font-display text-base text-black">{commentary}</p>
                 )}
               </div>
               {/* Fixed-height trick row: reserve the four-card footprint so the text
@@ -1089,7 +1089,7 @@ function HeartsTable() {
                 {state.trick.length > 0 ? (
                   <TrickRow trick={state.trick} names={seatNames} resigned={resignedSeats} />
                 ) : (
-                  <p className="text-xs text-ivory/40">Lead a card to start the trick</p>
+                  <p className="text-xs text-black">Lead a card to start the trick</p>
                 )}
               </div>
             </>

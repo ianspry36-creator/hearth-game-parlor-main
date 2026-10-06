@@ -478,7 +478,7 @@ function TriPeaksTable() {
         </div>
 
         <div className="mt-6 grid items-start gap-6 lg:grid-cols-[1fr_260px]">
-          <div className="select-none relative rounded-2xl border border-gold/15 bg-surface/40 p-4 sm:p-6">
+          <div className="select-none relative rounded-2xl border border-gold/15 bg-[#4c9a2a] p-4 text-black sm:p-6">
             <div className="flex items-start justify-center gap-8">
               <StockPile
                 count={state.stock.length}
@@ -529,6 +529,7 @@ function TriPeaksTable() {
             <div className="mt-6 flex justify-center">
               <Button
                 variant="parlorGhost"
+                className="bg-black text-white border-black hover:bg-black/80"
                 onClick={undo}
                 disabled={history.length === 0 || state.won || conceded}
               >
@@ -787,9 +788,13 @@ function CardBack() {
   );
 }
 
-function EmptySlot() {
+function EmptySlot({ black }: { black?: boolean }) {
   return (
-    <div className="grid h-[var(--tripeaks-card-h)] w-[var(--tripeaks-card-w)] place-items-center rounded-md border border-dashed border-gold/30 text-gold/30" />
+    <div
+      className={`grid h-[var(--tripeaks-card-h)] w-[var(--tripeaks-card-w)] place-items-center rounded-md border border-dashed ${
+        black ? "border-black" : "border-gold/30"
+      } text-gold/30`}
+    />
   );
 }
 
@@ -829,7 +834,7 @@ function StockPile({
           <EmptySlot />
         )}
       </div>
-      <span className="text-[10px] uppercase tracking-[0.18em] text-ivory/45">Stock</span>
+      <span className="text-[10px] uppercase tracking-[0.18em] text-black">Stock</span>
     </div>
   );
 }
@@ -850,9 +855,9 @@ function WastePile({
             <CardBack />
           </div>
         )}
-        {top ? <CardFace card={top} /> : <EmptySlot />}
+        {top ? <CardFace card={top} /> : <EmptySlot black />}
       </div>
-      <span className="text-[10px] uppercase tracking-[0.18em] text-ivory/45">Waste</span>
+      <span className="text-[10px] uppercase tracking-[0.18em] text-black">Waste</span>
     </div>
   );
 }

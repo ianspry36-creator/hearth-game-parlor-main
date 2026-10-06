@@ -381,7 +381,7 @@ function AddictionTable() {
         </header>
 
         <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_260px]">
-          <div className="select-none relative rounded-2xl border border-gold/20 bg-surface/40 p-4 sm:p-8">
+          <div className="select-none relative rounded-2xl border border-gold/20 bg-[#4c9a2a] p-4 text-black sm:p-8">
             <div className="space-y-8">
               <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-center">
                 <Stat label="Moves" value={String(state.moves)} />
@@ -425,12 +425,12 @@ function AddictionTable() {
                     variant="parlorOutline"
                     onClick={shuffle}
                     disabled={remaining === 0 || state.won}
-                    className="scale-90 sm:scale-100"
+                    className="scale-90 text-black sm:scale-100"
                   >
                     Shuffle{remaining > 0 ? ` (${remaining} left)` : ""}
                   </Button>
                 </div>
-                <span className="text-xs uppercase tracking-[0.2em] text-ivory/40">
+                <span className="text-xs uppercase tracking-[0.2em] text-black">
                   Four rows · Thirteen slots · One suit each
                 </span>
               </div>
@@ -575,9 +575,9 @@ function AddictionTable() {
 function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
     <div className="flex flex-col items-center">
-      <span className="text-[10px] uppercase tracking-[0.2em] text-ivory/45">{label}</span>
-      <span className="font-display text-xl font-bold leading-tight">{value}</span>
-      {hint ? <span className="text-[10px] text-ivory/40">{hint}</span> : null}
+      <span className="text-[10px] uppercase tracking-[0.2em] text-black">{label}</span>
+      <span className="font-display text-xl font-bold leading-tight text-black">{value}</span>
+      {hint ? <span className="text-[10px] text-black">{hint}</span> : null}
     </div>
   );
 }

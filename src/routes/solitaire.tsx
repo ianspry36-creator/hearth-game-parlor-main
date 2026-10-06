@@ -182,6 +182,48 @@ function SolitaireTable() {
     }, FLIGHT_MS);
   };
 
+  const animateWasteToTableau = (card: Card, to: number) => {
+    const before = stateRef.current;
+    const next = moveWasteToTableau(before, to);
+    if (next === before) return;
+    const sourceEl = wasteRef.current;
+    // Land on the target pile's top card, or the empty slot for a King.
+    const destEl = tableauTopRefs.current[to] ?? tableauSlotRefs.current[to];
+    const sourceRect = sourceEl?.getBoundingClientRect();
+    const destRect = destEl?.getBoundingClientRect();
+    if (!sourceRect || !destRect) {
+      apply(next);
+      return;
+    }
+    // A card dropped onto an occupied pile renders one "visible" notch below
+    // the current top card, so aim the flight at that landing spot.
+    const visiblePx =
+      parseFloat(
+        getComputedStyle(document.documentElement).getPropertyValue("--solitaire-visible"),
+      ) || 22;
+    const destTop =
+      tableauTopRefs.current[to] != null ? destRect.top + visiblePx : destRect.top;
+    const key = flightKeyRef.current++;
+    setState((cur) => ({ ...cur, waste: cur.waste.slice(0, -1) }));
+    setSelection(null);
+    setFlying((cur) => [
+      ...cur,
+      {
+        key,
+        card,
+        from: { x: sourceRect.left, y: sourceRect.top },
+        to: { x: destRect.left, y: destTop },
+      },
+    ]);
+    window.setTimeout(() => {
+      setFlying((cur) => cur.filter((f) => f.key !== key));
+      setHistory((h) => [...h, before]);
+      let committed = next;
+      if (!committed.won && canAutoComplete(committed)) committed = autoComplete(committed);
+      setState(committed);
+    }, FLIGHT_MS);
+  };
+
   const reset = () => {
     setState(freshGame());
     setHistory([]);
@@ -230,7 +272,7 @@ function SolitaireTable() {
       animateToFoundation({ type: "waste" }, card);
     } else {
       const to = state.tableau.findIndex((pile) => canPlaceOnTableau([card], pile));
-      if (to !== -1) apply(moveWasteToTableau(state, to));
+      if (to !== -1) animateWasteToTableau(card, to);
     }
     setSelection(null);
   };
@@ -324,6 +366,7 @@ function SolitaireTable() {
   const foundationRefs = useRef<(HTMLDivElement | null)[]>([]);
   const wasteRef = useRef<HTMLDivElement | null>(null);
   const tableauTopRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const tableauSlotRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   const cardsFor = (source: DragSource): Card[] => {
     const s = stateRef.current;
@@ -429,7 +472,7 @@ function SolitaireTable() {
         </header>
 
         <div className="grid items-start gap-6 lg:grid-cols-[1fr_260px]">
-          <div className="select-none relative rounded-2xl border border-gold/20 bg-surface/40 p-5 sm:p-8">
+          <div className="select-none relative rounded-2xl border border-gold/20 bg-[#4c9a2a] p-5 text-black sm:p-8">
             <div>
               <div className="flex flex-wrap items-start justify-between gap-6">
                 <div className="flex items-start gap-4">
@@ -480,16 +523,18 @@ function SolitaireTable() {
                     onPointerUp={endDrag}
                     draggingIds={draggingIds}
                     topCardRef={(el) => (tableauTopRefs.current[index] = el)}
+                    slotRef={(el) => (tableauSlotRefs.current[index] = el)}
                   />
                 ))}
               </div>
 
               <div className="mt-8 flex items-center justify-center gap-3 border-t border-gold/15 pt-4">
-                <span className="text-sm text-ivory/60">
+                <span className="text-sm text-black">
                   {state.moves} {state.moves === 1 ? "move" : "moves"}
                 </span>
                 <Button
                   variant="parlorGhost"
+                  className="bg-black text-white border-black hover:bg-black/80"
                   onClick={undo}
                   disabled={history.length === 0 || conceded}
                 >
@@ -662,11 +707,11 @@ function FlyingCardView({ flight }: { flight: FlyingCard }) {
           red ? "text-[#c0392b]" : "text-ink"
         }`}
       >
-        <span className="absolute left-0.5 top-0.5 flex flex-col items-center font-display text-xl font-bold leading-none">
+        <span className="absolute left-0.5 top-0.5 flex flex-col items-center font-display text-[18px] font-bold leading-none sm:text-xl">
           <span className="font-[Times_New_Roman,serif]">{RANK_LABEL[flight.card.rank]}</span>
-          <span className="text-lg">{SUIT_SYMBOL[flight.card.suit]}</span>
+          <span className="text-[16px] sm:text-lg">{SUIT_SYMBOL[flight.card.suit]}</span>
         </span>
-        <span className="absolute inset-0 grid place-items-center text-4xl">
+        <span className="absolute inset-0 grid place-items-center text-[28px] sm:text-4xl">
           {isFace ? RANK_LABEL[flight.card.rank] : SUIT_SYMBOL[flight.card.suit]}
         </span>
       </div>
@@ -708,11 +753,11 @@ function CardFace({
         red ? "text-[#c0392b]" : "text-ink"
       } ${selected ? "-translate-y-1 ring-2 ring-gold" : ""} ${hidden ? "opacity-0" : ""}`}
     >
-      <span className="absolute left-0.5 top-0.5 flex flex-col items-center font-display text-xl font-bold leading-none">
+      <span className="absolute left-0.5 top-0.5 flex flex-col items-center font-display text-[18px] font-bold leading-none sm:text-xl">
         <span className="font-[Times_New_Roman,serif]">{RANK_LABEL[card.rank]}</span>
-        <span className="text-lg">{SUIT_SYMBOL[card.suit]}</span>
+        <span className="text-[16px] sm:text-lg">{SUIT_SYMBOL[card.suit]}</span>
       </span>
-      <span className="absolute inset-0 grid place-items-center text-4xl">
+      <span className="absolute inset-0 grid place-items-center text-[28px] sm:text-4xl">
         {isFace ? RANK_LABEL[card.rank] : SUIT_SYMBOL[card.suit]}
       </span>
     </button>
@@ -736,17 +781,21 @@ function EmptySlot({
   onClick,
   symbol,
   red,
+  black,
 }: {
   onClick?: () => void;
   symbol?: string;
   red?: boolean;
+  black?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       aria-label="Empty pile"
-      className={`grid h-[var(--solitaire-card-h)] w-[var(--solitaire-card-w)] place-items-center rounded-md border border-dashed border-gold/30 text-2xl ${
+      className={`grid h-[var(--solitaire-card-h)] w-[var(--solitaire-card-w)] place-items-center rounded-md border border-dashed ${
+        black ? "border-black" : "border-gold/30"
+      } text-2xl ${
         red ? "text-[#c0392b]" : symbol ? "text-[var(--yukon-ink)]" : "text-gold/30"
       }`}
     >
@@ -759,7 +808,7 @@ function StockPile({ count, onClick }: { count: number; onClick: () => void }) {
   return (
     <div className="relative">
       {count > 0 ? <CardBack onClick={onClick} /> : <EmptySlot onClick={onClick} />}
-      <span className="absolute -bottom-4 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] text-ivory/50">
+      <span className="absolute -bottom-4 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] text-black">
         {count}
       </span>
     </div>
@@ -788,7 +837,7 @@ function WastePile({
   onPointerUp: (e: ReactPointerEvent) => void;
 }) {
   const top = cards[cards.length - 1];
-  if (!top) return <EmptySlot />;
+  if (!top) return <EmptySlot black />;
   return (
     <div className="relative">
       {cards.length > 1 && (
@@ -845,7 +894,7 @@ function FoundationSlot({
   return (
     <div className="relative" data-drop="foundation" ref={slotRef}>
       {!top ? (
-        <EmptySlot onClick={onClick} symbol={suitSymbol} red={redSuit} />
+        <EmptySlot black onClick={onClick} symbol={suitSymbol} red={redSuit} />
       ) : (
         <>
           {pile.length > 1 && (
@@ -876,6 +925,7 @@ function TableauPile({
   selection,
   draggingIds,
   topCardRef,
+  slotRef,
   onCardClick,
   onDoubleClick,
   onPointerDownCard,
@@ -887,6 +937,7 @@ function TableauPile({
   selection: Selection;
   draggingIds?: Set<string> | null;
   topCardRef?: (el: HTMLDivElement | null) => void;
+  slotRef?: (el: HTMLDivElement | null) => void;
   onCardClick: (index: number, cardIndex: number) => void;
   onDoubleClick: (index: number) => void;
   onPointerDownCard: (cardIndex: number) => (e: ReactPointerEvent) => void;
@@ -896,7 +947,7 @@ function TableauPile({
   const empty = pile.faceDown.length === 0 && pile.faceUp.length === 0;
   const canFlip = pile.faceUp.length === 0 && pile.faceDown.length > 0;
   return (
-    <div className="flex flex-col items-center" data-drop="tableau" data-index={index}>
+    <div className="flex flex-col items-center" data-drop="tableau" data-index={index} ref={slotRef}>
       <div className="flex flex-col items-stretch">
         {pile.faceDown.map((card, i) => {
           const isTop = i === pile.faceDown.length - 1;
@@ -904,7 +955,7 @@ function TableauPile({
             <div
               key={card.id}
               style={{
-                marginTop: i === 0 ? 0 : "calc(var(--solitaire-visible) - var(--solitaire-card-h))",
+                marginTop: i === 0 ? 0 : "calc(var(--solitaire-down) - var(--solitaire-card-h))",
               }}
             >
               {canFlip && isTop ? <CardBack onClick={() => onCardClick(index, 0)} /> : <CardBack />}
@@ -915,16 +966,17 @@ function TableauPile({
           const isSelected =
             selection?.type === "tableau" && selection.index === index && selection.cardIndex === i;
           const isTop = i === pile.faceUp.length - 1;
+          const marginTop =
+            i === 0
+              ? pile.faceDown.length > 0
+                ? "calc(var(--solitaire-down) - var(--solitaire-card-h))"
+                : 0
+              : "calc(var(--solitaire-visible) - var(--solitaire-card-h))";
           return (
             <div
               key={card.id}
               ref={isTop ? topCardRef : undefined}
-              style={{
-                marginTop:
-                  pile.faceDown.length === 0 && i === 0
-                    ? 0
-                    : "calc(var(--solitaire-visible) - var(--solitaire-card-h))",
-              }}
+              style={{ marginTop }}
             >
               <CardFace
                 card={card}

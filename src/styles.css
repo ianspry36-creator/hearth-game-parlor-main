@@ -926,13 +926,15 @@
   --solitaire-card-h: 135px;
   --solitaire-card-w: 96px;
   --solitaire-visible: 22px;
+  --solitaire-down: 8px;
 }
 
 @media (max-width: 639.98px) {
   :root {
     --solitaire-card-h: 70.23px; /* 135 * 0.5202 */
     --solitaire-card-w: 49.94px; /* 96 * 0.5202 */
-    --solitaire-visible: 11.44px; /* 22 * 0.5202 */
+    --solitaire-visible: 20px;
+    --solitaire-down: 7px;
   }
 }
 

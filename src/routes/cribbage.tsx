@@ -1316,7 +1316,7 @@ function CribbageTable() {
 
   const CribPile = () => (
     <div className="text-center">
-      <p className="mb-2 text-[10px] uppercase tracking-[0.2em] text-gold">Crib</p>
+      <p className="mb-2 text-[10px] uppercase tracking-[0.2em] text-black">Crib</p>
       <div
         ref={cribRef}
         className="flex justify-start [&>*:not(:first-child)]:-ml-3 sm:[&>*:not(:first-child)]:-ml-[50.4px]"
@@ -1398,7 +1398,7 @@ function CribbageTable() {
         </>
       }
       containerClassName="px-3 sm:px-6"
-      boxClassName="py-[2.4px] sm:py-[4.8px]"
+      boxClassName="bg-[#4c9a2a] text-black py-[2.4px] sm:py-[4.8px]"
       gridClassName="grid gap-1.5"
       containerMaxWidth="max-w-[76rem]"
       below={

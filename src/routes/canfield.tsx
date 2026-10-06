@@ -25,7 +25,6 @@ import {
   autoComplete,
   canAutoComplete,
   canPlaceOnTableau,
-  cardsHome,
   drawStock,
   foundationTarget,
   freshGame,
@@ -78,11 +77,6 @@ function formatElapsed(seconds: number): string {
   return `${minutes}:${rest.toString().padStart(2, "0")}`;
 }
 
-const BEST_MOVES_KEY = "canfield-best-moves";
-const BEST_TIME_KEY = "canfield-best-time";
-
-type Best = { moves: number; time: number };
-
 type Selection =
   | { type: "waste" }
   | { type: "reserve" }
@@ -121,6 +115,7 @@ function CanfieldTable() {
   const reserveTopRef = useRef<HTMLDivElement | null>(null);
   const wasteTopRef = useRef<HTMLDivElement | null>(null);
   const tableauRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const foundationRefs = useRef<(HTMLDivElement | null)[]>([]);
   const prevWonRef = useRef(false);
   useEffect(() => {
     if (state.won && !prevWonRef.current) {
@@ -138,9 +133,6 @@ function CanfieldTable() {
   const startRef = useRef(0);
   const endedRef = useRef(false);
 
-  // Best scores, loaded from local storage once on the client.
-  const [best, setBest] = useState<Best>({ moves: 0, time: 0 });
-
   useEffect(() => {
     setState(freshGame());
     setHistory([]);
@@ -154,14 +146,6 @@ function CanfieldTable() {
       if (!endedRef.current && startRef.current !== 0) setElapsed(Math.floor((Date.now() - startRef.current) / 1000));
     }, 250);
 
-    try {
-      const moves = Number(localStorage.getItem(BEST_MOVES_KEY) || 0);
-      const time = Number(localStorage.getItem(BEST_TIME_KEY) || 0);
-      setBest({ moves: moves > 0 ? moves : 0, time: time > 0 ? time : 0 });
-    } catch {
-      // local storage unavailable; ignore
-    }
-
     return () => window.clearInterval(id);
   }, []);
 
@@ -174,27 +158,60 @@ function CanfieldTable() {
     endedRef.current = state.won || conceded;
     if (state.won && finishedElapsed === null) {
       setFinishedElapsed(elapsed);
-      try {
-        const bestMoves = Number(localStorage.getItem(BEST_MOVES_KEY) || 0);
-        const bestTime = Number(localStorage.getItem(BEST_TIME_KEY) || 0);
-        const newMoves = bestMoves === 0 || state.moves < bestMoves ? state.moves : bestMoves;
-        const newTime = bestTime === 0 || elapsed < bestTime ? elapsed : bestTime;
-        localStorage.setItem(BEST_MOVES_KEY, String(newMoves));
-        localStorage.setItem(BEST_TIME_KEY, String(newTime));
-        setBest({ moves: newMoves, time: newTime });
-      } catch {
-        // ignore
-      }
     }
-  }, [state.won, finishedElapsed, elapsed, state.moves, conceded]);
+  }, [state.won, finishedElapsed, elapsed, conceded]);
 
   const shownElapsed = finishedElapsed ?? elapsed;
 
+  // A reserve card that was auto-dealt into a just-cleared tableau pile should
+  // glide across the board instead of snapping into place.
+  const animateSettleFill = (candidate: GameState, fillIndex: number): boolean => {
+    const card = candidate.tableau[fillIndex]![0]!;
+    const sourceRect = reserveTopRef.current?.getBoundingClientRect();
+    const pileRect = tableauRefs.current[fillIndex]?.getBoundingClientRect();
+
+    // Without a measured source or target (e.g. before the board paints) just move.
+    if (!sourceRect || !pileRect) return false;
+
+    const key = flightKeyRef.current++;
+    const to = { x: pileRect.left, y: pileRect.top };
+
+    // Commit the player's move now but keep the reserve card held out and the
+    // cleared pile empty, so the card can be seen flying across the board.
+    const intermediate: GameState = {
+      ...candidate,
+      tableau: candidate.tableau.map((p, i) => (i === fillIndex ? [] : p)),
+    };
+    setState(intermediate);
+    setFlying((current) => [
+      ...current,
+      { key, card, from: { x: sourceRect.left, y: sourceRect.top }, to },
+    ]);
+
+    window.setTimeout(() => {
+      setFlying((current) => current.filter((f) => f.key !== key));
+      setState(candidate);
+    }, FLIGHT_MS);
+
+    return true;
+  };
+
   const apply = (candidate: GameState) => {
     if (candidate === state) return;
-    setHistory((h) => [...h, state]);
+    const before = state;
+    setHistory((h) => [...h, before]);
     setSelection(null);
-    if (!candidate.won && canAutoComplete(candidate)) candidate = autoComplete(candidate);
+    if (!candidate.won && canAutoComplete(candidate)) {
+      candidate = autoComplete(candidate);
+    } else if (candidate.reserve.length < before.reserve.length) {
+      // A tableau pile was cleared, so a reserve card was dealt into it
+      // automatically. Animate that card gliding from the reserve.
+      const movedCard = before.reserve[before.reserve.length - 1]!;
+      const fillIndex = candidate.tableau.findIndex(
+        (pile) => pile.length > 0 && pile[0]!.id === movedCard.id,
+      );
+      if (fillIndex !== -1 && animateSettleFill(candidate, fillIndex)) return;
+    }
     setState(candidate);
   };
 
@@ -282,6 +299,41 @@ function CanfieldTable() {
     }, FLIGHT_MS);
   };
 
+  const animateWasteToFoundation = (foundationIndex: number) => {
+    const before = stateRef.current;
+    if (before.waste.length === 0) return;
+    const next = moveWasteToFoundation(before, foundationIndex);
+    if (next === before) return;
+
+    const card = before.waste[before.waste.length - 1]!;
+    const sourceRect = wasteTopRef.current?.getBoundingClientRect();
+    const pileRect = foundationRefs.current[foundationIndex]?.getBoundingClientRect();
+
+    // Without a measured source or target (e.g. before the board paints) just move.
+    if (!sourceRect || !pileRect) {
+      apply(next);
+      return;
+    }
+
+    const key = flightKeyRef.current++;
+    const to = { x: pileRect.left, y: pileRect.top };
+
+    // Lift the card out of the waste right away so it visibly flies off, then
+    // commit the whole move (recording `before` in history) once it lands.
+    setState((current) => ({ ...current, waste: current.waste.slice(0, -1) }));
+    setSelection(null);
+    setFlying((current) => [
+      ...current,
+      { key, card, from: { x: sourceRect.left, y: sourceRect.top }, to },
+    ]);
+
+    window.setTimeout(() => {
+      setFlying((current) => current.filter((f) => f.key !== key));
+      setHistory((h) => [...h, before]);
+      setState(!next.won && canAutoComplete(next) ? autoComplete(next) : next);
+    }, FLIGHT_MS);
+  };
+
   const reset = () => {
     setState(freshGame());
     setFlying([]);
@@ -333,7 +385,7 @@ function CanfieldTable() {
         const card = currentState.waste[currentState.waste.length - 1];
         if (card) {
           const target = foundationTarget(card, currentState.foundations, currentState.baseRank);
-          if (target !== null) apply(moveWasteToFoundation(currentState, target));
+          if (target !== null) animateWasteToFoundation(target);
         }
       } else if (selection.type === "reserve") {
         const card = currentState.reserve[currentState.reserve.length - 1];
@@ -389,7 +441,7 @@ function CanfieldTable() {
     const card = state.waste[state.waste.length - 1]!;
     const target = foundationTarget(card, state.foundations, state.baseRank);
     if (target !== null) {
-      apply(moveWasteToFoundation(state, target));
+      animateWasteToFoundation(target);
       setSelection(null);
       return;
     }
@@ -461,7 +513,7 @@ function CanfieldTable() {
     clearDrag();
     if (!src) return;
     const s = stateRef.current;
-    if (src.type === "waste") apply(moveWasteToFoundation(s, index));
+    if (src.type === "waste") animateWasteToFoundation(index);
     else if (src.type === "reserve") apply(moveReserveToFoundation(s, index));
     else if (src.type === "tableau") {
       if (src.cardIndex === s.tableau[src.index]!.length - 1)
@@ -513,13 +565,18 @@ function CanfieldTable() {
         <div className="flex flex-wrap items-center justify-center gap-6 border-y border-gold/15 py-4 text-center">
           <Stat label="Moves" value={String(state.moves)} />
           <Stat label="Time" value={formatElapsed(shownElapsed)} />
-          <Stat label="Cards home" value={String(cardsHome(state))} />
-          <Stat label="Best moves" value={best.moves > 0 ? String(best.moves) : "—"} />
-          <Stat label="Best time" value={best.time > 0 ? formatElapsed(best.time) : "—"} />
+          <Button
+            variant="parlorGhost"
+            className="bg-black text-white border-black hover:bg-black/80"
+            onClick={undo}
+            disabled={history.length === 0 || state.won || conceded}
+          >
+            Undo
+          </Button>
         </div>
 
         <div className="mt-8 grid items-start gap-6 lg:grid-cols-[1fr_260px]">
-          <div className="select-none relative rounded-2xl border border-gold/15 bg-surface/40 p-4 sm:p-6">
+          <div className="select-none relative rounded-2xl border border-gold/15 bg-[#4c9a2a] p-4 sm:p-6">
             <div className="mb-6 flex flex-wrap items-start justify-between gap-6">
               <div className="flex items-start gap-2">
                 <StockPile count={state.stock.length} onClick={clickStock} />
@@ -545,6 +602,7 @@ function CanfieldTable() {
                     onDragOver={highlightFoundation(index)}
                     onDrop={dropOnFoundation(index)}
                     isDropTarget={dragOverTarget?.type === "foundation" && dragOverTarget.index === index}
+                    containerRef={(el) => (foundationRefs.current[index] = el)}
                   />
                 ))}
               </div>
@@ -561,7 +619,7 @@ function CanfieldTable() {
                   onDragEnd={clearDrag}
                   topRef={(el) => (reserveTopRef.current = el)}
                 />
-                <span className="text-[10px] uppercase tracking-[0.18em] text-ivory/45">
+                <span className="text-[10px] uppercase tracking-[0.18em] text-black">
                   Reserve
                 </span>
               </div>
@@ -585,7 +643,7 @@ function CanfieldTable() {
               </div>
             </div>
 
-            <p className="mt-6 text-center text-xs text-ivory/50">
+            <p className="mt-6 text-center text-xs text-black">
               Build the foundations up from the {RANK_LABEL[state.baseRank]}, wrapping King to Ace.
               Double-click a card to send it home.
             </p>
@@ -655,14 +713,6 @@ function CanfieldTable() {
                     </Button>
                   }
                 />
-                <Button
-                  variant="parlorGhost"
-                  className="w-full"
-                  onClick={undo}
-                  disabled={history.length === 0 || state.won || conceded}
-                >
-                  Undo
-                </Button>
                 <StatisticsDialog
                   game={game}
                   trigger={
@@ -754,11 +804,11 @@ function CardFace({
         red ? "text-[#c0392b]" : "text-ink"
       } ${selected ? "-translate-y-1 ring-2 ring-gold" : ""}`}
     >
-      <span className="absolute left-0.5 top-0.5 flex flex-col items-center font-display text-[9px] font-bold leading-none sm:left-1 sm:top-1 sm:text-sm">
+      <span className="absolute left-0.5 top-0.5 flex flex-col items-center font-display text-[11px] font-bold leading-none sm:left-1 sm:top-1 sm:text-sm">
         <span className="font-[Times_New_Roman,serif]">{RANK_LABEL[card.rank]}</span>
-        <span className="mt-0.5 text-[8px] sm:text-xs">{SUIT_SYMBOL[card.suit]}</span>
+        <span className="mt-0.5 text-[10px] sm:text-xs">{SUIT_SYMBOL[card.suit]}</span>
       </span>
-      <span className="absolute inset-0 grid place-items-center text-sm sm:text-2xl">
+      <span className="absolute inset-0 grid place-items-center text-[17px] sm:text-2xl">
         {isFaceCard ? RANK_LABEL[card.rank] : SUIT_SYMBOL[card.suit]}
       </span>
     </button>
@@ -778,13 +828,23 @@ function CardBack({ onClick }: { onClick?: () => void }) {
   );
 }
 
-function EmptySlot({ onClick, symbol }: { onClick?: () => void; symbol?: string }) {
+function EmptySlot({
+  onClick,
+  symbol,
+  black,
+}: {
+  onClick?: () => void;
+  symbol?: string;
+  black?: boolean;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
       aria-label="Empty pile"
-      className="grid h-[var(--canfield-card-h)] w-[var(--canfield-card-w)] place-items-center rounded-md border border-dashed border-gold/30 text-lg text-gold/30"
+      className={`grid h-[var(--canfield-card-h)] w-[var(--canfield-card-w)] place-items-center rounded-md border border-dashed ${
+        black ? "border-black" : "border-gold/30"
+      } text-lg text-gold/30`}
     >
       {symbol ?? ""}
     </button>
@@ -842,7 +902,7 @@ function WastePile({
   topRef?: (el: HTMLDivElement | null) => void;
 }) {
   const visible = cards.slice(-3);
-  if (visible.length === 0) return <EmptySlot />;
+  if (visible.length === 0) return <EmptySlot black />;
   const top = visible[visible.length - 1]!;
   return (
     <div className="flex items-start">
@@ -875,6 +935,7 @@ function FoundationSlot({
   onDragOver,
   onDrop,
   isDropTarget,
+  containerRef,
 }: {
   pile: Card[];
   selected: boolean;
@@ -884,16 +945,18 @@ function FoundationSlot({
   onDragOver: (e: DragEvent<HTMLDivElement>) => void;
   onDrop: (e: DragEvent<HTMLDivElement>) => void;
   isDropTarget: boolean;
+  containerRef?: (el: HTMLDivElement | null) => void;
 }) {
   const top = pile[pile.length - 1];
   return (
     <div
+      ref={containerRef}
       className={`relative rounded-md ${isDropTarget ? "ring-2 ring-gold" : ""}`}
       onDragOver={onDragOver}
       onDrop={onDrop}
     >
       {!top ? (
-        <EmptySlot onClick={onClick} />
+        <EmptySlot onClick={onClick} black />
       ) : (
         <>
           {pile.length > 1 && (

@@ -430,7 +430,7 @@ function FreeCellTable() {
         </header>
 
         <div className="grid items-start gap-6 lg:grid-cols-[1fr_260px]">
-          <div className="select-none relative rounded-2xl border border-gold/20 bg-surface/40 p-1.5 sm:p-8">
+          <div className="select-none relative rounded-2xl border border-gold/20 bg-[#4c9a2a] p-1.5 text-black sm:p-8">
             <div className="space-y-8">
               <div className="flex items-start gap-1 sm:gap-2">
                 <div className="flex gap-1 sm:gap-2">
@@ -486,11 +486,12 @@ function FreeCellTable() {
               </div>
 
               <div className="flex flex-col items-center justify-center gap-3 border-t border-gold/15 pt-4 text-center">
-                <span className="text-sm text-ivory/60">
+                <span className="text-sm text-black">
                   {state.moves} {state.moves === 1 ? "move" : "moves"}
                 </span>
                 <Button
                   variant="parlorGhost"
+                  className="bg-black text-white border-black hover:bg-black/80"
                   onClick={undo}
                   disabled={history.length === 0 || autocompleting || conceded}
                 >
@@ -673,17 +674,21 @@ function EmptySlot({
   onClick,
   symbol,
   red,
+  black,
 }: {
   onClick?: () => void;
   symbol?: string;
   red?: boolean;
+  black?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       aria-label="Empty pile"
-      className={`grid h-[var(--fc-card-h)] w-[var(--fc-card-w)] place-items-center rounded-lg border border-dashed border-gold/30 text-base sm:text-2xl ${
+      className={`grid h-[var(--fc-card-h)] w-[var(--fc-card-w)] place-items-center rounded-lg border border-dashed ${
+        black ? "border-black" : "border-gold/30"
+      } text-base sm:text-2xl ${
         red ? "text-[#c0392b]" : symbol ? "text-[var(--yukon-ink)]" : "text-gold/30"
       }`}
     >
@@ -727,7 +732,7 @@ function CellSlot({
           onPointerUp={onPointerUp}
         />
       ) : (
-        <EmptySlot onClick={onClick} />
+        <EmptySlot onClick={onClick} black />
       )}
     </div>
   );
@@ -769,7 +774,7 @@ function FoundationSlot({
           onPointerUp={onPointerUp}
         />
       ) : (
-        <EmptySlot onClick={onClick} symbol={suitSymbol} red={redSuit} />
+        <EmptySlot onClick={onClick} symbol={suitSymbol} red={redSuit} black />
       )}
     </div>
   );

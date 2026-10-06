@@ -21,6 +21,7 @@ import { CardMark } from "@/components/parlor/CardMark";
 import { DisconnectDialog } from "@/components/parlor/DisconnectDialog";
 import { FavouriteSwitch } from "@/components/parlor/FavouriteSwitch";
 import type { GameMeta } from "@/lib/games";
+import { cn } from "@/lib/utils";
 
 export function TableShell({
   game,
@@ -147,7 +148,7 @@ export function TableShell({
         </header>
 
         <div className={`${gridClassName} ${middle ? middleGridClassName : "lg:grid-cols-[1fr_260px]"}`}>
-          <div className={`select-none rounded-2xl border border-gold/20 bg-surface/40 p-5 sm:p-8 ${boxClassName}`}>
+          <div className={cn("select-none rounded-2xl border border-gold/20 bg-surface/40 p-5 sm:p-8", boxClassName)}>
             <ChatContext.Provider value={chatMessage}>{children}</ChatContext.Provider>
           </div>
 

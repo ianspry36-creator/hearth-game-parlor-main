@@ -371,7 +371,7 @@ function ClockTable() {
         </div>
 
         <div className="mt-8 grid items-start gap-6 lg:grid-cols-[1fr_260px]">
-          <div className="select-none relative rounded-2xl border border-gold/15 bg-surface/40 p-1 sm:p-1.5">
+          <div className="select-none relative rounded-2xl border border-gold/15 bg-[#4c9a2a] p-1 text-black sm:p-1.5">
             <ClockFace
               state={state}
               onPlace={() => placeCard(true)}
@@ -387,7 +387,7 @@ function ClockTable() {
               placing={placing}
             />
 
-            <p className="mt-6 text-center text-xs text-ivory/50">
+            <p className="mt-6 text-center text-xs text-black">
               Double-click or drag the face-up card to its own hour. At the centre, pick any of
               the four cards to turn over. The fourth King ends the hand.
             </p>

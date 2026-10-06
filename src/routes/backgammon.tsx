@@ -807,7 +807,7 @@ function BackgammonTable() {
       onNewGame={() => (isMulti ? navigate({ to: "/backgammon" }) : reset())}
       rail={null}
       containerClassName="px-3 sm:px-6"
-      boxClassName="px-2.5 pt-[5px] sm:px-8 sm:pt-2"
+      boxClassName="bg-[#4c9a2a] px-2.5 pt-[5px] sm:px-8 sm:pt-2"
       menuExtra={
         <>
           <TableOptionsDialog tableGraphic={tableGraphic} onSelect={setTableGraphic} />

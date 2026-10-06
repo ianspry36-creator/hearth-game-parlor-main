@@ -549,7 +549,7 @@ function CheckersTable() {
         if (!isMulti) recordSoloResult("abandoned");
       }}
       rail={null}
-      boxClassName="pt-2.5 sm:pt-4"
+      boxClassName="bg-[#4c9a2a] text-black pt-2.5 sm:pt-4"
       menuExtra={
         <>
         <TurnOffTimerControl
@@ -834,7 +834,7 @@ function CheckersTable() {
             })}
           </div>
 
-          <div className="mt-4 flex items-center justify-center gap-6 text-xs text-ivory/60">
+          <div className="mt-4 flex items-center justify-center gap-6 text-xs text-black">
             <span className="flex items-center gap-2">
               <span className="inline-block size-3 rounded-full border border-black/30 bg-player-coral" />
               You
@@ -849,7 +849,7 @@ function CheckersTable() {
             </span>
           </div>
 
-          <p className="mt-3 text-center text-xs text-ivory/45">
+          <p className="mt-3 text-center text-xs text-black">
             {myTurn
               ? state.selected !== null
                 ? "Click a highlighted square to move — or jump — your man."

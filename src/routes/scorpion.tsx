@@ -308,7 +308,7 @@ function ScorpionTable() {
         </div>
 
         <div className="mt-8 grid items-start gap-6 lg:grid-cols-[1fr_260px]">
-          <div className="select-none relative rounded-2xl border border-gold/15 bg-surface/40 px-1 py-4 sm:p-6">
+          <div className="select-none relative rounded-2xl border border-gold/15 bg-[#4c9a2a] px-1 py-4 text-black sm:p-6">
             <div className="mb-6 flex flex-wrap items-start justify-between gap-6">
               <div className="flex flex-col items-center gap-1">
                 <TailPile count={state.tail.length} disabled={!canDealTail} onClick={clickTail} />
@@ -341,7 +341,7 @@ function ScorpionTable() {
               ))}
             </div>
 
-            <p className="mt-6 text-center text-xs text-ivory/50">
+            <p className="mt-6 text-center text-xs text-black">
               Build four descending runs, King to Ace, one per suit. Drag (or click) a card onto
               another pile to move its run. Only a King fills an empty pile.
             </p>
@@ -591,7 +591,7 @@ function TailPile({
           <EmptySlot />
         )}
       </div>
-      <span className="text-[10px] uppercase tracking-[0.18em] text-ivory/45">Tail</span>
+      <span className="text-[10px] uppercase tracking-[0.18em] text-black">Tail</span>
     </div>
   );
 }

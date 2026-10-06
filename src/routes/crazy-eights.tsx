@@ -1325,7 +1325,7 @@ function CrazyEightsTable() {
         </>
       }
       containerClassName="px-1.5 sm:px-3"
-      boxClassName="px-[5px] py-[5px] sm:px-2 sm:py-2"
+      boxClassName="bg-[#4c9a2a] text-black px-[5px] py-[5px] sm:px-2 sm:py-2"
     >
       <FlagPicker open={flagOpen} onOpenChange={setFlagOpen} onSelect={setFlag} />
       <PlayerLeftDialog
@@ -1571,7 +1571,7 @@ function CrazyEightsTable() {
             <div
               className={`rounded-full border px-4 py-1.5 font-display text-sm tracking-wide ${
                 state.turn === "you" && state.phase !== "over"
-                  ? "border-gold/60 bg-gold/10 text-gold"
+                  ? "border-gold/60 bg-gold/10 text-black"
                   : "border-ivory/15 bg-ivory/5 text-ivory/70"
               } ${dealRequested ? "" : "invisible"}`}
             >
@@ -1648,7 +1648,7 @@ function CrazyEightsTable() {
                   trigger={
                     <button
                       type="button"
-                      className="text-[12.5px] uppercase tracking-[0.22em] text-ivory/45 hover:text-gold"
+                      className="text-[12.5px] uppercase tracking-[0.22em] text-black hover:text-gold"
                     >
                       {seatName("you")}
                     </button>
@@ -1784,12 +1784,12 @@ function OpponentSeat({
         </div>
         {vertical ? (
           <div className="flex flex-col items-center gap-0.5">
-            <p className="text-[11px] uppercase tracking-[0.22em] text-ivory/45">{name}</p>
+            <p className="text-[11px] uppercase tracking-[0.22em] text-black">{name}</p>
             {flag ? <PlayerFlag flag={flag} className="size-4" /> : null}
           </div>
         ) : (
           <div className="flex items-center gap-1.5">
-            <p className="text-[11px] uppercase tracking-[0.22em] text-ivory/45">{name}</p>
+            <p className="text-[11px] uppercase tracking-[0.22em] text-black">{name}</p>
             {flag ? <PlayerFlag flag={flag} className="size-4" /> : null}
           </div>
         )}

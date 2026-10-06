@@ -521,7 +521,7 @@ function CrescentTable() {
         </header>
 
         <div className="grid items-start gap-6 lg:grid-cols-[1fr_280px]">
-          <div className="relative select-none rounded-2xl border border-gold/20 bg-surface/40 p-2 sm:p-4">
+          <div className="relative select-none rounded-2xl border border-gold/20 bg-[#4c9a2a] p-2 text-black sm:p-4">
             <div ref={boardRef} className="relative mx-auto w-full" style={{ aspectRatio: `${BOARD_W} / ${BOARD_H}` }}>
               <div key={dealKey} className="absolute inset-0">
                 {state.foundations.map((pile, index) => (
@@ -588,11 +588,11 @@ function CrescentTable() {
               )}
             </div>
 
-            <div className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 border-t border-gold/15 pt-4">
-              <span className="text-sm text-ivory/60">
+            <div className="mt-1 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 border-t border-gold/15 pt-1">
+              <span className="text-sm text-black">
                 {state.moves} {state.moves === 1 ? "move" : "moves"}
               </span>
-              <span className="text-sm text-gold">
+              <span className="text-sm text-black">
                 {state.shufflesLeft} {state.shufflesLeft === 1 ? "shuffle" : "shuffles"} left
               </span>
               <Button
