@@ -1,5 +1,7 @@
+import type { ReactNode } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { BLOG_POSTS, formatPublishedAt } from "@/lib/blog";
+import type { BlogBlock } from "@/lib/blog";
 
 export const Route = createFileRoute("/blog")({
   head: () => ({
@@ -53,9 +55,7 @@ function BlogPage() {
                 {post.title}
               </h2>
               <div className="mt-5 space-y-4 text-[15px] leading-relaxed text-ivory/85">
-                {post.body.map((paragraph, i) => (
-                  <p key={i}>{paragraph}</p>
-                ))}
+                {post.body.map((block, i) => renderBlock(block, i))}
               </div>
             </article>
           ))}
@@ -67,4 +67,39 @@ function BlogPage() {
       </div>
     </div>
   );
+}
+
+function renderInline(text: string): ReactNode {
+  const parts = text.split("**");
+  return parts.map((part, i) =>
+    i % 2 === 1 ? (
+      <strong key={i} className="font-semibold text-cream">
+        {part}
+      </strong>
+    ) : (
+      <span key={i}>{part}</span>
+    ),
+  );
+}
+
+function renderBlock(block: BlogBlock, key: number): ReactNode {
+  if (block.type === "heading") {
+    return (
+      <h3 key={key} className="pt-4 font-display text-2xl font-semibold text-cream">
+        {block.text}
+      </h3>
+    );
+  }
+
+  if (block.type === "list") {
+    return (
+      <ul key={key} className="list-disc space-y-1.5 pl-5 marker:text-gold/60">
+        {block.items.map((item, i) => (
+          <li key={i}>{renderInline(item)}</li>
+        ))}
+      </ul>
+    );
+  }
+
+  return <p key={key}>{renderInline(block.text)}</p>;
 }
