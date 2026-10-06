@@ -37,6 +37,7 @@ import {
 } from "@/lib/crescent";
 import { mulberry32 } from "@/lib/random";
 import { startGame, updateGameStatus } from "@/lib/games-started";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export const Route = createFileRoute("/crescent")({
   validateSearch: (search: Record<string, unknown>) => ({}),
@@ -81,51 +82,86 @@ type FlyingCard = {
 // Logical board geometry. Positions are expressed as percentages so the board
 // scales with its container while keeping the crescent shape intact.
 const BOARD_W = 1240;
-const BOARD_H = 850;
 
 // Crescent arch geometry: a half-circle swept from the left endpoint, over the
 // apex, down to the right endpoint.
 const CX = 620;
-const RX = 560;
-const RY = 360;
-const BASE_Y = 440;
-const archX = (i: number) => CX + RX * Math.cos(Math.PI - (i / 15) * Math.PI);
-const archY = (i: number) => BASE_Y - RY * Math.sin(Math.PI - (i / 15) * Math.PI);
 
 // The four end piles on each side tuck under the 5th pile (index 4) and the
 // 12th pile (index 11), fanning downward so every card stays fully visible.
-const SIDE_GAP = 140;
 const LEFT_ANCHOR = 4;
 const RIGHT_ANCHOR = 11;
-const ANCHOR_Y = archY(LEFT_ANCHOR); // == archY(RIGHT_ANCHOR), symmetric
 // Nudge the two end groups (their four fanned cards plus the anchor card) away
 // from the arch so they stop overlapping the neighbouring arch card.
 const SIDE_NUDGE = 24;
 
-/** Sixteen tableau piles arranged in an upside-down-U (crescent) arch. */
-const TABLEAU_POSITIONS = Array.from({ length: 16 }, (_, i) => {
-  let x = archX(i);
-  let y = archY(i);
-  if (i <= LEFT_ANCHOR) {
-    x = archX(LEFT_ANCHOR) - SIDE_NUDGE;
-    if (i < LEFT_ANCHOR) y = ANCHOR_Y + (LEFT_ANCHOR - i) * SIDE_GAP;
-  } else if (i >= RIGHT_ANCHOR) {
-    x = archX(RIGHT_ANCHOR) + SIDE_NUDGE;
-    if (i > RIGHT_ANCHOR) y = ANCHOR_Y + (i - RIGHT_ANCHOR) * SIDE_GAP;
-  }
-  return { left: `${(x / BOARD_W) * 100}%`, top: `${(y / BOARD_H) * 100}%` };
-});
+type PilePosition = { left: string; top: string };
 
-/** Eight foundations in two centred rows: kings on top, aces below. */
-// The kings row is levelled with the 3rd crescent card (tableau index 2).
-const KING_Y = ANCHOR_Y + 2 * SIDE_GAP;
-const FOUNDATION_POSITIONS = Array.from({ length: 8 }, (_, i) => {
-  const row = i < 4 ? 0 : 1;
-  const col = i % 4;
-  const x = 620 + (col - 1.5) * 120;
-  const y = KING_Y + row * 150;
-  return { left: `${(x / BOARD_W) * 100}%`, top: `${(y / BOARD_H) * 100}%` };
-});
+type CrescentGeometry = {
+  boardH: number;
+  tableauPositions: PilePosition[];
+  foundationPositions: PilePosition[];
+};
+
+// Builds the crescent layout for a given spacing and vertical offset. Returns
+// the board height too, so the aspect ratio and the pile percentages stay in
+// lock-step.
+function buildGeometry(
+  spread: number,
+  baseY: number,
+  boardH: number,
+  fanGapScale = 1,
+  foundationRowGapScale = 1,
+): CrescentGeometry {
+  const rx = 560 * spread;
+  const ry = 360 * spread;
+  const sideGap = 140 * spread;
+  // Spacing between the four fanned end cards on each side (cards 1-5 and
+  // 12-16). Scaled independently so those gaps can be widened without shifting
+  // the foundations below the arch.
+  const fanGap = sideGap * fanGapScale;
+  const archX = (i: number) => CX + rx * Math.cos(Math.PI - (i / 15) * Math.PI);
+  const archY = (i: number) => baseY - ry * Math.sin(Math.PI - (i / 15) * Math.PI);
+  const anchorY = archY(LEFT_ANCHOR); // == archY(RIGHT_ANCHOR), symmetric
+
+  /** Sixteen tableau piles arranged in an upside-down-U (crescent) arch. */
+  const tableauPositions: PilePosition[] = Array.from({ length: 16 }, (_, i) => {
+    let x = archX(i);
+    let y = archY(i);
+    if (i <= LEFT_ANCHOR) {
+      x = archX(LEFT_ANCHOR) - SIDE_NUDGE;
+      if (i < LEFT_ANCHOR) y = anchorY + (LEFT_ANCHOR - i) * fanGap;
+    } else if (i >= RIGHT_ANCHOR) {
+      x = archX(RIGHT_ANCHOR) + SIDE_NUDGE;
+      if (i > RIGHT_ANCHOR) y = anchorY + (i - RIGHT_ANCHOR) * fanGap;
+    }
+    return { left: `${(x / BOARD_W) * 100}%`, top: `${(y / boardH) * 100}%` };
+  });
+
+  /** Eight foundations in two centred rows: kings on top, aces below. */
+  // The kings row is levelled with the 3rd crescent card (tableau index 2).
+  const kingY = anchorY + 2 * sideGap;
+  // Vertical gap between the kings row and the aces row (doubled on mobile).
+  const rowGap = 150 * spread * foundationRowGapScale;
+  const foundationPositions: PilePosition[] = Array.from({ length: 8 }, (_, i) => {
+    const row = i < 4 ? 0 : 1;
+    const col = i % 4;
+    const x = CX + (col - 1.5) * 120 * spread;
+    const y = kingY + row * rowGap;
+    return { left: `${(x / BOARD_W) * 100}%`, top: `${(y / boardH) * 100}%` };
+  });
+
+  return { boardH, tableauPositions, foundationPositions };
+}
+
+// Desktop: the original tight crescent. boardH=866 (was 935) halves the empty
+// space that sits below the bottom cards; kings/aces gap scaled 0.9075×.
+const DESKTOP_GEOMETRY = buildGeometry(1, 440, 866, 1, 0.9075);
+// Mobile: wider spacing (spread 1.45) with the arch shifted down so its apex no
+// longer clips, on a 20%-deeper board. The four fanned end cards on each side
+// (tableau 1-5 and 12-16) are spaced 10% wider apart, the aces/kings gap is
+// reduced 25%, and every card is lowered ~10% of the board so it sits inside.
+const MOBILE_GEOMETRY = buildGeometry(1.45, 688.64, 1346.4, 1.1, 1.5);
 
 type Selection = { type: "tableau"; index: number } | { type: "foundation"; index: number } | null;
 
@@ -167,6 +203,8 @@ function findMovedCard(
 function CrescentTable() {
   const navigate = useNavigate();
   const game = getGame("crescent");
+  const isMobile = useIsMobile();
+  const geometry = isMobile ? MOBILE_GEOMETRY : DESKTOP_GEOMETRY;
   const [difficulty, setDifficulty] = useState<Difficulty>("medium");
   const [state, setState] = useState<GameState>(() => freshGame("medium", mulberry32(SSR_SEED)));
   const [history, setHistory] = useState<GameState[]>([]);
@@ -288,7 +326,7 @@ function CrescentTable() {
     setShuffleTick((t) => t + 1);
     setShuffleOld(oldTableaus);
     setShuffleRevealed(0);
-    for (let i = 0; i < TABLEAU_POSITIONS.length; i++) {
+    for (let i = 0; i < geometry.tableauPositions.length; i++) {
       shuffleTimersRef.current.push(
         window.setTimeout(() => setShuffleRevealed(i + 1), i * SHUFFLE_STAGGER_MS),
       );
@@ -297,7 +335,7 @@ function CrescentTable() {
       window.setTimeout(() => {
         setShuffleOld(null);
         setShuffleRevealed(0);
-      }, TABLEAU_POSITIONS.length * SHUFFLE_STAGGER_MS + SHUFFLE_MS + 50),
+      }, geometry.tableauPositions.length * SHUFFLE_STAGGER_MS + SHUFFLE_MS + 50),
     );
   };
 
@@ -431,15 +469,24 @@ function CrescentTable() {
     });
   };
 
-  const dropOntoTableau = (source: DragSource, index: number) => {
+  const dropOntoTableau = (source: DragSource, index: number): boolean => {
     const s = stateRef.current;
-    if (source.type === "tableau") apply(moveTableauToTableau(s, source.index, index));
-    else apply(moveFoundationToTableau(s, source.index, index));
+    const candidate =
+      source.type === "tableau"
+        ? moveTableauToTableau(s, source.index, index)
+        : moveFoundationToTableau(s, source.index, index);
+    if (candidate === s) return false;
+    apply(candidate);
+    return true;
   };
 
-  const dropOntoFoundation = (source: DragSource, index: number) => {
+  const dropOntoFoundation = (source: DragSource, index: number): boolean => {
     const s = stateRef.current;
-    if (source.type === "tableau") apply(moveTableauToFoundation(s, source.index, index));
+    if (source.type !== "tableau") return false;
+    const candidate = moveTableauToFoundation(s, source.index, index);
+    if (candidate === s) return false;
+    apply(candidate);
+    return true;
   };
 
   const endDrag = (e: ReactPointerEvent) => {
@@ -454,17 +501,24 @@ function CrescentTable() {
     }, 0);
     const target = document.elementFromPoint(e.clientX, e.clientY);
     const drop = target?.closest("[data-drop]");
+    let dropped = false;
     if (drop) {
       const kind = drop.getAttribute("data-drop");
       const index = Number(drop.getAttribute("data-index"));
-      if (kind === "tableau") dropOntoTableau(drag.source, index);
-      else if (kind === "foundation") dropOntoFoundation(drag.source, index);
+      if (kind === "tableau") dropped = dropOntoTableau(drag.source, index);
+      else if (kind === "foundation") dropped = dropOntoFoundation(drag.source, index);
+    }
+    // A drag released off a valid pile flies back to where it started, instead of
+    // snapping back into place the moment the ghost is cleared.
+    if (!dropped) {
+      const card = drag.cards[0];
+      if (card) flyBack(drag.source, card, e.clientX, e.clientY, drag.w, drag.h);
     }
   };
 
   const pileCentre = (type: "tableau" | "foundation", index: number) => {
     const rect = boardRef.current?.getBoundingClientRect();
-    const pos = type === "tableau" ? TABLEAU_POSITIONS[index] : FOUNDATION_POSITIONS[index];
+    const pos = type === "tableau" ? geometry.tableauPositions[index] : geometry.foundationPositions[index];
     const { w, h } = cardDims();
     const fallback = {
       x: (typeof window === "undefined" ? 0 : window.innerWidth / 2) - w / 2,
@@ -492,9 +546,28 @@ function CrescentTable() {
     }, FLIGHT_MS);
   };
 
+  // Fly a card back to its source pile when a drag is released without landing on
+  // a valid target, animating from the pointer's release point rather than letting
+  // the card snap straight back into place.
+  const flyBack = (source: DragSource, card: Card, x: number, y: number, w: number, h: number) => {
+    const key = flightKeyRef.current++;
+    setFlying((current) => [
+      ...current,
+      {
+        key,
+        from: { x: x - w / 2, y: y - h / 2 },
+        to: pileCentre(source.type, source.index),
+        card,
+      },
+    ]);
+    window.setTimeout(() => {
+      setFlying((current) => current.filter((f) => f.key !== key));
+    }, FLIGHT_MS);
+  };
+
   return (
     <div className="min-h-screen text-cream">
-      <div className="mx-auto max-w-7xl px-1.5 py-8 sm:px-6">
+      <div className="mx-auto max-w-7xl px-[3px] py-8 sm:px-6">
         <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <Link
@@ -522,7 +595,7 @@ function CrescentTable() {
 
         <div className="grid items-start gap-6 lg:grid-cols-[1fr_280px]">
           <div className="relative select-none rounded-2xl border border-gold/20 bg-[#4c9a2a] p-2 text-black sm:p-4">
-            <div ref={boardRef} className="relative mx-auto w-full" style={{ aspectRatio: `${BOARD_W} / ${BOARD_H}` }}>
+            <div ref={boardRef} className="relative mx-auto w-full" style={{ aspectRatio: `${BOARD_W} / ${geometry.boardH}` }}>
               <div key={dealKey} className="absolute inset-0">
                 {state.foundations.map((pile, index) => (
                   <FoundationPile
@@ -532,7 +605,7 @@ function CrescentTable() {
                     selection={selection}
                     draggingIds={draggingIds}
                     flyingIds={flyingIds}
-                    style={FOUNDATION_POSITIONS[index]!}
+                    style={geometry.foundationPositions[index]!}
                     onClick={() => clickFoundation(index)}
                     onPointerDown={beginDrag({ type: "foundation", index })}
                     onPointerMove={moveDrag}
@@ -547,7 +620,7 @@ function CrescentTable() {
                     selection={selection}
                     draggingIds={draggingIds}
                     flyingIds={flyingIds}
-                    style={TABLEAU_POSITIONS[index]!}
+                    style={geometry.tableauPositions[index]!}
                     shuffleTick={shuffleTick}
                     shuffleOld={shuffleOld}
                     shuffleRevealed={shuffleRevealed}
@@ -588,7 +661,7 @@ function CrescentTable() {
               )}
             </div>
 
-            <div className="mt-1 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 border-t border-gold/15 pt-1">
+            <div className="mt-1 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 border-t border-gold/15 pt-1 sm:mt-0 sm:pt-0">
               <span className="text-sm text-black">
                 {state.moves} {state.moves === 1 ? "move" : "moves"}
               </span>

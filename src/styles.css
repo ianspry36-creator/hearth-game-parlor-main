@@ -1004,15 +1004,15 @@
 
 /* Crescent Solitaire responsive card sizing — sixteen piles around a crescent. */
 :root {
-  --cr-card-h: 98.44px;
-  --cr-card-w: 70.31px;
+  --cr-card-h: 93.52px;
+  --cr-card-w: 66.79px;
   --cr-visible: 0px;
 }
 
 @media (max-width: 639.98px) {
   :root {
-    --cr-card-h: 64.69px;
-    --cr-card-w: 46.41px;
+    --cr-card-h: 61.46px;
+    --cr-card-w: 44.09px;
     --cr-visible: 0px;
   }
 }

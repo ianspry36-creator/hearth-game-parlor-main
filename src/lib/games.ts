@@ -225,7 +225,6 @@ export const GAMES: GameMeta[] = [
     initial: "C",
     tagline: "Sixteen face-up piles in a crescent, two decks, and eight foundations built from the King down and the Ace up.",
     path: "/crescent",
-    comingSoon: true,
     history:
       "Crescent Solitaire is a compact patience game played with two whole decks arranged in a distinctive crescent of sixteen face-up piles. Unusually for a solitaire, every card is dealt face up from the start, and the game is won by gathering each suit onto two rows of foundations — one built down from the King, the other up from the Ace. Its generous shuffle allowance, chosen from easy, medium, or hard, makes it far more winnable than its classic three-shuffle ancestor.",
     historySource: "https://en.wikipedia.org/wiki/Crescent_(solitaire)",
