@@ -25,6 +25,7 @@ import canfieldMenuIcon from "@/assets/canfieldMenuIcon.webp";
 import freecellMenuIcon from "@/assets/freecellMenuIcon.webp";
 import trianglesMenuIcon from "@/assets/trianglesMenuIcon.webp";
 import crescentMenuIcon from "@/assets/crescentMenuIcon.webp";
+import spiderMenuIcon from "@/assets/spiderMenuIcon.webp";
 import { CardMark } from "@/components/parlor/CardMark";
 import { VisitorCounter } from "@/components/parlor/VisitorCounter";
 import { Switch } from "@/components/ui/switch";
@@ -285,6 +286,12 @@ function Lobby() {
                       <img
                         src={crescentMenuIcon}
                         alt="Crescent Solitaire"
+                        className="size-[2cm] rounded-2xl object-contain"
+                      />
+                    ) : game.id === "spider" ? (
+                      <img
+                        src={spiderMenuIcon}
+                        alt="Spider Solitaire"
                         className="size-[2cm] rounded-2xl object-contain"
                       />
                     ) : (

@@ -1,11 +1,11 @@
-export type GameId = "cribbage" | "backgammon" | "warship" | "farkle" | "yahtzee" | "crazy-eights" | "hearts" | "triangles" | "solitaire" | "freecell" | "addiction" | "reversi" | "checkers" | "kings-in-the-corner" | "canfield" | "clock" | "scorpion" | "tripeaks" | "yukon" | "crescent";
+export type GameId = "addiction" | "backgammon" | "canfield" | "checkers" | "clock" | "crazy-eights" | "crescent" | "cribbage" | "farkle" | "freecell" | "hearts" | "kings-in-the-corner" | "reversi" | "scorpion" | "solitaire" | "spider" | "triangles" | "tripeaks" | "warship" | "yahtzee" | "yukon";
 
 export type GameMeta = {
   id: GameId;
   name: string;
   initial: string;
   tagline: string;
-  path: "/cribbage" | "/backgammon" | "/warship" | "/farkle" | "/yahtzee" | "/crazy-eights" | "/hearts" | "/triangles" | "/solitaire" | "/freecell" | "/addiction" | "/reversi" | "/checkers" | "/kings-in-the-corner" | "/canfield" | "/clock" | "/scorpion" | "/tripeaks" | "/yukon" | "/crescent";
+  path: "/addiction" | "/backgammon" | "/canfield" | "/checkers" | "/clock" | "/crazy-eights" | "/crescent" | "/cribbage" | "/farkle" | "/freecell" | "/hearts" | "/kings-in-the-corner" | "/reversi" | "/scorpion" | "/solitaire" | "/spider" | "/triangles" | "/tripeaks" | "/warship" | "/yahtzee" | "/yukon";
   rules: { heading: string; body: string }[];
   history: string;
   historySource?: string;
@@ -541,6 +541,50 @@ export const GAMES: GameMeta[] = [
       {
         heading: "Finishing",
         body: "Click a face-down tableau card to turn it over. When every tableau card is face up and the stock is spent, the table clears itself. Undo as often as you like — each undo counts as a move.",
+      },
+    ],
+  },
+  {
+    id: "spider",
+    name: "Spider Solitaire",
+    initial: "S",
+    tagline: "Two decks, ten columns, and eight same-suit runs to build from King down to Ace.",
+    path: "/spider",
+    history:
+      "Spider is a two-deck patience game whose name comes from the eight legs of a spider, matching the eight sequences of cards the player must assemble. Popularised by its inclusion in the Windows versions of the 1990s, it is now one of the most widely played solitaires in the world. Its four-suit form is notoriously hard to solve, which is why the one-suit and two-suit forms exist as gentler introductions.",
+    historySource: "https://en.wikipedia.org/wiki/Spider_(solitaire)",
+    rules: [
+      {
+        heading: "The object",
+        body: "Build eight complete runs, each King down to Ace in a single suit. When a full same-suit run is complete it is removed from the table, and the game is won when every card has gone home.",
+      },
+      {
+        heading: "The deal",
+        body: "Spider uses two full decks, 104 cards. Fifty-four cards are dealt into ten columns — the first four get six cards, the other six get five — with only the top card of each column face up. The remaining fifty cards form the stock.",
+      },
+      {
+        heading: "Moving a card",
+        body: "A card can always be moved onto a card one rank higher, in any suit. You may move several cards together only when they form an unbroken descending run in a single suit, such as the eight, seven and six of clubs onto a nine.",
+      },
+      {
+        heading: "Empty columns",
+        body: "Any card or run may be placed on an empty column, so keep a free column handy for reshuffling sequences.",
+      },
+      {
+        heading: "Clearing a run",
+        body: "A run only clears when all thirteen cards share a suit, from King down to Ace. Cards beneath the run stay put, and any face-down card underneath is turned over.",
+      },
+      {
+        heading: "The stock",
+        body: "Click the stock to deal ten cards, one onto each column. Every column must hold at least one card before you may deal, so fill empty columns first.",
+      },
+      {
+        heading: "Scoring",
+        body: "You begin with 100 points, lose one for every move, and gain fifty for each completed run. A careful player finishes with a healthy positive score.",
+      },
+      {
+        heading: "Difficulty",
+        body: "Play with one suit (beginner), two suits (intermediate), or all four suits (advanced). The deck always holds 104 cards — only the variety of suits changes.",
       },
     ],
   },

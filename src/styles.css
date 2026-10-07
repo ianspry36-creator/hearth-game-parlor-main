@@ -884,6 +884,23 @@
   }
 }
 
+/* Spider Solitaire responsive card sizing - ten tableau piles plus a stock */
+:root {
+  --spider-card-h: 110.4px; /* 92 * 1.2 - cards 20% bigger */
+  --spider-card-w: 69.6px; /* 58 * 1.2 */
+  --spider-visible: 22.28px; /* 29.7 * 0.75 — upturn reveal reduced 25% */
+  --spider-down: 11.25px; /* 7.5 + 50% (more face-down reveal) */
+}
+
+@media (max-width: 639.98px) {
+  :root {
+    --spider-card-h: 57.2px; /* 52 * 1.1 — cards 10% bigger */
+    --spider-card-w: 36.3px; /* 33 * 1.1 */
+    --spider-visible: 15px; /* 20 - 25% */
+    --spider-down: 6.75px; /* 4.5 + 50% */
+  }
+}
+
 /* Tri Peaks Solitaire responsive card sizing — three peaks plus a stock and waste */
 :root {
   --tripeaks-card-h: 101px;

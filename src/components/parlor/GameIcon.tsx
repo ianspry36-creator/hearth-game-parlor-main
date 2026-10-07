@@ -290,6 +290,32 @@ export function GameIcon({ id, className = "" }: { id: GameId; className?: strin
           </g>
         </svg>
       );
+    case "spider":
+      return (
+        <svg {...common}>
+          <ellipse cx="24" cy="27" rx="6.5" ry="7" className="fill-gold/85" />
+          <circle cx="24" cy="21" r="4" className="fill-cream/95" />
+          {[0, 45, 90, 135, 180, 225, 270, 315].map((a) => {
+            const rad = (a * Math.PI) / 180;
+            const x1 = 24 + 7 * Math.sin(rad);
+            const y1 = 27 - 7 * Math.cos(rad);
+            const x2 = 24 + 18 * Math.sin(rad);
+            const y2 = 27 - 18 * Math.cos(rad);
+            return (
+              <line
+                key={a}
+                x1={x1}
+                y1={y1}
+                x2={x2}
+                y2={y2}
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+              />
+            );
+          })}
+        </svg>
+      );
     default:
       return null;
   }

@@ -3,15 +3,16 @@ import { supabase } from "@/integrations/supabase/client";
 import type { GameId } from "@/lib/games";
 import { recordCompletedGame } from "@/lib/medals";
 
-/** The nine single-player tables, which have no named opponent to rank. */
+/** The single-player tables, which have no named opponent to rank. */
 const SOLO_GAMES: GameId[] = [
-  "solitaire",
-  "freecell",
   "addiction",
-  "kings-in-the-corner",
   "canfield",
   "clock",
+  "freecell",
+  "kings-in-the-corner",
   "scorpion",
+  "solitaire",
+  "spider",
   "tripeaks",
   "yukon",
 ];
