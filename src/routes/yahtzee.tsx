@@ -210,6 +210,18 @@ function mirror(state: State): State {
   };
 }
 
+/** A small computer badge shown in place of a flag for the CPU opponent (Ada). */
+function ComputerIcon({ className = "size-4" }: { className?: string }) {
+  return (
+    <img
+      src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f4bb.svg"
+      alt="Computer"
+      title="Computer"
+      className={`${className} shrink-0 rounded-sm border border-black/20 object-cover align-middle shadow-sm shadow-black/30`}
+    />
+  );
+}
+
 function YahtzeeTable() {
   const game = getGame("yahtzee");
   const navigate = useNavigate();
@@ -477,9 +489,9 @@ function YahtzeeTable() {
     apply((current) => rollOff(current, !isMulti));
   };
 
-  // Each rolloff die lands scattered in the throwing area, then after a beat flies
-  // to its owner's seat. Once the second die has flown, the rolloff resolves: a
-  // tie clears both dice for a re-roll, otherwise the higher roller goes first.
+  // Each rolloff die lands directly in its owner's keep area. After a beat the
+  // rolloff resolves: a tie clears both dice for a re-roll, otherwise the higher
+  // roller goes first.
   useEffect(() => {
     if (isMulti && !isHost) return;
     if (state.phase !== "rolloff") return;
@@ -570,6 +582,19 @@ function YahtzeeTable() {
       showBubble("human", "Select your score on the score card", 3000);
     }, 15000);
     return () => clearInterval(interval);
+  }, [myTurn, state.rolls]);
+
+  // After each throw, remind the player they can hold dice and how many throws
+  // remain in the turn.
+  useEffect(() => {
+    if (!myTurn || state.rolls === 0 || state.rolls >= MAX_ROLLS) return;
+    const remaining = MAX_ROLLS - state.rolls;
+    showBubble(
+      "human",
+      `Click the dice you want to keep. You have ${remaining} more throw${
+        remaining === 1 ? "" : "s"
+      }.`,
+    );
   }, [myTurn, state.rolls]);
 
   const toggleHold = (index: number) => {
@@ -671,24 +696,16 @@ function YahtzeeTable() {
   const canToggle = myTurn && state.rolls > 0 && !rolling;
 
   // Track which dice just switched between the throwing area and a seat's
-  // kept dice, so we can animate the move. The "animating" sets persist across
-  // re-renders (e.g. the one the rolling indicator triggers) so an animation
-  // isn't cancelled mid-flight, and are cleared once it has finished.
-  const animating = useRef<{ released: Set<number> }>({
-    released: new Set(),
-  });
-  const animTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // kept dice, so we can animate the move in a layout effect.
   const prevDiceRef = useRef<YDie[]>(state.dice);
   const heldOrderRef = useRef<number[]>([]);
   const centerDieElsRef = useRef<Map<number, HTMLElement>>(new Map());
   const seatDieElsRef = useRef<Map<number, HTMLElement>>(new Map());
   const centerRectsRef = useRef<Map<number, DOMRect>>(new Map());
+  const seatRectsRef = useRef<Map<number, DOMRect>>(new Map());
+  const releasedCenterSpanElsRef = useRef<Map<number, HTMLElement>>(new Map());
   const justHeldRef = useRef<number[]>([]);
-  const rolloffCenterElsRef = useRef<Map<Seat, HTMLElement>>(new Map());
-  const rolloffSeatElsRef = useRef<Map<Seat, HTMLElement>>(new Map());
-  const rolloffCenterRectsRef = useRef<Map<Seat, DOMRect>>(new Map());
-  const justSettledRef = useRef<Seat[]>([]);
-  const prevRolloffSettledRef = useRef(state.rolloffSettled);
+  const justReleasedRef = useRef<number[]>([]);
 
   const heldNow = new Set<number>();
   const releasedNow = new Set<number>();
@@ -705,32 +722,12 @@ function YahtzeeTable() {
       .forEach((i) => {
         if (!heldOrderRef.current.includes(i)) heldOrderRef.current.push(i);
       });
-    // Dice held this render will fly from the throwing area into their seat.
+    // Dice held this render will fly from the throwing area into their seat,
+    // and dice released this render will fly back from their seat.
     justHeldRef.current = [...heldNow].sort((a, b) => a - b);
-    releasedNow.forEach((i) => animating.current.released.add(i));
-    if (animTimer.current) clearTimeout(animTimer.current);
-    animTimer.current = setTimeout(() => {
-      animating.current.released.clear();
-    }, 1900);
+    justReleasedRef.current = [...releasedNow].sort((a, b) => a - b);
   }
   prevDiceRef.current = state.dice;
-
-  // Which rolloff dice just finished scattering and are flying to their seat.
-  const settledNow: Seat[] = [];
-  (["human", "cpu"] as const).forEach((side) => {
-    if (!prevRolloffSettledRef.current[side] && state.rolloffSettled[side]) settledNow.push(side);
-  });
-  if (settledNow.length) justSettledRef.current = settledNow;
-  prevRolloffSettledRef.current = state.rolloffSettled;
-
-  const animReleased = animating.current.released;
-
-  useEffect(
-    () => () => {
-      if (animTimer.current) clearTimeout(animTimer.current);
-    },
-    [],
-  );
 
   useLayoutEffect(() => {
     // Record where each centre die currently sits so a held die can fly from
@@ -763,45 +760,39 @@ function YahtzeeTable() {
   });
 
   useLayoutEffect(() => {
-    // Record where each rolloff die currently sits in the throwing area so it
-    // can fly from that exact landed spot into its owner's seat once settled.
-    rolloffCenterElsRef.current.forEach((el, side) => {
-      rolloffCenterRectsRef.current.set(side, el.getBoundingClientRect());
+    // Record where each kept die sits so a released die can fly back from that
+    // exact spot into the throwing area.
+    seatDieElsRef.current.forEach((el, i) => {
+      seatRectsRef.current.set(i, el.getBoundingClientRect());
     });
 
-    // Fly freshly settled rolloff dice from their throwing-area spot to the seat.
-    justSettledRef.current.forEach((side) => {
-      const el = rolloffSeatElsRef.current.get(side);
-      const from = rolloffCenterRectsRef.current.get(side);
+    // Fly freshly released dice from their recorded seat position back to the
+    // throwing area.
+    justReleasedRef.current.forEach((i) => {
+      const el = releasedCenterSpanElsRef.current.get(i);
+      const from = seatRectsRef.current.get(i);
       if (!el || !from) return;
       const to = el.getBoundingClientRect();
       const dx = from.left + from.width / 2 - (to.left + to.width / 2);
       const dy = from.top + from.height / 2 - (to.top + to.height / 2);
-      const spot =
-        side === "human"
-          ? state.rolloff.human !== null
-            ? scatterSpot(4, state.rolloff.human, 4)
-            : null
-          : state.rolloff.cpu !== null
-            ? scatterSpot(0, state.rolloff.cpu, 0)
-            : null;
-      const rot = spot?.angle ?? 0;
+      const rot = scatterFor(i, state.dice[i]!.face).angle;
       el.animate(
         [
-          { opacity: 0, transform: `translate(${dx}px, ${dy}px) rotate(${rot}deg) scale(0.55)` },
-          { opacity: 1, transform: `translate(${dx * 0.1}px, ${dy * 0.1}px) rotate(${rot * 0.1}deg) scale(1.06)`, offset: 0.7 },
+          { opacity: 0, transform: `translate(${dx}px, ${dy}px) rotate(${-rot}deg) scale(0.55)` },
+          { opacity: 1, transform: `translate(${dx * 0.1}px, ${dy * 0.1}px) rotate(${-rot * 0.1}deg) scale(1.06)`, offset: 0.7 },
           { opacity: 1, transform: "translate(0px, 0px) rotate(0deg) scale(1)" },
         ],
         { duration: 600, easing: "cubic-bezier(0.33, 0, 0.25, 1)", fill: "both" },
       );
     });
-    justSettledRef.current = [];
+    justReleasedRef.current = [];
   });
+
 
   // Slots are shuffled per throw so a re-roll lands the dice in fresh spots.
   const slotOrder = shuffledSlots(state.rolls);
 
-  const dieAt = (index: number, scatter = false, animClass?: string) => {
+  const dieAt = (index: number, scatter = false) => {
     const die = state.dice[index]!;
     const face = (
       <DieFace
@@ -841,7 +832,15 @@ function YahtzeeTable() {
           transform: `translate(-50%, -50%) rotate(${angle}deg)`,
         }}
       >
-        {animClass ? <span className={`inline-block ${animClass}`}>{face}</span> : face}
+        <span
+          ref={(el) => {
+            if (el) releasedCenterSpanElsRef.current.set(index, el);
+            else releasedCenterSpanElsRef.current.delete(index);
+          }}
+          className="inline-block"
+        >
+          {face}
+        </span>
       </div>
     );
   };
@@ -850,9 +849,6 @@ function YahtzeeTable() {
   const indexes = state.dice.map((_, i) => i);
   const centreDice = showDice ? indexes.filter((i) => !state.dice[i]!.held) : [];
   const keptDice = showDice ? indexes.filter((i) => state.dice[i]!.held) : [];
-
-  const rolloffHumanSpot = state.rolloff.human !== null ? scatterSpot(4, state.rolloff.human, 4) : null;
-  const rolloffCpuSpot = state.rolloff.cpu !== null ? scatterSpot(0, state.rolloff.cpu, 0) : null;
 
   const seatBox = (side: Seat) => {
     const mine = side === "human";
@@ -864,85 +860,85 @@ function YahtzeeTable() {
           ...keptDice.filter((i) => !heldOrderRef.current.includes(i)),
         ]
       : [];
-    return (
-      <section
-        className={`rounded-2xl border p-3 transition-colors lg:p-5 ${
-          active ? "border-gold/50 bg-brand/70" : "border-gold/15 bg-brand/40"
-        }`}
-      >
-        <div className="flex justify-center lg:justify-start">
-          <div className="flex flex-col items-center gap-1.5 lg:flex-row lg:gap-3">
+
+    const avatarBlock = (
+      <div className="flex justify-center">
+        <div className="flex flex-col items-center gap-1.5 lg:flex-row lg:gap-3">
+          {mine ? (
+            <PlayerAvatar
+              avatar={playerAvatar}
+              onSelect={setPlayerAvatar}
+              size="size-12 lg:size-[5.625rem]"
+              countdown={state.turn === "human" ? countdown : 0}
+              {...(bubble?.side === "human" ? { message: bubble.text } : {})}
+            />
+          ) : (
+            <div className="relative inline-block">
+              <img
+                src={opponentAvatar ?? ADA_AVATAR}
+                alt={`${opponentName}'s avatar`}
+                width={64}
+                height={64}
+                className="size-[3.75rem] rounded-full border-2 border-[#4c9a2a] object-cover lg:size-[5.625rem]"
+              />
+              {state.turn === "cpu" && countdown > 0 && <CountdownBadge seconds={countdown} />}
+              {bubble?.side === "cpu" && (
+                <div className="absolute bottom-full left-full z-10 mb-2 ml-2">
+                  <SpeechBubble text={bubble.text} />
+                </div>
+              )}
+            </div>
+          )}
+          <div className="flex items-center gap-2">
             {mine ? (
-              <PlayerAvatar
-                avatar={playerAvatar}
-                onSelect={setPlayerAvatar}
-                size="size-12"
-                countdown={state.turn === "human" ? countdown : 0}
-                {...(bubble?.side === "human" ? { message: bubble.text } : {})}
+              <NicknameDialog
+                onSaved={setPlayerName}
+                trigger={
+                  <button type="button" className="font-display text-base hover:text-gold">
+                    {playerName}
+                  </button>
+                }
               />
             ) : (
-              <div className="relative inline-block">
-                <img
-                  src={opponentAvatar ?? ADA_AVATAR}
-                  alt={`${opponentName}'s avatar`}
-                  width={64}
-                  height={64}
-                  className="size-[3.75rem] rounded-full border-2 border-gold/40 object-cover"
-                />
-                {state.turn === "cpu" && countdown > 0 && <CountdownBadge seconds={countdown} />}
-                {bubble?.side === "cpu" && (
-                  <div className="absolute bottom-full left-full z-10 mb-2 ml-2">
-                    <SpeechBubble text={bubble.text} />
-                  </div>
-                )}
-              </div>
-            )}
-            <div className="flex items-center gap-2">
-              {mine ? (
-                <NicknameDialog
-                  onSaved={setPlayerName}
-                  trigger={
-                    <button type="button" className="font-display text-base hover:text-gold">
-                      {playerName}
-                    </button>
-                  }
-                />
-              ) : (
+              <>
                 <p className="font-display text-base">{opponentName}</p>
-              )}
-              {mine && <PlayerFlag flag={flag} onClick={() => setFlagOpen(true)} />}
-            </div>
+                {!isMulti && <ComputerIcon className="size-4" />}
+              </>
+            )}
+            {mine && <PlayerFlag flag={flag} onClick={() => setFlagOpen(true)} />}
           </div>
         </div>
-        <div className="mt-4 min-h-[3.04rem] grid place-items-center">
-          {kept.length > 0 ? (
-            <div className="flex flex-wrap justify-center gap-3">
-              {kept.map((i) => dieAt(i, false))}
-            </div>
-          ) : state.phase === "rolloff" && state.rolloffSettled[side] && rolloffValue !== null ? (
-            <div>
-              <span
-                ref={(el) => {
-                  if (el) rolloffSeatElsRef.current.set(side, el);
-                  else rolloffSeatElsRef.current.delete(side);
-                }}
-                className="inline-block"
-              >
-                <DieFace face={rolloffValue} />
-              </span>
-            </div>
-          ) : (
-            <p className="text-xs text-ivory/40">
-              {active
-                ? "Dice you keep will sit here"
-                : state.phase === "rolloff" && rolloffValue !== null
-                  ? "Rolling Dice"
-                  : "Waiting"}
-            </p>
-          )}
-        </div>
+      </div>
+    );
+
+    const keepBlock = (
+      <div className="min-h-[3.04rem] grid place-items-center">
+        {kept.length > 0 ? (
+          <div className="flex flex-wrap justify-center gap-3">
+            {kept.map((i) => dieAt(i, false))}
+          </div>
+        ) : state.phase === "rolloff" && rolloffValue !== null ? (
+          <div>
+            <span
+              className={`inline-block ${mine ? "animate-die-to-center-from-below" : "animate-die-to-center-from-above"}`}
+            >
+              <DieFace face={rolloffValue} />
+            </span>
+          </div>
+        ) : (
+          <p className="text-xs text-ivory/40">
+            {active ? "Dice you keep will sit here" : "Waiting"}
+          </p>
+        )}
+      </div>
+    );
+
+    return (
+      <section
+        className="rounded-2xl border border-[#4c9a2a] p-3 transition-colors lg:p-5"
+      >
         {mine && (
-          <div className="mt-4 flex h-9 flex-wrap items-center gap-3">
+          <div className="flex h-9 flex-wrap items-center justify-center gap-3">
             {state.phase === "rolloff" ? (
               state.pendingFirst === null ? (
                 <Button variant="parlor" size="sm" onClick={rollForFirst} disabled={!canRollOff}>
@@ -958,10 +954,20 @@ function YahtzeeTable() {
             )}
           </div>
         )}
+        {mine ? (
+          <>
+            <div className="mt-4">{keepBlock}</div>
+            <div className="mt-4">{avatarBlock}</div>
+          </>
+        ) : (
+          <>
+            <div className="mt-1 lg:mt-4">{avatarBlock}</div>
+            <div className="mt-4">{keepBlock}</div>
+          </>
+        )}
       </section>
     );
   };
-
 
   const Row = ({ category }: { category: Category }) => {
     const taken = myCard[category] !== undefined;
@@ -1090,7 +1096,7 @@ function YahtzeeTable() {
       middle={scorecard}
       middleGridClassName="lg:grid-cols-[1fr_241px_260px]"
       containerClassName="px-1.5 sm:px-3"
-      boxClassName="pt-2.5 pl-1.5 pr-[5px] sm:pt-4 sm:pl-4 sm:pr-2"
+      boxClassName="bg-[#4c9a2a] text-black pt-2.5 pl-1.5 pr-[5px] sm:pt-4 sm:pl-4 sm:pr-2"
       menuExtra={
         <>
         <TurnOffTimerControl
@@ -1204,62 +1210,14 @@ function YahtzeeTable() {
           <div className="min-w-0 space-y-2.5">
             {seatBox("cpu")}
 
-            <section className="relative grid h-[11.14rem] place-items-center rounded-2xl border border-dashed border-gold/20 bg-felt-yahtzee/10 p-3 lg:h-[12.77rem] lg:p-6">
+            <section className="relative grid h-[11.14rem] place-items-center rounded-2xl border border-dashed border-[#4c9a2a] p-3 lg:h-[12.77rem] lg:p-6">
               {state.phase === "rolloff" ? (
-                <>
-                  {state.rolloff.human !== null && !state.rolloffSettled.human && rolloffHumanSpot && (
-                    <div
-                      ref={(el) => {
-                        if (el) rolloffCenterElsRef.current.set("human", el);
-                        else rolloffCenterElsRef.current.delete("human");
-                      }}
-                      style={{
-                        position: "absolute",
-                        left: `${rolloffHumanSpot.left}%`,
-                        top: `${rolloffHumanSpot.top}%`,
-                        transform: `translate(-50%, -50%) rotate(${rolloffHumanSpot.angle}deg)`,
-                      }}
-                    >
-                      <span className="inline-block animate-die-to-center-from-below">
-                        <DieFace face={state.rolloff.human} />
-                      </span>
-                    </div>
-                  )}
-                  {state.rolloff.cpu !== null && !state.rolloffSettled.cpu && rolloffCpuSpot && (
-                    <div
-                      ref={(el) => {
-                        if (el) rolloffCenterElsRef.current.set("cpu", el);
-                        else rolloffCenterElsRef.current.delete("cpu");
-                      }}
-                      style={{
-                        position: "absolute",
-                        left: `${rolloffCpuSpot.left}%`,
-                        top: `${rolloffCpuSpot.top}%`,
-                        transform: `translate(-50%, -50%) rotate(${rolloffCpuSpot.angle}deg)`,
-                      }}
-                    >
-                      <span className="inline-block animate-die-to-center-from-above">
-                        <DieFace face={state.rolloff.cpu} />
-                      </span>
-                    </div>
-                  )}
-                  {state.rolloff.human !== null && state.rolloff.cpu !== null && rolloffWinner === null && (
-                    <p className="text-sm text-ivory/55">Tie at {state.rolloff.human} — roll again.</p>
-                  )}
-                </>
+                state.rolloff.human !== null && state.rolloff.cpu !== null && rolloffWinner === null ? (
+                  <p className="text-sm text-ivory/55">Tie at {state.rolloff.human} — roll again.</p>
+                ) : null
               ) : centreDice.length > 0 ? (
                 <div className="absolute inset-0">
-                  {centreDice.map((i) =>
-                    dieAt(
-                      i,
-                      true,
-                      animReleased.has(i)
-                        ? state.turn === "human"
-                          ? "animate-die-to-center-from-below"
-                          : "animate-die-to-center-from-above"
-                        : undefined,
-                    )
-                  )}
+                  {centreDice.map((i) => dieAt(i, true))}
                 </div>
               ) : (
                 <p className="text-[10px] uppercase tracking-[0.22em] text-ivory/35">

@@ -784,6 +784,15 @@ function FarkleTable() {
     const startScore = state.scores.human;
     setSelected([]);
 
+    // Move the dice that make up the banked score into the player's keep area
+    // before the bank is added to the running total.
+    const openIndexes = state.dice.map((d, i) => (d.set ? -1 : i)).filter((i) => i >= 0);
+    const keepIndexes = bestKeepResult.indexes.map((i) => openIndexes[i]!);
+    apply((current) => ({
+      ...current,
+      dice: current.dice.map((d, i) => (keepIndexes.includes(i) ? { ...d, set: true } : d)),
+    }));
+
     // Count the turn total down to zero while the running score counts up,
     // then commit the bank once the animation has finished.
     const duration = 900;
@@ -957,7 +966,7 @@ function FarkleTable() {
     <TableShell
       game={game}
       containerMaxWidth="max-w-[64.8rem]"
-      boxClassName="px-1 pt-1 sm:px-[0.4rem] sm:pt-1.5"
+      boxClassName="bg-[#4c9a2a] text-black px-1 pt-1 sm:px-[0.4rem] sm:pt-1.5"
       opponentName={opponentName}
       opponentStatus={status}
       showChat={isMulti}
@@ -1081,7 +1090,7 @@ function FarkleTable() {
       </AlertDialog>
       <div className="flex min-h-[560px] flex-col sm:mx-auto sm:min-h-[720px] sm:w-[85%]">
         {/* Ada — top of the table */}
-        <div className="flex flex-col gap-4 rounded-2xl border border-gold/15 bg-brand/50 px-9 py-1.5">
+        <div className="flex flex-col gap-4 px-9 py-1.5">
           <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-4">
               <div className="relative inline-block">
@@ -1130,6 +1139,9 @@ function FarkleTable() {
             </div>
           </div>
           <div className="flex min-h-9 flex-wrap items-center justify-center gap-2 sm:h-14">
+            {state.phase === "rolloff" && state.rolloff.cpu !== null && (
+              <DieFace face={state.rolloff.cpu} medium />
+            )}
             {state.turn === "cpu" && state.phase === "play" && setAsideDice.length > 0 && (
               <>
                 {setAsideDice.map((die) => {
@@ -1151,7 +1163,7 @@ function FarkleTable() {
 
         {/* Middle arena — status and thrown dice */}
         <div className="mt-2.5 flex flex-1 flex-col items-center gap-0.5">
-          <div className="w-full max-w-xl rounded-xl border border-gold/20 bg-gold/10 px-5 py-1.5 text-center">
+          <div className="w-full max-w-xl rounded-xl px-5 py-1.5 text-center">
             <p className="flex min-h-5 items-center justify-center text-sm font-medium text-cream">
               {status}
             </p>
@@ -1159,36 +1171,8 @@ function FarkleTable() {
 
           <div className="flex w-full flex-1 flex-col items-center justify-center">
             {state.phase === "rolloff" ? (
-              <div className="w-full rounded-2xl border border-gold/25 bg-felt/10 p-1 text-center shadow-2xl shadow-black/40 sm:px-2 sm:py-1">
+              <div className="w-full rounded-2xl border border-dashed border-green-700/40 p-1 text-center sm:px-2 sm:py-1">
                 <div className="flex h-[11.2rem] flex-col items-center justify-center gap-2">
-                  <p className="hidden text-[11px] uppercase tracking-[0.3em] text-gold sm:block">Who goes first?</p>
-                  <div className="flex items-center justify-center gap-8">
-                    <div className="flex flex-col items-center gap-2">
-                      <p className="font-display">{playerName}</p>
-                      {state.rolloff.human !== null && (
-                        <div
-                          style={{
-                            transform: `rotate(${scatterFor(0, state.rolloff.human).angle}deg)`,
-                          }}
-                        >
-                          <DieFace face={state.rolloff.human} sizeClass="size-[3.6rem]" />
-                        </div>
-                      )}
-                    </div>
-                    <p className="font-display text-2xl text-gold">vs</p>
-                    <div className="flex flex-col items-center gap-2">
-                      <p className="font-display">{opponentName}</p>
-                      {state.rolloff.cpu !== null && (
-                        <div
-                          style={{
-                            transform: `rotate(${scatterFor(1, state.rolloff.cpu).angle}deg)`,
-                          }}
-                        >
-                          <DieFace face={state.rolloff.cpu} sizeClass="size-[3.6rem]" />
-                        </div>
-                      )}
-                    </div>
-                  </div>
                   {state.rolloff.human !== null &&
                     state.rolloff.cpu !== null &&
                     rolloffWinner === null && (
@@ -1196,13 +1180,10 @@ function FarkleTable() {
                         Tie at {state.rolloff.human} — throw again.
                       </p>
                     )}
-                  <Button variant="parlor" onClick={rollForFirst} disabled={!canRollOff}>
-                    {rolloffLabel}
-                  </Button>
                 </div>
               </div>
             ) : (
-              <div className="w-full rounded-2xl border border-gold/25 bg-felt/10 p-1 shadow-2xl shadow-black/40 sm:px-2 sm:py-1">
+              <div className="w-full rounded-2xl border border-dashed border-green-700/40 p-1 sm:px-2 sm:py-1">
                 <div className="relative mx-auto h-[11.2rem] w-full max-w-[20.4rem]">
                   {state.dice.map((die, i) => {
                     if (!state.rolled || die.set || selected.includes(i)) {
@@ -1236,8 +1217,11 @@ function FarkleTable() {
         </div>
 
         {/* Player — bottom of the table */}
-        <div className="mt-1.5 rounded-2xl border border-gold/15 bg-brand/50 p-4 sm:px-7 sm:pt-[30px] sm:pb-[15px]">
+        <div className="mt-1.5 p-4 sm:px-7 sm:pt-[30px] sm:pb-[15px]">
           <div className="flex min-h-9 flex-wrap items-center justify-center gap-2 sm:h-14">
+            {state.phase === "rolloff" && state.rolloff.human !== null && (
+              <DieFace face={state.rolloff.human} medium />
+            )}
             {state.turn === "human" &&
               state.phase === "play" &&
               (setAsideDice.length > 0 || selected.length > 0) && (
@@ -1303,6 +1287,11 @@ function FarkleTable() {
             <div className="flex items-center justify-center gap-3 sm:contents">
               <div className="order-2 flex flex-col items-center gap-2 sm:order-2 sm:h-32 sm:flex-1 sm:items-center sm:justify-center">
                 <div className="flex min-h-9 flex-wrap items-center justify-center gap-3">
+                  {state.phase === "rolloff" && (
+                    <Button variant="parlor" onClick={rollForFirst} disabled={!canRollOff}>
+                      {rolloffLabel}
+                    </Button>
+                  )}
                   {state.phase === "play" && myTurn && !state.farkled && (
                     <>
                       {!state.rolled ? (

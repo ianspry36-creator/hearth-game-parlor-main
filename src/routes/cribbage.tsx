@@ -1322,7 +1322,7 @@ function CribbageTable() {
         className="flex justify-start [&>*:not(:first-child)]:-ml-3 sm:[&>*:not(:first-child)]:-ml-[50.4px]"
       >
         {state.crib.length === 0 ? (
-          <div className="h-[43px] w-[30px] rounded-lg border border-dashed border-gold/40 sm:h-[105px] sm:w-[136.8px]" aria-hidden="true" />
+          <div className="h-[43px] w-[30px] rounded-lg border border-dotted border-black sm:h-[105px] sm:w-[136.8px]" aria-hidden="true" />
         ) : revealed ? (
           state.crib.map((card) => <PlayingCard key={card.id} card={card} crib />)
         ) : (
@@ -1993,14 +1993,14 @@ function CutSeat({
 }) {
   return (
     <div className="text-center">
-      <p className="mb-1 text-[10px] uppercase tracking-[0.2em] text-gold">{label}</p>
+      <p className="mb-1 text-[10px] uppercase tracking-[0.2em] text-black">{label}</p>
       <div ref={seatRef} className="grid h-[90px] w-[62px] place-items-center">
         {card ? (
           <span className="block">
             <PlayingCard card={card} cut />
           </span>
         ) : (
-          <div className="grid size-full place-items-center rounded-lg border border-dashed border-gold/30 text-[10px] text-ivory/40">
+          <div className="grid size-full place-items-center rounded-lg border border-dotted border-black text-[10px] text-ivory/40">
             —
           </div>
         )}
