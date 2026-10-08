@@ -379,6 +379,33 @@ export type Database = {
         }
         Relationships: []
       }
+      spider_scores: {
+        Row: {
+          created_at: string
+          difficulty: number
+          id: string
+          nickname: string
+          score: number
+          session_id: string
+        }
+        Insert: {
+          created_at?: string
+          difficulty: number
+          id?: string
+          nickname: string
+          score: number
+          session_id: string
+        }
+        Update: {
+          created_at?: string
+          difficulty?: number
+          id?: string
+          nickname?: string
+          score?: number
+          session_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

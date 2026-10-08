@@ -32,6 +32,9 @@ import {
 import { clearSolitaireStats, useSolitaireStats } from "@/lib/solitaireStats";
 import { readDifficulty as readCheckersDifficulty } from "@/lib/checkers";
 import { readDifficulty as readReversiDifficulty } from "@/lib/reversi";
+import { DIFFICULTY_NAME, type SpiderDifficulty } from "@/lib/spider";
+import { clearBestScores } from "@/lib/spiderScores";
+import { fetchSpiderLeaderboard, type SpiderLeaderboardEntry } from "@/lib/spiderLeaderboard";
 import { getNickname, getSessionId } from "@/lib/multiplayer";
 import { useDeveloperMode } from "@/lib/dev-mode";
 import { flagName, flagUrl } from "@/lib/flags";
@@ -41,6 +44,7 @@ export function StatisticsDialog({ game, trigger }: { game: GameMeta; trigger: R
   const solo = isSoloGame(game.id);
   const hybrid = isHybridGame(game.id);
   const isDifficultyGame = game.id === "checkers" || game.id === "reversi";
+  const isSpider = game.id === "spider";
   const showSolo = solo || hybrid;
   const showMulti = !solo;
   const { played, won, lost, abandoned, reset } = useSolitaireStats(game.id);
@@ -85,6 +89,11 @@ export function StatisticsDialog({ game, trigger }: { game: GameMeta; trigger: R
       clearSolitaireStats(game.id, "hard");
     } else {
       reset();
+      if (isSpider) {
+        clearBestScores(1);
+        clearBestScores(2);
+        clearBestScores(4);
+      }
     }
   };
 
@@ -125,6 +134,7 @@ export function StatisticsDialog({ game, trigger }: { game: GameMeta; trigger: R
               ) : (
                 <SoloStats played={played} won={won} lost={lost} abandoned={abandoned} />
               )}
+              {isSpider && <SpiderBestScores />}
             </>
           )}
           {showMulti && (
@@ -284,6 +294,74 @@ function SoloStats({
   const rows: LeaderboardEntry[] = [{ nickname: nickname ?? "You", played, won, lost }];
   if (played === 0) return <EmptyState />;
   return <StatTable rows={rows} abandoned={abandoned} />;
+}
+
+const SPIDER_DIFFICULTIES: SpiderDifficulty[] = [1, 2, 4];
+
+/** Spider shows the global top-10 best scores for each difficulty (easy / medium / hard). */
+function SpiderBestScores() {
+  const [boards, setBoards] = useState<
+    Partial<Record<SpiderDifficulty, SpiderLeaderboardEntry[]>>
+  >({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let live = true;
+    Promise.all(
+      SPIDER_DIFFICULTIES.map((d) =>
+        fetchSpiderLeaderboard(d).then((rows) => [d, rows] as const),
+      ),
+    ).then((results) => {
+      if (!live) return;
+      const next: Partial<Record<SpiderDifficulty, SpiderLeaderboardEntry[]>> = {};
+      for (const [d, rows] of results) next[d] = rows;
+      setBoards(next);
+      setLoading(false);
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  if (loading) {
+    return <p className="py-4 text-center text-sm text-ivory/55">Loading best scores…</p>;
+  }
+
+  return (
+    <div className="mt-4">
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ivory/50">
+        Best scores — global
+      </p>
+      <div className="mt-2 space-y-3">
+        {SPIDER_DIFFICULTIES.map((d) => {
+          const rows = boards[d] ?? [];
+          return (
+            <div key={d}>
+              <p className="text-sm font-medium text-gold">{DIFFICULTY_NAME[d]}</p>
+              {rows.length === 0 ? (
+                <p className="text-sm text-ivory/50">No scores yet.</p>
+              ) : (
+                <ol className="mt-1 divide-y divide-gold/10">
+                  {rows.map((row, i) => (
+                    <li
+                      key={`${d}-${i}`}
+                      className="flex items-baseline gap-2 py-1.5 text-sm text-ivory/85"
+                    >
+                      <span className="w-5 shrink-0 text-right text-xs text-ivory/45">
+                        {i + 1}.
+                      </span>
+                      <span className="min-w-0 flex-1 truncate font-medium">{row.nickname}</span>
+                      <span className="shrink-0 font-semibold text-gold">{row.score}</span>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 function StatTable({

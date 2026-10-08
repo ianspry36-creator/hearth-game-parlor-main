@@ -1061,3 +1061,39 @@
     transform: translateY(0) rotate(0deg);
   }
 }
+
+/* Spider easter egg: a little spider crawls across the screen with walking legs. */
+.spider-leg {
+  transform-box: fill-box;
+  animation-duration: 0.28s;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  animation-direction: alternate;
+}
+.spider-leg-l {
+  transform-origin: 100% 50%;
+  animation-name: spider-step-l;
+}
+.spider-leg-r {
+  transform-origin: 0% 50%;
+  animation-name: spider-step-r;
+}
+.spider-leg--b {
+  animation-delay: -0.28s;
+}
+@keyframes spider-step-l {
+  from {
+    transform: rotate(-16deg);
+  }
+  to {
+    transform: rotate(16deg);
+  }
+}
+@keyframes spider-step-r {
+  from {
+    transform: rotate(16deg);
+  }
+  to {
+    transform: rotate(-16deg);
+  }
+}

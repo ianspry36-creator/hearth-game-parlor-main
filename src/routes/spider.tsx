@@ -4,6 +4,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  useCallback,
   type PointerEvent as ReactPointerEvent,
   type RefObject,
 } from "react";
@@ -27,6 +28,7 @@ import { HistoryDialog } from "@/components/parlor/HistoryDialog";
 import { ConcedeButton } from "@/components/parlor/ConcedeButton";
 import { useSolitaireStats } from "@/lib/solitaireStats";
 import { useGameStarted } from "@/lib/games-started";
+import { useDeveloperMode } from "@/lib/dev-mode";
 import { RANK_LABEL, SUIT_SYMBOL, cardLabel, type Card } from "@/lib/cribbage";
 import {
   DIFFICULTY_NAME,
@@ -45,6 +47,8 @@ import {
   type SpiderDifficulty,
   type TableauPile,
 } from "@/lib/spider";
+import { recordBestScore, readBestScores } from "@/lib/spiderScores";
+import { recordSpiderScore } from "@/lib/spiderLeaderboard";
 import { mulberry32 } from "@/lib/random";
 import cardBackAsset from "@/assets/card-back.png";
 
@@ -82,17 +86,26 @@ function formatElapsed(seconds: number): string {
   return `${minutes}:${rest.toString().padStart(2, "0")}`;
 }
 
-const bestScoreKey = (difficulty: SpiderDifficulty) => `spider-best-score-${difficulty}`;
-
 const DIFFICULTIES: SpiderDifficulty[] = [1, 2, 4];
 
-type Best = { score: number };
-
 type Selection = { type: "tableau"; index: number; cardIndex: number } | null;
+
+// A completed run's cards fly to the foundation one at a time, Ace first.
+const RUN_FLIGHT_MS = 260;
+const RUN_STAGGER_MS = 120;
+
+type FlyingCard = {
+  key: number;
+  card: Card;
+  from: { x: number; y: number };
+  to: { x: number; y: number };
+  delay: number;
+};
 
 function SpiderTable() {
   const navigate = useNavigate();
   const game = getGame("spider");
+  const isDev = useDeveloperMode();
   const [difficulty, setDifficulty] = useState<SpiderDifficulty>(4);
   const [state, setState] = useState<GameState>(() => freshGame(4, mulberry32(SSR_SEED)));
   const [history, setHistory] = useState<GameState[]>([]);
@@ -121,8 +134,15 @@ function SpiderTable() {
   const revealTimerRef = useRef<number | null>(null);
   const stockElRef = useRef<HTMLButtonElement | null>(null);
   const dealRef = useRef<{ ids: string[]; rect: DOMRect | undefined } | null>(null);
+  const foundationRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const flightKeyRef = useRef(0);
   const [confirming, setConfirming] = useState<"new" | "home" | null>(null);
   const [conceded, setConceded] = useState(false);
+  const [dealingRemaining, setDealingRemaining] = useState(0);
+  const [crawl, setCrawl] = useState<CrawlRun | null>(null);
+  const [flying, setFlying] = useState<FlyingCard[]>([]);
+  const [settling, setSettling] = useState<number[]>([]);
+  const [stockHintOpen, setStockHintOpen] = useState(false);
 
   const { recordResult } = useSolitaireStats(game.id);
   const { end, beginNew } = useGameStarted(game.name);
@@ -143,8 +163,8 @@ function SpiderTable() {
   const startRef = useRef(0);
   const endedRef = useRef(false);
 
-  // Best score for the current difficulty, loaded from local storage.
-  const [best, setBest] = useState<Best>({ score: 0 });
+  // Top-10 best scores for the current difficulty, loaded from local storage.
+  const [bestScores, setBestScores] = useState<number[]>([]);
 
   useEffect(() => {
     setState(freshGame(4));
@@ -171,8 +191,7 @@ function SpiderTable() {
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(bestScoreKey(difficulty));
-      setBest({ score: Number(raw) || 0 });
+      setBestScores(readBestScores(difficulty));
     } catch {
       // local storage unavailable; ignore
     }
@@ -183,27 +202,71 @@ function SpiderTable() {
     if (startRef.current === 0 && state.moves > 0) startRef.current = Date.now();
   }, [state.moves]);
 
+  // Tick the stock counter down one card at a time as the deal flies out.
+  useEffect(() => {
+    if (dealingRemaining <= 0) return;
+    const id = window.setTimeout(() => setDealingRemaining((n) => n - 1), 90);
+    return () => window.clearTimeout(id);
+  }, [dealingRemaining]);
+
   useEffect(() => {
     endedRef.current = state.won;
     if (state.won && finishedElapsed === null) {
       setFinishedElapsed(elapsed);
+      const finalScore = score(state);
       try {
-        const prevBest = Number(localStorage.getItem(bestScoreKey(difficulty)) || 0);
-        const current = score(state);
-        if (current > prevBest) {
-          localStorage.setItem(bestScoreKey(difficulty), String(current));
-          setBest({ score: current });
-        }
+        setBestScores(recordBestScore(difficulty, finalScore));
       } catch {
         // ignore
       }
+      // Push the win onto the shared online leaderboard as well.
+      void recordSpiderScore(difficulty, finalScore);
     }
   }, [state.won, finishedElapsed, elapsed, state, difficulty]);
 
   const shownElapsed = finishedElapsed ?? elapsed;
 
+  const animateCompletedRuns = (before: GameState, after: GameState) => {
+    const gained = after.foundations.length - before.foundations.length;
+    if (gained <= 0) return;
+    const newFlights: FlyingCard[] = [];
+    const newSettling: number[] = [];
+    for (let k = 0; k < gained; k += 1) {
+      const foundationIndex = before.foundations.length + k;
+      const run = after.foundations[foundationIndex];
+      if (!run || run.length === 0) continue;
+      const dest = foundationRefs.current[foundationIndex]?.getBoundingClientRect();
+      // The run is stored King-first; fly Ace-first so the King lands on top.
+      [...run].reverse().forEach((card, i) => {
+        const src = cardEls.current.get(card.id)?.getBoundingClientRect();
+        if (!src || !dest) return;
+        newFlights.push({
+          key: flightKeyRef.current++,
+          card,
+          from: { x: src.left, y: src.top },
+          to: { x: dest.left, y: dest.top },
+          delay: i * RUN_STAGGER_MS,
+        });
+      });
+      newSettling.push(foundationIndex);
+    }
+    if (newFlights.length === 0) return;
+    setFlying((cur) => [...cur, ...newFlights]);
+    setSettling((cur) => [...cur, ...newSettling]);
+    newFlights.forEach((f) => {
+      window.setTimeout(() => {
+        setFlying((cur) => cur.filter((x) => x.key !== f.key));
+      }, f.delay + RUN_FLIGHT_MS + 30);
+    });
+    const lastDelay = newFlights[newFlights.length - 1]!.delay;
+    window.setTimeout(() => {
+      setSettling((cur) => cur.filter((idx) => !newSettling.includes(idx)));
+    }, lastDelay + RUN_FLIGHT_MS + 40);
+  };
+
   const apply = (candidate: GameState) => {
     if (candidate === state) return;
+    animateCompletedRuns(state, candidate);
     setHistory((h) => [...h, state]);
     setSelection(null);
     setState(candidate);
@@ -218,6 +281,8 @@ function SpiderTable() {
     setState(freshGame(d));
     setHistory([]);
     setSelection(null);
+    setFlying([]);
+    setSettling([]);
     setFinishedElapsed(null);
     setElapsed(0);
     startRef.current = 0;
@@ -245,6 +310,51 @@ function SpiderTable() {
     startFresh(next);
   };
 
+  // Send a spider crawling straight across the viewport from a random edge to
+  // the opposite edge. Shared by the five-minute timer and the dev trigger.
+  const clearCrawl = useCallback(() => setCrawl(null), []);
+  const triggerCrawl = useCallback(() => {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const pad = 44;
+    const edges = ["top", "bottom", "left", "right"] as const;
+    const startEdge = edges[Math.floor(Math.random() * edges.length)];
+    let fromX = 0;
+    let fromY = 0;
+    let toX = 0;
+    let toY = 0;
+    if (startEdge === "top") {
+      fromX = Math.random() * w;
+      fromY = -pad;
+      toX = Math.random() * w;
+      toY = h + pad;
+    } else if (startEdge === "bottom") {
+      fromX = Math.random() * w;
+      fromY = h + pad;
+      toX = Math.random() * w;
+      toY = -pad;
+    } else if (startEdge === "left") {
+      fromX = -pad;
+      fromY = Math.random() * h;
+      toX = w + pad;
+      toY = Math.random() * h;
+    } else {
+      fromX = w + pad;
+      fromY = Math.random() * h;
+      toX = -pad;
+      toY = Math.random() * h;
+    }
+    const dist = Math.hypot(toX - fromX, toY - fromY);
+    const duration = Math.max(4000, Math.round(dist / 0.12));
+    setCrawl({ key: Date.now(), from: { x: fromX, y: fromY }, to: { x: toX, y: toY }, duration });
+  }, []);
+
+  // A spider crawls across the screen every five minutes.
+  useEffect(() => {
+    const id = window.setInterval(() => triggerCrawl(), 5 * 60 * 1000);
+    return () => window.clearInterval(id);
+  }, [triggerCrawl]);
+
   const undo = () => {
     if (history.length === 0 || state.won || conceded) return;
     if (revealTimerRef.current !== null) {
@@ -252,8 +362,8 @@ function SpiderTable() {
       revealTimerRef.current = null;
     }
     const prev = history[history.length - 1]!;
-    // Each undo counts as a move.
-    setState({ ...prev, moves: prev.moves + 1 });
+    // Each undo counts as a move (deducts one point).
+    setState({ ...prev, moves: state.moves + 1 });
     setHistory(history.slice(0, -1));
     setSelection(null);
   };
@@ -362,7 +472,10 @@ function SpiderTable() {
 
   const clickStock = () => {
     const current = stateRef.current;
-    if (!canDeal(current)) return;
+    if (!canDeal(current)) {
+      if (current.stock.length > 0) setStockHintOpen(true);
+      return;
+    }
     const count = Math.min(10, current.stock.length);
     const dealtIds = current.stock
       .slice(current.stock.length - count)
@@ -372,6 +485,7 @@ function SpiderTable() {
     const candidate = dealStock(current);
     if (candidate === current) return;
     dealRef.current = { ids: dealtIds, rect };
+    setDealingRemaining(count);
     apply(candidate);
   };
 
@@ -397,7 +511,11 @@ function SpiderTable() {
       if (revealTimerRef.current !== null) window.clearTimeout(revealTimerRef.current);
       revealTimerRef.current = window.setTimeout(() => {
         revealTimerRef.current = null;
-        setState((s) => revealTopCard(s, index));
+        const before = stateRef.current;
+        const next = revealTopCard(before, index);
+        if (next === before) return;
+        animateCompletedRuns(before, next);
+        setState(next);
       }, 240);
     }
   };
@@ -481,14 +599,14 @@ function SpiderTable() {
           <Stat label="Moves" value={String(state.moves)} />
           <Stat label="Time" value={formatElapsed(shownElapsed)} />
           <Stat label="Runs" value={`${completedRuns(state)} / ${TOTAL_RUNS}`} />
-          <Stat label="Best score" value={best.score > 0 ? String(best.score) : "—"} />
+          <Stat label="Best score" value={bestScores.length > 0 ? String(bestScores[0]) : "—"} />
         </div>
 
         <div className="mt-6 grid items-start gap-6 lg:grid-cols-[1fr_260px]">
           <div className="relative select-none rounded-2xl border border-gold/15 bg-[#4c9a2a] px-0.5 py-[22.4px] text-black sm:px-6 sm:py-[33.6px]">
             <div className="mb-6 flex flex-wrap items-start justify-between gap-6">
               <StockPile
-                count={state.stock.length}
+                count={state.stock.length + dealingRemaining}
                 disabled={!canDeal(state)}
                 onClick={clickStock}
                 stockRef={stockElRef}
@@ -496,16 +614,27 @@ function SpiderTable() {
               <div className="flex flex-wrap gap-[3px] sm:gap-1.5">
                 {FOUNDATION_SUITS[difficulty].map((suit, i) => {
                   const done = i < state.foundations.length;
+                  const king = done ? state.foundations[i]![0] : undefined;
+                  const isSettling = settling.includes(i);
                   return (
                     <div
                       key={i}
-                      className={`grid h-[var(--spider-card-h)] w-[var(--spider-card-w)] place-items-center rounded-md border border-dashed text-4xl ${
+                      ref={(el) => {
+                        foundationRefs.current[i] = el;
+                      }}
+                      className={`relative grid h-[var(--spider-card-h)] w-[var(--spider-card-w)] place-items-center rounded-md border border-dashed ${
                         done ? "border-black bg-gold/25" : "border-black/30"
                       }`}
                     >
-                      <span className={isRed(suit) ? "text-[#c0392b]" : "text-ink"}>
-                        {SUIT_SYMBOL[suit]}
-                      </span>
+                      {king && !isSettling ? (
+                        <div className="pointer-events-none">
+                          <CardFace card={king} />
+                        </div>
+                      ) : (
+                        <span className={`text-4xl ${isRed(suit) ? "text-[#c0392b]" : "text-ink"}`}>
+                          {SUIT_SYMBOL[suit]}
+                        </span>
+                      )}
                     </div>
                   );
                 })}
@@ -615,6 +744,11 @@ function SpiderTable() {
                   onConcede={concede}
                   className="w-full"
                 />
+                {isDev && (
+                  <Button variant="parlorGhost" className="w-full" onClick={triggerCrawl}>
+                    🕷️ Spawn spider
+                  </Button>
+                )}
                 <RulesDialog
                   game={game}
                   trigger={
@@ -664,6 +798,12 @@ function SpiderTable() {
         </div>
       </div>
 
+      {flying.map((f) => (
+        <FlyingCardView key={f.key} flight={f} />
+      ))}
+
+      {crawl && <CrawlingSpider key={crawl.key} run={crawl} onDone={clearCrawl} />}
+
       <AlertDialog
         open={confirming !== null}
         onOpenChange={(open) => {
@@ -700,7 +840,112 @@ function SpiderTable() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog
+        open={stockHintOpen}
+        onOpenChange={(open) => {
+          if (!open) setStockHintOpen(false);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Can't deal yet</AlertDialogTitle>
+            <AlertDialogDescription>
+              Every column must hold at least one card before you can deal from the stock. Fill any
+              empty columns first.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setStockHintOpen(false)}>Got it</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
+  );
+}
+
+type CrawlRun = {
+  key: number;
+  from: { x: number; y: number };
+  to: { x: number; y: number };
+  duration: number;
+};
+
+function FlyingCardView({ flight }: { flight: FlyingCard }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const anim = el.animate(
+      [
+        { transform: `translate(${flight.from.x}px, ${flight.from.y}px)` },
+        { transform: `translate(${flight.to.x}px, ${flight.to.y}px)` },
+      ],
+      { duration: RUN_FLIGHT_MS, delay: flight.delay, easing: "ease-in", fill: "backwards" },
+    );
+    return () => anim.cancel();
+  }, [flight]);
+  return (
+    <div ref={ref} aria-hidden className="pointer-events-none fixed left-0 top-0 z-50">
+      <CardFace card={flight.card} />
+    </div>
+  );
+}
+
+function CrawlingSpider({ run, onDone }: { run: CrawlRun; onDone: () => void }) {
+  const wrapRef = useRef<HTMLDivElement>(null);
+  // The art's head points "up", so add 90° so it points along the direction of travel.
+  const angle = (Math.atan2(run.to.y - run.from.y, run.to.x - run.from.x) * 180) / Math.PI + 90;
+  useLayoutEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const anim = el.animate(
+      [
+        { transform: `translate(${run.from.x}px, ${run.from.y}px) rotate(${angle}deg)` },
+        { transform: `translate(${run.to.x}px, ${run.to.y}px) rotate(${angle}deg)` },
+      ],
+      { duration: run.duration, easing: "linear", fill: "forwards" },
+    );
+    anim.onfinish = () => onDone();
+    return () => anim.cancel();
+  }, [run, onDone, angle]);
+
+  return (
+    <div
+      ref={wrapRef}
+      className="pointer-events-none fixed left-0 top-0 z-[999] will-change-transform"
+      style={{
+        width: 0,
+        height: 0,
+        transformOrigin: "0 0",
+        transform: `translate(${run.from.x}px, ${run.from.y}px) rotate(${angle}deg)`,
+      }}
+    >
+      <div className="absolute" style={{ left: -22, top: -22 }}>
+        <SpiderArt />
+      </div>
+    </div>
+  );
+}
+
+function SpiderArt() {
+  return (
+    <svg width="44" height="44" viewBox="0 0 48 48" aria-hidden="true" className="drop-shadow-md">
+      <g stroke="#151310" strokeWidth="2.2" strokeLinecap="round" fill="none">
+        <line className="spider-leg spider-leg-l spider-leg--a" x1="18" y1="17" x2="3" y2="11" />
+        <line className="spider-leg spider-leg-l spider-leg--b" x1="18" y1="22" x2="2" y2="23" />
+        <line className="spider-leg spider-leg-l spider-leg--a" x1="18" y1="27" x2="2" y2="28" />
+        <line className="spider-leg spider-leg-l spider-leg--b" x1="18" y1="32" x2="3" y2="37" />
+        <line className="spider-leg spider-leg-r spider-leg--a" x1="30" y1="17" x2="45" y2="11" />
+        <line className="spider-leg spider-leg-r spider-leg--b" x1="30" y1="22" x2="46" y2="23" />
+        <line className="spider-leg spider-leg-r spider-leg--a" x1="30" y1="27" x2="46" y2="28" />
+        <line className="spider-leg spider-leg-r spider-leg--b" x1="30" y1="32" x2="45" y2="37" />
+      </g>
+      <ellipse cx="24" cy="24" rx="8" ry="10" fill="#151310" />
+      <circle cx="24" cy="10" r="4" fill="#151310" />
+      <circle cx="22.4" cy="9" r="0.9" fill="#e74c3c" />
+      <circle cx="25.6" cy="9" r="0.9" fill="#e74c3c" />
+    </svg>
   );
 }
 
@@ -825,10 +1070,9 @@ function StockPile({
               ref={stockRef}
               type="button"
               onClick={onClick}
-              disabled={disabled}
               aria-label="Deal from the stock"
               className={`relative block cursor-pointer rounded-md transition-opacity ${
-                disabled ? "cursor-not-allowed opacity-60" : "hover:opacity-80"
+                disabled ? "opacity-60" : "hover:opacity-80"
               }`}
             >
               <CardBack />
@@ -837,6 +1081,9 @@ function StockPile({
         ) : (
           <EmptySlot />
         )}
+        <span className="pointer-events-none absolute -right-4 top-1/2 -translate-y-1/2 text-xs font-semibold text-black/80">
+          {count}
+        </span>
       </div>
       <span className="text-[10px] uppercase tracking-[0.18em] text-black">Stock</span>
     </div>

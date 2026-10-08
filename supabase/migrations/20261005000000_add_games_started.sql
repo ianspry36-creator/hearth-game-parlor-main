@@ -1,36 +1,48 @@
--- Games started log: one row per game a player starts, updated through the
--- game's lifecycle. Tracks what is being played and how each game ends.
---
--- `completed_status` is one of:
---   'in play'   – game is ongoing
---   'won'       – player won
---   'lost'      – player lost
---   'conceded'  – player conceded
---   'error'     – an error occurred in the game
---   'new game'  – player started a new game (abandoning the current one)
---   'game room' – player left for the game room
---   'other'     – anything else
 
-CREATE TABLE public.games_started (
-  id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-  session_id UUID,
-  game_name TEXT NOT NULL,
-  nickname TEXT,
-  start_date DATE NOT NULL DEFAULT CURRENT_DATE,
-  start_time TIME NOT NULL DEFAULT CURRENT_TIME,
-  completed_status TEXT NOT NULL DEFAULT 'in play',
-  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
-);
+“Welcome to Tri Peaks Solitaire — a fast-paced twist on classic solitaire where strategy meets speed!”
 
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.games_started TO anon;
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.games_started TO authenticated;
-GRANT ALL ON public.games_started TO service_role;
+Objective
+“The goal is simple: clear all the cards from the three pyramid-shaped peaks by building a sequence — either one rank higher or lower than the card on your discard pile.”
 
-ALTER TABLE public.games_started ENABLE ROW LEVEL SECURITY;
+Gameplay Basics
+You start with three peaks of cards face-up, and a stock pile at the bottom.
 
-CREATE POLICY "Anyone can start a game" ON public.games_started FOR INSERT WITH CHECK (true);
-CREATE POLICY "Anyone can update a started game" ON public.games_started FOR UPDATE USING (true) WITH CHECK (true);
-CREATE POLICY "Anyone can read started games" ON public.games_started FOR SELECT USING (true);
+The bottom row of each peak is playable first — once a card is removed, the card above it becomes available.
 
-CREATE INDEX idx_games_started_game ON public.games_started (game_name, created_at DESC);
-CREATE INDEX idx_games_started_status ON public.games_started (completed_status);
+You can play any card that’s one rank higher or lower than the top card on your discard pile.
+
+Example: if the discard pile shows a 7, you can play a 6 or an 8.
+
+Aces connect both ends — you can go from King to Ace or Ace to 2.
+
+Stock & Strategy
+“When you run out of moves, draw from the stock pile to reveal a new card.
+The trick is to plan ahead — look for long runs and uncover hidden cards early to keep your streak going.”
+
+So lets play a game.
+
+There are 24 cards in the stock.  Keep an eye on this, if you run of stock and are unable to play the game is over.
+
+I'm looking for a run of cards, so if I pick the 3 I can then play the 4 or 2 and then back to 3.  The suit does not matter in this game.
+
+I've run out of cards to play so must pick from the stock.
+
+An Ace could be followed by a king or a 2.  But the ace is no good to me, I much pick from the stock.  
+
+I need to decide whether to go with the 6 or the 8.  I decide the 8 as I can go 8,7,6,5. If I choose the 6, I could follow that with 5 and that would be the end of the run.
+
+That run has been good.  I've cleared a lot of the cards and I still have 20 stock cards to go.
+
+A king can be followed by a queen or an ace.
+
+Less than 10 stock cards left, but I've nearly cleared the board.
+
+And that it, I won the game.
+
+This game can be played at cardsandgames.fun along with many other videos.  See the link below.
+
+
+
+
+
+
