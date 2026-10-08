@@ -836,16 +836,20 @@ function ClockCardFace({ card }: { card: Card }) {
   return (
     <div
       aria-label={cardLabel(card)}
-      className={`relative block h-[var(--clock-card-h)] w-[var(--clock-card-w)] select-none rounded-md border border-black/10 bg-white text-left shadow-md shadow-black/30 ${
-        red ? "text-[#c0392b]" : "text-ink"
+      className={`relative block h-[var(--clock-card-h)] w-[var(--clock-card-w)] select-none overflow-hidden rounded-lg border border-black/10 bg-white text-left shadow-md shadow-black/30 ${
+        red ? "text-destructive" : "text-ink"
       }`}
     >
-      <span className="absolute left-0.5 top-0.5 flex flex-col items-center font-display text-[10px] font-bold leading-none">
+      <span className="absolute left-1 top-0.5 flex flex-col items-center font-display text-[12.5px] font-bold leading-none sm:text-[15.5px]">
         <span className="font-[Times_New_Roman,serif]">{RANK_LABEL[card.rank]}</span>
-        <span className="mt-0.5 text-[9px]">{SUIT_SYMBOL[card.suit]}</span>
+        <span className="text-[11.25px] sm:text-[14px]">{SUIT_SYMBOL[card.suit]}</span>
       </span>
-      <span className="absolute inset-0 grid place-items-center text-base">
+      <span aria-hidden className="absolute inset-0 grid place-items-center font-display text-xl opacity-80 sm:text-[25px]">
         {SUIT_SYMBOL[card.suit]}
+      </span>
+      <span className="absolute bottom-0.5 right-1 flex rotate-180 flex-col items-center font-display text-[12.5px] font-bold leading-none sm:text-[15.5px]">
+        <span className="font-[Times_New_Roman,serif]">{RANK_LABEL[card.rank]}</span>
+        <span className="text-[11.25px] sm:text-[14px]">{SUIT_SYMBOL[card.suit]}</span>
       </span>
     </div>
   );
@@ -855,7 +859,7 @@ function ClockCardBack() {
   return (
     <div
       aria-label="Face-down card"
-      className="block h-[var(--clock-card-h)] w-[var(--clock-card-w)] overflow-hidden rounded-md shadow-md shadow-black/30"
+      className="block h-[var(--clock-card-h)] w-[var(--clock-card-w)] overflow-hidden rounded-lg shadow-md shadow-black/30"
     >
       <img src={cardBackAsset} alt="" aria-hidden className="h-full w-full object-cover" />
     </div>

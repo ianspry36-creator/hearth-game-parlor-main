@@ -709,8 +709,6 @@ function FlyingCardView({ flight }: { flight: FlyingCard }) {
   }, []);
   const dx = moved ? flight.to.x - flight.from.x : 0;
   const dy = moved ? flight.to.y - flight.from.y : 0;
-  const red = isRed(flight.card.suit);
-  const isFaceCard = flight.card.rank === 1 || flight.card.rank > 10;
   return (
     <div
       aria-hidden
@@ -722,19 +720,7 @@ function FlyingCardView({ flight }: { flight: FlyingCard }) {
         transitionDuration: `${FLIGHT_MS}ms`,
       }}
     >
-      <div
-        className={`relative block h-[var(--yukon-card-h)] w-[var(--yukon-card-w)] select-none rounded-md border border-black/10 bg-white text-left shadow-md shadow-black/30 ${
-          red ? "text-[#c0392b]" : "text-ink"
-        }`}
-      >
-        <span className="absolute left-0.5 top-0.5 flex flex-col items-center font-display text-[18px] font-bold leading-none sm:left-1 sm:top-1 sm:text-[21px]">
-          <span className="font-[Times_New_Roman,serif]">{RANK_LABEL[flight.card.rank]}</span>
-          <span className="mt-0.5 text-[16px] sm:text-[18px]">{SUIT_SYMBOL[flight.card.suit]}</span>
-        </span>
-        <span className="absolute inset-0 grid place-items-center text-[28px] sm:text-[36px]">
-          {isFaceCard ? RANK_LABEL[flight.card.rank] : SUIT_SYMBOL[flight.card.suit]}
-        </span>
-      </div>
+      <CardFace card={flight.card} />
     </div>
   );
 }
@@ -780,7 +766,7 @@ function CardFace({
   onPointerUp?: (e: ReactPointerEvent) => void;
 }) {
   const red = isRed(card.suit);
-  const isFaceCard = card.rank === 1 || card.rank > 10;
+  const isFace = card.rank > 10;
   return (
     <button
       type="button"
@@ -790,16 +776,32 @@ function CardFace({
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       aria-label={cardLabel(card)}
-      className={`relative block h-[var(--yukon-card-h)] w-[var(--yukon-card-w)] touch-none select-none rounded-md border border-black/10 bg-white text-left shadow-md shadow-black/30 transition-transform ${
-        red ? "text-[#c0392b]" : "text-ink"
+      className={`relative block h-[var(--yukon-card-h)] w-[var(--yukon-card-w)] touch-none select-none overflow-hidden rounded-lg border border-black/10 bg-white text-left shadow-md shadow-black/30 transition-transform ${
+        red ? "text-destructive" : "text-ink"
       } ${selected ? "-translate-y-1 ring-2 ring-gold" : ""} ${hidden ? "opacity-0" : ""}`}
     >
-      <span className="absolute left-0.5 top-0.5 flex flex-col items-center font-display text-[18px] font-bold leading-none sm:left-1 sm:top-1 sm:text-[21px]">
+      <span className="absolute left-1 top-0.5 flex flex-col items-center font-display text-[18px] font-bold leading-none sm:text-[21px]">
         <span className="font-[Times_New_Roman,serif]">{RANK_LABEL[card.rank]}</span>
-        <span className="mt-0.5 text-[16px] sm:text-[18px]">{SUIT_SYMBOL[card.suit]}</span>
+        <span className="text-[16px] sm:text-[18px]">{SUIT_SYMBOL[card.suit]}</span>
       </span>
-      <span className="absolute inset-0 grid place-items-center text-[28px] sm:text-[36px]">
-        {isFaceCard ? RANK_LABEL[card.rank] : SUIT_SYMBOL[card.suit]}
+      <span
+        aria-hidden
+        className={`absolute inset-0 grid place-items-center font-display text-[28px] sm:text-[36px] ${
+          isFace ? "opacity-90" : "opacity-80"
+        }`}
+      >
+        {isFace ? (
+          <span className="flex flex-col items-center leading-none">
+            <span className="text-lg sm:text-2xl">{RANK_LABEL[card.rank]}</span>
+            <span className="text-[22px] sm:text-[29px]">{SUIT_SYMBOL[card.suit]}</span>
+          </span>
+        ) : (
+          SUIT_SYMBOL[card.suit]
+        )}
+      </span>
+      <span className="absolute bottom-0.5 right-1 flex rotate-180 flex-col items-center font-display text-[18px] font-bold leading-none sm:text-[21px]">
+        <span className="font-[Times_New_Roman,serif]">{RANK_LABEL[card.rank]}</span>
+        <span className="text-[16px] sm:text-[18px]">{SUIT_SYMBOL[card.suit]}</span>
       </span>
     </button>
   );
@@ -812,7 +814,7 @@ function CardBack({ onClick }: { onClick?: () => void }) {
       onClick={onClick}
       disabled={!onClick}
       aria-label="Face-down card"
-      className={`relative block h-[var(--yukon-card-h)] w-[var(--yukon-card-w)] overflow-hidden rounded-md shadow-md shadow-black/30 ${
+      className={`relative block h-[var(--yukon-card-h)] w-[var(--yukon-card-w)] overflow-hidden rounded-lg shadow-md shadow-black/30 ${
         onClick ? "cursor-pointer" : "cursor-default"
       }`}
     >
@@ -840,7 +842,7 @@ function EmptySlot({
       className={`grid h-[var(--yukon-card-h)] w-[var(--yukon-card-w)] place-items-center rounded-md border border-dashed ${
         black ? "border-black" : "border-gold/30"
       } text-lg ${
-        red ? "text-[#c0392b]" : symbol ? "text-black" : "text-gold/30"
+        red ? "text-destructive" : symbol ? "text-black" : "text-gold/30"
       }`}
     >
       {symbol ?? "♚"}

@@ -222,8 +222,16 @@ export function useMatch<T>(matchId: string | undefined, gameOver = false) {
   const [opponentDisconnected, setOpponentDisconnected] = useState(false);
   const [disconnectSecondsLeft, setDisconnectSecondsLeft] = useState(RECONNECT_SECONDS);
   const [disconnectExpired, setDisconnectExpired] = useState(false);
+  // Latches true when the opponent leaves after the game has ended (while the
+  // end-of-game screen is shown), so the rematch button can be removed and a
+  // pending rematch request reported as rejected.
+  const [opponentLeft, setOpponentLeft] = useState(false);
   const seenOpponentRef = useRef(false);
   const expiredRef = useRef(false);
+  // Mirrors `gameOver` for the presence callbacks, which are created once when
+  // the presence effect mounts and must not capture a stale value.
+  const gameOverRef = useRef(gameOver);
+  gameOverRef.current = gameOver;
   // Tracks whether we have already logged the current disconnect episode, so a
   // flapping presence channel doesn't flood the email log with one report per
   // sync/leave event.
@@ -395,7 +403,7 @@ export function useMatch<T>(matchId: string | undefined, gameOver = false) {
   // Track the opponent's live connection through a Realtime presence channel so a
   // dropped peer can be detected and given a short window to reconnect.
   useEffect(() => {
-    if (!matchId || !opponentSession || gameOver) return;
+    if (!matchId || !opponentSession) return;
     const mySession = sessionId || getSessionId();
 
     const markOnline = () => {
@@ -416,9 +424,17 @@ export function useMatch<T>(matchId: string | undefined, gameOver = false) {
       setOpponentDisconnected(false);
       setDisconnectSecondsLeft(RECONNECT_SECONDS);
       setOpponentConnected(true);
+      setOpponentLeft(false);
     };
     const markOffline = () => {
       if (!seenOpponentRef.current || expiredRef.current) return;
+      // Once the game is over the reconnect/forfeit flow is suspended, but the
+      // opponent walking away still matters: it removes the rematch button and
+      // reports a pending rematch request as rejected.
+      if (gameOverRef.current) {
+        setOpponentLeft(true);
+        return;
+      }
       setOpponentOnline(false);
       setOpponentDisconnected(true);
       // Log the first transition of a disconnect episode so the moment the
@@ -491,7 +507,7 @@ export function useMatch<T>(matchId: string | undefined, gameOver = false) {
       noteOpponentActivityRef.current = () => {};
       void supabase.removeChannel(channel);
     };
-  }, [matchId, opponentSession, sessionId, gameOver]);
+  }, [matchId, opponentSession, sessionId]);
 
   // Count the reconnect window down; when it reaches zero the match is awarded
   // to the player who stayed connected.
@@ -529,11 +545,7 @@ export function useMatch<T>(matchId: string | undefined, gameOver = false) {
   useEffect(() => {
     if (!gameOver) return;
     expiredRef.current = false;
-    // A rematch starts a fresh game on the same match row. Forget that we ever
-    // saw the opponent so the presence channel that is re-subscribed once the
-    // game resumes doesn't treat the brief window before the opponent re-tracks
-    // as a fresh "player disconnected" episode.
-    seenOpponentRef.current = false;
+    setOpponentLeft(false);
     setOpponentDisconnected(false);
     setDisconnectExpired(false);
     setDisconnectSecondsLeft(RECONNECT_SECONDS);
@@ -563,6 +575,7 @@ export function useMatch<T>(matchId: string | undefined, gameOver = false) {
     opponentOnline,
     opponentConnected,
     opponentDisconnected,
+    opponentLeft,
     disconnectSecondsLeft,
     disconnectExpired,
     remoteState,

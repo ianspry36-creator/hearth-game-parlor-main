@@ -817,7 +817,7 @@ function CardFace({
   onPointerUp?: (e: ReactPointerEvent) => void;
 }) {
   const red = isRed(card.suit);
-  const isFace = card.rank === 1 || card.rank > 10;
+  const isFace = card.rank > 10;
   return (
     <button
       type="button"
@@ -827,16 +827,32 @@ function CardFace({
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       aria-label={cardLabel(card)}
-      className={`relative block h-[var(--cr-card-h)] w-[var(--cr-card-w)] touch-none select-none rounded-md border border-black/10 bg-white text-left shadow-sm shadow-black/30 transition-transform ${
-        red ? "text-[#c0392b]" : "text-ink"
+      className={`relative block h-[var(--cr-card-h)] w-[var(--cr-card-w)] touch-none select-none overflow-hidden rounded-lg border border-black/10 bg-white text-left shadow-sm shadow-black/30 transition-transform ${
+        red ? "text-destructive" : "text-ink"
       } ${selected ? "-translate-y-1 ring-2 ring-gold" : ""} ${hidden ? "opacity-0" : ""}`}
     >
-      <span className="absolute left-0.5 top-0.5 flex flex-col items-center font-display text-[15px] font-bold leading-none sm:text-lg">
+      <span className="absolute left-1 top-0.5 flex flex-col items-center font-display text-[15px] font-bold leading-none sm:text-lg">
         <span className="font-[Times_New_Roman,serif]">{RANK_LABEL[card.rank]}</span>
-        <span className="mt-0.5 text-[13.5px] sm:text-[16.5px]">{SUIT_SYMBOL[card.suit]}</span>
+        <span className="text-[13.5px] sm:text-[16.5px]">{SUIT_SYMBOL[card.suit]}</span>
       </span>
-      <span className="absolute inset-0 grid place-items-center text-[27px] sm:text-4xl">
-        {isFace ? RANK_LABEL[card.rank] : SUIT_SYMBOL[card.suit]}
+      <span
+        aria-hidden
+        className={`absolute inset-0 grid place-items-center font-display text-[27px] sm:text-4xl ${
+          isFace ? "opacity-90" : "opacity-80"
+        }`}
+      >
+        {isFace ? (
+          <span className="flex flex-col items-center leading-none">
+            <span className="text-lg sm:text-2xl">{RANK_LABEL[card.rank]}</span>
+            <span className="text-[21px] sm:text-[29px]">{SUIT_SYMBOL[card.suit]}</span>
+          </span>
+        ) : (
+          SUIT_SYMBOL[card.suit]
+        )}
+      </span>
+      <span className="absolute bottom-0.5 right-1 flex rotate-180 flex-col items-center font-display text-[15px] font-bold leading-none sm:text-lg">
+        <span className="font-[Times_New_Roman,serif]">{RANK_LABEL[card.rank]}</span>
+        <span className="text-[13.5px] sm:text-[16.5px]">{SUIT_SYMBOL[card.suit]}</span>
       </span>
     </button>
   );

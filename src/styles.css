@@ -1062,6 +1062,19 @@
   }
 }
 
+/* Sultan Solitaire responsive card sizing — a ring of foundations around the Sultan. */
+:root {
+  --sultan-card-h: 110px;
+  --sultan-card-w: 79px;
+}
+
+@media (max-width: 639.98px) {
+  :root {
+    --sultan-card-h: 73px;
+    --sultan-card-w: 51px;
+  }
+}
+
 /* Spider easter egg: a little spider crawls across the screen with walking legs. */
 .spider-leg {
   transform-box: fill-box;

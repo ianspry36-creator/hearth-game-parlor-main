@@ -1,11 +1,11 @@
-export type GameId = "addiction" | "backgammon" | "canfield" | "checkers" | "clock" | "crazy-eights" | "crescent" | "cribbage" | "farkle" | "freecell" | "hearts" | "kings-in-the-corner" | "reversi" | "scorpion" | "solitaire" | "spider" | "triangles" | "tripeaks" | "warship" | "yahtzee" | "yukon";
+export type GameId = "addiction" | "backgammon" | "canfield" | "checkers" | "clock" | "crazy-eights" | "crescent" | "cribbage" | "farkle" | "freecell" | "hearts" | "kings-in-the-corner" | "reversi" | "scorpion" | "solitaire" | "spider" | "sultan" | "triangles" | "tripeaks" | "warship" | "yahtzee" | "yukon";
 
 export type GameMeta = {
   id: GameId;
   name: string;
   initial: string;
   tagline: string;
-  path: "/addiction" | "/backgammon" | "/canfield" | "/checkers" | "/clock" | "/crazy-eights" | "/crescent" | "/cribbage" | "/farkle" | "/freecell" | "/hearts" | "/kings-in-the-corner" | "/reversi" | "/scorpion" | "/solitaire" | "/spider" | "/triangles" | "/tripeaks" | "/warship" | "/yahtzee" | "/yukon";
+  path: "/addiction" | "/backgammon" | "/canfield" | "/checkers" | "/clock" | "/crazy-eights" | "/crescent" | "/cribbage" | "/farkle" | "/freecell" | "/hearts" | "/kings-in-the-corner" | "/reversi" | "/scorpion" | "/solitaire" | "/spider" | "/sultan" | "/triangles" | "/tripeaks" | "/warship" | "/yahtzee" | "/yukon";
   rules: { heading: string; body: string }[];
   history: string;
   historySource?: string;
@@ -585,6 +585,42 @@ export const GAMES: GameMeta[] = [
       {
         heading: "Difficulty",
         body: "Play with one suit (beginner), two suits (intermediate), or all four suits (advanced). The deck always holds 104 cards — only the variety of suits changes.",
+      },
+    ],
+  },
+  {
+    id: "sultan",
+    name: "Sultan Solitaire",
+    initial: "S",
+    tagline: "Ring the King of Hearts with foundations and send every card home.",
+    path: "/sultan",
+    history:
+      "Sultan is a patience built around a single fixed card — the King of Hearts, seated in the centre of the table as the Sultan. Around him stand the foundations, each climbing in a single suit from its seed rank, while six reserve cells wait to hold a card in readiness. It belongs to a family of French patiences in which a monarch sits at the centre of a ring of suits, cousins of the two-pack games played under the Empress and the Queen.",
+    historySource: "https://en.wikipedia.org/wiki/Sultan_(solitaire)",
+    rules: [
+      {
+        heading: "The object",
+        body: "Move every card onto the foundations. When each foundation has climbed to its Queen, the table is solved.",
+      },
+      {
+        heading: "The setup",
+        body: "The King of Hearts sits alone in the centre as the Sultan. Around him stand the foundations, seeded with their first card: the Ace of Hearts directly above, and a ring of Kings beyond it. Six reserve cells hold a single card each, and the rest of the deck forms the stock.",
+      },
+      {
+        heading: "Building the foundations",
+        body: "Each foundation is built upward in a single suit, wrapping from King to Ace. A King is followed by the Ace, then 2, 3 and so on to the Queen. The Ace of Hearts foundation above the Sultan climbs from Ace straight up to the Queen of Hearts.",
+      },
+      {
+        heading: "One deck or two",
+        body: "Play with one deck for four foundations, or two decks for eight. With two decks there are two foundations for spades, clubs and diamonds and one for hearts beyond the Ace of Hearts — the second King of Hearts is already seated in the middle.",
+      },
+      {
+        heading: "Moving a card",
+        body: "Only the top waste card or a card from a reserve cell may move. Place it onto a foundation of the same suit when it is the next rank, or tuck it into an empty reserve cell to keep it out of the way.",
+      },
+      {
+        heading: "The stock and waste",
+        body: "Turn cards from the stock one at a time. When the stock runs dry you may turn the waste over and shuffle it into a fresh stock — twice — before the hand is truly spent.",
       },
     ],
   },

@@ -404,6 +404,7 @@ function GameOverDialog({
   onBackToGameRoom,
   playAgainLabel = "Play again",
   playAgainDisabled = false,
+  hidePlayAgain = false,
   detail,
   timedOut = false,
 }: {
@@ -418,6 +419,7 @@ function GameOverDialog({
   onBackToGameRoom: () => void;
   playAgainLabel?: string;
   playAgainDisabled?: boolean;
+  hidePlayAgain?: boolean;
   detail?: string;
   timedOut?: boolean;
 }) {
@@ -503,11 +505,13 @@ function GameOverDialog({
           <Button variant="parlorOutline" onClick={onBackToGameRoom}>
             Back to game room
           </Button>
-          <AlertDialogAction asChild>
-            <Button variant="parlor" onClick={onPlayAgain} disabled={playAgainDisabled}>
-              {playAgainLabel}
-            </Button>
-          </AlertDialogAction>
+          {!hidePlayAgain && (
+            <AlertDialogAction asChild>
+              <Button variant="parlor" onClick={onPlayAgain} disabled={playAgainDisabled}>
+                {playAgainLabel}
+              </Button>
+            </AlertDialogAction>
+          )}
         </div>
       </AlertDialogContent>
     </AlertDialog>
@@ -518,6 +522,7 @@ function CribbageTable() {
   const game = getGame("cribbage");
   const navigate = useNavigate();
   const { opponent, match: matchId } = Route.useSearch();
+  const [state, setState] = useState<State>(() => cutForDeal());
   const {
     match,
     isHost,
@@ -528,12 +533,12 @@ function CribbageTable() {
     remoteState,
     publish,
     opponentDisconnected,
+    opponentLeft,
     disconnectSecondsLeft,
     disconnectExpired,
-  } = useMatch<State>(matchId);
+  } = useMatch<State>(matchId, state.phase === "over");
   const isMulti = Boolean(matchId);
   const freshGame = () => cutForDeal();
-  const [state, setState] = useState<State>(() => cutForDeal());
   const [selected, setSelected] = useState<string[]>([]);
   const [back, setBack] = useState<Record<Side, number>>({ player: 0, cpu: 0 });
   const [avatar, setAvatar] = useState<string>(AVATAR_OPTIONS[0]!.url);
@@ -1468,9 +1473,12 @@ function CribbageTable() {
         onPlayAgain={() => (isMulti ? requestRematch() : reset(freshGame()))}
         playAgainLabel={isMulti ? "Rematch" : "Play again"}
         playAgainDisabled={isMulti && state.rematch !== null}
+        hidePlayAgain={isMulti && opponentLeft}
         detail={
           rematchOutgoing
-            ? `Rematch request sent — waiting for ${opponentName} to respond…`
+            ? opponentLeft
+              ? `${opponentName} has rejected the rematch.`
+              : `Rematch request sent — waiting for ${opponentName} to respond…`
             : undefined
         }
         onViewBoard={() => setViewingBoard(true)}

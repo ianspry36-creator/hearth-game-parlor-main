@@ -678,7 +678,7 @@ function SlotCell({
   }
 
   const red = isRed(card.suit);
-  const isFaceCard = card.rank === 1 || card.rank > 10;
+  const isFace = card.rank > 10;
 
   return (
     <button
@@ -691,16 +691,32 @@ function SlotCell({
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       aria-label={cardLabel(card)}
-      className={`relative block h-[var(--kic-card-h)] w-[var(--kic-card-w)] shrink-0 touch-none select-none rounded-lg border border-black bg-white text-left shadow-md shadow-black/30 transition-transform ${
-        red ? "text-[#c0392b]" : "text-ink"
+      className={`relative block h-[var(--kic-card-h)] w-[var(--kic-card-w)] shrink-0 touch-none select-none overflow-hidden rounded-lg border border-black bg-white text-left shadow-md shadow-black/30 transition-transform ${
+        red ? "text-destructive" : "text-ink"
       } ${selected ? "-translate-y-1 ring-2 ring-gold" : ""} ${draggingIds?.has(card.id) ? "invisible" : ""}`}
     >
-      <span className="absolute left-0.5 top-0.5 flex flex-col items-center font-display text-[18px] font-bold leading-none sm:left-1 sm:top-1 sm:text-sm">
+      <span className="absolute left-1 top-0.5 flex flex-col items-center font-display text-[18px] font-bold leading-none sm:text-sm">
         <span className={`font-[Times_New_Roman,serif] ${card.rank > 10 ? "text-[#000000]" : ""}`}>{RANK_LABEL[card.rank]}</span>
-        <span className="mt-0.5 text-[16px] sm:text-xs">{SUIT_SYMBOL[card.suit]}</span>
+        <span className="text-[16px] sm:text-xs">{SUIT_SYMBOL[card.suit]}</span>
       </span>
-      <span className={`absolute inset-0 grid place-items-center text-[28px] sm:text-3xl ${card.rank > 10 ? "text-[#000000]" : ""}`}>
-        {isFaceCard ? RANK_LABEL[card.rank] : SUIT_SYMBOL[card.suit]}
+      <span
+        aria-hidden
+        className={`absolute inset-0 grid place-items-center font-display text-[28px] sm:text-3xl ${
+          isFace ? "opacity-90" : "opacity-80"
+        }`}
+      >
+        {isFace ? (
+          <span className="flex flex-col items-center leading-none">
+            <span className="text-lg text-[#000000] sm:text-xl">{RANK_LABEL[card.rank]}</span>
+            <span className="text-[22px] sm:text-2xl">{SUIT_SYMBOL[card.suit]}</span>
+          </span>
+        ) : (
+          SUIT_SYMBOL[card.suit]
+        )}
+      </span>
+      <span className="absolute bottom-0.5 right-1 flex rotate-180 flex-col items-center font-display text-[18px] font-bold leading-none sm:text-sm">
+        <span className={`font-[Times_New_Roman,serif] ${card.rank > 10 ? "text-[#000000]" : ""}`}>{RANK_LABEL[card.rank]}</span>
+        <span className="text-[16px] sm:text-xs">{SUIT_SYMBOL[card.suit]}</span>
       </span>
     </button>
   );
@@ -720,23 +736,39 @@ function CardFace({
   onPointerUp?: (e: ReactPointerEvent) => void;
 }) {
   const red = isRed(card.suit);
-  const isFaceCard = card.rank === 1 || card.rank > 10;
+  const isFace = card.rank > 10;
   return (
     <div
       aria-label={cardLabel(card)}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
-      className={`relative block h-[var(--kic-card-h)] w-[var(--kic-card-w)] touch-none select-none rounded-lg border border-black bg-white text-left shadow-md shadow-black/30 ${
-        red ? "text-[#c0392b]" : "text-ink"
+      className={`relative block h-[var(--kic-card-h)] w-[var(--kic-card-w)] touch-none select-none overflow-hidden rounded-lg border border-black bg-white text-left shadow-md shadow-black/30 ${
+        red ? "text-destructive" : "text-ink"
       } ${hidden ? "opacity-0" : ""}`}
     >
-      <span className="absolute left-0.5 top-0.5 flex flex-col items-center font-display text-[18px] font-bold leading-none sm:left-1 sm:top-1 sm:text-sm">
+      <span className="absolute left-1 top-0.5 flex flex-col items-center font-display text-[18px] font-bold leading-none sm:text-sm">
         <span className={`font-[Times_New_Roman,serif] ${card.rank > 10 ? "text-[#000000]" : ""}`}>{RANK_LABEL[card.rank]}</span>
-        <span className="mt-0.5 text-[16px] sm:text-xs">{SUIT_SYMBOL[card.suit]}</span>
+        <span className="text-[16px] sm:text-xs">{SUIT_SYMBOL[card.suit]}</span>
       </span>
-      <span className={`absolute inset-0 grid place-items-center text-[28px] sm:text-3xl ${card.rank > 10 ? "text-[#000000]" : ""}`}>
-        {isFaceCard ? RANK_LABEL[card.rank] : SUIT_SYMBOL[card.suit]}
+      <span
+        aria-hidden
+        className={`absolute inset-0 grid place-items-center font-display text-[28px] sm:text-3xl ${
+          isFace ? "opacity-90" : "opacity-80"
+        }`}
+      >
+        {isFace ? (
+          <span className="flex flex-col items-center leading-none">
+            <span className="text-lg text-[#000000] sm:text-xl">{RANK_LABEL[card.rank]}</span>
+            <span className="text-[22px] sm:text-2xl">{SUIT_SYMBOL[card.suit]}</span>
+          </span>
+        ) : (
+          SUIT_SYMBOL[card.suit]
+        )}
+      </span>
+      <span className="absolute bottom-0.5 right-1 flex rotate-180 flex-col items-center font-display text-[18px] font-bold leading-none sm:text-sm">
+        <span className={`font-[Times_New_Roman,serif] ${card.rank > 10 ? "text-[#000000]" : ""}`}>{RANK_LABEL[card.rank]}</span>
+        <span className="text-[16px] sm:text-xs">{SUIT_SYMBOL[card.suit]}</span>
       </span>
     </div>
   );

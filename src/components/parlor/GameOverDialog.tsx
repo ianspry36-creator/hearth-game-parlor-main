@@ -43,6 +43,7 @@ export function GameOverDialog({
   playAgainClassName,
   playAgainLabel = "Play again",
   playAgainDisabled = false,
+  hidePlayAgain = false,
   results,
 }: {
   open: boolean;
@@ -61,6 +62,7 @@ export function GameOverDialog({
   playAgainClassName?: string;
   playAgainLabel?: string;
   playAgainDisabled?: boolean;
+  hidePlayAgain?: boolean;
   results?: GameOverSeat[];
 }) {
   const title =
@@ -188,17 +190,19 @@ export function GameOverDialog({
 
         <AlertDialogFooter className="gap-2 sm:justify-center sm:space-x-0">
           {footerExtra}
-          <AlertDialogAction asChild>
-            <Button
-              ref={actionRef}
-              variant="parlor"
-              className={playAgainClassName}
-              onClick={onPlayAgain}
-              disabled={playAgainDisabled}
-            >
-              {playAgainLabel}
-            </Button>
-          </AlertDialogAction>
+          {!hidePlayAgain && (
+            <AlertDialogAction asChild>
+              <Button
+                ref={actionRef}
+                variant="parlor"
+                className={playAgainClassName}
+                onClick={onPlayAgain}
+                disabled={playAgainDisabled}
+              >
+                {playAgainLabel}
+              </Button>
+            </AlertDialogAction>
+          )}
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

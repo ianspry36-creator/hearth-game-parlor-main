@@ -314,6 +314,7 @@ function CrazyEightsTable() {
     [navigate],
   );
   const { opponent, match: matchId, room: roomId } = Route.useSearch();
+  const [state, setState] = useState<State>(() => freshState(2, mulberry32(SSR_SEED)));
   const {
     match,
     isHost,
@@ -323,9 +324,10 @@ function CrazyEightsTable() {
     remoteState,
     publish,
     opponentDisconnected,
+    opponentLeft,
     disconnectSecondsLeft,
     disconnectExpired,
-  } = useMatch<State>(matchId);
+  } = useMatch<State>(matchId, state.phase === "over");
   const {
     room: liveRoom,
     players: roomPlayers,
@@ -337,7 +339,6 @@ function CrazyEightsTable() {
     loading: roomLoading,
   } = useCrazyEightsRoom(roomId);
   const [playerCount, setPlayerCount] = useState<PlayerCount>(2);
-  const [state, setState] = useState<State>(() => freshState(2, mulberry32(SSR_SEED)));
   const [playerAvatar, setPlayerAvatar] = useState<string>(readAvatar);
   const [flag, setFlag] = useState<string | null>(readFlag);
   const [flagOpen, setFlagOpen] = useState(false);
@@ -1344,8 +1345,13 @@ function CrazyEightsTable() {
         onPlayAgain={isLive ? requestRematch : reset}
         playAgainLabel={isLive ? "Rematch" : "Play again"}
         playAgainDisabled={isLive && state.rematch !== null}
+        hidePlayAgain={isLive && opponentLeft}
         {...(rematchOutgoing
-          ? { detail: `Rematch request sent — waiting for ${opponentName} to respond…` }
+          ? {
+              detail: opponentLeft
+                ? `${opponentName} has rejected the rematch.`
+                : `Rematch request sent — waiting for ${opponentName} to respond…`,
+            }
           : {})}
         footerExtra={
           <>

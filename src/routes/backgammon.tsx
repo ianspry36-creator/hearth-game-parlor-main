@@ -223,7 +223,7 @@ function BackgammonTable() {
   const navigate = useNavigate();
   const { opponent, match: matchId } = Route.useSearch();
   const [state, setState] = useState<State>(freshState);
-  const { match, isHost, opponentName: liveOpponent, opponentAvatar, opponentFlag, opponentConnected, remoteState, publish, opponentDisconnected, disconnectSecondsLeft, disconnectExpired } = useMatch<State>(matchId, Boolean(state.winner));
+  const { match, isHost, opponentName: liveOpponent, opponentAvatar, opponentFlag, opponentConnected, remoteState, publish, opponentDisconnected, opponentLeft, disconnectSecondsLeft, disconnectExpired } = useMatch<State>(matchId, Boolean(state.winner));
   const [selected, setSelected] = useState<number | "bar" | null>(null);
   // Whether the end-of-game dialog has been dismissed to inspect the board.
   const [viewingBoard, setViewingBoard] = useState(false);
@@ -849,8 +849,13 @@ function BackgammonTable() {
         onPlayAgain={isMulti ? requestRematch : reset}
         playAgainLabel={isMulti ? "Rematch" : "Play again"}
         playAgainDisabled={isMulti && state.rematch !== null}
+        hidePlayAgain={isMulti && opponentLeft}
         {...(rematchOutgoing
-          ? { detail: `Rematch request sent — waiting for ${opponentName} to respond…` }
+          ? {
+              detail: opponentLeft
+                ? `${opponentName} has rejected the rematch.`
+                : `Rematch request sent — waiting for ${opponentName} to respond…`,
+            }
           : {})}
         footerExtra={
           <>

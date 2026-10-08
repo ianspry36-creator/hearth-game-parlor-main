@@ -236,6 +236,7 @@ function YahtzeeTable() {
     remoteState,
     publish,
     opponentDisconnected,
+    opponentLeft,
     disconnectSecondsLeft,
     disconnectExpired,
   } = useMatch<State>(matchId, Boolean(state.winner));
@@ -1135,8 +1136,13 @@ function YahtzeeTable() {
         onPlayAgain={isMulti ? requestRematch : reset}
         playAgainLabel={isMulti ? "Rematch" : "Play again"}
         playAgainDisabled={isMulti && state.rematch !== null}
+        hidePlayAgain={isMulti && opponentLeft}
         {...(rematchOutgoing
-          ? { detail: `Rematch request sent — waiting for ${opponentName} to respond…` }
+          ? {
+              detail: opponentLeft
+                ? `${opponentName} has rejected the rematch.`
+                : `Rematch request sent — waiting for ${opponentName} to respond…`,
+            }
           : {})}
         footerExtra={
           <>

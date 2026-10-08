@@ -631,7 +631,7 @@ function SpiderTable() {
                           <CardFace card={king} />
                         </div>
                       ) : (
-                        <span className={`text-4xl ${isRed(suit) ? "text-[#c0392b]" : "text-ink"}`}>
+                        <span className={`text-4xl ${isRed(suit) ? "text-destructive" : "text-ink"}`}>
                           {SUIT_SYMBOL[suit]}
                         </span>
                       )}
@@ -881,7 +881,7 @@ function FlyingCardView({ flight }: { flight: FlyingCard }) {
         { transform: `translate(${flight.from.x}px, ${flight.from.y}px)` },
         { transform: `translate(${flight.to.x}px, ${flight.to.y}px)` },
       ],
-      { duration: RUN_FLIGHT_MS, delay: flight.delay, easing: "ease-in", fill: "backwards" },
+      { duration: RUN_FLIGHT_MS, delay: flight.delay, easing: "ease-in", fill: "both" },
     );
     return () => anim.cancel();
   }, [flight]);
@@ -980,7 +980,7 @@ function CardFace({
   onPointerCancel?: () => void;
 }) {
   const red = isRed(card.suit);
-  const isFaceCard = card.rank === 1 || card.rank > 10;
+  const isFace = card.rank > 10;
   return (
     <button
       type="button"
@@ -991,16 +991,32 @@ function CardFace({
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerCancel}
       aria-label={cardLabel(card)}
-      className={`relative block h-[var(--spider-card-h)] w-[var(--spider-card-w)] touch-none select-none rounded-md border border-black/10 bg-white text-left shadow-md shadow-black/30 transition-transform ${
-        red ? "text-[#c0392b]" : "text-ink"
+      className={`relative block h-[var(--spider-card-h)] w-[var(--spider-card-w)] touch-none select-none overflow-hidden rounded-lg border border-black/10 bg-white text-left shadow-md shadow-black/30 transition-transform ${
+        red ? "text-destructive" : "text-ink"
       } ${selected ? "-translate-y-1 ring-2 ring-gold" : ""} ${hidden ? "invisible" : ""}`}
     >
-      <span className="absolute left-0.5 top-0.5 flex flex-col items-center font-display text-[13.5px] font-bold leading-none sm:left-1 sm:top-1 sm:text-lg">
+      <span className="absolute left-1 top-0.5 flex flex-col items-center font-display text-[13.5px] font-bold leading-none sm:text-lg">
         <span className="font-[Times_New_Roman,serif]">{RANK_LABEL[card.rank]}</span>
-        <span className="mt-0.5 text-xs sm:text-[15px]">{SUIT_SYMBOL[card.suit]}</span>
+        <span className="text-xs sm:text-[15px]">{SUIT_SYMBOL[card.suit]}</span>
       </span>
-      <span className="absolute inset-0 grid place-items-center text-[21px] sm:text-[27px]">
-        {isFaceCard ? RANK_LABEL[card.rank] : SUIT_SYMBOL[card.suit]}
+      <span
+        aria-hidden
+        className={`absolute inset-0 grid place-items-center font-display text-[21px] sm:text-[27px] ${
+          isFace ? "opacity-90" : "opacity-80"
+        }`}
+      >
+        {isFace ? (
+          <span className="flex flex-col items-center leading-none">
+            <span className="text-sm sm:text-lg">{RANK_LABEL[card.rank]}</span>
+            <span className="text-[17px] sm:text-[21px]">{SUIT_SYMBOL[card.suit]}</span>
+          </span>
+        ) : (
+          SUIT_SYMBOL[card.suit]
+        )}
+      </span>
+      <span className="absolute bottom-0.5 right-1 flex rotate-180 flex-col items-center font-display text-[13.5px] font-bold leading-none sm:text-lg">
+        <span className="font-[Times_New_Roman,serif]">{RANK_LABEL[card.rank]}</span>
+        <span className="text-xs sm:text-[15px]">{SUIT_SYMBOL[card.suit]}</span>
       </span>
     </button>
   );
@@ -1010,7 +1026,7 @@ function CardBack() {
   return (
     <div
       aria-label="Face-down card"
-      className="relative block h-[var(--spider-card-h)] w-[var(--spider-card-w)] overflow-hidden rounded-md shadow-md shadow-black/30"
+      className="relative block h-[var(--spider-card-h)] w-[var(--spider-card-w)] overflow-hidden rounded-lg shadow-md shadow-black/30"
     >
       <img src={cardBackAsset} alt="" aria-hidden className="h-full w-full object-cover" />
     </div>

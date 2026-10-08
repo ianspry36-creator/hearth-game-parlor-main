@@ -218,6 +218,7 @@ function CheckersTable() {
   const game = getGame("checkers");
   const navigate = useNavigate();
   const { opponent, match: matchId } = Route.useSearch();
+  const [state, setState] = useState<State>(() => freshState());
   const {
     match,
     isHost,
@@ -227,10 +228,10 @@ function CheckersTable() {
     remoteState,
     publish,
     opponentDisconnected,
+    opponentLeft,
     disconnectSecondsLeft,
     disconnectExpired,
-  } = useMatch<State>(matchId);
-  const [state, setState] = useState<State>(() => freshState());
+  } = useMatch<State>(matchId, state.phase === "over");
   const stateRef = useRef(state);
   const proposedTimerOffRef = useRef(false);
   stateRef.current = state;
@@ -605,6 +606,7 @@ function CheckersTable() {
         playerAvatar={playerAvatar}
         onPlayAgain={reset}
         playAgainLabel={isMulti ? "Rematch" : "Play again"}
+        hidePlayAgain={isMulti && opponentLeft}
         footerExtra={
           <>
             <Button variant="parlorOutline" onClick={() => setViewingBoard(true)}>

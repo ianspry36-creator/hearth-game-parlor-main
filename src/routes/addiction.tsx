@@ -628,8 +628,8 @@ function CardCell({
       onClick={onClick}
       onDoubleClick={onDoubleClick}
       aria-label={cardLabel(card)}
-      className={`relative block h-[var(--ad-card-h)] w-[var(--ad-card-w)] shrink-0 select-none rounded-lg border border-black/10 bg-white text-left shadow-md shadow-black/30 transition-transform ${
-        red ? "text-[#c0392b]" : "text-ink"
+      className={`relative block h-[var(--ad-card-h)] w-[var(--ad-card-w)] shrink-0 select-none overflow-hidden rounded-lg border border-black/10 bg-white text-left shadow-md shadow-black/30 transition-transform ${
+        red ? "text-destructive" : "text-ink"
       } ${
         selected
           ? "-translate-y-1 ring-2 ring-gold"
@@ -640,12 +640,28 @@ function CardCell({
               : ""
       }`}
     >
-      <span className="absolute left-0.5 top-0.5 flex flex-col items-center font-display text-[9px] font-bold leading-none sm:left-1 sm:top-1 sm:text-sm">
+      <span className="absolute left-1 top-0.5 flex flex-col items-center font-display text-[9px] font-bold leading-none sm:text-sm">
         <span className="font-[Times_New_Roman,serif]">{RANK_LABEL[card.rank]}</span>
-        <span className="mt-0.5 text-[8px] sm:text-xs">{SUIT_SYMBOL[card.suit]}</span>
+        <span className="text-[8px] sm:text-xs">{SUIT_SYMBOL[card.suit]}</span>
       </span>
-      <span className="absolute inset-0 grid place-items-center text-sm sm:text-xl">
-        {isFace ? RANK_LABEL[card.rank] : SUIT_SYMBOL[card.suit]}
+      <span
+        aria-hidden
+        className={`absolute inset-0 grid place-items-center font-display text-sm sm:text-xl ${
+          isFace ? "opacity-90" : "opacity-80"
+        }`}
+      >
+        {isFace ? (
+          <span className="flex flex-col items-center leading-none">
+            <span className="text-[9px] sm:text-[13px]">{RANK_LABEL[card.rank]}</span>
+            <span className="text-[11px] sm:text-base">{SUIT_SYMBOL[card.suit]}</span>
+          </span>
+        ) : (
+          SUIT_SYMBOL[card.suit]
+        )}
+      </span>
+      <span className="absolute bottom-0.5 right-1 flex rotate-180 flex-col items-center font-display text-[9px] font-bold leading-none sm:text-sm">
+        <span className="font-[Times_New_Roman,serif]">{RANK_LABEL[card.rank]}</span>
+        <span className="text-[8px] sm:text-xs">{SUIT_SYMBOL[card.suit]}</span>
       </span>
       {correct && (
         <span className="absolute right-0.5 top-0.5 grid size-2 place-items-center rounded-full bg-gold sm:right-1 sm:top-1 sm:size-2.5" />

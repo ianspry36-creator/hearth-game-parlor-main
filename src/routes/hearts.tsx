@@ -1598,6 +1598,7 @@ function HeartsCard({
   const red = card.suit === "H" || card.suit === "D";
   const rank = RANK_LABEL[card.rank];
   const suit = SUIT_SYMBOL[card.suit];
+  const isFace = card.rank > 10;
   return (
     <button
       type="button"
@@ -1618,14 +1619,40 @@ function HeartsCard({
     >
       {corner ? (
         <>
-          <span className="absolute left-[7.2px] top-[3.6px] font-[Times_New_Roman,serif] text-[19.44px] font-bold leading-none sm:left-2 sm:top-1 sm:text-2xl">{rank}</span>
-          <span className="absolute left-[7.2px] top-[28.8px] text-[19.44px] leading-none sm:left-2 sm:top-8 sm:text-2xl">{suit}</span>
+          <span className="absolute left-1 top-0.5 flex flex-col items-center font-display text-[19.44px] font-bold leading-none sm:text-2xl">
+            <span className="font-[Times_New_Roman,serif]">{rank}</span>
+            <span className="text-[19.44px] leading-none sm:text-2xl">{suit}</span>
+          </span>
+          <span className="absolute bottom-0.5 right-1 flex rotate-180 flex-col items-center font-display text-[19.44px] font-bold leading-none sm:text-2xl">
+            <span className="font-[Times_New_Roman,serif]">{rank}</span>
+            <span className="text-[19.44px] leading-none sm:text-2xl">{suit}</span>
+          </span>
         </>
       ) : (
         <>
-          <span className="absolute left-2 top-1 font-[Times_New_Roman,serif] text-2xl font-bold leading-none">{rank}</span>
-          <span className="absolute left-2 top-8 text-2xl leading-none">{suit}</span>
-          <span className={small ? "text-4xl" : "text-5xl"}>{suit}</span>
+          <span className="absolute left-1 top-0.5 flex flex-col items-center font-display text-2xl font-bold leading-none">
+            <span className="font-[Times_New_Roman,serif]">{rank}</span>
+            <span className="text-2xl leading-none">{suit}</span>
+          </span>
+          <span
+            aria-hidden
+            className={`absolute inset-0 grid place-items-center font-display ${
+              small ? "text-4xl" : "text-5xl"
+            } ${isFace ? "opacity-90" : "opacity-80"}`}
+          >
+            {isFace ? (
+              <span className="flex flex-col items-center leading-none">
+                <span className={small ? "text-2xl" : "text-3xl"}>{rank}</span>
+                <span className={small ? "text-3xl" : "text-4xl"}>{suit}</span>
+              </span>
+            ) : (
+              suit
+            )}
+          </span>
+          <span className="absolute bottom-0.5 right-1 flex rotate-180 flex-col items-center font-display text-2xl font-bold leading-none">
+            <span className="font-[Times_New_Roman,serif]">{rank}</span>
+            <span className="text-2xl leading-none">{suit}</span>
+          </span>
         </>
       )}
       <span className="sr-only">{cardLabel(card)}</span>

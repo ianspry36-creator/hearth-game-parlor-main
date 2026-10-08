@@ -455,7 +455,7 @@ export function WaitingRoom({
       }}
     >
       {trigger ? <DialogTrigger asChild>{trigger}</DialogTrigger> : null}
-      <DialogContent className="border-gold/25 bg-surface sm:max-w-[16.8rem]">
+      <DialogContent className="border-gold/25 bg-surface sm:max-w-[33.6rem]">
         <DialogHeader>
           <p className="text-[11px] uppercase tracking-[0.3em] text-gold">
             {game.name} · waiting room

@@ -62,6 +62,9 @@ const SSR_SEED = 20260909;
 
 const isRed = (suit: Card["suit"]) => suit === "H" || suit === "D";
 
+// Four foundations, one per suit, for the completed King-to-Ace runs.
+const FOUNDATION_COUNT = 4;
+
 function formatElapsed(seconds: number): string {
   const minutes = Math.floor(seconds / 60);
   const rest = seconds % 60;
@@ -314,8 +317,8 @@ function ScorpionTable() {
                 <TailPile count={state.tail.length} disabled={!canDealTail} onClick={clickTail} />
               </div>
               <div className="flex gap-2">
-                {state.foundations.map((pile, index) => (
-                  <FoundationSlot key={index} pile={pile} />
+                {Array.from({ length: FOUNDATION_COUNT }, (_, index) => (
+                  <FoundationSlot key={index} pile={state.foundations[index] ?? []} />
                 ))}
               </div>
             </div>
@@ -505,7 +508,7 @@ function CardFace({
   onDragEnd?: () => void;
 }) {
   const red = isRed(card.suit);
-  const isFaceCard = card.rank === 1 || card.rank > 10;
+  const isFace = card.rank > 10;
   return (
     <button
       type="button"
@@ -514,16 +517,32 @@ function CardFace({
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       aria-label={cardLabel(card)}
-      className={`relative block h-[var(--scorpion-card-h)] w-[var(--scorpion-card-w)] select-none rounded-md border border-black/10 bg-white text-left shadow-md shadow-black/30 transition-transform ${
-        red ? "text-[#c0392b]" : "text-ink"
+      className={`relative block h-[var(--scorpion-card-h)] w-[var(--scorpion-card-w)] select-none overflow-hidden rounded-lg border border-black/10 bg-white text-left shadow-md shadow-black/30 transition-transform ${
+        red ? "text-destructive" : "text-ink"
       } ${selected ? "-translate-y-1 ring-2 ring-gold" : ""} ${hidden ? "invisible" : ""}`}
     >
-      <span className="absolute left-0.5 top-0.5 flex flex-col items-center font-display text-[10.5px] font-bold leading-none sm:left-1 sm:top-1 sm:text-sm">
+      <span className="absolute left-1 top-0.5 flex flex-col items-center font-display text-[10.5px] font-bold leading-none sm:text-sm">
         <span className="font-[Times_New_Roman,serif]">{RANK_LABEL[card.rank]}</span>
-        <span className="mt-0.5 text-[9px] sm:text-xs">{SUIT_SYMBOL[card.suit]}</span>
+        <span className="text-[9px] sm:text-xs">{SUIT_SYMBOL[card.suit]}</span>
       </span>
-      <span className="absolute inset-0 grid place-items-center text-base sm:text-2xl">
-        {isFaceCard ? RANK_LABEL[card.rank] : SUIT_SYMBOL[card.suit]}
+      <span
+        aria-hidden
+        className={`absolute inset-0 grid place-items-center font-display text-base sm:text-2xl ${
+          isFace ? "opacity-90" : "opacity-80"
+        }`}
+      >
+        {isFace ? (
+          <span className="flex flex-col items-center leading-none">
+            <span className="text-[10.5px] sm:text-base">{RANK_LABEL[card.rank]}</span>
+            <span className="text-[13px] sm:text-[19px]">{SUIT_SYMBOL[card.suit]}</span>
+          </span>
+        ) : (
+          SUIT_SYMBOL[card.suit]
+        )}
+      </span>
+      <span className="absolute bottom-0.5 right-1 flex rotate-180 flex-col items-center font-display text-[10.5px] font-bold leading-none sm:text-sm">
+        <span className="font-[Times_New_Roman,serif]">{RANK_LABEL[card.rank]}</span>
+        <span className="text-[9px] sm:text-xs">{SUIT_SYMBOL[card.suit]}</span>
       </span>
     </button>
   );
@@ -533,7 +552,7 @@ function CardBack() {
   return (
     <div
       aria-label="Face-down card"
-      className="relative block h-[var(--scorpion-card-h)] w-[var(--scorpion-card-w)] overflow-hidden rounded-md shadow-md shadow-black/30"
+      className="relative block h-[var(--scorpion-card-h)] w-[var(--scorpion-card-w)] overflow-hidden rounded-lg shadow-md shadow-black/30"
     >
       <img src={cardBackAsset} alt="" aria-hidden className="h-full w-full object-cover" />
     </div>
@@ -596,12 +615,21 @@ function TailPile({
   );
 }
 
+function FoundationEmptySlot() {
+  return (
+    <div
+      aria-label="Empty foundation"
+      className="grid h-[var(--scorpion-card-h)] w-[var(--scorpion-card-w)] place-items-center rounded-md border-2 border-dotted border-black/60"
+    />
+  );
+}
+
 function FoundationSlot({ pile }: { pile: Card[] }) {
   const top = pile[pile.length - 1];
   return (
     <div className="relative">
       {!top ? (
-        <EmptySlot />
+        <FoundationEmptySlot />
       ) : (
         <>
           {pile.length > 1 && (

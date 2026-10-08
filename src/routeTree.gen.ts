@@ -31,6 +31,7 @@ import { Route as ReversiRouteImport } from './routes/reversi'
 import { Route as ScorpionRouteImport } from './routes/scorpion'
 import { Route as SolitaireRouteImport } from './routes/solitaire'
 import { Route as SpiderRouteImport } from './routes/spider'
+import { Route as SultanRouteImport } from './routes/sultan'
 import { Route as TrianglesRouteImport } from './routes/triangles'
 import { Route as TripeaksRouteImport } from './routes/tripeaks'
 import { Route as WarshipRouteImport } from './routes/warship'
@@ -147,6 +148,11 @@ const SpiderRoute = SpiderRouteImport.update({
   path: '/spider',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SultanRoute = SultanRouteImport.update({
+  id: '/sultan',
+  path: '/sultan',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TrianglesRoute = TrianglesRouteImport.update({
   id: '/triangles',
   path: '/triangles',
@@ -196,6 +202,7 @@ export interface FileRoutesByFullPath {
   '/scorpion': typeof ScorpionRoute
   '/solitaire': typeof SolitaireRoute
   '/spider': typeof SpiderRoute
+  '/sultan': typeof SultanRoute
   '/triangles': typeof TrianglesRoute
   '/tripeaks': typeof TripeaksRoute
   '/warship': typeof WarshipRoute
@@ -225,6 +232,7 @@ export interface FileRoutesByTo {
   '/scorpion': typeof ScorpionRoute
   '/solitaire': typeof SolitaireRoute
   '/spider': typeof SpiderRoute
+  '/sultan': typeof SultanRoute
   '/triangles': typeof TrianglesRoute
   '/tripeaks': typeof TripeaksRoute
   '/warship': typeof WarshipRoute
@@ -255,6 +263,7 @@ export interface FileRoutesById {
   '/scorpion': typeof ScorpionRoute
   '/solitaire': typeof SolitaireRoute
   '/spider': typeof SpiderRoute
+  '/sultan': typeof SultanRoute
   '/triangles': typeof TrianglesRoute
   '/tripeaks': typeof TripeaksRoute
   '/warship': typeof WarshipRoute
@@ -286,6 +295,7 @@ export interface FileRouteTypes {
     | '/scorpion'
     | '/solitaire'
     | '/spider'
+    | '/sultan'
     | '/triangles'
     | '/tripeaks'
     | '/warship'
@@ -315,6 +325,7 @@ export interface FileRouteTypes {
     | '/scorpion'
     | '/solitaire'
     | '/spider'
+    | '/sultan'
     | '/triangles'
     | '/tripeaks'
     | '/warship'
@@ -344,6 +355,7 @@ export interface FileRouteTypes {
     | '/scorpion'
     | '/solitaire'
     | '/spider'
+    | '/sultan'
     | '/triangles'
     | '/tripeaks'
     | '/warship'
@@ -374,6 +386,7 @@ export interface RootRouteChildren {
   ScorpionRoute: typeof ScorpionRoute
   SolitaireRoute: typeof SolitaireRoute
   SpiderRoute: typeof SpiderRoute
+  SultanRoute: typeof SultanRoute
   TrianglesRoute: typeof TrianglesRoute
   TripeaksRoute: typeof TripeaksRoute
   WarshipRoute: typeof WarshipRoute
@@ -537,6 +550,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SpiderRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/sultan': {
+      id: '/sultan'
+      path: '/sultan'
+      fullPath: '/sultan'
+      preLoaderRoute: typeof SultanRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/triangles': {
       id: '/triangles'
       path: '/triangles'
@@ -598,6 +618,7 @@ const rootRouteChildren: RootRouteChildren = {
   ScorpionRoute: ScorpionRoute,
   SolitaireRoute: SolitaireRoute,
   SpiderRoute: SpiderRoute,
+  SultanRoute: SultanRoute,
   TrianglesRoute: TrianglesRoute,
   TripeaksRoute: TripeaksRoute,
   WarshipRoute: WarshipRoute,

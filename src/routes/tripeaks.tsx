@@ -690,8 +690,6 @@ function FlyingCardView({ flight }: { flight: FlyingCard }) {
   }, []);
   const dx = moved ? flight.to.x - flight.from.x : 0;
   const dy = moved ? flight.to.y - flight.from.y : 0;
-  const red = isRed(flight.card.suit);
-  const isFaceCard = flight.card.rank === 1 || flight.card.rank > 10;
   return (
     <div
       aria-hidden
@@ -703,19 +701,7 @@ function FlyingCardView({ flight }: { flight: FlyingCard }) {
         transitionDuration: `${FLIGHT_MS}ms`,
       }}
     >
-      <div
-        className={`relative block h-[var(--tripeaks-card-h)] w-[var(--tripeaks-card-w)] select-none rounded-md border border-black/10 bg-white text-left shadow-md shadow-black/30 ${
-          red ? "text-[#c0392b]" : "text-ink"
-        }`}
-      >
-        <span className="absolute left-0.5 top-0.5 flex flex-col items-center font-display text-[8px] font-bold leading-none sm:left-1 sm:top-1 sm:text-xs">
-          <span className="font-[Times_New_Roman,serif]">{RANK_LABEL[flight.card.rank]}</span>
-          <span className="mt-0.5 text-[7px] sm:text-[10px]">{SUIT_SYMBOL[flight.card.suit]}</span>
-        </span>
-        <span className="absolute inset-0 grid place-items-center text-sm sm:text-xl">
-          {isFaceCard ? RANK_LABEL[flight.card.rank] : SUIT_SYMBOL[flight.card.suit]}
-        </span>
-      </div>
+      <CardFace card={flight.card} />
     </div>
   );
 }
@@ -749,7 +735,7 @@ function CardFace({
   onPointerUp?: (e: ReactPointerEvent) => void;
 }) {
   const red = isRed(card.suit);
-  const isFaceCard = card.rank === 1 || card.rank > 10;
+  const isFace = card.rank > 10;
   return (
     <button
       type="button"
@@ -760,18 +746,34 @@ function CardFace({
       onPointerUp={onPointerUp}
       disabled={!onClick}
       aria-label={cardLabel(card)}
-      className={`relative block h-[var(--tripeaks-card-h)] w-[var(--tripeaks-card-w)] touch-none select-none rounded-md border border-black/10 bg-white text-left shadow-md shadow-black/30 transition-transform ${
-        red ? "text-[#c0392b]" : "text-ink"
+      className={`relative block h-[var(--tripeaks-card-h)] w-[var(--tripeaks-card-w)] touch-none select-none overflow-hidden rounded-lg border border-black/10 bg-white text-left shadow-md shadow-black/30 transition-transform ${
+        red ? "text-destructive" : "text-ink"
       } ${onClick ? "cursor-pointer hover:-translate-y-0.5 hover:ring-1 hover:ring-gold" : "cursor-default"} ${
         dimmed ? "saturate-50" : ""
       } ${hidden ? "invisible" : ""}`}
     >
-      <span className="absolute left-0.5 top-0.5 flex flex-col items-center font-display text-[8px] font-bold leading-none sm:left-1 sm:top-1 sm:text-xs">
+      <span className="absolute left-1 top-0.5 flex flex-col items-center font-display text-[8px] font-bold leading-none sm:text-xs">
         <span className="font-[Times_New_Roman,serif]">{RANK_LABEL[card.rank]}</span>
-        <span className="mt-0.5 text-[7px] sm:text-[10px]">{SUIT_SYMBOL[card.suit]}</span>
+        <span className="text-[7px] sm:text-[10px]">{SUIT_SYMBOL[card.suit]}</span>
       </span>
-      <span className="absolute inset-0 grid place-items-center text-sm sm:text-xl">
-        {isFaceCard ? RANK_LABEL[card.rank] : SUIT_SYMBOL[card.suit]}
+      <span
+        aria-hidden
+        className={`absolute inset-0 grid place-items-center font-display text-sm sm:text-xl ${
+          isFace ? "opacity-90" : "opacity-80"
+        }`}
+      >
+        {isFace ? (
+          <span className="flex flex-col items-center leading-none">
+            <span className="text-[9px] sm:text-[13px]">{RANK_LABEL[card.rank]}</span>
+            <span className="text-[11px] sm:text-base">{SUIT_SYMBOL[card.suit]}</span>
+          </span>
+        ) : (
+          SUIT_SYMBOL[card.suit]
+        )}
+      </span>
+      <span className="absolute bottom-0.5 right-1 flex rotate-180 flex-col items-center font-display text-[8px] font-bold leading-none sm:text-xs">
+        <span className="font-[Times_New_Roman,serif]">{RANK_LABEL[card.rank]}</span>
+        <span className="text-[7px] sm:text-[10px]">{SUIT_SYMBOL[card.suit]}</span>
       </span>
     </button>
   );
@@ -781,7 +783,7 @@ function CardBack() {
   return (
     <div
       aria-label="Face-down card"
-      className="relative block h-[var(--tripeaks-card-h)] w-[var(--tripeaks-card-w)] overflow-hidden rounded-md shadow-md shadow-black/30"
+      className="relative block h-[var(--tripeaks-card-h)] w-[var(--tripeaks-card-w)] overflow-hidden rounded-lg shadow-md shadow-black/30"
     >
       <img src={cardBackAsset} alt="" aria-hidden className="h-full w-full object-cover" />
     </div>

@@ -316,6 +316,31 @@ export function GameIcon({ id, className = "" }: { id: GameId; className?: strin
           })}
         </svg>
       );
+    case "sultan":
+      return (
+        <svg {...common}>
+          {[0, 45, 90, 135, 180, 225, 270, 315].map((a) => {
+            const rad = (a * Math.PI) / 180;
+            const x = 24 + 18 * Math.sin(rad);
+            const y = 24 - 18 * Math.cos(rad);
+            return (
+              <rect
+                key={a}
+                x={x - 3.5}
+                y={y - 3.5}
+                width="7"
+                height="7"
+                rx="1.5"
+                className="fill-cream/85 stroke-gold"
+                strokeWidth="1"
+              />
+            );
+          })}
+          <rect x="17" y="17" width="14" height="19" rx="2" className="fill-cream/95 stroke-gold" strokeWidth="1.5" />
+          <path d="M19 15l2-4 3 3 3-3 2 4z" className="fill-gold" />
+          <path d="M24 32c0-3 2-4 3-6-1-1-2 0-3 1-1-1-2-2-3-1 1 2 3 3 3 6z" className="fill-player-coral" />
+        </svg>
+      );
     default:
       return null;
   }
