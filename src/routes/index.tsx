@@ -360,6 +360,17 @@ function Lobby() {
             >
               Future improvements
             </Link>
+            {isDev && (
+              <>
+                <span className="hidden text-ivory/25 sm:inline">·</span>
+                <Link
+                  to="/games-log"
+                  className="text-ivory/50 transition-colors hover:text-gold"
+                >
+                  GAME LOG
+                </Link>
+              </>
+            )}
             <span className="hidden text-ivory/25 sm:inline">·</span>
             <DevLoginDialog
               trigger={

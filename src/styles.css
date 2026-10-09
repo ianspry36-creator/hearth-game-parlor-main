@@ -499,6 +499,8 @@
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-body);
+    /* Never let a drag past the top of the page trigger pull-to-refresh. */
+    overscroll-behavior-y: none;
   }
 }
 

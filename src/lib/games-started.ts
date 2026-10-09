@@ -13,12 +13,61 @@ export type GameCompletionStatus =
   | "game room"
   | "other";
 
+/** Broad device bucket derived from the user agent, for the games_started table. */
+export type DeviceType = "mobile" | "tablet" | "desktop";
+
+/**
+ * Classify the current device as mobile, tablet or desktop from the user agent
+ * and touch capabilities. Best-effort only — iPadOS and some Android tablets
+ * would otherwise report as desktop.
+ */
+export function detectDeviceType(): DeviceType {
+  if (typeof navigator === "undefined") return "desktop";
+  const ua = navigator.userAgent ?? "";
+  const touchPoints = navigator.maxTouchPoints ?? 0;
+  const isTablet =
+    /iPad|Tablet|PlayBook|Silk|Kindle/i.test(ua) ||
+    (/Android/i.test(ua) && !/Mobile/i.test(ua)) ||
+    (touchPoints > 1 && /Macintosh/.test(ua));
+  if (isTablet) return "tablet";
+  if (/Mobi|Android|iPhone|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua)) return "mobile";
+  return "desktop";
+}
+
+let cachedIpAddress: string | null = null;
+
+/**
+ * Resolve the player's public IP address via a free lookup service. Cached for
+ * the session and time-boxed so a slow or failed lookup never delays starting
+ * a game. Returns null when it cannot be determined (offline, blocked, SSR).
+ */
+export async function getIpAddress(): Promise<string | null> {
+  if (cachedIpAddress) return cachedIpAddress;
+  if (typeof window === "undefined") return null;
+  try {
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), 2500);
+    const res = await fetch("https://api.ipify.org?format=json", {
+      signal: controller.signal,
+    });
+    window.clearTimeout(timer);
+    if (!res.ok) return null;
+    const data = (await res.json()) as { ip?: string };
+    cachedIpAddress = data.ip ?? null;
+    return cachedIpAddress;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Insert a row for a freshly started game and return its id so later events
  * (win / loss / concede / leaving) can update the same row. Returns null when
  * the write fails (e.g. the table is missing), so callers keep playing.
  */
 export async function startGame(gameName: string): Promise<string | null> {
+  const ip_address = await getIpAddress();
+  const device_type = detectDeviceType();
   const { data, error } = await supabase
     .from("games_started")
     .insert({
@@ -26,6 +75,8 @@ export async function startGame(gameName: string): Promise<string | null> {
       nickname: getNickname(),
       session_id: getSessionId(),
       completed_status: "in play",
+      ip_address,
+      device_type,
     })
     .select("id")
     .single();
@@ -47,6 +98,44 @@ export async function updateGameStatus(
     .update({ completed_status: status })
     .eq("id", rowId);
   if (error) console.error("[games-started] updateGameStatus failed:", error);
+}
+
+/** The kinds of interaction we capture for every move and button press. */
+export type GameActionType =
+  | "dice throw"
+  | "waste to foundation"
+  | "reserve to foundation"
+  | "waste to reserve"
+  | "stock draw"
+  | "redeal"
+  | "undo"
+  | "new game"
+  | "home"
+  | "bank"
+  | "keep"
+  | "score"
+  | "concede"
+  | "table action"
+  | "other";
+
+/**
+ * Append one move / button press to a started game's action log. Fire-and-
+ * forget and fail-soft so a missing `game_actions` table never interrupts play.
+ */
+export async function recordGameAction(
+  rowId: string | null,
+  actionType: string,
+  detail?: string | null,
+): Promise<void> {
+  if (!rowId) return;
+  const { error } = await supabase
+    .from("game_actions")
+    .insert({
+      game_started_id: rowId,
+      action_type: actionType,
+      detail: detail ?? null,
+    });
+  if (error) console.error("[games-started] recordGameAction failed:", error);
 }
 
 /**
@@ -92,5 +181,9 @@ export function useGameStarted(gameName: string) {
     });
   }, [gameName]);
 
-  return { end, beginNew };
+  const recordAction = useCallback((actionType: string, detail?: string | null) => {
+    void recordGameAction(rowRef.current, actionType, detail);
+  }, []);
+
+  return { end, beginNew, recordAction };
 }

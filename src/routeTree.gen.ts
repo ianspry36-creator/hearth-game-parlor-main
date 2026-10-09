@@ -24,6 +24,7 @@ import { Route as CribbageRouteImport } from './routes/cribbage'
 import { Route as FarkleRouteImport } from './routes/farkle'
 import { Route as FreecellRouteImport } from './routes/freecell'
 import { Route as FutureImprovementsRouteImport } from './routes/future-improvements'
+import { Route as GamesLogRouteImport } from './routes/games-log'
 import { Route as HeartsRouteImport } from './routes/hearts'
 import { Route as KingsInTheCornerRouteImport } from './routes/kings-in-the-corner'
 import { Route as PrivacyRouteImport } from './routes/privacy'
@@ -113,6 +114,11 @@ const FutureImprovementsRoute = FutureImprovementsRouteImport.update({
   path: '/future-improvements',
   getParentRoute: () => rootRouteImport,
 } as any)
+const GamesLogRoute = GamesLogRouteImport.update({
+  id: '/games-log',
+  path: '/games-log',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const HeartsRoute = HeartsRouteImport.update({
   id: '/hearts',
   path: '/hearts',
@@ -195,6 +201,7 @@ export interface FileRoutesByFullPath {
   '/farkle': typeof FarkleRoute
   '/freecell': typeof FreecellRoute
   '/future-improvements': typeof FutureImprovementsRoute
+  '/games-log': typeof GamesLogRoute
   '/hearts': typeof HeartsRoute
   '/kings-in-the-corner': typeof KingsInTheCornerRoute
   '/privacy': typeof PrivacyRoute
@@ -225,6 +232,7 @@ export interface FileRoutesByTo {
   '/farkle': typeof FarkleRoute
   '/freecell': typeof FreecellRoute
   '/future-improvements': typeof FutureImprovementsRoute
+  '/games-log': typeof GamesLogRoute
   '/hearts': typeof HeartsRoute
   '/kings-in-the-corner': typeof KingsInTheCornerRoute
   '/privacy': typeof PrivacyRoute
@@ -256,6 +264,7 @@ export interface FileRoutesById {
   '/farkle': typeof FarkleRoute
   '/freecell': typeof FreecellRoute
   '/future-improvements': typeof FutureImprovementsRoute
+  '/games-log': typeof GamesLogRoute
   '/hearts': typeof HeartsRoute
   '/kings-in-the-corner': typeof KingsInTheCornerRoute
   '/privacy': typeof PrivacyRoute
@@ -288,6 +297,7 @@ export interface FileRouteTypes {
     | '/farkle'
     | '/freecell'
     | '/future-improvements'
+    | '/games-log'
     | '/hearts'
     | '/kings-in-the-corner'
     | '/privacy'
@@ -318,6 +328,7 @@ export interface FileRouteTypes {
     | '/farkle'
     | '/freecell'
     | '/future-improvements'
+    | '/games-log'
     | '/hearts'
     | '/kings-in-the-corner'
     | '/privacy'
@@ -348,6 +359,7 @@ export interface FileRouteTypes {
     | '/farkle'
     | '/freecell'
     | '/future-improvements'
+    | '/games-log'
     | '/hearts'
     | '/kings-in-the-corner'
     | '/privacy'
@@ -379,6 +391,7 @@ export interface RootRouteChildren {
   FarkleRoute: typeof FarkleRoute
   FreecellRoute: typeof FreecellRoute
   FutureImprovementsRoute: typeof FutureImprovementsRoute
+  GamesLogRoute: typeof GamesLogRoute
   HeartsRoute: typeof HeartsRoute
   KingsInTheCornerRoute: typeof KingsInTheCornerRoute
   PrivacyRoute: typeof PrivacyRoute
@@ -501,6 +514,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FutureImprovementsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/games-log': {
+      id: '/games-log'
+      path: '/games-log'
+      fullPath: '/games-log'
+      preLoaderRoute: typeof GamesLogRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/hearts': {
       id: '/hearts'
       path: '/hearts'
@@ -611,6 +631,7 @@ const rootRouteChildren: RootRouteChildren = {
   FarkleRoute: FarkleRoute,
   FreecellRoute: FreecellRoute,
   FutureImprovementsRoute: FutureImprovementsRoute,
+  GamesLogRoute: GamesLogRoute,
   HeartsRoute: HeartsRoute,
   KingsInTheCornerRoute: KingsInTheCornerRoute,
   PrivacyRoute: PrivacyRoute,

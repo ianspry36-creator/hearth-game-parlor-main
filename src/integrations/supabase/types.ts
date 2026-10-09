@@ -256,12 +256,46 @@ export type Database = {
           },
         ]
       }
+      game_actions: {
+        Row: {
+          action_type: string
+          created_at: string
+          detail: string | null
+          game_started_id: string
+          id: string
+        }
+        Insert: {
+          action_type: string
+          created_at?: string
+          detail?: string | null
+          game_started_id: string
+          id?: string
+        }
+        Update: {
+          action_type?: string
+          created_at?: string
+          detail?: string | null
+          game_started_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_actions_game_started_id_fkey"
+            columns: ["game_started_id"]
+            isOneToOne: false
+            referencedRelation: "games_started"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       games_started: {
         Row: {
           completed_status: string
           created_at: string
+          device_type: string | null
           game_name: string
           id: string
+          ip_address: string | null
           nickname: string | null
           session_id: string | null
           start_date: string
@@ -270,8 +304,10 @@ export type Database = {
         Insert: {
           completed_status?: string
           created_at?: string
+          device_type?: string | null
           game_name: string
           id?: string
+          ip_address?: string | null
           nickname?: string | null
           session_id?: string | null
           start_date?: string
@@ -280,8 +316,10 @@ export type Database = {
         Update: {
           completed_status?: string
           created_at?: string
+          device_type?: string | null
           game_name?: string
           id?: string
+          ip_address?: string | null
           nickname?: string | null
           session_id?: string | null
           start_date?: string

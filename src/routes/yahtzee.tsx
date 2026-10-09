@@ -252,7 +252,7 @@ function YahtzeeTable() {
     state.rematch ? null : state.winner,
     matchId ? RECONNECT_SECONDS * 1000 : 0,
   );
-  const { end, beginNew } = useGameStarted(game.name);
+  const { end, beginNew, recordAction } = useGameStarted(game.name);
   const prevGameWinnerRef = useRef<string | null>(null);
   useEffect(() => {
     const w = state.winner ?? (state.draw ? "draw" : null);
@@ -279,6 +279,7 @@ function YahtzeeTable() {
   // Concede the game: award the win to the opponent (Ada or the live player).
   const concede = () => {
     setConcedeOpen(false);
+    recordAction("concede");
     apply((current) => ({
       ...current,
       phase: "over",
@@ -318,6 +319,7 @@ function YahtzeeTable() {
     stateRef.current = fresh;
     setState(fresh);
     setViewingScorecard(false);
+    recordAction("new game");
     beginNew();
     if (isMulti) void publish(isHost ? fresh : mirror(fresh));
   };
@@ -422,6 +424,7 @@ function YahtzeeTable() {
 
   const roll = () => {
     if (!canRoll) return;
+    recordAction("dice throw");
     apply((current) => throwDice(current, "human"));
   };
 
@@ -611,6 +614,7 @@ function YahtzeeTable() {
     if (state.cards.human[category] !== undefined) return;
     const targets = jokerTargets(state.cards.human, faces);
     if (targets !== null && !targets.includes(category)) return;
+    recordAction("score", CATEGORY_LABELS[category]);
     apply((current) => takeBox(current, "human", category));
   };
 
@@ -1152,7 +1156,7 @@ function YahtzeeTable() {
             >
               View scorecard
             </Button>
-            <Button variant="parlorOutline" onClick={() => navigate({ to: "/" })}>
+            <Button variant="parlorOutline" onClick={() => { recordAction("home"); navigate({ to: "/" }); }}>
               Back to game room
             </Button>
           </>

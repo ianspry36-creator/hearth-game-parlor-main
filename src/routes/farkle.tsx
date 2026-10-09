@@ -388,7 +388,7 @@ function FarkleTable() {
   // alongside the multiplayer leaderboard; live matches are handled by
   // useRecordMatchResult above instead.
   const { recordResult: recordSoloResult } = useSolitaireStats(game.id);
-  const { end, beginNew } = useGameStarted(game.name);
+  const { end, beginNew, recordAction } = useGameStarted(game.name);
   const prevSoloWinnerRef = useRef<Seat | null>(null);
   useEffect(() => {
     if (!isMulti && state.winner && state.winner !== prevSoloWinnerRef.current) {
@@ -416,6 +416,7 @@ function FarkleTable() {
   // Concede the game: award the win to the opponent (Ada or the live player).
   const concede = () => {
     setConcedeOpen(false);
+    recordAction("concede");
     apply((current) => ({
       ...current,
       phase: "over",
@@ -454,6 +455,7 @@ function FarkleTable() {
     setViewingBoard(false);
     setState(fresh);
     if (isMulti) void publish(isHost ? fresh : mirror(fresh));
+    recordAction("new game");
     beginNew();
   };
 
@@ -752,12 +754,14 @@ function FarkleTable() {
   const roll = () => {
     if (!myTurn) return;
     if (state.rolled && !state.farkled) return;
+    recordAction("dice throw");
     apply((current) => rollFor(current, "human"));
     setSelected([]);
   };
 
   const keepAndRoll = () => {
     if (!myTurn || selectionScore === null) return;
+    recordAction("keep");
     const willBeHot = selected.length === state.dice.filter((d) => !d.set).length;
     apply((current) => {
       const dice = current.dice.map((d, i) => (selected.includes(i) ? { ...d, set: true } : d));
@@ -780,6 +784,7 @@ function FarkleTable() {
 
   const bank = () => {
     if (!myTurn || bestKeepResult === null || bankAnim !== null) return;
+    recordAction("bank");
     const gained = bestKeepResult.score;
     const banked = state.turnScore + gained;
     const startScore = state.scores.human;
@@ -1048,7 +1053,7 @@ function FarkleTable() {
             <Button variant="parlorOutline" onClick={() => setViewingBoard(true)}>
               View Board
             </Button>
-            <Button variant="parlorOutline" onClick={() => navigate({ to: "/" })}>
+            <Button variant="parlorOutline" onClick={() => { recordAction("home"); navigate({ to: "/" }); }}>
               Back to game room
             </Button>
           </>

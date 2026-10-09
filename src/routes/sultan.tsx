@@ -1,5 +1,5 @@
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState, type DragEvent } from "react";
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -93,13 +93,18 @@ function wasteSpread(count: number, isMobile: boolean): number {
 const RING_RADIUS_X_PCT = 48;
 const RING_RADIUS_Y_PCT = 66;
 
+// Extra breathing room between the Sultan and the ring of foundations, so the
+// surrounding Kings never crowd the centre card (a 25% increase in spacing).
+const FOUNDATION_SPREAD = 1.25;
+
 function formatElapsed(seconds: number): string {
   const minutes = Math.floor(seconds / 60);
   const rest = seconds % 60;
   return `${minutes}:${rest.toString().padStart(2, "0")}`;
 }
 
-type Selection = { type: "waste" } | { type: "reserve"; index: number } | null;
+type DragSource = { type: "waste" } | { type: "reserve"; index: number };
+type Selection = DragSource | null;
 
 type DropTarget = { type: "foundation"; index: number } | { type: "reserve"; index: number } | null;
 
@@ -109,6 +114,17 @@ type FlyingCard = {
   from: { x: number; y: number };
   to: { x: number; y: number };
 };
+
+// Reads the responsive card size from CSS variables so the drag ghost can be
+// centred under the pointer.
+function sultanCardDims(): { w: number; h: number } {
+  const styles = getComputedStyle(document.documentElement);
+  const parse = (name: string, fallback: number) => {
+    const value = parseFloat(styles.getPropertyValue(name));
+    return Number.isFinite(value) ? value : fallback;
+  };
+  return { w: parse("--sultan-card-w", 79), h: parse("--sultan-card-h", 110) };
+}
 function SultanTable() {
   const navigate = useNavigate();
   const game = getGame("sultan");
@@ -118,11 +134,28 @@ function SultanTable() {
   const [history, setHistory] = useState<GameState[]>([]);
   const [selection, setSelection] = useState<Selection>(null);
   const [dragOverTarget, setDragOverTarget] = useState<DropTarget>(null);
-  const dragSourceRef = useRef<Selection>(null);
+  const dragRef = useRef<{
+    source: DragSource;
+    card: Card;
+    startX: number;
+    startY: number;
+    moved: boolean;
+    w: number;
+    h: number;
+  } | null>(null);
+  const suppressClickRef = useRef(false);
+  const [dragGhost, setDragGhost] = useState<{
+    source: DragSource;
+    card: Card;
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+  } | null>(null);
   const [confirming, setConfirming] = useState<"new" | "home" | null>(null);
   const [conceded, setConceded] = useState(false);
   const { recordResult } = useSolitaireStats(game.id);
-  const { end, beginNew } = useGameStarted(game.name);
+  const { end, beginNew, recordAction } = useGameStarted(game.name);
   // Card-flight animation bookkeeping: the waste card gliding onto a foundation,
   // plus refs used to measure the waste's top card and each foundation.
   const [flying, setFlying] = useState<FlyingCard[]>([]);
@@ -198,6 +231,7 @@ function SultanTable() {
     if (before.waste.length === 0) return;
     const next = moveWasteToFoundation(before, foundationIndex);
     if (next === before) return;
+    recordAction("waste to foundation");
 
     const card = before.waste[before.waste.length - 1]!;
     const sourceRect = wasteTopRef.current?.getBoundingClientRect();
@@ -241,6 +275,7 @@ function SultanTable() {
     if (card == null) return;
     const next = moveReserveToFoundation(before, reserveIndex, foundationIndex);
     if (next === before) return;
+    recordAction("reserve to foundation");
 
     const sourceRect = reserveRefs.current[reserveIndex]?.getBoundingClientRect();
     const pileRect = foundationRefs.current[foundationIndex]?.getBoundingClientRect();
@@ -272,6 +307,46 @@ function SultanTable() {
       setState(next);
     }, FLIGHT_MS);
   };
+
+  const animateWasteToReserve = (
+    reserveIndex: number,
+    fromOverride?: { x: number; y: number },
+  ) => {
+    const before = stateRef.current;
+    if (before.waste.length === 0) return;
+    const next = moveWasteToReserve(before, reserveIndex);
+    if (next === before) return;
+    recordAction("waste to reserve");
+
+    const card = before.waste[before.waste.length - 1]!;
+    const sourceRect = wasteTopRef.current?.getBoundingClientRect();
+    const cellRect = reserveRefs.current[reserveIndex]?.getBoundingClientRect();
+
+    if (!sourceRect || !cellRect) {
+      apply(next);
+      return;
+    }
+
+    const key = flightKeyRef.current++;
+    const from = fromOverride
+      ? {
+          x: fromOverride.x - sourceRect.width / 2,
+          y: fromOverride.y - sourceRect.height / 2,
+        }
+      : { x: sourceRect.left, y: sourceRect.top };
+    const to = { x: cellRect.left, y: cellRect.top };
+
+    setState((current) => ({ ...current, waste: current.waste.slice(0, -1) }));
+    setSelection(null);
+    setFlying((current) => [...current, { key, card, from, to }]);
+
+    window.setTimeout(() => {
+      setFlying((current) => current.filter((f) => f.key !== key));
+      setHistory((h) => [...h, before]);
+      setState(next);
+    }, FLIGHT_MS);
+  };
+
   const startFresh = (p: PackCount) => {
     setPacks(p);
     writePackCount(p);
@@ -284,6 +359,7 @@ function SultanTable() {
     startRef.current = 0;
     endedRef.current = false;
     setConceded(false);
+    recordAction("new game");
     beginNew();
   };
 
@@ -292,13 +368,21 @@ function SultanTable() {
   const concede = () => {
     if (state.won || conceded) return;
     recordResult("loss");
+    recordAction("concede");
     end("conceded");
     setConceded(true);
   };
 
   const gameInProgress = state.moves > 0 && !state.won && !conceded;
   const confirmReset = () => (gameInProgress ? setConfirming("new") : reset());
-  const confirmHome = () => (gameInProgress ? setConfirming("home") : void navigate({ to: "/" }));
+  const confirmHome = () => {
+    if (gameInProgress) {
+      setConfirming("home");
+    } else {
+      recordAction("home");
+      void navigate({ to: "/" });
+    }
+  };
 
   const cyclePacks = () => {
     if (gameInProgress) return;
@@ -307,10 +391,115 @@ function SultanTable() {
 
   const undo = () => {
     if (history.length === 0 || state.won) return;
+    recordAction("undo");
     const prev = history[history.length - 1]!;
-    setState(prev);
-    setHistory(history.slice(0, -1));
+    const curr = stateRef.current;
+
+    const commitInstant = () => {
+      setState(prev);
+      setHistory(history.slice(0, -1));
+      setSelection(null);
+    };
+
+    // A redeal reverses many cards at once — leave that instantaneous.
+    if (curr.stock.length > prev.stock.length) {
+      commitInstant();
+      return;
+    }
+
+    // Work out the single card the last move carried, and where it came from,
+    // so it can glide home instead of teleporting.
+    let card: Card | null = null;
+    let fromRect: DOMRect | null = null;
+    let toRect: DOMRect | null = null;
+    let lifted: GameState = curr;
+
+    if (curr.stock.length < prev.stock.length) {
+      // A card was drawn from the stock: it currently sits on top of the waste.
+      card = curr.waste[curr.waste.length - 1] ?? null;
+      fromRect = wasteTopRef.current?.getBoundingClientRect() ?? null;
+      toRect = stockRef.current?.getBoundingClientRect() ?? null;
+      if (card) lifted = { ...curr, waste: curr.waste.slice(0, -1) };
+    } else if (curr.waste.length < prev.waste.length) {
+      const reserveIndex = curr.reserves.findIndex(
+        (c, i) => c != null && prev.reserves[i] == null,
+      );
+      if (reserveIndex !== -1) {
+        // Waste → reserve.
+        card = curr.reserves[reserveIndex];
+        fromRect = reserveRefs.current[reserveIndex]?.getBoundingClientRect() ?? null;
+        toRect = wasteTopRef.current?.getBoundingClientRect() ?? null;
+        lifted = {
+          ...curr,
+          reserves: curr.reserves.map((r, i) => (i === reserveIndex ? null : r)),
+        };
+      } else {
+        // Waste → foundation.
+        const foundationIndex = curr.foundations.findIndex(
+          (p, i) => p.length > prev.foundations[i].length,
+        );
+        if (foundationIndex === -1) {
+          commitInstant();
+          return;
+        }
+        const pile = curr.foundations[foundationIndex]!;
+        card = pile[pile.length - 1]!;
+        fromRect = foundationRefs.current[foundationIndex]?.getBoundingClientRect() ?? null;
+        toRect = wasteTopRef.current?.getBoundingClientRect() ?? null;
+        lifted = {
+          ...curr,
+          foundations: curr.foundations.map((p, i) =>
+            i === foundationIndex ? p.slice(0, -1) : p,
+          ),
+        };
+      }
+    } else {
+      // Reserve → foundation.
+      const reserveIndex = curr.reserves.findIndex(
+        (c, i) => c == null && prev.reserves[i] != null,
+      );
+      const foundationIndex = curr.foundations.findIndex(
+        (p, i) => p.length > prev.foundations[i].length,
+      );
+      if (reserveIndex === -1 || foundationIndex === -1) {
+        commitInstant();
+        return;
+      }
+      const pile = curr.foundations[foundationIndex]!;
+      card = pile[pile.length - 1]!;
+      fromRect = foundationRefs.current[foundationIndex]?.getBoundingClientRect() ?? null;
+      toRect = reserveRefs.current[reserveIndex]?.getBoundingClientRect() ?? null;
+      lifted = {
+        ...curr,
+        foundations: curr.foundations.map((p, i) =>
+          i === foundationIndex ? p.slice(0, -1) : p,
+        ),
+      };
+    }
+
+    if (!card || !fromRect || !toRect) {
+      commitInstant();
+      return;
+    }
+
+    const key = flightKeyRef.current++;
+    setState(lifted);
     setSelection(null);
+    setFlying((current) => [
+      ...current,
+      {
+        key,
+        card,
+        from: { x: fromRect.left, y: fromRect.top },
+        to: { x: toRect.left, y: toRect.top },
+      },
+    ]);
+
+    window.setTimeout(() => {
+      setFlying((current) => current.filter((f) => f.key !== key));
+      setState(prev);
+      setHistory(history.slice(0, -1));
+    }, FLIGHT_MS);
   };
 
   const clickStock = () => {
@@ -319,6 +508,7 @@ function SultanTable() {
       const before = stateRef.current;
       const next = drawStock(before);
       if (next === before) return;
+      recordAction("stock draw");
       const card = before.stock[before.stock.length - 1]!;
       const stockRect = stockRef.current?.getBoundingClientRect();
       const wasteRect = wasteContainerRef.current?.getBoundingClientRect();
@@ -348,20 +538,29 @@ function SultanTable() {
         setState(next);
       }, FLIGHT_MS);
     } else if (state.redeals > 0 && state.waste.length > 0) {
+      recordAction("redeal");
       apply(redeal(state));
     }
   };
 
   const clickWaste = () => {
+    if (suppressClickRef.current) {
+      suppressClickRef.current = false;
+      return;
+    }
     if (state.waste.length === 0) return;
     setSelection(selection?.type === "waste" ? null : { type: "waste" });
   };
 
   const clickReserveCell = (index: number) => {
+    if (suppressClickRef.current) {
+      suppressClickRef.current = false;
+      return;
+    }
     const s = stateRef.current;
     if (selection) {
       if (selection.type === "waste") {
-        apply(moveWasteToReserve(s, index));
+        animateWasteToReserve(index);
       } else {
         setSelection(null);
       }
@@ -371,6 +570,10 @@ function SultanTable() {
   };
 
   const clickFoundation = (index: number) => {
+    if (suppressClickRef.current) {
+      suppressClickRef.current = false;
+      return;
+    }
     const s = stateRef.current;
     if (selection?.type === "waste") {
       const card = s.waste[s.waste.length - 1];
@@ -407,51 +610,83 @@ function SultanTable() {
     setSelection(null);
   };
 
-  const clearDrag = () => {
-    dragSourceRef.current = null;
-    setDragOverTarget(null);
-  };
-
-  const beginDrag = (source: Selection, e: DragEvent<HTMLButtonElement>) => {
-    dragSourceRef.current = source;
-    setSelection(null);
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/plain", source ? JSON.stringify(source) : "");
-  };
-
-  const highlightFoundation = (index: number) => (e: DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-    setDragOverTarget((t) =>
-      t?.type === "foundation" && t.index === index ? t : { type: "foundation", index },
-    );
-  };
-
-  const highlightReserve = (index: number) => (e: DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-    setDragOverTarget((t) =>
-      t?.type === "reserve" && t.index === index ? t : { type: "reserve", index },
-    );
-  };
-
-  const dropOnFoundation = (index: number) => (e: DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    const src = dragSourceRef.current;
-    clearDrag();
-    if (!src) return;
-    const dropPoint = { x: e.clientX, y: e.clientY };
-    if (src.type === "waste") animateWasteToFoundation(index, dropPoint);
-    else if (src.type === "reserve") animateReserveToFoundation(src.index, index, dropPoint);
-  };
-
-  const dropOnReserve = (index: number) => (e: DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    const src = dragSourceRef.current;
-    clearDrag();
-    if (!src) return;
+  const beginDrag = (source: DragSource) => (e: ReactPointerEvent) => {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
     const s = stateRef.current;
-    if (src.type === "waste") apply(moveWasteToReserve(s, index));
+    const card =
+      source.type === "waste" ? s.waste[s.waste.length - 1] ?? null : s.reserves[source.index];
+    if (!card) return;
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    const dims = sultanCardDims();
+    dragRef.current = {
+      source,
+      card,
+      startX: e.clientX,
+      startY: e.clientY,
+      moved: false,
+      ...dims,
+    };
+    setDragGhost({ source, card, x: e.clientX, y: e.clientY, ...dims });
+    setSelection(null);
+  };
+
+  const moveDrag = (e: ReactPointerEvent) => {
+    const drag = dragRef.current;
+    if (!drag) return;
+    if (!drag.moved && Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY) > 8)
+      drag.moved = true;
+    setDragGhost({
+      source: drag.source,
+      card: drag.card,
+      x: e.clientX,
+      y: e.clientY,
+      w: drag.w,
+      h: drag.h,
+    });
+    const target = document.elementFromPoint(e.clientX, e.clientY);
+    const drop = target?.closest("[data-drop]");
+    if (!drop) {
+      setDragOverTarget((t) => (t === null ? t : null));
+      return;
+    }
+    const kind = drop.getAttribute("data-drop");
+    const index = Number(drop.getAttribute("data-index"));
+    if (kind === "foundation")
+      setDragOverTarget((t) =>
+        t?.type === "foundation" && t.index === index ? t : { type: "foundation", index },
+      );
+    else if (kind === "reserve")
+      setDragOverTarget((t) =>
+        t?.type === "reserve" && t.index === index ? t : { type: "reserve", index },
+      );
+  };
+
+  const endDrag = (e: ReactPointerEvent) => {
+    const drag = dragRef.current;
+    if (!drag) return;
+    dragRef.current = null;
+    setDragGhost(null);
+    setDragOverTarget(null);
+    if (!drag.moved) return; // it was a tap — let onClick handle selection
+    suppressClickRef.current = true;
+    // If the browser doesn't synthesize a click after this drag, clear the flag
+    // so the next tap isn't swallowed.
+    setTimeout(() => {
+      suppressClickRef.current = false;
+    }, 0);
+    const dropPoint = { x: e.clientX, y: e.clientY };
+    const target = document.elementFromPoint(e.clientX, e.clientY);
+    const drop = target?.closest("[data-drop]");
+    if (!drop) return;
+    const kind = drop.getAttribute("data-drop");
+    const index = Number(drop.getAttribute("data-index"));
+    if (kind === "foundation") {
+      if (drag.source.type === "waste") animateWasteToFoundation(index, dropPoint);
+      else if (drag.source.type === "reserve")
+        animateReserveToFoundation(drag.source.index, index, dropPoint);
+    } else if (kind === "reserve") {
+      if (drag.source.type === "waste") animateWasteToReserve(index, dropPoint);
+    }
   };
   return (
     <div className="min-h-screen select-none text-cream">
@@ -510,10 +745,12 @@ function SultanTable() {
                 <WastePile
                   cards={state.waste}
                   selected={selection?.type === "waste"}
+                  hidden={dragGhost?.source.type === "waste"}
                   onClick={clickWaste}
                   onDoubleClick={doubleClickWaste}
-                  onDragStart={(e) => beginDrag({ type: "waste" }, e)}
-                  onDragEnd={clearDrag}
+                  onPointerDown={beginDrag({ type: "waste" })}
+                  onPointerMove={moveDrag}
+                  onPointerUp={endDrag}
                   topRef={(el) => (wasteTopRef.current = el)}
                   containerRef={(el) => (wasteContainerRef.current = el)}
                   isMobile={isMobile}
@@ -527,13 +764,16 @@ function SultanTable() {
                   <ReserveCell
                     key={index}
                     card={card}
+                    index={index}
                     selected={selection?.type === "reserve" && selection.index === index}
+                    hidden={
+                      dragGhost?.source.type === "reserve" && dragGhost.source.index === index
+                    }
                     onClick={() => clickReserveCell(index)}
                     onDoubleClick={() => doubleClickReserve(index)}
-                    onDragStart={(e) => beginDrag({ type: "reserve", index }, e)}
-                    onDragEnd={clearDrag}
-                    onDragOver={highlightReserve(index)}
-                    onDrop={dropOnReserve(index)}
+                    onPointerDown={beginDrag({ type: "reserve", index })}
+                    onPointerMove={moveDrag}
+                    onPointerUp={endDrag}
                     isDropTarget={dragOverTarget?.type === "reserve" && dragOverTarget.index === index}
                     cellRef={(el) => (reserveRefs.current[index] = el)}
                   />
@@ -556,9 +796,8 @@ function SultanTable() {
                       <FoundationSlot
                         pile={pile}
                         done={foundationComplete(pile)}
+                        index={index}
                         onClick={() => clickFoundation(index)}
-                        onDragOver={highlightFoundation(index)}
-                        onDrop={dropOnFoundation(index)}
                         isDropTarget={
                           dragOverTarget?.type === "foundation" && dragOverTarget.index === index
                         }
@@ -575,13 +814,16 @@ function SultanTable() {
                     <ReserveCell
                       key={index}
                       card={card}
+                      index={index}
                       selected={selection?.type === "reserve" && selection.index === index}
+                      hidden={
+                        dragGhost?.source.type === "reserve" && dragGhost.source.index === index
+                      }
                       onClick={() => clickReserveCell(index)}
                       onDoubleClick={() => doubleClickReserve(index)}
-                      onDragStart={(e) => beginDrag({ type: "reserve", index }, e)}
-                      onDragEnd={clearDrag}
-                      onDragOver={highlightReserve(index)}
-                      onDrop={dropOnReserve(index)}
+                      onPointerDown={beginDrag({ type: "reserve", index })}
+                      onPointerMove={moveDrag}
+                      onPointerUp={endDrag}
                       isDropTarget={
                         dragOverTarget?.type === "reserve" && dragOverTarget.index === index
                       }
@@ -710,8 +952,13 @@ function SultanTable() {
             <AlertDialogAction
               onClick={() => {
                 recordResult("abandoned");
-                if (confirming === "home") void navigate({ to: "/" });
-                else if (confirming === "new") reset();
+                if (confirming === "home") {
+                  recordAction("home");
+                  void navigate({ to: "/" });
+                } else if (confirming === "new") {
+                  recordAction("new game");
+                  reset();
+                }
                 setConfirming(null);
               }}
             >
@@ -723,6 +970,15 @@ function SultanTable() {
       {flying.map((flight) => (
         <FlyingCardView key={flight.key} flight={flight} />
       ))}
+      {dragGhost && (
+        <div
+          aria-hidden
+          className="pointer-events-none fixed z-50"
+          style={{ left: dragGhost.x - dragGhost.w / 2, top: dragGhost.y - dragGhost.h / 2 }}
+        >
+          <CardFace card={dragGhost.card} static />
+        </div>
+      )}
     </div>
   );
 }
@@ -742,14 +998,20 @@ const GRID_POSITIONS: { x: number; y: number }[] = [
 
 function foundationPosition(index: number, packs: PackCount): { x: number; y: number } {
   // Two packs arrange the eight foundations in a 3×3 grid around the Sultan.
-  if (packs === 2) return GRID_POSITIONS[index] ?? { x: 50, y: 50 };
+  if (packs === 2) {
+    const base = GRID_POSITIONS[index] ?? { x: 50, y: 50 };
+    return {
+      x: 50 + (base.x - 50) * FOUNDATION_SPREAD,
+      y: 50 + (base.y - 50) * FOUNDATION_SPREAD,
+    };
+  }
   // One pack rings its four foundations around the Sultan. The vertical reach
   // is taller so the Ace of Hearts (above) and King of Diamonds (below) clear
   // the Sultan.
   const angle = (index / 4) * 2 * Math.PI - Math.PI / 2;
   return {
-    x: 50 + (RING_RADIUS_X_PCT / 2) * Math.cos(angle),
-    y: 50 + (RING_RADIUS_Y_PCT / 2) * Math.sin(angle),
+    x: 50 + (RING_RADIUS_X_PCT / 2) * Math.cos(angle) * FOUNDATION_SPREAD,
+    y: 50 + (RING_RADIUS_Y_PCT / 2) * Math.sin(angle) * FOUNDATION_SPREAD,
   };
 }
 
@@ -800,26 +1062,28 @@ function CardFaceArt({ card }: { card: Card }) {
 function CardFace({
   card,
   selected = false,
+  hidden = false,
   onClick,
   onDoubleClick,
-  draggable,
-  onDragStart,
-  onDragEnd,
+  onPointerDown,
+  onPointerMove,
+  onPointerUp,
   static: isStatic = false,
 }: {
   card: Card;
   selected?: boolean;
+  hidden?: boolean;
   onClick?: () => void;
   onDoubleClick?: () => void;
-  draggable?: boolean;
-  onDragStart?: (e: DragEvent<HTMLButtonElement>) => void;
-  onDragEnd?: () => void;
+  onPointerDown?: (e: ReactPointerEvent) => void;
+  onPointerMove?: (e: ReactPointerEvent) => void;
+  onPointerUp?: (e: ReactPointerEvent) => void;
   static?: boolean;
 }) {
   const red = isRed(card.suit);
-  const className = `relative block h-[var(--sultan-card-h)] w-[var(--sultan-card-w)] select-none overflow-hidden rounded-lg border bg-white text-left shadow-md shadow-black/30 transition-transform ${
+  const className = `relative block h-[var(--sultan-card-h)] w-[var(--sultan-card-w)] touch-none select-none overflow-hidden rounded-lg border bg-white text-left shadow-md shadow-black/30 transition-transform ${
     selected ? "border-gold -translate-y-1 ring-2 ring-gold" : "border-black/10"
-  } ${red ? "text-destructive" : "text-ink"}`;
+  } ${hidden ? "opacity-0" : ""} ${red ? "text-destructive" : "text-ink"}`;
   const face = <CardFaceArt card={card} />;
   if (isStatic) {
     return (
@@ -833,9 +1097,9 @@ function CardFace({
       type="button"
       onClick={onClick}
       onDoubleClick={onDoubleClick}
-      draggable={draggable}
-      onDragStart={onDragStart}
-      onDragEnd={onDragEnd}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
       aria-label={cardLabel(card)}
       className={className}
     >
@@ -935,20 +1199,24 @@ function StockPile({
 function WastePile({
   cards,
   selected,
+  hidden,
   onClick,
   onDoubleClick,
-  onDragStart,
-  onDragEnd,
+  onPointerDown,
+  onPointerMove,
+  onPointerUp,
   topRef,
   containerRef,
   isMobile,
 }: {
   cards: Card[];
   selected: boolean;
+  hidden?: boolean;
   onClick: () => void;
   onDoubleClick: () => void;
-  onDragStart: (e: DragEvent<HTMLButtonElement>) => void;
-  onDragEnd: () => void;
+  onPointerDown: (e: ReactPointerEvent) => void;
+  onPointerMove: (e: ReactPointerEvent) => void;
+  onPointerUp: (e: ReactPointerEvent) => void;
   topRef?: (el: HTMLDivElement | null) => void;
   containerRef?: (el: HTMLDivElement | null) => void;
   isMobile: boolean;
@@ -975,11 +1243,12 @@ function WastePile({
               <CardFace
                 card={card}
                 selected={selected}
+                hidden={hidden}
                 onClick={onClick}
                 onDoubleClick={onDoubleClick}
-                draggable
-                onDragStart={onDragStart}
-                onDragEnd={onDragEnd}
+                onPointerDown={onPointerDown}
+                onPointerMove={onPointerMove}
+                onPointerUp={onPointerUp}
               />
             ) : (
               <CardFace card={card} static />
@@ -994,26 +1263,24 @@ function WastePile({
 function FoundationSlot({
   pile,
   done,
+  index,
   onClick,
-  onDragOver,
-  onDrop,
   isDropTarget,
 }: {
   pile: Card[];
   done: boolean;
+  index: number;
   onClick: () => void;
-  onDragOver: (e: DragEvent<HTMLDivElement>) => void;
-  onDrop: (e: DragEvent<HTMLDivElement>) => void;
   isDropTarget: boolean;
 }) {
   const top = pile[pile.length - 1];
   return (
     <div
+      data-drop="foundation"
+      data-index={index}
       className={`relative rounded-md ${isDropTarget ? "ring-2 ring-gold" : ""} ${
         done ? "ring-2 ring-gold/70" : ""
       }`}
-      onDragOver={onDragOver}
-      onDrop={onDrop}
     >
       {!top ? (
         <EmptySlot onClick={onClick} black />
@@ -1035,33 +1302,35 @@ function FoundationSlot({
 
 function ReserveCell({
   card,
+  index,
   selected,
+  hidden,
   onClick,
   onDoubleClick,
-  onDragStart,
-  onDragEnd,
-  onDragOver,
-  onDrop,
+  onPointerDown,
+  onPointerMove,
+  onPointerUp,
   isDropTarget,
   cellRef,
 }: {
   card: Card | null;
+  index: number;
   selected: boolean;
+  hidden?: boolean;
   onClick: () => void;
   onDoubleClick: () => void;
-  onDragStart: (e: DragEvent<HTMLButtonElement>) => void;
-  onDragEnd: () => void;
-  onDragOver: (e: DragEvent<HTMLDivElement>) => void;
-  onDrop: (e: DragEvent<HTMLDivElement>) => void;
+  onPointerDown: (e: ReactPointerEvent) => void;
+  onPointerMove: (e: ReactPointerEvent) => void;
+  onPointerUp: (e: ReactPointerEvent) => void;
   isDropTarget: boolean;
   cellRef?: (el: HTMLDivElement | null) => void;
 }) {
   return (
     <div
       ref={cellRef}
+      data-drop="reserve"
+      data-index={index}
       className={`relative rounded-md ${isDropTarget ? "ring-2 ring-gold" : ""}`}
-      onDragOver={onDragOver}
-      onDrop={onDrop}
     >
       {card == null ? (
         <EmptySlot onClick={onClick} black />
@@ -1069,11 +1338,12 @@ function ReserveCell({
         <CardFace
           card={card}
           selected={selected}
+          hidden={hidden}
           onClick={onClick}
           onDoubleClick={onDoubleClick}
-          draggable
-          onDragStart={onDragStart}
-          onDragEnd={onDragEnd}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
         />
       )}
     </div>
