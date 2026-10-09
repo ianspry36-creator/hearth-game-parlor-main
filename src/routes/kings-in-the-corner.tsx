@@ -88,7 +88,7 @@ function KingsInTheCornerTable() {
   const [viewingBoard, setViewingBoard] = useState(false);
   const [undoCount, setUndoCount] = useState(0);
   const { recordResult } = useSolitaireStats(game.id);
-  const { end, beginNew } = useGameStarted(game.name);
+  const { end, beginNew, recordAction } = useGameStarted(game.name);
   const [conceded, setConceded] = useState(false);
   const stateRef = useRef(state);
   stateRef.current = state;
@@ -176,6 +176,7 @@ function KingsInTheCornerTable() {
 
   const apply = (candidate: GameState) => {
     if (candidate === state) return;
+    recordAction("table action");
     setHistory((h) => [...h, state]);
     setSelection(null);
     setState(candidate);
@@ -192,22 +193,32 @@ function KingsInTheCornerTable() {
     startRef.current = 0;
     endedRef.current = false;
     setConceded(false);
+    recordAction("new game");
     beginNew();
   };
 
   const concede = () => {
     if (state.won || state.lost || conceded) return;
     recordResult("loss");
+    recordAction("concede");
     end("conceded");
     setConceded(true);
   };
 
   const gameInProgress = state.moves > 0 && !state.won && !state.lost && !conceded;
   const confirmReset = () => (gameInProgress ? setConfirming("new") : reset());
-  const confirmHome = () => (gameInProgress ? setConfirming("home") : void navigate({ to: "/" }));
+  const confirmHome = () => {
+    if (gameInProgress) {
+      setConfirming("home");
+    } else {
+      recordAction("home");
+      void navigate({ to: "/" });
+    }
+  };
 
   const undo = () => {
     if (history.length === 0 || state.won || conceded) return;
+    recordAction("undo");
     // Once the board is full and the game is lost, the player may still undo
     // after dismissing the "stuck" overlay with Keep Playing.
     if (state.lost && !viewingBoard) return;
@@ -595,7 +606,7 @@ function KingsInTheCornerTable() {
             <AlertDialogAction
               onClick={() => {
                 recordResult("abandoned");
-                if (confirming === "home") void navigate({ to: "/" });
+                if (confirming === "home") { recordAction("home"); void navigate({ to: "/" }); }
                 else if (confirming === "new") reset();
                 setConfirming(null);
               }}

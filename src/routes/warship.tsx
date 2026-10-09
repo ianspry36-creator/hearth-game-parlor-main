@@ -173,7 +173,7 @@ function WarshipTable() {
   const proposedTimerOffRef = useRef(false);
   stateRef.current = state;
   useRecordMatchResult(match, isHost, state.rematch ? null : state.winner, matchId ? RECONNECT_SECONDS * 1000 : 0);
-  const { end, beginNew } = useGameStarted(game.name);
+  const { end, beginNew, recordAction } = useGameStarted(game.name);
   const prevGameWinnerRef = useRef<string | null>(null);
   useEffect(() => {
     const w = state.winner;
@@ -201,6 +201,7 @@ function WarshipTable() {
   }, [isMulti]);
 
   const apply = (fn: (current: State) => State) => {
+    recordAction("table action");
     const next = fn(stateRef.current);
     stateRef.current = next;
     setState(next);
@@ -209,6 +210,7 @@ function WarshipTable() {
 
   // Concede the game: award the win to the opponent (Ada or the live player).
   const concede = () => {
+    recordAction("concede");
     setConcedeOpen(false);
     apply((current) => ({
       ...current,
@@ -252,6 +254,7 @@ function WarshipTable() {
     stateRef.current = fresh;
     setState(fresh);
     setViewingBoard(false);
+    recordAction("new game");
     beginNew();
     if (isMulti) void publish(isHost ? fresh : mirror(fresh));
   };
@@ -544,7 +547,7 @@ function WarshipTable() {
             <Button variant="parlorOutline" onClick={() => setViewingBoard(true)}>
               View Board
             </Button>
-            <Button variant="parlorOutline" onClick={() => navigate({ to: "/" })}>
+            <Button variant="parlorOutline" onClick={() => { recordAction("home"); navigate({ to: "/" }); }}>
               Back to game room
             </Button>
           </>
@@ -623,7 +626,7 @@ function WarshipTable() {
                 <Button variant="parlor" onClick={reset}>
                   {isMulti ? "Rematch" : "Play again"}
                 </Button>
-                <Button variant="parlorOutline" onClick={() => navigate({ to: "/" })}>
+                <Button variant="parlorOutline" onClick={() => { recordAction("home"); navigate({ to: "/" }); }}>
                   Back to game room
                 </Button>
               </>

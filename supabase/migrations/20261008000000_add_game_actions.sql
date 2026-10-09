@@ -22,9 +22,13 @@ GRANT ALL ON public.game_actions TO service_role;
 
 ALTER TABLE public.game_actions ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Anyone can see game actions" ON public.game_actions;
 CREATE POLICY "Anyone can see game actions" ON public.game_actions FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Anyone can post a game action" ON public.game_actions;
 CREATE POLICY "Anyone can post a game action" ON public.game_actions FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Anyone can update a game action" ON public.game_actions;
 CREATE POLICY "Anyone can update a game action" ON public.game_actions FOR UPDATE USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Anyone can delete a game action" ON public.game_actions;
 CREATE POLICY "Anyone can delete a game action" ON public.game_actions FOR DELETE USING (true);
 
 CREATE INDEX IF NOT EXISTS idx_game_actions_game_started

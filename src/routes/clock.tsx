@@ -97,7 +97,7 @@ function ClockTable() {
   const [state, setState] = useState<GameState>(() => freshGame(mulberry32(SSR_SEED)));
   const [confirming, setConfirming] = useState<"new" | "home" | null>(null);
   const { recordResult } = useSolitaireStats(game.id);
-  const { end, beginNew } = useGameStarted(game.name);
+  const { end, beginNew, recordAction } = useGameStarted(game.name);
   const [conceded, setConceded] = useState(false);
   const prevWonRef = useRef(false);
   useEffect(() => {
@@ -224,6 +224,7 @@ function ClockTable() {
     const current = stateRef.current;
     const card = currentCard(current);
     if (!card || current.won || current.lost || placing) return;
+    recordAction("table action");
     const target = card.rank - 1;
     const fromRect = currentRef.current?.getBoundingClientRect();
     // A King flies to the first empty centre position, not the centre grid's
@@ -320,19 +321,28 @@ function ClockTable() {
     setDragOffset({ x: 0, y: 0 });
     dragStartRef.current = null;
     setConceded(false);
+    recordAction("new game");
     beginNew();
   };
 
   const concede = () => {
     if (state.won || state.lost || conceded) return;
     recordResult("loss");
+    recordAction("concede");
     end("conceded");
     setConceded(true);
   };
 
   const gameInProgress = state.revealed > 0 && !state.won && !state.lost && !conceded;
   const confirmReset = () => (gameInProgress ? setConfirming("new") : reset());
-  const confirmHome = () => (gameInProgress ? setConfirming("home") : void navigate({ to: "/" }));
+  const confirmHome = () => {
+    if (gameInProgress) {
+      setConfirming("home");
+    } else {
+      recordAction("home");
+      void navigate({ to: "/" });
+    }
+  };
 
   return (
     <div className="min-h-screen text-cream">
@@ -507,7 +517,7 @@ function ClockTable() {
             <AlertDialogAction
               onClick={() => {
                 recordResult("abandoned");
-                if (confirming === "home") void navigate({ to: "/" });
+                if (confirming === "home") { recordAction("home"); void navigate({ to: "/" }); }
                 else if (confirming === "new") reset();
                 setConfirming(null);
               }}

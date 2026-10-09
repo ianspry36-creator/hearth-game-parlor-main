@@ -202,9 +202,22 @@ function GamesLogPage() {
     // CASCADE also covers actions, so a missing game_actions table never blocks
     // deleting the game rows themselves.
     await supabase.from("game_actions").delete().in("game_started_id", ids);
-    const { error } = await supabase.from("games_started").delete().in("id", ids);
+    const { data, error } = await supabase
+      .from("games_started")
+      .delete()
+      .in("id", ids)
+      .select("id");
     if (error) {
       setError(`Delete failed: ${error.message}`);
+    } else if (!data || data.length < ids.length) {
+      // Row-level security silently blocks a DELETE (0 rows, no error). If fewer
+      // rows come back than we asked to remove, the delete policy is missing on
+      // the live database, so surface that instead of pretending it worked.
+      setError(
+        `Delete blocked: ${data?.length ?? 0} of ${ids.length} rows were removed. ` +
+          `Apply migration 20261008000000_add_game_actions.sql to the database — ` +
+          `the "Anyone can delete a started game" policy is missing.`,
+      );
     } else {
       setGames((prev) => (prev ? prev.filter((g) => !checked.has(g.id)) : prev));
       setChecked(new Set());

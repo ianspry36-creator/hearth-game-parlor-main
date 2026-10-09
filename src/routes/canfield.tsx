@@ -107,7 +107,7 @@ function CanfieldTable() {
   const [confirming, setConfirming] = useState<"new" | "home" | null>(null);
   const [conceded, setConceded] = useState(false);
   const { recordResult } = useSolitaireStats(game.id);
-  const { end, beginNew } = useGameStarted(game.name);
+  const { end, beginNew, recordAction } = useGameStarted(game.name);
   // Card-flight animation bookkeeping: the reserve card currently gliding onto a
   // tableau pile, plus refs used to measure the reserve's top card and each pile.
   const [flying, setFlying] = useState<FlyingCard[]>([]);
@@ -198,6 +198,7 @@ function CanfieldTable() {
 
   const apply = (candidate: GameState) => {
     if (candidate === state) return;
+    recordAction("table action");
     const before = state;
     setHistory((h) => [...h, before]);
     setSelection(null);
@@ -344,22 +345,32 @@ function CanfieldTable() {
     startRef.current = 0;
     endedRef.current = false;
     setConceded(false);
+    recordAction("new game");
     beginNew();
   };
 
   const concede = () => {
     if (state.won || conceded) return;
     recordResult("loss");
+    recordAction("concede");
     end("conceded");
     setConceded(true);
   };
 
   const gameInProgress = state.moves > 0 && !state.won && !conceded;
   const confirmReset = () => (gameInProgress ? setConfirming("new") : reset());
-  const confirmHome = () => (gameInProgress ? setConfirming("home") : void navigate({ to: "/" }));
+  const confirmHome = () => {
+    if (gameInProgress) {
+      setConfirming("home");
+    } else {
+      recordAction("home");
+      void navigate({ to: "/" });
+    }
+  };
 
   const undo = () => {
     if (history.length === 0 || state.won) return;
+    recordAction("undo");
     const prev = history[history.length - 1]!;
     setState(prev);
     setHistory(history.slice(0, -1));
@@ -746,7 +757,7 @@ function CanfieldTable() {
             <AlertDialogAction
               onClick={() => {
                 recordResult("abandoned");
-                if (confirming === "home") void navigate({ to: "/" });
+                if (confirming === "home") { recordAction("home"); void navigate({ to: "/" }); }
                 else if (confirming === "new") reset();
                 setConfirming(null);
               }}

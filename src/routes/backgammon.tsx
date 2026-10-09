@@ -250,7 +250,7 @@ function BackgammonTable() {
     state.rematch ? null : state.winner,
     matchId ? RECONNECT_SECONDS * 1000 : 0,
   );
-  const { end, beginNew } = useGameStarted(game.name);
+  const { end, beginNew, recordAction } = useGameStarted(game.name);
   const prevGameWinnerRef = useRef<string | null>(null);
   useEffect(() => {
     const w = state.winner;
@@ -311,6 +311,7 @@ function BackgammonTable() {
   const [playerName, setPlayerName] = useState(() => getNickname() ?? "You");
 
   const apply = (fn: (current: State) => State) => {
+    recordAction("table action");
     const next = fn(stateRef.current);
     stateRef.current = next;
     setState(next);
@@ -319,6 +320,7 @@ function BackgammonTable() {
 
   // Concede the game: award the win to the opponent (Ada or the live player).
   const concede = () => {
+    recordAction("concede");
     setConcedeOpen(false);
     apply((current) => ({
       ...current,
@@ -398,6 +400,7 @@ function BackgammonTable() {
     moveTimersRef.current.forEach((t) => clearTimeout(t));
     moveTimersRef.current = [];
     cpuLegsRef.current = [];
+    recordAction("new game");
     beginNew();
     if (isMulti) void publish(isHost ? fresh : mirror(fresh));
   };
@@ -862,7 +865,7 @@ function BackgammonTable() {
             <Button variant="parlorOutline" onClick={() => setViewingBoard(true)}>
               View Board
             </Button>
-            <Button variant="parlorOutline" onClick={() => navigate({ to: "/" })}>
+            <Button variant="parlorOutline" onClick={() => { recordAction("home"); navigate({ to: "/" }); }}>
               Back to game room
             </Button>
           </>

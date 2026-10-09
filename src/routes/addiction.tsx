@@ -82,7 +82,7 @@ function AddictionTable() {
   const [hinting, setHinting] = useState(false);
   const [confirming, setConfirming] = useState<"new" | "home" | null>(null);
   const { recordResult } = useSolitaireStats(game.id);
-  const { end, beginNew } = useGameStarted(game.name);
+  const { end, beginNew, recordAction } = useGameStarted(game.name);
   const [conceded, setConceded] = useState(false);
   const prevWonRef = useRef(false);
   // FLIP animation bookkeeping: the board container for measuring card slots,
@@ -219,6 +219,7 @@ function AddictionTable() {
 
   const apply = (candidate: GameState) => {
     if (candidate === state) return;
+    recordAction("table action");
     setHistory((h) => [...h, state]);
     setSelection(null);
     setState(candidate);
@@ -233,22 +234,32 @@ function AddictionTable() {
     startRef.current = 0;
     endedRef.current = false;
     setConceded(false);
+    recordAction("new game");
     beginNew();
   };
 
   const concede = () => {
     if (state.won || lost || conceded) return;
     recordResult("loss");
+    recordAction("concede");
     end("conceded");
     setConceded(true);
   };
 
   const gameInProgress = state.moves > 0 && !state.won && !lost && !conceded;
   const confirmReset = () => (gameInProgress ? setConfirming("new") : reset());
-  const confirmHome = () => (gameInProgress ? setConfirming("home") : void navigate({ to: "/" }));
+  const confirmHome = () => {
+    if (gameInProgress) {
+      setConfirming("home");
+    } else {
+      recordAction("home");
+      void navigate({ to: "/" });
+    }
+  };
 
   const undo = () => {
     if (history.length === 0 || state.won || lost || conceded) return;
+    recordAction("undo");
     const prev = history[history.length - 1]!;
     setState(prev);
     setHistory(history.slice(0, -1));
@@ -558,7 +569,7 @@ function AddictionTable() {
             <AlertDialogAction
               onClick={() => {
                 recordResult("abandoned");
-                if (confirming === "home") void navigate({ to: "/" });
+                if (confirming === "home") { recordAction("home"); void navigate({ to: "/" }); }
                 else if (confirming === "new") reset();
                 setConfirming(null);
               }}

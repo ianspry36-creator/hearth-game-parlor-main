@@ -135,7 +135,7 @@ function TriPeaksTable() {
   const [confirming, setConfirming] = useState<"new" | "home" | null>(null);
   const [resultOpen, setResultOpen] = useState(false);
   const { recordResult } = useSolitaireStats(game.id);
-  const { end, beginNew } = useGameStarted(game.name);
+  const { end, beginNew, recordAction } = useGameStarted(game.name);
   const [conceded, setConceded] = useState(false);
   const prevWonRef = useRef(false);
   useEffect(() => {
@@ -207,6 +207,7 @@ function TriPeaksTable() {
     startRef.current = 0;
     endedRef.current = false;
     setConceded(false);
+    recordAction("new game");
     beginNew();
   };
 
@@ -215,6 +216,7 @@ function TriPeaksTable() {
   const concede = () => {
     if (state.won || state.lost || conceded) return;
     recordResult("loss");
+    recordAction("concede");
     end("conceded");
     setConceded(true);
   };
@@ -256,6 +258,7 @@ function TriPeaksTable() {
 
   const apply = (candidate: GameState) => {
     if (candidate === state) return;
+    recordAction("table action");
     setHistory((h) => [...h, state]);
     setState(candidate);
     if (candidate.won || candidate.lost) {
@@ -266,6 +269,7 @@ function TriPeaksTable() {
 
   const undo = () => {
     if (history.length === 0 || state.won || conceded) return;
+    recordAction("undo");
     const prev = history[history.length - 1]!;
     // Each undo counts as a move.
     setState({ ...prev, moves: prev.moves + 1 });
@@ -387,7 +391,14 @@ function TriPeaksTable() {
 
   const gameInProgress = state.moves > 0 && !state.won && !conceded;
   const confirmReset = () => (gameInProgress ? setConfirming("new") : newRandomGame());
-  const confirmHome = () => (gameInProgress ? setConfirming("home") : void navigate({ to: "/" }));
+  const confirmHome = () => {
+    if (gameInProgress) {
+      setConfirming("home");
+    } else {
+      recordAction("home");
+      void navigate({ to: "/" });
+    }
+  };
 
   const best = records[gameNumber];
   const bestLabel = best ? (best.won ? `Won in ${best.moves}` : `${best.cardsLeft} left`) : "—";
@@ -618,7 +629,7 @@ function TriPeaksTable() {
             <AlertDialogAction
               onClick={() => {
                 recordResult("abandoned");
-                if (confirming === "home") void navigate({ to: "/" });
+                if (confirming === "home") { recordAction("home"); void navigate({ to: "/" }); }
                 else if (confirming === "new") newRandomGame();
                 setConfirming(null);
               }}

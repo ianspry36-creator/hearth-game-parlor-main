@@ -160,7 +160,7 @@ function ReversiTable() {
   // effect, so they show in Statistics alongside the multiplayer leaderboard;
   // live matches are handled by useRecordMatchResult above instead.
   const { recordResult: recordSoloResult } = useSolitaireStats(game.id, difficulty);
-  const { end, beginNew } = useGameStarted(game.name);
+  const { end, beginNew, recordAction } = useGameStarted(game.name);
   const prevSoloWinnerRef = useRef<Player | "draw" | null>(null);
   useEffect(() => {
     if (
@@ -185,6 +185,7 @@ function ReversiTable() {
   }, [state.winner, end]);
 
   const apply = (fn: (current: State) => State) => {
+    recordAction("table action");
     const next = fn(stateRef.current);
     stateRef.current = next;
     setState(next);
@@ -193,6 +194,7 @@ function ReversiTable() {
 
   // Concede the game: award the win to the opponent (Ada or the live player).
   const concede = () => {
+    recordAction("concede");
     apply((current) => ({
       ...current,
       phase: "over",
@@ -233,6 +235,7 @@ function ReversiTable() {
     stateRef.current = fresh;
     setState(fresh);
     if (isMulti) void publish(isHost ? fresh : mirror(fresh));
+    recordAction("new game");
     beginNew();
   };
 
@@ -341,6 +344,7 @@ function ReversiTable() {
       onNewGame={() => (isMulti ? navigate({ to: "/reversi" }) : reset())}
       onAbandon={() => {
         if (!isMulti) recordSoloResult("abandoned");
+        recordAction("home");
       }}
       rail={null}
       boxClassName="bg-[#4c9a2a] text-black"

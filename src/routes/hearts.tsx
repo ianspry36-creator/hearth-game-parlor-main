@@ -206,7 +206,7 @@ function HeartsTable() {
     stateRef.current = state;
   }, [state]);
 
-  const { end, beginNew } = useGameStarted(game.name);
+  const { end, beginNew, recordAction } = useGameStarted(game.name);
   const prevGameWinnerRef = useRef<string | null>(null);
   useEffect(() => {
     const w = state.winner;
@@ -683,6 +683,7 @@ function HeartsTable() {
 
   // Concede the game: forfeit and award the win to the lowest-scoring opponent.
   const concede = useCallback(() => {
+    recordAction("concede");
     setConcedeOpen(false);
     setState((current) => {
       const others = SEATS.filter((s) => s !== "you");
@@ -759,6 +760,7 @@ function HeartsTable() {
   }, [state.winner, state.points, playerAvatar, playerName]);
 
   const startNewGame = useCallback(() => {
+    recordAction("new game");
     beginNew();
     setState(idleState());
     setPassSelection([]);
@@ -964,7 +966,7 @@ function HeartsTable() {
         {...(results ? { results } : {})}
         onPlayAgain={startNewGame}
         footerExtra={
-          <Button variant="parlorOutline" onClick={() => navigate({ to: "/" })}>
+          <Button variant="parlorOutline" onClick={() => { recordAction("home"); navigate({ to: "/" }); }}>
             Back to game room
           </Button>
         }

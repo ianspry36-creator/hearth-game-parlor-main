@@ -145,7 +145,7 @@ function SpiderTable() {
   const [stockHintOpen, setStockHintOpen] = useState(false);
 
   const { recordResult } = useSolitaireStats(game.id);
-  const { end, beginNew } = useGameStarted(game.name);
+  const { end, beginNew, recordAction } = useGameStarted(game.name);
   const prevWonRef = useRef(false);
   useEffect(() => {
     if (state.won && !prevWonRef.current) {
@@ -266,6 +266,7 @@ function SpiderTable() {
 
   const apply = (candidate: GameState) => {
     if (candidate === state) return;
+    recordAction("table action");
     animateCompletedRuns(state, candidate);
     setHistory((h) => [...h, state]);
     setSelection(null);
@@ -288,6 +289,7 @@ function SpiderTable() {
     startRef.current = 0;
     endedRef.current = false;
     setConceded(false);
+    recordAction("new game");
     beginNew();
   };
 
@@ -296,13 +298,21 @@ function SpiderTable() {
   const concede = () => {
     if (state.won || conceded) return;
     recordResult("loss");
+    recordAction("concede");
     end("conceded");
     setConceded(true);
   };
 
   const gameInProgress = state.moves > 0 && !state.won && !conceded;
   const confirmReset = () => (gameInProgress ? setConfirming("new") : reset());
-  const confirmHome = () => (gameInProgress ? setConfirming("home") : void navigate({ to: "/" }));
+  const confirmHome = () => {
+    if (gameInProgress) {
+      setConfirming("home");
+    } else {
+      recordAction("home");
+      void navigate({ to: "/" });
+    }
+  };
 
   const cycleDifficulty = () => {
     if (gameInProgress) return;
@@ -357,6 +367,7 @@ function SpiderTable() {
 
   const undo = () => {
     if (history.length === 0 || state.won || conceded) return;
+    recordAction("undo");
     if (revealTimerRef.current !== null) {
       window.clearTimeout(revealTimerRef.current);
       revealTimerRef.current = null;
@@ -827,6 +838,7 @@ function SpiderTable() {
               onClick={() => {
                 if (confirming === "home") {
                   recordResult("abandoned");
+                  recordAction("home");
                   void navigate({ to: "/" });
                 } else if (confirming === "new") {
                   recordResult("abandoned");

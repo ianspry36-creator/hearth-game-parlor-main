@@ -382,7 +382,7 @@ function CrazyEightsTable() {
     state.rematch ? null : state.winner,
     matchId ? RECONNECT_SECONDS * 1000 : 0,
   );
-  const { end, beginNew } = useGameStarted(game.name);
+  const { end, beginNew, recordAction } = useGameStarted(game.name);
   const prevGameWinnerRef = useRef<string | null>(null);
   useEffect(() => {
     const w = state.winner;
@@ -542,6 +542,7 @@ function CrazyEightsTable() {
   }, [isLive, playerCount]);
 
   const apply = (fn: (current: State) => State) => {
+    recordAction("table action");
     const next = fn(stateRef.current);
     stateRef.current = next;
     setState(next);
@@ -551,6 +552,7 @@ function CrazyEightsTable() {
 
   // Concede the game: award the win to the opponent (Ada, a bot, or a live player).
   const concede = () => {
+    recordAction("concede");
     setConcedeOpen(false);
     apply((current) => {
       const opponent = current.order.find((seat) => seat !== "you") ?? "ada";
@@ -573,6 +575,7 @@ function CrazyEightsTable() {
     const fresh = freshState(n);
     stateRef.current = fresh;
     setState(fresh);
+    recordAction("new game");
     beginNew();
     if (isRoom) void publishRoom(fresh);
     else if (isMulti) void publish(isHost ? fresh : mirror(fresh));
@@ -652,6 +655,7 @@ function CrazyEightsTable() {
       const fresh = freshState(activeCount);
       stateRef.current = fresh;
       setState(fresh);
+      recordAction("new game");
       beginNew();
       void publishRoom(remapState(fresh, mySeat, activeCount));
       return;
@@ -1358,7 +1362,7 @@ function CrazyEightsTable() {
             <Button variant="parlorOutline" onClick={() => setViewingHand(true)}>
               View hand
             </Button>
-            <Button variant="parlorOutline" onClick={() => navigate({ to: "/" })}>
+            <Button variant="parlorOutline" onClick={() => { recordAction("home"); navigate({ to: "/" }); }}>
               Back to game room
             </Button>
           </>

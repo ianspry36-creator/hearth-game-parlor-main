@@ -266,7 +266,7 @@ function CheckersTable() {
   // effect, so they show in Statistics alongside the multiplayer leaderboard;
   // live matches are handled by useRecordMatchResult above instead.
   const { recordResult: recordSoloResult } = useSolitaireStats(game.id, difficulty);
-  const { end, beginNew } = useGameStarted(game.name);
+  const { end, beginNew, recordAction } = useGameStarted(game.name);
   const prevSoloWinnerRef = useRef<Player | "draw" | null>(null);
   useEffect(() => {
     if (
@@ -291,6 +291,7 @@ function CheckersTable() {
   }, [state.winner, end]);
 
   const apply = (fn: (current: State) => State) => {
+    recordAction("table action");
     const next = fn(stateRef.current);
     stateRef.current = next;
     setState(next);
@@ -314,6 +315,7 @@ function CheckersTable() {
 
   // Concede the game: award the win to the opponent (Ada or the live player).
   const concede = () => {
+    recordAction("concede");
     setConcedeOpen(false);
     apply((current) => ({
       ...current,
@@ -358,6 +360,7 @@ function CheckersTable() {
     stateRef.current = fresh;
     setState(fresh);
     if (isMulti) void publish(isHost ? fresh : mirror(fresh));
+    recordAction("new game");
     beginNew();
   };
 
@@ -612,7 +615,7 @@ function CheckersTable() {
             <Button variant="parlorOutline" onClick={() => setViewingBoard(true)}>
               View Board
             </Button>
-            <Button variant="parlorOutline" onClick={() => navigate({ to: "/" })}>
+            <Button variant="parlorOutline" onClick={() => { recordAction("home"); navigate({ to: "/" }); }}>
               Return to Play Room
             </Button>
           </>

@@ -36,7 +36,7 @@ import {
   type GameState,
 } from "@/lib/crescent";
 import { mulberry32 } from "@/lib/random";
-import { startGame, updateGameStatus } from "@/lib/games-started";
+import { recordGameAction, startGame, updateGameStatus } from "@/lib/games-started";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 export const Route = createFileRoute("/crescent")({
@@ -255,6 +255,7 @@ function CrescentTable() {
 
   const apply = (candidate: GameState) => {
     if (candidate === state) return;
+    recordGameAction(gameRowRef.current, "table action");
     setHistory((h) => [...h, state]);
     setSelection(null);
     setState(candidate);
@@ -272,6 +273,7 @@ function CrescentTable() {
     shuffleTimersRef.current = [];
     setShuffleOld(null);
     setShuffleRevealed(0);
+    recordGameAction(gameRowRef.current, "new game");
     void startGame(game.name).then((id) => {
       gameRowRef.current = id;
     });
@@ -292,16 +294,25 @@ function CrescentTable() {
   const concede = () => {
     if (state.won || conceded) return;
     recordResult("loss");
+    recordGameAction(gameRowRef.current, "concede");
     void updateGameStatus(gameRowRef.current, "conceded");
     setConceded(true);
   };
 
   const gameInProgress = state.moves > 0 && !state.won && !conceded;
   const confirmReset = () => (gameInProgress ? setConfirming("new") : reset());
-  const confirmHome = () => (gameInProgress ? setConfirming("home") : void navigate({ to: "/" }));
+  const confirmHome = () => {
+    if (gameInProgress) {
+      setConfirming("home");
+    } else {
+      recordGameAction(gameRowRef.current, "home");
+      void navigate({ to: "/" });
+    }
+  };
 
   const undo = () => {
     if (history.length === 0 || conceded || state.won) return;
+    recordGameAction(gameRowRef.current, "undo");
     const prev = history[history.length - 1]!;
     // Fly the moved card back to where it came from before restoring the state.
     const moved = findMovedCard(state, prev);
@@ -315,6 +326,7 @@ function CrescentTable() {
     if (state.won || conceded || state.shufflesLeft <= 0) return;
     const candidate = shuffleTableaus(state);
     if (candidate === state) return;
+    recordGameAction(gameRowRef.current, "table action");
     // Snapshot the current piles so each one can reveal its newly shuffled cards
     // only when its own hop in the stagger plays, instead of all at once.
     const oldTableaus = state.tableaus.map((p) => p.slice());
@@ -765,6 +777,7 @@ function CrescentTable() {
               onClick={() => {
                 recordResult("abandoned");
                 if (confirming === "home") {
+                  recordGameAction(gameRowRef.current, "home");
                   void updateGameStatus(gameRowRef.current, "game room");
                   void navigate({ to: "/" });
                 } else if (confirming === "new") {

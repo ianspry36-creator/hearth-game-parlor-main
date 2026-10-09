@@ -611,7 +611,7 @@ function CribbageTable() {
   // alongside the multiplayer leaderboard; live matches are handled by
   // useRecordMatchResult above instead.
   const { recordResult: recordSoloResult } = useSolitaireStats(game.id);
-  const { end, beginNew } = useGameStarted(game.name);
+  const { end, beginNew, recordAction } = useGameStarted(game.name);
   const prevSoloWinnerRef = useRef<Side | null>(null);
   useEffect(() => {
     if (!isMulti && state.winner && state.winner !== prevSoloWinnerRef.current) {
@@ -631,6 +631,7 @@ function CribbageTable() {
 
   /** Commit a move: locally always, and to the shared table in a live match. */
   const apply = (fn: (current: State) => State) => {
+    recordAction("table action");
     const next = fn(stateRef.current);
     stateRef.current = next;
     setState(next);
@@ -639,6 +640,7 @@ function CribbageTable() {
 
   // Concede the game: award the win to the opponent (Ada or the live player).
   const concede = () => {
+    recordAction("concede");
     apply((current) => ({
       ...current,
       phase: "over",
@@ -685,6 +687,7 @@ function CribbageTable() {
     setCutSeated({ player: false, cpu: false });
     setViewingBoard(false);
     if (isMulti) void publish(isHost ? fresh : mirror(fresh));
+    recordAction("new game");
     beginNew();
   };
 
@@ -1482,7 +1485,10 @@ function CribbageTable() {
             : undefined
         }
         onViewBoard={() => setViewingBoard(true)}
-        onBackToGameRoom={() => navigate({ to: "/" })}
+        onBackToGameRoom={() => {
+          recordAction("home");
+          navigate({ to: "/" });
+        }}
       />
       <AlertDialog open={rematchIncoming}>
         <AlertDialogContent className="border-gold/30 bg-brand text-cream sm:max-w-md">
