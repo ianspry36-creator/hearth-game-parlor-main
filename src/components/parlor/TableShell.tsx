@@ -140,7 +140,7 @@ export function TableShell({
             <button
               type="button"
               onClick={goHome}
-              className="text-xs uppercase tracking-[0.2em] text-ivory/50 hover:text-gold"
+              className="text-xs uppercase tracking-[0.2em] text-white hover:text-gold"
             >
               ← Back to the game room
             </button>

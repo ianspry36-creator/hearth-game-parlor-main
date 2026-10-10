@@ -363,7 +363,7 @@ function KingsInTheCornerTable() {
             <button
               type="button"
               onClick={confirmHome}
-              className="cursor-pointer bg-transparent text-xs uppercase tracking-[0.2em] text-ivory/50 transition-colors hover:text-gold"
+              className="cursor-pointer bg-transparent text-xs uppercase tracking-[0.2em] text-white transition-colors hover:text-gold"
             >
               ← BACK TO THE GAME ROOM
             </button>

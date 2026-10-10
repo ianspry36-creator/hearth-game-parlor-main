@@ -457,6 +457,105 @@
   background-size: var(--fx-check-size);
 }
 
+/* Cherry — cherry.jpg surface. */
+:root[data-effect="cherry"] body {
+  background-image: url("/cherry.jpg");
+  background-size: cover;
+  background-position: center;
+}
+
+/* Themed backgrounds (movie/TV/game art). */
+:root[data-effect="batman"] body {
+  background-image: url("/batman.avif");
+  background-size: cover;
+  background-position: center;
+}
+
+:root[data-effect="disney"] body {
+  background-image: url("/disney.avif");
+  background-size: cover;
+  background-position: center;
+}
+
+:root[data-effect="inside-out"] body {
+  background-image: url("/inside-out.avif");
+  background-size: cover;
+  background-position: center;
+}
+
+:root[data-effect="is-fine"] body {
+  background-image: url("/is-fine.avif");
+  background-size: cover;
+  background-position: center;
+}
+
+:root[data-effect="jellyfish"] body {
+  background-image: url("/jellyfish.avif");
+  background-size: cover;
+  background-position: center;
+}
+
+:root[data-effect="minecraft"] body {
+  background-image: url("/minecraft.avif");
+  background-size: cover;
+  background-position: center;
+}
+
+:root[data-effect="moon"] body {
+  background-image: url("/moon.avif");
+  background-size: cover;
+  background-position: center;
+}
+
+:root[data-effect="shining"] body {
+  background-image: url("/shining.avif");
+  background-size: cover;
+  background-position: center;
+}
+
+:root[data-effect="simpsons"] body {
+  background-image: url("/simpsons.avif");
+  background-size: cover;
+  background-position: center;
+}
+
+:root[data-effect="star-trek"] body {
+  background-image: url("/star-trek.avif");
+  background-size: cover;
+  background-position: center;
+}
+
+:root[data-effect="tea"] body {
+  background-image: url("/tea.avif");
+  background-size: cover;
+  background-position: center;
+}
+
+:root[data-effect="toilet-paper"] body {
+  background-image: url("/toilet-paper.avif");
+  background-size: cover;
+  background-position: center;
+}
+
+:root[data-effect="up"] body {
+  background-image: url("/up.avif");
+  background-size: cover;
+  background-position: center;
+}
+
+:root[data-effect="van-gogh"] body {
+  background-image: url("/van-gogh.avif");
+  background-size: cover;
+  background-position: center;
+}
+
+/* On the lobby the page is taller than the viewport, which makes `cover`
+ * stretch the image. Pin the background to the viewport so it keeps the same
+ * resolution as the individual game pages (no stretching or distortion). */
+body.menu-page {
+  background-attachment: fixed;
+}
+
 /* Preview swatches inside the Settings > Effects tab. */
 .fx-wooden {
   background-image: url("/cards2.jpg");
@@ -479,6 +578,96 @@
 .fx-check {
   background-image: var(--fx-check);
   background-size: var(--fx-check-size);
+}
+
+.fx-cherry {
+  background-image: url("/cherry.jpg");
+  background-size: cover;
+  background-position: center;
+}
+
+.fx-batman {
+  background-image: url("/batman.avif");
+  background-size: cover;
+  background-position: center;
+}
+
+.fx-disney {
+  background-image: url("/disney.avif");
+  background-size: cover;
+  background-position: center;
+}
+
+.fx-inside-out {
+  background-image: url("/inside-out.avif");
+  background-size: cover;
+  background-position: center;
+}
+
+.fx-is-fine {
+  background-image: url("/is-fine.avif");
+  background-size: cover;
+  background-position: center;
+}
+
+.fx-jellyfish {
+  background-image: url("/jellyfish.avif");
+  background-size: cover;
+  background-position: center;
+}
+
+.fx-minecraft {
+  background-image: url("/minecraft.avif");
+  background-size: cover;
+  background-position: center;
+}
+
+.fx-moon {
+  background-image: url("/moon.avif");
+  background-size: cover;
+  background-position: center;
+}
+
+.fx-shining {
+  background-image: url("/shining.avif");
+  background-size: cover;
+  background-position: center;
+}
+
+.fx-simpsons {
+  background-image: url("/simpsons.avif");
+  background-size: cover;
+  background-position: center;
+}
+
+.fx-star-trek {
+  background-image: url("/star-trek.avif");
+  background-size: cover;
+  background-position: center;
+}
+
+.fx-tea {
+  background-image: url("/tea.avif");
+  background-size: cover;
+  background-position: center;
+}
+
+.fx-toilet-paper {
+  background-image: url("/toilet-paper.avif");
+  background-size: cover;
+  background-position: center;
+}
+
+.fx-up {
+  background-image: url("/up.avif");
+  background-size: cover;
+  background-position: center;
+}
+
+.fx-van-gogh {
+  background-image: url("/van-gogh.avif");
+  background-size: cover;
+  background-position: center;
 }
 
 /* Hide the horizontal scrollbar on the colour slider. */
@@ -918,6 +1107,26 @@
     --tripeaks-card-h: 50.6px; /* 44 * 1.15 — cards 15% bigger */
     --tripeaks-card-w: 34.5px; /* 30 * 1.15 */
     --tripeaks-step-x: 37.95px; /* 33 * 1.15 */
+  }
+}
+
+/* Pyramid Solitaire responsive card sizing — a seven-row pyramid plus a stock,
+   waste and foundation. The pyramid is tall, so tiers overlap more than in
+   Tri Peaks to keep the whole table in view. */
+:root {
+  --pyramid-card-h: 117px;
+  --pyramid-card-w: 88px;
+  /* Cards sit side by side with no horizontal overlap, a few pixels apart. */
+  --pyramid-step-x: 93px;
+  /* Every tier overlaps the one below it by just under half a card's height. */
+  --pyramid-step-y: calc(var(--pyramid-card-h) / 2.4);
+}
+
+@media (max-width: 639.98px) {
+  :root {
+    --pyramid-card-h: 57.5px;
+    --pyramid-card-w: 46.2px;
+    --pyramid-step-x: 47.8px;
   }
 }
 

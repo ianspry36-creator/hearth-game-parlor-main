@@ -341,6 +341,15 @@ export function GameIcon({ id, className = "" }: { id: GameId; className?: strin
           <path d="M24 32c0-3 2-4 3-6-1-1-2 0-3 1-1-1-2-2-3-1 1 2 3 3 3 6z" className="fill-player-coral" />
         </svg>
       );
+    case "pyramid":
+      return (
+        <svg {...common}>
+          <path d="M24 6 L42 38 L6 38 Z" fill="none" className="stroke-gold" strokeWidth="2" strokeLinejoin="round" />
+          <path d="M14 38 L24 12 L34 38 Z" fill="none" className="stroke-player-coral/80" strokeWidth="1.5" strokeLinejoin="round" />
+          <path d="M19 38 L24 22 L29 38 Z" fill="none" className="stroke-player-teal/80" strokeWidth="1.5" strokeLinejoin="round" />
+          <line x1="6" y1="38" x2="42" y2="38" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        </svg>
+      );
     default:
       return null;
   }

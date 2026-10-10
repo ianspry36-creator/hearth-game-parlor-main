@@ -1,11 +1,11 @@
-export type GameId = "addiction" | "backgammon" | "canfield" | "checkers" | "clock" | "crazy-eights" | "crescent" | "cribbage" | "farkle" | "freecell" | "hearts" | "kings-in-the-corner" | "reversi" | "scorpion" | "solitaire" | "spider" | "sultan" | "triangles" | "tripeaks" | "warship" | "yahtzee" | "yukon";
+export type GameId = "addiction" | "backgammon" | "canfield" | "checkers" | "clock" | "crazy-eights" | "crescent" | "cribbage" | "farkle" | "freecell" | "hearts" | "kings-in-the-corner" | "pyramid" | "reversi" | "scorpion" | "solitaire" | "spider" | "sultan" | "triangles" | "tripeaks" | "warship" | "yahtzee" | "yukon";
 
 export type GameMeta = {
   id: GameId;
   name: string;
   initial: string;
   tagline: string;
-  path: "/addiction" | "/backgammon" | "/canfield" | "/checkers" | "/clock" | "/crazy-eights" | "/crescent" | "/cribbage" | "/farkle" | "/freecell" | "/hearts" | "/kings-in-the-corner" | "/reversi" | "/scorpion" | "/solitaire" | "/spider" | "/sultan" | "/triangles" | "/tripeaks" | "/warship" | "/yahtzee" | "/yukon";
+  path: "/addiction" | "/backgammon" | "/canfield" | "/checkers" | "/clock" | "/crazy-eights" | "/crescent" | "/cribbage" | "/farkle" | "/freecell" | "/hearts" | "/kings-in-the-corner" | "/pyramid" | "/reversi" | "/scorpion" | "/solitaire" | "/spider" | "/sultan" | "/triangles" | "/tripeaks" | "/warship" | "/yahtzee" | "/yukon";
   rules: { heading: string; body: string }[];
   history: string;
   historySource?: string;
@@ -429,6 +429,46 @@ export const GAMES: GameMeta[] = [
       {
         heading: "Winning",
         body: "When every jack, queen and king sits in its proper slot, the hand is won.",
+      },
+    ],
+  },
+  {
+    id: "pyramid",
+    name: "Pyramid Solitaire",
+    initial: "P",
+    tagline: "Seven rows of cards, one simple sum of thirteen, and every pair clears the way.",
+    path: "/pyramid",
+    history:
+      "Pyramid is a pairing solitaire in which cards are cleared by matching two whose ranks add up to thirteen. Its origins are less precisely documented than Klondike's, but it became a household favourite through the computer solitaire collections of the 1990s, where its neat triangular layout and quick, puzzle-like play made it a permanent resident of the deck.",
+    historySource: "https://en.wikipedia.org/wiki/Pyramid_(solitaire)",
+    rules: [
+      {
+        heading: "The object",
+        body: "Clear every card from the pyramid by pairing cards whose ranks add up to thirteen — an ace counts as one, a jack as eleven, a queen as twelve and a king as thirteen.",
+      },
+      {
+        heading: "The deal",
+        body: "Twenty-eight cards are dealt face up into seven rows that form a pyramid, one card on the top row down to seven on the base. The remaining twenty-four cards wait face down in the stock.",
+      },
+      {
+        heading: "Making a pair",
+        body: "Match any two available cards whose ranks add to thirteen — a 3 and a 10, a 5 and an 8, and so on. A card is available when nothing covers it, and the top card of the waste is always available.",
+      },
+      {
+        heading: "The king",
+        body: "A king already ranks as thirteen all by itself, so it can't be paired. Click a king once — in the pyramid or on the waste — and it flies to the foundation alone.",
+      },
+      {
+        heading: "The stock and waste",
+        body: "Flip cards from the stock one at a time onto the waste. When the stock runs dry you may reset it and draw through again, as often as you like.",
+      },
+      {
+        heading: "A card it covers",
+        body: "You may also pair a card with the card directly above it that it covers, provided the other card covering it has already been cleared.",
+      },
+      {
+        heading: "Winning",
+        body: "Remove all twenty-eight pyramid cards and the game is won. Not every deal is winnable, so undo freely and chase your fewest moves and fastest time.",
       },
     ],
   },

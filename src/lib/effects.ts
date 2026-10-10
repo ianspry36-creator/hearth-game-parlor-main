@@ -1,4 +1,24 @@
-export type EffectId = "none" | "wooden" | "metallic" | "space" | "check";
+export type EffectId =
+  | "none"
+  | "wooden"
+  | "metallic"
+  | "space"
+  | "check"
+  | "cherry"
+  | "batman"
+  | "disney"
+  | "inside-out"
+  | "is-fine"
+  | "jellyfish"
+  | "minecraft"
+  | "moon"
+  | "shining"
+  | "simpsons"
+  | "star-trek"
+  | "tea"
+  | "toilet-paper"
+  | "up"
+  | "van-gogh";
 
 export type EffectOption = {
   id: EffectId;
@@ -11,6 +31,21 @@ export const EFFECT_OPTIONS: EffectOption[] = [
   { id: "metallic", label: "Ace" },
   { id: "space", label: "Space" },
   { id: "check", label: "Check" },
+  { id: "cherry", label: "Cherry" },
+  { id: "batman", label: "Batman" },
+  { id: "disney", label: "Disney" },
+  { id: "inside-out", label: "Inside Out" },
+  { id: "is-fine", label: "This Is Fine" },
+  { id: "jellyfish", label: "Jellyfish" },
+  { id: "minecraft", label: "Minecraft" },
+  { id: "moon", label: "Moon" },
+  { id: "shining", label: "Shining" },
+  { id: "simpsons", label: "Simpsons" },
+  { id: "star-trek", label: "Star Trek" },
+  { id: "tea", label: "Tea" },
+  { id: "toilet-paper", label: "Toilet Paper" },
+  { id: "up", label: "Up" },
+  { id: "van-gogh", label: "Van Gogh" },
 ];
 
 const KEY = "parlor.effect";
@@ -53,4 +88,4 @@ export function applyEffect(id: EffectId) {
  */
 export const EFFECT_INIT_SCRIPT =
   `(function(){try{var e=localStorage.getItem("parlor.effect");` +
-  `document.documentElement.dataset.effect=["none","wooden","metallic","space","check"].indexOf(e)>-1?e:"none";}catch(_){}})();`;
+  `document.documentElement.dataset.effect=["none","wooden","metallic","space","check","cherry","batman","disney","inside-out","is-fine","jellyfish","minecraft","moon","shining","simpsons","star-trek","tea","toilet-paper","up","van-gogh"].indexOf(e)>-1?e:"none";}catch(_){}})();`;

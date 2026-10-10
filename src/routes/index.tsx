@@ -27,6 +27,7 @@ import trianglesMenuIcon from "@/assets/trianglesMenuIcon.webp";
 import crescentMenuIcon from "@/assets/crescentMenuIcon.webp";
 import spiderMenuIcon from "@/assets/spiderMenuIcon.webp";
 import sultanMenuItem from "@/assets/sultanMenuItem.webp";
+import pyramidMenuItem from "@/assets/pyramidMenuItem.webp";
 import { CardMark } from "@/components/parlor/CardMark";
 import { VisitorCounter } from "@/components/parlor/VisitorCounter";
 import { Switch } from "@/components/ui/switch";
@@ -65,6 +66,14 @@ function Lobby() {
   const visibleGames = showFavourites
     ? availableGames.filter((game) => isFavourite(game.id))
     : availableGames;
+
+  // The lobby scrolls over roughly two viewports. Pin the themed background to
+  // the viewport so it renders at the same resolution as the game pages instead
+  // of being stretched to cover the full (taller) page.
+  useEffect(() => {
+    document.body.classList.add("menu-page");
+    return () => document.body.classList.remove("menu-page");
+  }, []);
 
   useEffect(() => {
     if (hydrated && !hasFavourites) setShowFavourites(false);
@@ -299,6 +308,12 @@ function Lobby() {
                       <img
                         src={sultanMenuItem}
                         alt="Sultan Solitaire"
+                        className="size-[2cm] rounded-2xl object-contain"
+                      />
+                    ) : game.id === "pyramid" ? (
+                      <img
+                        src={pyramidMenuItem}
+                        alt="Pyramid Solitaire"
                         className="size-[2cm] rounded-2xl object-contain"
                       />
                     ) : (

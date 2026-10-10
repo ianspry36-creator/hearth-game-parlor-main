@@ -28,6 +28,7 @@ import { Route as GamesLogRouteImport } from './routes/games-log'
 import { Route as HeartsRouteImport } from './routes/hearts'
 import { Route as KingsInTheCornerRouteImport } from './routes/kings-in-the-corner'
 import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as PyramidRouteImport } from './routes/pyramid'
 import { Route as ReversiRouteImport } from './routes/reversi'
 import { Route as ScorpionRouteImport } from './routes/scorpion'
 import { Route as SolitaireRouteImport } from './routes/solitaire'
@@ -134,6 +135,11 @@ const PrivacyRoute = PrivacyRouteImport.update({
   path: '/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PyramidRoute = PyramidRouteImport.update({
+  id: '/pyramid',
+  path: '/pyramid',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ReversiRoute = ReversiRouteImport.update({
   id: '/reversi',
   path: '/reversi',
@@ -205,6 +211,7 @@ export interface FileRoutesByFullPath {
   '/hearts': typeof HeartsRoute
   '/kings-in-the-corner': typeof KingsInTheCornerRoute
   '/privacy': typeof PrivacyRoute
+  '/pyramid': typeof PyramidRoute
   '/reversi': typeof ReversiRoute
   '/scorpion': typeof ScorpionRoute
   '/solitaire': typeof SolitaireRoute
@@ -236,6 +243,7 @@ export interface FileRoutesByTo {
   '/hearts': typeof HeartsRoute
   '/kings-in-the-corner': typeof KingsInTheCornerRoute
   '/privacy': typeof PrivacyRoute
+  '/pyramid': typeof PyramidRoute
   '/reversi': typeof ReversiRoute
   '/scorpion': typeof ScorpionRoute
   '/solitaire': typeof SolitaireRoute
@@ -268,6 +276,7 @@ export interface FileRoutesById {
   '/hearts': typeof HeartsRoute
   '/kings-in-the-corner': typeof KingsInTheCornerRoute
   '/privacy': typeof PrivacyRoute
+  '/pyramid': typeof PyramidRoute
   '/reversi': typeof ReversiRoute
   '/scorpion': typeof ScorpionRoute
   '/solitaire': typeof SolitaireRoute
@@ -301,6 +310,7 @@ export interface FileRouteTypes {
     | '/hearts'
     | '/kings-in-the-corner'
     | '/privacy'
+    | '/pyramid'
     | '/reversi'
     | '/scorpion'
     | '/solitaire'
@@ -332,6 +342,7 @@ export interface FileRouteTypes {
     | '/hearts'
     | '/kings-in-the-corner'
     | '/privacy'
+    | '/pyramid'
     | '/reversi'
     | '/scorpion'
     | '/solitaire'
@@ -363,6 +374,7 @@ export interface FileRouteTypes {
     | '/hearts'
     | '/kings-in-the-corner'
     | '/privacy'
+    | '/pyramid'
     | '/reversi'
     | '/scorpion'
     | '/solitaire'
@@ -395,6 +407,7 @@ export interface RootRouteChildren {
   HeartsRoute: typeof HeartsRoute
   KingsInTheCornerRoute: typeof KingsInTheCornerRoute
   PrivacyRoute: typeof PrivacyRoute
+  PyramidRoute: typeof PyramidRoute
   ReversiRoute: typeof ReversiRoute
   ScorpionRoute: typeof ScorpionRoute
   SolitaireRoute: typeof SolitaireRoute
@@ -542,6 +555,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/pyramid': {
+      id: '/pyramid'
+      path: '/pyramid'
+      fullPath: '/pyramid'
+      preLoaderRoute: typeof PyramidRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/reversi': {
       id: '/reversi'
       path: '/reversi'
@@ -635,6 +655,7 @@ const rootRouteChildren: RootRouteChildren = {
   HeartsRoute: HeartsRoute,
   KingsInTheCornerRoute: KingsInTheCornerRoute,
   PrivacyRoute: PrivacyRoute,
+  PyramidRoute: PyramidRoute,
   ReversiRoute: ReversiRoute,
   ScorpionRoute: ScorpionRoute,
   SolitaireRoute: SolitaireRoute,

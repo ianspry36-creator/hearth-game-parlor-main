@@ -20,6 +20,7 @@ import {
 } from "@/lib/palette";
 import { useBlockedUsers } from "@/lib/blockedUsers";
 import { getNickname } from "@/lib/multiplayer";
+import { useDeveloperMode } from "@/lib/dev-mode";
 import cardBackAsset from "@/assets/card-back.png";
 import {
   allCardBacks,
@@ -424,7 +425,8 @@ export function SettingsDialog({ className }: Props) {
   const [customDeck, setCustomDeck] = useState<CustomDeck>(() => readCustomDeck());
   const { blockedUsers, addBlockedUser, removeBlockedUser } = useBlockedUsers();
   const [blockDraft, setBlockDraft] = useState("");
-  const isOwner = (getNickname() ?? "").toLowerCase() === "spry123456";
+  const isDev = useDeveloperMode();
+  const isOwner = (getNickname() ?? "").toLowerCase() === "spry123456" || isDev;
 
   const frontOptions = allCardFronts(customFronts);
   const backOptions = allCardBacks(customBacks);
@@ -591,7 +593,7 @@ export function SettingsDialog({ className }: Props) {
           <Settings className="size-5" />
         </button>
       </DialogTrigger>
-      <DialogContent className="border-gold/25 bg-brand text-cream sm:max-w-5xl">
+      <DialogContent className="max-h-[85vh] overflow-y-auto border-gold/25 bg-brand text-cream sm:max-w-5xl">
         <DialogHeader>
           <DialogTitle className="font-display text-2xl">Settings</DialogTitle>
         </DialogHeader>
@@ -607,7 +609,7 @@ export function SettingsDialog({ className }: Props) {
               Colours
             </TabsTrigger>
             <TabsTrigger value="effects" className="data-[state=active]:bg-gold data-[state=active]:text-brand">
-              Effects
+              Background
             </TabsTrigger>
             {isOwner && (
               <TabsTrigger value="cards" className="data-[state=active]:bg-gold data-[state=active]:text-brand">
