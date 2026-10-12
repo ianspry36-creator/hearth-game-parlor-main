@@ -8,7 +8,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { ADA_HAPPY, ADA_SAD, ADA_AVATAR } from "@/lib/avatars";
+import { ADA_HAPPY, ADA_SAD, ADA_AVATAR, readBotAvatar } from "@/lib/avatars";
 import skunk from "@/assets/skunk.png";
 import { getNickname } from "@/lib/multiplayer";
 import { useRef, type ReactNode } from "react";
@@ -91,10 +91,20 @@ export function GameOverDialog({
     won: result === "win",
     lost: result === "loss",
   };
+  // If Ada has been dressed up with a robot portrait, use it; otherwise keep the
+  // happy/sad people reaction so the win/lose dialog still shows an expression.
+  const adaAvatar = readBotAvatar("ada");
   const them = {
     name: opponentName,
     score: opponentScore,
-    avatar: result === "loss" ? ADA_HAPPY : result === "win" ? ADA_SAD : ADA_AVATAR,
+    avatar:
+      adaAvatar !== ADA_AVATAR
+        ? adaAvatar
+        : result === "loss"
+          ? ADA_HAPPY
+          : result === "win"
+            ? ADA_SAD
+            : ADA_AVATAR,
     won: result === "loss",
     lost: result === "win",
   };
@@ -156,7 +166,7 @@ export function GameOverDialog({
                     alt={seat.name}
                     width={compact ? 72 : 96}
                     height={compact ? 72 : 96}
-                    className={`${compact ? "size-[4.5rem]" : "size-24"} rounded-full border-2 object-cover shadow-lg shadow-black/30 ${
+                    className={`${compact ? "size-[4.5rem]" : "size-24"} rounded-full border-2 object-contain shadow-lg shadow-black/30 ${
                       seat.won ? "border-gold" : "border-ivory/40"
                     } ${seat.lost && seat.avatar === playerAvatar ? "grayscale brightness-90" : ""}`}
                   />

@@ -4,6 +4,7 @@ import { TableShell } from "@/components/parlor/TableShell";
 import { GameOverDialog } from "@/components/parlor/GameOverDialog";
 import { Button } from "@/components/ui/button";
 import { PlayerAvatar } from "@/components/parlor/PlayerAvatar";
+import { BotAvatar } from "@/components/parlor/BotAvatar";
 import { CountdownBadge } from "@/components/parlor/CountdownBadge";
 import { TurnOffTimerControl } from "@/components/parlor/TurnOffTimerControl";
 import {
@@ -17,7 +18,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { getGame } from "@/lib/games";
-import { ADA_AVATAR, readAvatar } from "@/lib/avatars";
+import { ADA_AVATAR, readAvatar, readBotAvatar, readBotName } from "@/lib/avatars";
 import { readFlag } from "@/lib/flags";
 import { FlagPicker } from "@/components/parlor/FlagPicker";
 import { PlayerFlag } from "@/components/parlor/PlayerFlag";
@@ -238,7 +239,7 @@ function CheckersTable() {
   useRecordMatchResult(match, isHost, state.winner);
 
   const isMulti = Boolean(matchId);
-  const opponentName = liveOpponent ?? opponent ?? "Ada";
+  const opponentName = liveOpponent ?? opponent ?? readBotName("ada");
   const [playerName, setPlayerName] = useState(() => getNickname() ?? "You");
   // Whether the end-of-game dialog has been dismissed to inspect the board.
   const [viewingBoard, setViewingBoard] = useState(false);
@@ -516,6 +517,7 @@ function CheckersTable() {
   const { human, cpu } = countPieces(state.board);
 
   const [playerAvatar, setPlayerAvatar] = useState<string>(readAvatar);
+  const [adaAvatar, setAdaAvatar] = useState<string>(() => readBotAvatar("ada"));
   const [flag, setFlag] = useState<string | null>(readFlag);
   const [flagOpen, setFlagOpen] = useState(false);
 
@@ -645,13 +647,25 @@ function CheckersTable() {
           {/* Ada (left) */}
           <div className="flex flex-col items-center gap-1.5 sm:flex-row sm:items-center sm:gap-2">
             <div className="relative inline-block">
-              <img
-                src={opponentAvatar ?? ADA_AVATAR}
-                alt={opponentName}
-                width={64}
-                height={64}
-                className="size-14 rounded-full ring-2 ring-player-teal/50 bg-surface object-cover"
-              />
+              {opponentAvatar ? (
+                <img
+                  src={opponentAvatar}
+                  alt={opponentName}
+                  width={64}
+                  height={64}
+                  className="size-14 rounded-full ring-2 ring-player-teal/50 bg-surface object-cover"
+                />
+              ) : (
+                <BotAvatar
+                  bot="ada"
+                  name={readBotName("ada")}
+                  avatar={adaAvatar}
+                  onSelect={setAdaAvatar}
+                  width={64}
+                  height={64}
+                  imgClassName="size-14 rounded-full ring-2 ring-player-teal/50 bg-surface object-contain"
+                />
+              )}
               {state.turn === "cpu" && countdown > 0 && <CountdownBadge seconds={countdown} />}
             </div>
             <div className="text-center sm:hidden">

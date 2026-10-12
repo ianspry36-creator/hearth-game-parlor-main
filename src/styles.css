@@ -556,6 +556,20 @@ body.menu-page {
   background-attachment: fixed;
 }
 
+/* When a background image (effect) is selected, lift the lobby's footer links
+ * and the "Choose your table" heading to white so they stay readable over the
+ * full-bleed artwork instead of the dimmed ivory used on the plain backdrop. */
+:root[data-effect]:not([data-effect="none"]) .menu-heading,
+:root[data-effect]:not([data-effect="none"]) .menu-footer a,
+:root[data-effect]:not([data-effect="none"]) .menu-footer button {
+  color: #fff;
+}
+
+:root[data-effect]:not([data-effect="none"]) .menu-footer a:hover,
+:root[data-effect]:not([data-effect="none"]) .menu-footer button:hover {
+  color: var(--gold);
+}
+
 /* Preview swatches inside the Settings > Effects tab. */
 .fx-wooden {
   background-image: url("/cards2.jpg");

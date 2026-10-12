@@ -9,7 +9,7 @@ import { GAMES } from "@/lib/games";
  * catalogue of playable games.
  */
 
-export const SITE_URL = "https://cardsandgames.uk";
+export const SITE_URL = "https://cardsandgames.fun";
 const SITE_NAME = "Cards and Games";
 const SITE_DESCRIPTION =
   "Cards and Games: play cribbage, backgammon, crazy eights, yahtzee and more against Ada or a human opponent.";

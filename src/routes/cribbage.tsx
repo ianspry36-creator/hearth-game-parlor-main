@@ -45,7 +45,8 @@ import {
 import cardBackAsset from "@/assets/card-back.png";
 import skunk from "@/assets/skunk.png";
 import { PlayerAvatar } from "@/components/parlor/PlayerAvatar";
-import { AVATAR_OPTIONS, ADA_AVATAR, ADA_HAPPY, ADA_SAD, readAvatar } from "@/lib/avatars";
+import { BotAvatar } from "@/components/parlor/BotAvatar";
+import { AVATAR_OPTIONS, ADA_AVATAR, ADA_HAPPY, ADA_SAD, readAvatar, readBotAvatar, readBotName } from "@/lib/avatars";
 import { readFlag } from "@/lib/flags";
 import { FlagPicker } from "@/components/parlor/FlagPicker";
 import { PlayerFlag } from "@/components/parlor/PlayerFlag";
@@ -548,6 +549,7 @@ function CribbageTable() {
   const [viewingBoard, setViewingBoard] = useState(false);
   const [boardOpen, setBoardOpen] = useState(false);
   useEffect(() => setAvatar(readAvatar()), []);
+  const [adaAvatar, setAdaAvatar] = useState<string>(() => readBotAvatar("ada"));
   // Cards land face down, then turn over one at a time.
   const [faceUpCount, setFaceUpCount] = useState(6);
   const [sorting, setSorting] = useState(false);
@@ -601,7 +603,7 @@ function CribbageTable() {
     matchId ? RECONNECT_SECONDS * 1000 : 0,
   );
 
-  const opponentName = liveOpponent ?? opponent ?? "Ada";
+  const opponentName = liveOpponent ?? opponent ?? readBotName("ada");
   // Ada is the built-in CPU opponent: she has no country, so her seat shows no
   // flag (and no globe placeholder) unless a live human opponent is present.
   const opponentIsCpu = !isMulti;
@@ -1415,7 +1417,7 @@ function CribbageTable() {
             playerName={playerName}
             opponentName={opponentName}
             playerAvatar={avatar}
-            cpuAvatar={opponentAvatar ?? ADA_AVATAR}
+            cpuAvatar={opponentAvatar ?? adaAvatar}
             playerFlag={flag}
             cpuFlag={opponentFlag}
             hideCpuFlag={opponentIsCpu}
@@ -1438,7 +1440,7 @@ function CribbageTable() {
                 opponentName={opponentName}
                 playerName={playerName}
                 playerAvatar={avatar}
-                cpuAvatar={opponentAvatar ?? ADA_AVATAR}
+                cpuAvatar={opponentAvatar ?? adaAvatar}
                 playerFlag={flag}
                 cpuFlag={opponentFlag}
                 hideCpuFlag={opponentIsCpu}
@@ -1457,7 +1459,7 @@ function CribbageTable() {
           opponentName={opponentName}
           playerName={playerName}
           playerAvatar={avatar}
-          cpuAvatar={opponentAvatar ?? ADA_AVATAR}
+          cpuAvatar={opponentAvatar ?? adaAvatar}
           playerFlag={flag}
           cpuFlag={opponentFlag}
           hideCpuFlag={opponentIsCpu}
@@ -1529,17 +1531,32 @@ function CribbageTable() {
               flag={opponentFlag}
               hideFlag={opponentIsCpu}
               avatar={
-                <span className="relative grid size-10 place-items-center overflow-hidden rounded-full bg-gold/20 ring-1 ring-gold/40 sm:size-16">
-                  <img
-                    src={opponentAvatar ?? ADA_AVATAR}
-                    alt={`${opponentName}'s avatar`}
+                opponentAvatar ? (
+                  <span className="relative grid size-10 place-items-center overflow-hidden rounded-full bg-gold/20 ring-1 ring-gold/40 sm:size-16">
+                    <img
+                      src={opponentAvatar}
+                      alt={`${opponentName}'s avatar`}
+                      width={64}
+                      height={64}
+                      loading="lazy"
+                      className="size-full object-cover"
+                    />
+                    {state.turn === "cpu" && countdown > 0 && <CountdownBadge seconds={countdown} />}
+                  </span>
+                ) : (
+                  <BotAvatar
+                    bot="ada"
+                    name={readBotName("ada")}
+                    avatar={adaAvatar}
+                    onSelect={setAdaAvatar}
                     width={64}
                     height={64}
-                    loading="lazy"
-                    className="size-full object-cover"
-                  />
-                  {state.turn === "cpu" && countdown > 0 && <CountdownBadge seconds={countdown} />}
-                </span>
+                    imgClassName="size-full object-contain"
+                    buttonClassName="relative grid size-10 place-items-center overflow-hidden rounded-full bg-gold/20 ring-1 ring-gold/40 sm:size-16"
+                  >
+                    {state.turn === "cpu" && countdown > 0 && <CountdownBadge seconds={countdown} />}
+                  </BotAvatar>
+                )
               }
             />
             <div className={`flex justify-center [&>*:not(:first-child)]:-ml-3 sm:[&>*:not(:first-child)]:-ml-[50.4px]${state.phase === "cut" ? "" : " min-h-[43px] sm:min-h-[105px]"}`}>

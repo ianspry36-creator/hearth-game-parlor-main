@@ -16,9 +16,10 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { PlayerAvatar } from "@/components/parlor/PlayerAvatar";
+import { BotAvatar } from "@/components/parlor/BotAvatar";
 import { SpeechBubble } from "@/components/parlor/SpeechBubble";
 import { TurnOffTimerControl } from "@/components/parlor/TurnOffTimerControl";
-import { ADA_AVATAR, AVATAR_OPTIONS, readAvatar } from "@/lib/avatars";
+import { readAvatar, readBotAvatar, readBotName, type BotId } from "@/lib/avatars";
 import { readFlag } from "@/lib/flags";
 import { FlagPicker } from "@/components/parlor/FlagPicker";
 import { PlayerFlag } from "@/components/parlor/PlayerFlag";
@@ -109,9 +110,6 @@ const ORDER_BY_COUNT: Record<PlayerCount, Seat[]> = {
   3: ["you", "ace", "ada"],
   4: ["you", "ace", "ada", "leo"],
 };
-
-const ACE_AVATAR = AVATAR_OPTIONS[3]!.url;
-const LEO_AVATAR = AVATAR_OPTIONS[7]!.url;
 
 /** A player may draw up to this many cards on a turn before passing. */
 const MAX_DRAWS = 3;
@@ -340,6 +338,13 @@ function CrazyEightsTable() {
   } = useCrazyEightsRoom(roomId);
   const [playerCount, setPlayerCount] = useState<PlayerCount>(2);
   const [playerAvatar, setPlayerAvatar] = useState<string>(readAvatar);
+  const [botAvatars, setBotAvatars] = useState<Record<BotId, string>>(() => ({
+    ada: readBotAvatar("ada"),
+    ace: readBotAvatar("ace"),
+    leo: readBotAvatar("leo"),
+  }));
+  const setBotAvatar = (bot: BotId, url: string) =>
+    setBotAvatars((prev) => ({ ...prev, [bot]: url }));
   const [flag, setFlag] = useState<string | null>(readFlag);
   const [flagOpen, setFlagOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -509,12 +514,12 @@ function CrazyEightsTable() {
   }, []);
 
   const seatName = (seat: Seat): string => {
-    if (!isRoom) return seat === "you" ? (getNickname() ?? SEAT_NAMES[seat]) : SEAT_NAMES[seat];
+    if (!isRoom) return seat === "you" ? (getNickname() ?? SEAT_NAMES[seat]) : readBotName(seat);
     const base = ORDER_BY_COUNT[activeCount];
     const viewIndex = base.indexOf(seat);
     const canonical = (mySeat + viewIndex) % activeCount;
     const player = roomPlayers.find((p) => p.seat === canonical);
-    return player ? player.nickname : SEAT_NAMES[seat];
+    return player ? player.nickname : seat === "you" ? SEAT_NAMES[seat] : readBotName(seat);
   };
 
   const [, setNicknameVersion] = useState(0);
@@ -1191,13 +1196,23 @@ function CrazyEightsTable() {
       const player = roomPlayers.find((p) => p.seat === canonical);
       if (player?.avatar) return player.avatar;
     }
-    return seat === "ada"
-      ? ADA_AVATAR
-      : seat === "ace"
-        ? ACE_AVATAR
-        : seat === "leo"
-          ? LEO_AVATAR
-          : playerAvatar;
+    return seat === "ada" ? botAvatars.ada : seat === "ace" ? botAvatars.ace : botAvatars.leo;
+  };
+
+  /** When a seat is one of the computer opponents, provide a clickable picker for it. */
+  const seatBotPicker = (
+    seat: Seat,
+  ): { bot: BotId; onSelect: (url: string) => void } | undefined => {
+    if (seat === "you") return undefined;
+    if (isRoom) {
+      const base = ORDER_BY_COUNT[activeCount];
+      const viewIndex = base.indexOf(seat);
+      const canonical = (mySeat + viewIndex) % activeCount;
+      const player = roomPlayers.find((p) => p.seat === canonical);
+      if (player) return undefined;
+    }
+    const bot: BotId = seat === "ada" ? "ada" : seat === "ace" ? "ace" : "leo";
+    return { bot, onSelect: (url) => setBotAvatar(bot, url) };
   };
 
   const seatFlag = (seat: Seat): string | null => {
@@ -1213,7 +1228,7 @@ function CrazyEightsTable() {
     return null;
   };
 
-  const winnerName = state.winner ? seatName(state.winner) : "Ada";
+  const winnerName = state.winner ? seatName(state.winner) : readBotName("ada");
 
   const results = state.order.map((seat) => ({
     name: seatName(seat),
@@ -1427,6 +1442,7 @@ function CrazyEightsTable() {
             name={seatName("ada")}
             timedOut={(state.timedOut ?? []).includes("ada")}
             avatar={seatAvatar("ada")}
+            botPicker={seatBotPicker("ada")}
             flag={seatFlag("ada")}
             cards={state.hands.ada ?? []}
             handEls={seatHandEls.current}
@@ -1449,6 +1465,7 @@ function CrazyEightsTable() {
                 name={seatName("ace")}
                 timedOut={(state.timedOut ?? []).includes("ace")}
                 avatar={seatAvatar("ace")}
+                botPicker={seatBotPicker("ace")}
                 flag={seatFlag("ace")}
                 cards={state.hands.ace ?? []}
                 handEls={seatHandEls.current}
@@ -1555,6 +1572,7 @@ function CrazyEightsTable() {
                 name={seatName("leo")}
                 timedOut={(state.timedOut ?? []).includes("leo")}
                 avatar={seatAvatar("leo")}
+                botPicker={seatBotPicker("leo")}
                 flag={seatFlag("leo")}
                 cards={state.hands.leo ?? []}
                 handEls={seatHandEls.current}
@@ -1697,6 +1715,7 @@ function CrazyEightsTable() {
 function OpponentSeat({
   name,
   avatar,
+  botPicker,
   flag,
   cards,
   handEls,
@@ -1716,6 +1735,7 @@ function OpponentSeat({
 }: {
   name: string;
   avatar: string;
+  botPicker?: { bot: BotId; onSelect: (url: string) => void };
   flag?: string | null;
   cards: Card[];
   handEls: Map<string, HTMLElement>;
@@ -1765,14 +1785,29 @@ function OpponentSeat({
         className={`flex items-center gap-3 ${vertical ? "flex-col gap-1" : "mb-2 justify-center"}`}
       >
         <div className="relative">
-          <img
-            src={avatar}
-            alt=""
-            aria-hidden="true"
-            className={`rounded-full border object-cover size-[49px] md:size-[68px] ${
-              active ? "border-gold ring-2 ring-gold/40" : "border-gold/40"
-            }`}
-          />
+          {botPicker ? (
+            <BotAvatar
+              bot={botPicker.bot}
+              name={name}
+              avatar={avatar}
+              onSelect={botPicker.onSelect}
+              width={68}
+              height={68}
+              buttonClassName="inline-block rounded-full"
+              imgClassName={`rounded-full border object-contain size-[49px] md:size-[68px] ${
+                active ? "border-gold ring-2 ring-gold/40" : "border-gold/40"
+              }`}
+            />
+          ) : (
+            <img
+              src={avatar}
+              alt=""
+              aria-hidden="true"
+              className={`rounded-full border object-cover size-[49px] md:size-[68px] ${
+                active ? "border-gold ring-2 ring-gold/40" : "border-gold/40"
+              }`}
+            />
+          )}
           {timedOut && (
             <span className="absolute bottom-0 left-1/2 z-10 grid size-5 -translate-x-1/2 translate-y-1/2 place-items-center rounded-full bg-red-600 text-cream ring-2 ring-brand">
               <Clock className="size-3" />

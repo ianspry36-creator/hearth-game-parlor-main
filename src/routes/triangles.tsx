@@ -14,10 +14,11 @@ import {
 import { TableShell } from "@/components/parlor/TableShell";
 import { GameOverDialog } from "@/components/parlor/GameOverDialog";
 import { PlayerAvatar } from "@/components/parlor/PlayerAvatar";
+import { BotAvatar } from "@/components/parlor/BotAvatar";
 import { CountdownBadge } from "@/components/parlor/CountdownBadge";
 import { TurnOffTimerControl } from "@/components/parlor/TurnOffTimerControl";
 import { getGame } from "@/lib/games";
-import { ADA_AVATAR, readAvatar } from "@/lib/avatars";
+import { ADA_AVATAR, readAvatar, readBotAvatar, readBotName } from "@/lib/avatars";
 import { readFlag } from "@/lib/flags";
 import { FlagPicker } from "@/components/parlor/FlagPicker";
 import { PlayerFlag } from "@/components/parlor/PlayerFlag";
@@ -181,7 +182,7 @@ function TrianglesTable() {
   const board = useMemo(() => makeBoard(state.seed), [state.seed]);
 
   const isMulti = Boolean(matchId);
-  const opponentName = liveOpponent ?? opponent ?? "Ada";
+  const opponentName = liveOpponent ?? opponent ?? readBotName("ada");
   const [playerName, setPlayerName] = useState(() => getNickname() ?? "You");
   // Whether the concede confirmation dialog is open.
   const [concedeOpen, setConcedeOpen] = useState(false);
@@ -227,6 +228,7 @@ function TrianglesTable() {
   const countdown = turnSecondsLeft > 0 && turnSecondsLeft <= TURN_WARNING_SECONDS ? turnSecondsLeft : 0;
 
   const [playerAvatar, setPlayerAvatar] = useState<string>(readAvatar);
+  const [adaAvatar, setAdaAvatar] = useState<string>(() => readBotAvatar("ada"));
   const [flag, setFlag] = useState<string | null>(readFlag);
   const [flagOpen, setFlagOpen] = useState(false);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -613,13 +615,25 @@ function TrianglesTable() {
           {/* Ada (left) */}
           <div className="flex flex-col items-center gap-1.5 sm:flex-row sm:items-center sm:gap-2">
             <div className="relative inline-block">
-              <img
-                src={opponentAvatar ?? ADA_AVATAR}
-                alt={opponentName}
-                width={64}
-                height={64}
-                className="size-14 rounded-full ring-2 ring-player-teal/50 bg-surface object-cover"
-              />
+              {opponentAvatar ? (
+                <img
+                  src={opponentAvatar}
+                  alt={opponentName}
+                  width={64}
+                  height={64}
+                  className="size-14 rounded-full ring-2 ring-player-teal/50 bg-surface object-cover"
+                />
+              ) : (
+                <BotAvatar
+                  bot="ada"
+                  name={readBotName("ada")}
+                  avatar={adaAvatar}
+                  onSelect={setAdaAvatar}
+                  width={64}
+                  height={64}
+                  imgClassName="size-14 rounded-full ring-2 ring-player-teal/50 bg-surface object-contain"
+                />
+              )}
               {state.turn === "cpu" && countdown > 0 && <CountdownBadge seconds={countdown} />}
             </div>
             <div className="text-center sm:hidden">

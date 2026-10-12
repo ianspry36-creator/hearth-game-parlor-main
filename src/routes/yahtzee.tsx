@@ -14,11 +14,12 @@ import {
 import { TableShell } from "@/components/parlor/TableShell";
 import { GameOverDialog } from "@/components/parlor/GameOverDialog";
 import { PlayerAvatar } from "@/components/parlor/PlayerAvatar";
+import { BotAvatar } from "@/components/parlor/BotAvatar";
 import { CountdownBadge } from "@/components/parlor/CountdownBadge";
 import { TurnOffTimerControl } from "@/components/parlor/TurnOffTimerControl";
 import { SpeechBubble } from "@/components/parlor/SpeechBubble";
 import { getGame } from "@/lib/games";
-import { ADA_AVATAR, readAvatar } from "@/lib/avatars";
+import { ADA_AVATAR, readAvatar, readBotAvatar, readBotName } from "@/lib/avatars";
 import { readFlag } from "@/lib/flags";
 import { FlagPicker } from "@/components/parlor/FlagPicker";
 import { PlayerFlag } from "@/components/parlor/PlayerFlag";
@@ -264,7 +265,7 @@ function YahtzeeTable() {
   }, [state.winner, state.draw, end]);
 
   const isMulti = Boolean(matchId);
-  const opponentName = liveOpponent ?? opponent ?? "Ada";
+  const opponentName = liveOpponent ?? opponent ?? readBotName("ada");
   const [playerName, setPlayerName] = useState(() => getNickname() ?? "You");
   // Whether the concede confirmation dialog is open.
   const [concedeOpen, setConcedeOpen] = useState(false);
@@ -309,6 +310,7 @@ function YahtzeeTable() {
   const countdown = turnSecondsLeft > 0 && turnSecondsLeft <= TURN_WARNING_SECONDS ? turnSecondsLeft : 0;
 
   const [playerAvatar, setPlayerAvatar] = useState<string>(readAvatar);
+  const [adaAvatar, setAdaAvatar] = useState<string>(() => readBotAvatar("ada"));
   const [flag, setFlag] = useState<string | null>(readFlag);
   const [flagOpen, setFlagOpen] = useState(false);
   const [viewingScorecard, setViewingScorecard] = useState(false);
@@ -879,13 +881,25 @@ function YahtzeeTable() {
             />
           ) : (
             <div className="relative inline-block">
-              <img
-                src={opponentAvatar ?? ADA_AVATAR}
-                alt={`${opponentName}'s avatar`}
-                width={64}
-                height={64}
-                className="size-[3.75rem] rounded-full border-2 border-[#4c9a2a] object-cover lg:size-[5.625rem]"
-              />
+              {opponentAvatar ? (
+                <img
+                  src={opponentAvatar}
+                  alt={`${opponentName}'s avatar`}
+                  width={64}
+                  height={64}
+                  className="size-[3.75rem] rounded-full border-2 border-[#4c9a2a] object-cover lg:size-[5.625rem]"
+                />
+              ) : (
+                <BotAvatar
+                  bot="ada"
+                  name={readBotName("ada")}
+                  avatar={adaAvatar}
+                  onSelect={setAdaAvatar}
+                  width={64}
+                  height={64}
+                  imgClassName="size-[3.75rem] rounded-full border-2 border-[#4c9a2a] object-contain lg:size-[5.625rem]"
+                />
+              )}
               {state.turn === "cpu" && countdown > 0 && <CountdownBadge seconds={countdown} />}
               {bubble?.side === "cpu" && (
                 <div className="absolute bottom-full left-full z-10 mb-2 ml-2">

@@ -25,7 +25,7 @@ export function GameNav() {
   if (others.length === 0) return null;
 
   return (
-    <footer className="border-t border-gold/15 px-6 py-6">
+    <footer className="menu-footer border-t border-gold/15 px-6 py-6">
       <div className="mx-auto max-w-6xl">
         <nav className="flex flex-wrap justify-center gap-x-5 gap-y-2">
           <button

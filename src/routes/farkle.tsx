@@ -21,6 +21,7 @@ import {
 import { TableShell } from "@/components/parlor/TableShell";
 import { GameOverDialog } from "@/components/parlor/GameOverDialog";
 import { PlayerAvatar } from "@/components/parlor/PlayerAvatar";
+import { BotAvatar } from "@/components/parlor/BotAvatar";
 import { CountdownBadge } from "@/components/parlor/CountdownBadge";
 import { TurnOffTimerControl } from "@/components/parlor/TurnOffTimerControl";
 import { CryingTears } from "@/components/parlor/CryingTears";
@@ -36,7 +37,7 @@ import {
 import { useRecordMatchResult } from "@/lib/stats";
 import { useSolitaireStats } from "@/lib/solitaireStats";
 import { useGameStarted } from "@/lib/games-started";
-import { ADA_AVATAR, readAvatar } from "@/lib/avatars";
+import { ADA_AVATAR, readAvatar, readBotAvatar, readBotName } from "@/lib/avatars";
 import { readFlag } from "@/lib/flags";
 import { FlagPicker } from "@/components/parlor/FlagPicker";
 import { PlayerFlag } from "@/components/parlor/PlayerFlag";
@@ -203,6 +204,7 @@ function FarkleTable() {
   const [state, setState] = useState<State>(freshState);
   const [selected, setSelected] = useState<number[]>([]);
   const [playerAvatar, setPlayerAvatar] = useState<string>(readAvatar);
+  const [adaAvatar, setAdaAvatar] = useState<string>(() => readBotAvatar("ada"));
   const [flag, setFlag] = useState<string | null>(readFlag);
   const [flagOpen, setFlagOpen] = useState(false);
   const [viewingBoard, setViewingBoard] = useState(false);
@@ -379,7 +381,7 @@ function FarkleTable() {
   );
 
   const isMulti = Boolean(matchId);
-  const opponentName = liveOpponent ?? opponent ?? "Ada";
+  const opponentName = liveOpponent ?? opponent ?? readBotName("ada");
   const [playerName, setPlayerName] = useState(() => getNickname() ?? "You");
   // Whether the concede confirmation dialog is open.
   const [concedeOpen, setConcedeOpen] = useState(false);
@@ -1105,15 +1107,29 @@ function FarkleTable() {
           <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-4">
               <div className="relative inline-block">
-                <img
-                  src={opponentAvatar ?? ADA_AVATAR}
-                  alt={opponentName}
-                  width={64}
-                  height={64}
-                  className={`size-14 sm:size-[4.2rem] rounded-full border-2 border-gold/40 bg-surface object-cover ${
-                    cpuFarkled ? "animate-cry" : ""
-                  }`}
-                />
+                {opponentAvatar ? (
+                  <img
+                    src={opponentAvatar}
+                    alt={opponentName}
+                    width={64}
+                    height={64}
+                    className={`size-14 sm:size-[4.2rem] rounded-full border-2 border-gold/40 bg-surface object-cover ${
+                      cpuFarkled ? "animate-cry" : ""
+                    }`}
+                  />
+                ) : (
+                  <BotAvatar
+                    bot="ada"
+                    name={readBotName("ada")}
+                    avatar={adaAvatar}
+                    onSelect={setAdaAvatar}
+                    width={64}
+                    height={64}
+                    imgClassName={`size-14 sm:size-[4.2rem] rounded-full border-2 border-gold/40 bg-surface object-contain ${
+                      cpuFarkled ? "animate-cry" : ""
+                    }`}
+                  />
+                )}
                 {state.turn === "cpu" && countdown > 0 && <CountdownBadge seconds={countdown} />}
                 {cpuFarkled && <CryingTears />}
                 {cpuMessage && (

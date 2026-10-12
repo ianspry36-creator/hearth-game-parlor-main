@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AVATAR_OPTIONS, writeAvatar, type AvatarCategory } from "@/lib/avatars";
+import { BuildAvatarPanel } from "@/components/parlor/BuildAvatarPanel";
 
 type Props = {
   avatar: string;
@@ -47,7 +48,7 @@ export function AvatarPicker({ avatar, onSelect, sad = false, size = "size-8" }:
           />
         </button>
       </DialogTrigger>
-      <DialogContent className="border-gold/25 bg-brand text-cream sm:max-w-md">
+      <DialogContent className="border-gold/25 bg-brand text-cream sm:max-w-xl">
         <DialogHeader>
           <DialogTitle className="font-display text-2xl">Choose your avatar</DialogTitle>
           <DialogDescription className="text-ivory/65">
@@ -55,12 +56,15 @@ export function AvatarPicker({ avatar, onSelect, sad = false, size = "size-8" }:
           </DialogDescription>
         </DialogHeader>
         <Tabs defaultValue="people">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             {CATEGORIES.map((category) => (
               <TabsTrigger key={category.value} value={category.value} className="text-foreground">
                 {category.label}
               </TabsTrigger>
             ))}
+            <TabsTrigger value="build" className="text-foreground">
+              Build
+            </TabsTrigger>
           </TabsList>
           {CATEGORIES.map((category) => (
             <TabsContent key={category.value} value={category.value}>
@@ -94,6 +98,13 @@ export function AvatarPicker({ avatar, onSelect, sad = false, size = "size-8" }:
               </div>
             </TabsContent>
           ))}
+          <TabsContent value="build">
+            <BuildAvatarPanel
+              onSelect={onSelect}
+              onClose={() => setOpen(false)}
+              initialUrl={avatar}
+            />
+          </TabsContent>
         </Tabs>
       </DialogContent>
     </Dialog>

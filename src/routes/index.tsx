@@ -125,7 +125,7 @@ function Lobby() {
 
         <section id="tables" className="mt-20">
           <div className="mb-7 flex flex-wrap items-end justify-between gap-3 border-b border-gold/15 pb-4">
-            <h2 className="font-display text-3xl font-bold">Choose your table</h2>
+            <h2 className="menu-heading font-display text-3xl font-bold">Choose your table</h2>
             <div className="flex flex-wrap items-center gap-4">
               <label
                 htmlFor="favourites-filter"
@@ -182,139 +182,139 @@ function Lobby() {
                       <img
                         src={backgammonMenuIcon}
                         alt="Backgammon"
-                        className="size-[2cm] rounded-2xl object-contain"
+                        className="size-[2cm] rounded-2xl object-contain bg-[#00ff00]"
                       />
                     ) : game.id === "warship" ? (
                       <img
                         src={warshipMenuIcon}
                         alt="Warship"
-                        className="size-[2cm] rounded-2xl object-contain"
+                        className="size-[2cm] rounded-2xl object-contain bg-[#00ff00]"
                       />
                     ) : game.id === "reversi" ? (
                       <img
                         src={reversiMenuIcon}
                         alt="Reversi"
-                        className="size-[2cm] rounded-2xl object-contain"
+                        className="size-[2cm] rounded-2xl object-contain bg-[#00ff00]"
                       />
                     ) : game.id === "checkers" ? (
                       <img
                         src={checkersMenuIcon}
                         alt="Checkers"
-                        className="size-[2cm] rounded-2xl object-contain"
+                        className="size-[2cm] rounded-2xl object-contain bg-[#00ff00]"
                       />
                     ) : game.id === "hearts" ? (
                       <img
                         src={heartsMenuIcon}
                         alt="Hearts"
-                        className="size-[2cm] rounded-2xl object-contain"
+                        className="size-[2cm] rounded-2xl object-contain bg-[#00ff00]"
                       />
                     ) : game.id === "addiction" ? (
                       <img
                         src={addictionMenuIcon}
                         alt="Addiction"
-                        className="size-[2cm] rounded-2xl object-contain"
+                        className="size-[2cm] rounded-2xl object-contain bg-[#00ff00]"
                       />
                     ) : game.id === "yahtzee" ? (
                       <img
                         src={yahtzeeMenuIcon}
                         alt="Yahtzee"
-                        className="size-[2cm] rounded-2xl object-contain"
+                        className="size-[2cm] rounded-2xl object-contain bg-[#00ff00]"
                       />
                     ) : game.id === "cribbage" ? (
                       <img
                         src={cribbageMenuIcon}
                         alt="Cribbage"
-                        className="size-[2cm] rounded-2xl object-contain"
+                        className="size-[2cm] rounded-2xl object-contain bg-[#00ff00]"
                       />
                     ) : game.id === "clock" ? (
                       <img
                         src={clockMenuIcon}
                         alt="Clock"
-                        className="size-[2cm] rounded-2xl object-contain"
+                        className="size-[2cm] rounded-2xl object-contain bg-[#00ff00]"
                       />
                     ) : game.id === "crazy-eights" ? (
                       <img
                         src={crazyMenuIcon}
                         alt="Crazy Eights"
-                        className="size-[2cm] rounded-2xl object-contain"
+                        className="size-[2cm] rounded-2xl object-contain bg-[#00ff00]"
                       />
                     ) : game.id === "tripeaks" ? (
                       <img
                         src={triPeaksMenuIcon}
                         alt="Tri Peaks"
-                        className="size-[2cm] rounded-2xl object-contain"
+                        className="size-[2cm] rounded-2xl object-contain bg-[#00ff00]"
                       />
                     ) : game.id === "solitaire" ? (
                       <img
                         src={solitaireMenuIcon}
                         alt="Solitaire"
-                        className="size-[2cm] rounded-2xl object-contain"
+                        className="size-[2cm] rounded-2xl object-contain bg-[#00ff00]"
                       />
                     ) : game.id === "farkle" ? (
                       <img
                         src={farkleMenuIcon}
                         alt="Farkle"
-                        className="size-[2cm] rounded-2xl object-contain"
+                        className="size-[2cm] rounded-2xl object-contain bg-[#00ff00]"
                       />
                     ) : game.id === "kings-in-the-corner" ? (
                       <img
                         src={kingCornerMenuIcon}
                         alt="Kings in the Corner"
-                        className="size-[2cm] rounded-2xl object-contain"
+                        className="size-[2cm] rounded-2xl object-contain bg-[#00ff00]"
                       />
                     ) : game.id === "scorpion" ? (
                       <img
                         src={scorpianMenuIcon}
                         alt="Scorpion Solitaire"
-                        className="size-[2cm] rounded-2xl object-contain"
+                        className="size-[2cm] rounded-2xl object-contain bg-[#00ff00]"
                       />
                     ) : game.id === "yukon" ? (
                       <img
                         src={yukonMenuIcon}
                         alt="Yukon Solitaire"
-                        className="size-[2cm] rounded-2xl object-contain"
+                        className="size-[2cm] rounded-2xl object-contain bg-[#00ff00]"
                       />
                     ) : game.id === "canfield" ? (
                       <img
                         src={canfieldMenuIcon}
                         alt="Canfield"
-                        className="size-[2cm] rounded-2xl object-contain"
+                        className="size-[2cm] rounded-2xl object-contain bg-[#00ff00]"
                       />
                     ) : game.id === "freecell" ? (
                       <img
                         src={freecellMenuIcon}
                         alt="FreeCell"
-                        className="size-[2cm] rounded-2xl object-contain"
+                        className="size-[2cm] rounded-2xl object-contain bg-[#00ff00]"
                       />
                     ) : game.id === "triangles" ? (
                       <img
                         src={trianglesMenuIcon}
                         alt="Triangles"
-                        className="size-[2cm] rounded-2xl object-contain"
+                        className="size-[2cm] rounded-2xl object-contain bg-[#00ff00]"
                       />
                     ) : game.id === "crescent" ? (
                       <img
                         src={crescentMenuIcon}
                         alt="Crescent Solitaire"
-                        className="size-[2cm] rounded-2xl object-contain"
+                        className="size-[2cm] rounded-2xl object-contain bg-[#00ff00]"
                       />
                     ) : game.id === "spider" ? (
                       <img
                         src={spiderMenuIcon}
                         alt="Spider Solitaire"
-                        className="size-[2cm] rounded-2xl object-contain"
+                        className="size-[2cm] rounded-2xl object-contain bg-[#00ff00]"
                       />
                     ) : game.id === "sultan" ? (
                       <img
                         src={sultanMenuItem}
                         alt="Sultan Solitaire"
-                        className="size-[2cm] rounded-2xl object-contain"
+                        className="size-[2cm] rounded-2xl object-contain bg-[#00ff00]"
                       />
                     ) : game.id === "pyramid" ? (
                       <img
                         src={pyramidMenuItem}
                         alt="Pyramid Solitaire"
-                        className="size-[2cm] rounded-2xl object-contain"
+                        className="size-[2cm] rounded-2xl object-contain bg-[#00ff00]"
                       />
                     ) : (
                       <div className="grid size-14 place-items-center rounded-2xl border border-gold/25 bg-gold/12 text-gold transition-colors group-hover:bg-gold/20">
@@ -349,7 +349,7 @@ function Lobby() {
           </div>
         </section>
 
-        <footer className="mt-16 border-t border-gold/12 pt-6 text-center text-[11px] uppercase tracking-[0.28em] text-ivory/30">
+        <footer className="menu-footer mt-16 border-t border-gold/12 pt-6 text-center text-[11px] uppercase tracking-[0.28em] text-ivory/30">
           <p>Cards and Games v4.02</p>
           <VisitorCounter />
           <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1">

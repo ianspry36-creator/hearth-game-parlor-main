@@ -9,7 +9,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { getSessionId } from "@/lib/multiplayer";
-import { ACE_AVATAR, ADA_AVATAR, LEO_AVATAR } from "@/lib/avatars";
+import { readBotAvatar, type BotId } from "@/lib/avatars";
 import { useNickname } from "@/components/parlor/WaitingRoom";
 import { moderateNickname } from "@/lib/moderation";
 import { useBlockedUsers } from "@/lib/blockedUsers";
@@ -43,10 +43,10 @@ const HEARTBEAT_MS = 20_000;
 const MAX_SEATS = 4;
 
 /** Seat 0 is the host; seats 1–3 are the Ace/Ada/Leo positions. */
-const SEAT_BOTS: Record<number, { name: string; avatar: string }> = {
-  1: { name: "Ace", avatar: ACE_AVATAR },
-  2: { name: "Ada", avatar: ADA_AVATAR },
-  3: { name: "Leo", avatar: LEO_AVATAR },
+const SEAT_BOTS: Record<number, { name: string; bot: BotId }> = {
+  1: { name: "Ace", bot: "ace" },
+  2: { name: "Ada", bot: "ada" },
+  3: { name: "Leo", bot: "leo" },
 };
 
 export function HeartsLobby({
@@ -114,7 +114,7 @@ export function HeartsLobby({
       for (let seat = 1; seat < MAX_SEATS; seat += 1) {
         if (occupied.has(seat)) continue;
         const bot = SEAT_BOTS[seat];
-        if (bot) await addBot(roomId, seat, bot.name, bot.avatar);
+        if (bot) await addBot(roomId, seat, bot.name, readBotAvatar(bot.bot));
       }
       await beginRoom(roomId);
       onOpenChange(false);
@@ -404,7 +404,7 @@ export function HeartsLobby({
                       />
                     ) : bot ? (
                       <img
-                        src={bot.avatar}
+                        src={readBotAvatar(bot.bot)}
                         alt={bot.name}
                         width={36}
                         height={36}

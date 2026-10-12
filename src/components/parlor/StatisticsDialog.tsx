@@ -43,7 +43,8 @@ import type { ReactNode } from "react";
 export function StatisticsDialog({ game, trigger }: { game: GameMeta; trigger: ReactNode }) {
   const solo = isSoloGame(game.id);
   const hybrid = isHybridGame(game.id);
-  const isDifficultyGame = game.id === "checkers" || game.id === "reversi";
+  const isDifficultyGame =
+    game.id === "checkers" || game.id === "reversi" || game.id === "crescent";
   const isSpider = game.id === "spider";
   const showSolo = solo || hybrid;
   const showMulti = !solo;

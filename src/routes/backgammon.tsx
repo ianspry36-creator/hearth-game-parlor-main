@@ -14,11 +14,12 @@ import {
 import { TableShell } from "@/components/parlor/TableShell";
 import { GameOverDialog } from "@/components/parlor/GameOverDialog";
 import { PlayerAvatar } from "@/components/parlor/PlayerAvatar";
+import { BotAvatar } from "@/components/parlor/BotAvatar";
 import { CountdownBadge } from "@/components/parlor/CountdownBadge";
 import { TurnOffTimerControl } from "@/components/parlor/TurnOffTimerControl";
 import { SpeechBubble } from "@/components/parlor/SpeechBubble";
 import { TableOptionsDialog } from "@/components/parlor/TableOptionsDialog";
-import { ADA_AVATAR, readAvatar } from "@/lib/avatars";
+import { ADA_AVATAR, readAvatar, readBotAvatar, readBotName } from "@/lib/avatars";
 import { readFlag } from "@/lib/flags";
 import { FlagPicker } from "@/components/parlor/FlagPicker";
 import { PlayerFlag } from "@/components/parlor/PlayerFlag";
@@ -307,7 +308,7 @@ function BackgammonTable() {
   );
 
   const isMulti = Boolean(matchId);
-  const opponentName = liveOpponent ?? opponent ?? "Ada";
+  const opponentName = liveOpponent ?? opponent ?? readBotName("ada");
   const [playerName, setPlayerName] = useState(() => getNickname() ?? "You");
 
   const apply = (fn: (current: State) => State) => {
@@ -383,6 +384,7 @@ function BackgammonTable() {
   const countdown = turnSecondsLeft > 0 && turnSecondsLeft <= TURN_WARNING_SECONDS ? turnSecondsLeft : 0;
 
   const [playerAvatar, setPlayerAvatar] = useState<string>(readAvatar);
+  const [adaAvatar, setAdaAvatar] = useState<string>(() => readBotAvatar("ada"));
   const [flag, setFlag] = useState<string | null>(readFlag);
   const [flagOpen, setFlagOpen] = useState(false);
   const [tableGraphic, setTableGraphic] = useState<TablePalette | null>(readTableGraphic);
@@ -917,13 +919,23 @@ function BackgammonTable() {
         <div className="flex items-center justify-between gap-4 rounded-2xl border border-gold/15 bg-brand/50 p-3">
           <div className="flex items-center gap-3">
             <div className="relative inline-block">
-              <img
-                src={opponentAvatar ?? ADA_AVATAR}
-                alt={opponentName}
-                width={56}
-                height={56}
-                className="size-14 rounded-full border-2 border-gold/40 bg-surface object-cover"
-              />
+              {opponentAvatar ? (
+                <img
+                  src={opponentAvatar}
+                  alt={opponentName}
+                  width={56}
+                  height={56}
+                  className="size-14 rounded-full border-2 border-gold/40 bg-surface object-cover"
+                />
+              ) : (
+                <BotAvatar
+                  bot="ada"
+                  name={readBotName("ada")}
+                  avatar={adaAvatar}
+                  onSelect={setAdaAvatar}
+                  imgClassName="size-14 rounded-full border-2 border-gold/40 bg-surface object-contain"
+                />
+              )}
               <span
                 aria-hidden
                 title="Opponent piece"

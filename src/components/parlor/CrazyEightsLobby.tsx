@@ -9,7 +9,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { getSessionId } from "@/lib/multiplayer";
-import { ADA_AVATAR, LEO_AVATAR } from "@/lib/avatars";
+import { readBotAvatar } from "@/lib/avatars";
 import { flagName, flagUrl, readFlag } from "@/lib/flags";
 import { PlayerFlag } from "@/components/parlor/PlayerFlag";
 import { NicknameDialog } from "@/components/parlor/NicknameDialog";
@@ -249,7 +249,7 @@ export function CrazyEightsLobby({
     if (!myRoomId) return;
     setBusy(true);
     setError(null);
-    await addBot(myRoomId, seat, name, name === "Ada" ? ADA_AVATAR : LEO_AVATAR);
+    await addBot(myRoomId, seat, name, readBotAvatar(name === "Ada" ? "ada" : "leo"));
     setBusy(false);
     void refresh();
   };

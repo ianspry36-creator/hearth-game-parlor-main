@@ -19,13 +19,14 @@ import { CryingTears } from "@/components/parlor/CryingTears";
 import { getGame } from "@/lib/games";
 import { getNickname } from "@/lib/multiplayer";
 import { useGameStarted } from "@/lib/games-started";
-import { ACE_AVATAR, ADA_AVATAR, LEO_AVATAR, readAvatar } from "@/lib/avatars";
+import { readAvatar, readBotAvatar, readBotName, type BotId } from "@/lib/avatars";
 import { RANK_LABEL, SUIT_SYMBOL, cardLabel, type Card } from "@/lib/cribbage";
 import cardBackAsset from "@/assets/card-back.png";
 import { readFlag } from "@/lib/flags";
 import { FlagPicker } from "@/components/parlor/FlagPicker";
 import { PlayerFlag } from "@/components/parlor/PlayerFlag";
 import { AvatarPicker } from "@/components/parlor/AvatarPicker";
+import { BotAvatar } from "@/components/parlor/BotAvatar";
 import { NicknameDialog } from "@/components/parlor/NicknameDialog";
 import {
   SEATS,
@@ -676,6 +677,13 @@ function HeartsTable() {
   }, [myHand]);
 
   const [playerAvatar, setPlayerAvatar] = useState<string>(() => readAvatar());
+  const [botAvatars, setBotAvatars] = useState<Record<BotId, string>>(() => ({
+    ada: readBotAvatar("ada"),
+    ace: readBotAvatar("ace"),
+    leo: readBotAvatar("leo"),
+  }));
+  const setBotAvatar = (bot: BotId, url: string) =>
+    setBotAvatars((prev) => ({ ...prev, [bot]: url }));
   const [playerFlag, setPlayerFlag] = useState<string | null>(readFlag);
   const [flagOpen, setFlagOpen] = useState(false);
   const [playerName, setPlayerName] = useState<string>(() => getNickname() ?? "You");
@@ -702,20 +710,29 @@ function HeartsTable() {
 
   const seatName = (seat: Seat): string => {
     if (seat === "you") return playerName;
-    if (!isRoom) return SEAT_NAMES[seat];
+    if (!isRoom) return readBotName(seat);
     const occ = roomPlayers.find((p) => p.seat === roomSeatOf(seat));
     if (occ) return occ.nickname;
     // A resigned player's row is gone; keep showing the name they played under.
-    return humanSeatsRef.current.get(seat)?.nickname ?? SEAT_NAMES[seat];
+    return humanSeatsRef.current.get(seat)?.nickname ?? readBotName(seat);
   };
   const seatAvatar = (seat: Seat): string => {
     if (seat === "you") return playerAvatar;
-    if (!isRoom) return seat === "ace" ? ACE_AVATAR : seat === "ada" ? ADA_AVATAR : LEO_AVATAR;
+    if (!isRoom) return seat === "ace" ? botAvatars.ace : seat === "ada" ? botAvatars.ada : botAvatars.leo;
     const occ = roomPlayers.find((p) => p.seat === roomSeatOf(seat));
     if (occ?.avatar) return occ.avatar;
     const prev = humanSeatsRef.current.get(seat)?.avatar;
     if (prev) return prev;
-    return seat === "ace" ? ACE_AVATAR : seat === "ada" ? ADA_AVATAR : LEO_AVATAR;
+    return seat === "ace" ? botAvatars.ace : seat === "ada" ? botAvatars.ada : botAvatars.leo;
+  };
+
+  /** When a seat is one of the computer opponents, provide a clickable picker for it. */
+  const seatBotPicker = (
+    seat: Seat,
+  ): { bot: BotId; onSelect: (url: string) => void } | undefined => {
+    if (!isBotSeat(seat)) return undefined;
+    const bot: BotId = seat === "ada" ? "ada" : seat === "ace" ? "ace" : "leo";
+    return { bot, onSelect: (url) => setBotAvatar(bot, url) };
   };
   const seatFlag = (seat: Seat): string | null => {
     if (seat === "you") return playerFlag;
@@ -999,6 +1016,7 @@ function HeartsTable() {
         <div className="mb-4 flex justify-center">
           <SeatPanel
             avatar={seatAvatar("ada")}
+            botPicker={seatBotPicker("ada")}
             name={seatName("ada")}
             flag={seatFlag("ada")}
             isBot={isBotSeat("ada")}
@@ -1020,6 +1038,7 @@ function HeartsTable() {
           <div className="shrink-0 sm:-translate-y-12">
             <SeatPanel
               avatar={seatAvatar("ace")}
+              botPicker={seatBotPicker("ace")}
               name={seatName("ace")}
               flag={seatFlag("ace")}
               isBot={isBotSeat("ace")}
@@ -1102,6 +1121,7 @@ function HeartsTable() {
           <div className="shrink-0 sm:-translate-y-12">
             <SeatPanel
               avatar={seatAvatar("leo")}
+              botPicker={seatBotPicker("leo")}
               name={seatName("leo")}
               flag={seatFlag("leo")}
               isBot={isBotSeat("leo")}
@@ -1270,23 +1290,33 @@ function SeatAvatar({
   isTurn,
   crying = false,
   resigned = false,
+  botPicker,
 }: {
   avatar: string;
   name: string;
   isTurn: boolean;
   crying?: boolean;
   resigned?: boolean;
+  botPicker?: { bot: BotId; onSelect: (url: string) => void };
 }) {
+  const imgClassName = `size-[31.88px] rounded-full object-contain sm:size-[48.96px] ${
+    isTurn ? "ring-4 ring-gold" : "ring-1 ring-ivory/20"
+  } ${resigned ? "opacity-60 grayscale" : ""}`;
   return (
     <div className="relative">
       <div className={crying ? "animate-cry" : undefined}>
-        <img
-          src={avatar}
-          alt={name}
-          className={`size-[31.88px] rounded-full object-cover sm:size-[48.96px] ${
-            isTurn ? "ring-4 ring-gold" : "ring-1 ring-ivory/20"
-          } ${resigned ? "opacity-60 grayscale" : ""}`}
-        />
+        {botPicker ? (
+          <BotAvatar
+            bot={botPicker.bot}
+            name={name}
+            avatar={avatar}
+            onSelect={botPicker.onSelect}
+            buttonClassName="inline-block"
+            imgClassName={imgClassName}
+          />
+        ) : (
+          <img src={avatar} alt={name} className={imgClassName} />
+        )}
       </div>
       {crying && <CryingTears />}
       {resigned && (
@@ -1403,6 +1433,7 @@ function ComputerIcon({ className = "size-4" }: { className?: string }) {
 
 function SeatPanel({
   avatar,
+  botPicker,
   name,
   isTurn,
   cardRef,
@@ -1419,6 +1450,7 @@ function SeatPanel({
   resigned = false,
 }: {
   avatar: string;
+  botPicker?: { bot: BotId; onSelect: (url: string) => void };
   name: string;
   isTurn: boolean;
   cardRef?: (el: HTMLDivElement | null) => void;
@@ -1442,7 +1474,7 @@ function SeatPanel({
 
   const identity = (
     <div className="flex flex-col items-center gap-1">
-      <SeatAvatar avatar={avatar} name={name} isTurn={isTurn} crying={crying} resigned={resigned} />
+      <SeatAvatar avatar={avatar} name={name} isTurn={isTurn} crying={crying} resigned={resigned} botPicker={botPicker} />
       <div className="flex flex-col items-center gap-0.5">
         <p className="font-display text-sm font-bold">{name}</p>
         {badge}
@@ -1520,7 +1552,7 @@ function SeatPanel({
   return (
     <div className="flex flex-col items-center gap-2">
       <div className="flex items-center gap-2">
-        <SeatAvatar avatar={avatar} name={name} isTurn={isTurn} crying={crying} resigned={resigned} />
+        <SeatAvatar avatar={avatar} name={name} isTurn={isTurn} crying={crying} resigned={resigned} botPicker={botPicker} />
         <div className="flex flex-col items-start gap-0.5">
           <p className="font-display text-sm font-bold">{name}</p>
           {badge}
