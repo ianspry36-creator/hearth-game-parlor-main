@@ -2,82 +2,142 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://cardsandgames.fun/</loc>
-    <lastmod>2026-09-05</lastmod>
+    <lastmod>2026-10-08</lastmod>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://cardsandgames.fun/cribbage</loc>
-    <lastmod>2026-09-05</lastmod>
+    <loc>https://cardsandgames.fun/addiction</loc>
+    <lastmod>2026-10-08</lastmod>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://cardsandgames.fun/backgammon</loc>
-    <lastmod>2026-09-05</lastmod>
+    <lastmod>2026-10-08</lastmod>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://cardsandgames.fun/warship</loc>
-    <lastmod>2026-09-05</lastmod>
+    <loc>https://cardsandgames.fun/canfield</loc>
+    <lastmod>2026-10-08</lastmod>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://cardsandgames.fun/farkle</loc>
-    <lastmod>2026-09-05</lastmod>
+    <loc>https://cardsandgames.fun/checkers</loc>
+    <lastmod>2026-10-08</lastmod>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://cardsandgames.fun/yahtzee</loc>
-    <lastmod>2026-09-05</lastmod>
+    <loc>https://cardsandgames.fun/clock</loc>
+    <lastmod>2026-10-08</lastmod>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://cardsandgames.fun/crazy-eights</loc>
-    <lastmod>2026-09-05</lastmod>
+    <lastmod>2026-10-08</lastmod>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://cardsandgames.fun/triangles</loc>
-    <lastmod>2026-09-05</lastmod>
+    <loc>https://cardsandgames.fun/crescent</loc>
+    <lastmod>2026-10-08</lastmod>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://cardsandgames.fun/solitaire</loc>
-    <lastmod>2026-09-05</lastmod>
+    <loc>https://cardsandgames.fun/cribbage</loc>
+    <lastmod>2026-10-08</lastmod>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://cardsandgames.fun/farkle</loc>
+    <lastmod>2026-10-08</lastmod>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://cardsandgames.fun/freecell</loc>
-    <lastmod>2026-09-05</lastmod>
+    <lastmod>2026-10-08</lastmod>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://cardsandgames.fun/kings-in-the-corner</loc>
+    <lastmod>2026-10-08</lastmod>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://cardsandgames.fun/pyramid</loc>
+    <lastmod>2026-10-08</lastmod>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://cardsandgames.fun/reversi</loc>
-    <lastmod>2026-09-05</lastmod>
+    <lastmod>2026-10-08</lastmod>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://cardsandgames.fun/scorpion</loc>
+    <lastmod>2026-10-08</lastmod>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://cardsandgames.fun/solitaire</loc>
+    <lastmod>2026-10-08</lastmod>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://cardsandgames.fun/spider</loc>
+    <lastmod>2026-10-08</lastmod>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://cardsandgames.fun/sultan</loc>
+    <lastmod>2026-10-08</lastmod>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://cardsandgames.fun/triangles</loc>
+    <lastmod>2026-10-08</lastmod>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://cardsandgames.fun/tripeaks</loc>
+    <lastmod>2026-10-08</lastmod>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://cardsandgames.fun/warship</loc>
+    <lastmod>2026-10-08</lastmod>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://cardsandgames.fun/yahtzee</loc>
+    <lastmod>2026-10-08</lastmod>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://cardsandgames.fun/yukon</loc>
-    <lastmod>2026-09-06</lastmod>
+    <lastmod>2026-10-08</lastmod>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://cardsandgames.fun/about</loc>
-    <lastmod>2026-09-05</lastmod>
+    <lastmod>2026-10-08</lastmod>
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>https://cardsandgames.fun/privacy</loc>
-    <lastmod>2026-09-05</lastmod>
-    <priority>0.3</priority>
+    <loc>https://cardsandgames.fun/blog</loc>
+    <lastmod>2026-10-08</lastmod>
+    <priority>0.5</priority>
   </url>
   <url>
     <loc>https://cardsandgames.fun/contact</loc>
-    <lastmod>2026-09-05</lastmod>
+    <lastmod>2026-10-08</lastmod>
     <priority>0.5</priority>
   </url>
   <url>
     <loc>https://cardsandgames.fun/future-improvements</loc>
-    <lastmod>2026-09-05</lastmod>
+    <lastmod>2026-10-08</lastmod>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://cardsandgames.fun/privacy</loc>
+    <lastmod>2026-10-08</lastmod>
     <priority>0.3</priority>
   </url>
 </urlset>
