@@ -253,6 +253,14 @@ export function useMatch<T>(matchId: string | undefined, gameOver = false) {
   // server's truth instead of hanging the shared table mid-turn).
   const readRowRef = useRef<(force?: boolean) => Promise<void>>(() => Promise.resolve());
 
+  // Serialises publishes so writes land at the server in the order they were
+  // issued. A turn is a burst of fire-and-forget writes (roll, then each move,
+  // then the 2s turn-handover flip). Without this, a slow earlier write — e.g.
+  // one that spent its retries in a network blip — can finish *after* a later
+  // write, so the DB keeps the older row and the flip is lost. Both players
+  // then sit waiting for the other to roll and the table hangs mid-game.
+  const publishChainRef = useRef<Promise<unknown>>(Promise.resolve());
+
   // True once we have adopted a non-completed row for this match, i.e. we were
   // actually seated at the table playing it. Distinguishes a match that just
   // finished (leave the final score on screen for a rematch) from a returning
@@ -345,8 +353,8 @@ export function useMatch<T>(matchId: string | undefined, gameOver = false) {
   }, [matchId]);
 
   const publish = useCallback(
-    async (state: T) => {
-      if (!matchId) return;
+    (state: T): Promise<unknown> => {
+      if (!matchId) return Promise.resolve();
       const next = version.current + 1;
       version.current = next;
       const updatedAt = new Date().toISOString();
@@ -371,19 +379,35 @@ export function useMatch<T>(matchId: string | undefined, gameOver = false) {
         version: next,
         updated_at: updatedAt,
       };
-      let lastError: unknown = null;
-      for (let attempt = 0; attempt < 3; attempt++) {
-        const { error } = await supabase.from("matches").update(payload).eq("id", matchId);
-        if (!error) return;
-        lastError = error;
-        if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
-      }
-      console.error("[multiplayer] publish failed after retries:", lastError);
-      logConnectionError("publish_state", lastError, { match_id: matchId });
-      // Force a re-read that bypasses the echo/applied dedup so the local
-      // player's optimistic move is rolled back to the server's truth rather
-      // than the table appearing to hang.
-      void readRowRef.current?.(true);
+
+      // Queue this write behind the previous one so writes commit to the server
+      // in issue order (see publishChainRef). The version was already reserved
+      // up front, so a later write still gets a monotonic id while this one is
+      // in flight. On failure we still retry, then force a re-sync — but only
+      // after any earlier writes have finished, so a lost write can't clobber a
+      // fresher one.
+      publishChainRef.current = publishChainRef.current
+        .then(async () => {
+          let lastError: unknown = null;
+          for (let attempt = 0; attempt < 3; attempt++) {
+            const { error } = await supabase.from("matches").update(payload).eq("id", matchId);
+            if (!error) return;
+            lastError = error;
+            if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
+          }
+          console.error("[multiplayer] publish failed after retries:", lastError);
+          logConnectionError("publish_state", lastError, { match_id: matchId });
+          // Force a re-read that bypasses the echo/applied dedup so the local
+          // player's optimistic move is rolled back to the server's truth rather
+          // than the table appearing to hang.
+          void readRowRef.current?.(true);
+        })
+        .catch((error) => {
+          // Keep the chain alive even if a write throws unexpectedly, so a later
+          // publish is never starved behind a rejected promise.
+          console.error("[multiplayer] publish threw unexpectedly:", error);
+        });
+      return publishChainRef.current;
     },
     [matchId],
   );
