@@ -80,6 +80,7 @@ type State = {
   rolloff: { human: number | null; cpu: number | null };
   rematch: Seat | null;
   timedOut: boolean;
+  conceded: Seat | null;
   timerOff: boolean;
   timerRequest: Seat | null;
   timerProposed: boolean;
@@ -99,6 +100,7 @@ const freshState = (): State => ({
   rolloff: { human: null, cpu: null },
   rematch: null,
   timedOut: false,
+  conceded: null,
   timerOff: false,
   timerRequest: null,
   timerProposed: false,
@@ -126,6 +128,7 @@ function mirror(state: State): State {
     turn: flip(state.turn),
     rematch: state.rematch ? flip(state.rematch) : null,
     winner: state.winner ? flip(state.winner) : null,
+    conceded: state.conceded ? flip(state.conceded) : null,
     timerRequest: state.timerRequest ? flip(state.timerRequest) : null,
     log: state.log.map((entry) => ({ ...entry, side: entry.side ? flip(entry.side) : null })),
   };
@@ -326,6 +329,7 @@ function BackgammonTable() {
     apply((current) => ({
       ...current,
       winner: "cpu",
+      conceded: "human",
       log: note(current.log, { side: "human", text: `${playerName} conceded.` }),
     }));
   };
@@ -851,6 +855,8 @@ function BackgammonTable() {
         scoreLabel="Checkers borne off"
         opponentName={opponentName}
         playerAvatar={playerAvatar}
+        opponentAvatar={opponentAvatar ?? undefined}
+        conceded={state.conceded !== null}
         onPlayAgain={isMulti ? requestRematch : reset}
         playAgainLabel={isMulti ? "Rematch" : "Play again"}
         playAgainDisabled={isMulti && state.rematch !== null}

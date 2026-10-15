@@ -34,6 +34,8 @@ export function GameOverDialog({
   scoreLabel,
   opponentName,
   playerAvatar,
+  opponentAvatar,
+  conceded = false,
   skunk: isSkunk = false,
   timedOut = false,
   headline,
@@ -53,6 +55,8 @@ export function GameOverDialog({
   scoreLabel?: string;
   opponentName: string;
   playerAvatar: string;
+  opponentAvatar?: string;
+  conceded?: boolean;
   skunk?: boolean;
   timedOut?: boolean;
   headline?: string;
@@ -73,9 +77,13 @@ export function GameOverDialog({
         ? result === "win"
           ? `You won - ${opponentName} timed out!`
           : `${opponentName} won - You timed out!`
-        : result === "win"
-          ? "You won!"
-          : `${opponentName} won!`);
+        : conceded
+          ? result === "win"
+            ? `You won! ${opponentName} conceded!`
+            : `${opponentName} won - You conceded!`
+          : result === "win"
+            ? "You won!"
+            : `${opponentName} won!`);
   const description =
     detail ??
     (result === "draw"
@@ -98,13 +106,14 @@ export function GameOverDialog({
     name: opponentName,
     score: opponentScore,
     avatar:
-      adaAvatar !== ADA_AVATAR
+      opponentAvatar ??
+      (adaAvatar !== ADA_AVATAR
         ? adaAvatar
         : result === "loss"
           ? ADA_HAPPY
           : result === "win"
             ? ADA_SAD
-            : ADA_AVATAR,
+            : ADA_AVATAR),
     won: result === "loss",
     lost: result === "win",
   };
