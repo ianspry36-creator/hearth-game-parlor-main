@@ -646,12 +646,17 @@ function CribbageTable() {
   // Bumping the key in a layout effect (before paint) avoids a visible double-run
   // where the fresh fan paints once, then remounts and re-animates a frame later.
   const [spreadNonce, setSpreadNonce] = useState(0);
-  const prevCutFanLen = useRef(state.cutFan.length);
+  // Track the fan's identity (its card ids) rather than just its length, so a
+  // re-shuffle of a fresh 52-card fan (e.g. pressing "New game" twice in a row)
+  // still replays the spread animation instead of popping the new cards in.
+  const prevCutFanKey = useRef(state.cutFan.map((c) => c.id).join(","));
   useLayoutEffect(() => {
-    const len = state.cutFan.length;
-    if (len === 52 && prevCutFanLen.current !== 52) setSpreadNonce((n) => n + 1);
-    prevCutFanLen.current = len;
-  }, [state.cutFan.length]);
+    const key = state.cutFan.map((c) => c.id).join(",");
+    if (key !== prevCutFanKey.current) {
+      setSpreadNonce((n) => n + 1);
+      prevCutFanKey.current = key;
+    }
+  }, [state.cutFan]);
 
   // Which seat laid the newest card on the pile, so it animates from that side.
   const [laidBy, setLaidBy] = useState<Side | null>(null);
@@ -981,7 +986,11 @@ function CribbageTable() {
     setSorting(false);
     flownCardsRef.current.clear();
     const timers: number[] = [];
-    for (let k = 1; k <= 12; k += 1) {
+    // Advance one step past the last card (13) so the final dealt card stops
+    // being treated as "dealAnimating" (`order === dealStep`). Otherwise
+    // dealStep sticks at 12 and the dealer's last card stays invisible until
+    // the crib discard turns `isFreshDeal` off.
+    for (let k = 1; k <= 13; k += 1) {
       timers.push(window.setTimeout(() => setDealStep(k), 300 + k * 320));
     }
     const sortAt = window.setTimeout(
@@ -1441,7 +1450,7 @@ function CribbageTable() {
     setSelected([]);
     // Fly each discard to the crib one at a time so the pair reads as two
     // separate moves instead of a single blob (which reads like a pack deal).
-    const FLIGHT_MS = 1000;
+    const FLIGHT_MS = 2000;
     const STAGGER_MS = 320;
     flights.forEach((flight, index) => {
       window.setTimeout(() => {
@@ -1499,7 +1508,7 @@ function CribbageTable() {
     setDiscardingIds(cpuDiscards.map((c) => c.id));
     // Fly each CPU discard to the crib one at a time so they clearly leave the
     // opponent's hand rather than looking like two cards dealt from the pack.
-    const FLIGHT_MS = 1000;
+    const FLIGHT_MS = 2000;
     const STAGGER_MS = 320;
     flights.forEach((flight, index) => {
       window.setTimeout(() => {
@@ -1559,6 +1568,32 @@ function CribbageTable() {
     const timer = window.setTimeout(() => setCountBubble(null), 1800);
     return () => clearTimeout(timer);
   }, [state.moves, state.phase, count]);
+
+  // A transient "chat cloud" that calls out "Go" or "1 for the Go" when a seat
+  // can't lay a card during pegging. Driven off the newest log entry so it fires
+  // for both the player ("Say go") and Ada's automatic turn, in solo and live.
+  const [goBubble, setGoBubble] = useState<{ key: number; text: string; side: Side } | null>(null);
+  const lastGoKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    const latest = state.log[0];
+    if (!latest?.side) return;
+    const key = `${latest.text}|${latest.side}`;
+    if (key === lastGoKeyRef.current) return;
+    lastGoKeyRef.current = key;
+    const text = latest.text === "said go." ? "Go" : latest.text.endsWith("go.") ? "1 for the Go" : null;
+    if (!text) return;
+    setGoBubble({ key: Date.now(), text, side: latest.side });
+  }, [state.log]);
+
+  // Auto-dismiss the bubble after 3s. Kept in its own effect (keyed on the
+  // bubble itself) so an unrelated log entry can neither cancel the dismissal
+  // early nor leave the bubble stuck on screen.
+  useEffect(() => {
+    if (!goBubble) return;
+    const timer = window.setTimeout(() => setGoBubble(null), 3000);
+    return () => clearTimeout(timer);
+  }, [goBubble]);
+
   const revealed = state.phase === "pause" || state.phase === "show" || state.phase === "over";
   const waitingForDiscard = state.phase === "discard" && Boolean(state.playerDiscards);
   const blockLabel = (block: ShowBlock) =>
@@ -1897,6 +1932,11 @@ function CribbageTable() {
                   <SpeechBubble text={countBubble.text} tail="down-left" textClassName="font-display text-lg" />
                 </div>
               ) : null}
+              {goBubble && goBubble.side === "cpu" ? (
+                <div key={goBubble.key} className="animate-scale-in pointer-events-none absolute bottom-full left-1/2 z-40 mb-12 -translate-x-1/2">
+                  <SpeechBubble text={goBubble.text} tail="down-left" textClassName="font-display text-lg" />
+                </div>
+              ) : null}
             </div>
             {state.phase === "cut" && (
               <CutSeat
@@ -1959,7 +1999,7 @@ function CribbageTable() {
 
         {/* Centre: deck, starter, pile and count */}
         {state.phase === "cut" ? (
-          <div className="relative">
+          <div className="relative min-w-[359px] sm:min-w-[645px]">
             {/* Invisible anchor marking where the deck stack will sit once the play
                 view mounts, so the spread can gather into it during the cut. */}
             <div
@@ -2034,7 +2074,7 @@ function CribbageTable() {
             </div>
           </div>
         ) : (
-          <div className="flex min-w-[359px] items-center justify-between gap-2 sm:min-w-[645px] sm:justify-center sm:gap-8">
+          <div className="flex min-h-[115px] min-w-[359px] items-center justify-between gap-2 sm:min-w-[645px] sm:justify-center sm:gap-8">
             <DeckStack remaining={state.deck.length} starter={state.starter} deckRef={deckRef} />
             <div className="flex items-center gap-3">
               <div
@@ -2338,6 +2378,11 @@ function CribbageTable() {
                     <SpeechBubble text={countBubble.text} tail="down-left" textClassName="font-display text-lg" />
                   </div>
                 ) : null}
+                {goBubble && goBubble.side === "player" ? (
+                  <div key={goBubble.key} className="animate-scale-in pointer-events-none absolute bottom-full left-1/2 z-40 mb-12 -translate-x-1/2">
+                    <SpeechBubble text={goBubble.text} tail="down-left" textClassName="font-display text-lg" />
+                  </div>
+                ) : null}
               </div>
             </div>
           </div>
@@ -2371,7 +2416,7 @@ function FlyingCardView({ flight }: { flight: FlyingCard }) {
   const table = v === "table";
   const crib = v === "crib";
   const cut = v === "cut";
-  const duration = flight.durationMs ?? (crib ? 1000 : 500);
+  const duration = flight.durationMs ?? (crib ? 2000 : 500);
   return (
     <div
       aria-hidden

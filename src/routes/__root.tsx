@@ -95,6 +95,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         content: "Cribbage, backgammon and more against Ada or a human opponent.",
       },
       { property: "og:type", content: "website" },
+      {
+        property: "og:url",
+        content: `${SITE_URL}${matches[matches.length - 1]?.pathname || "/"}`,
+      },
       { name: "twitter:card", content: "summary_large_image" },
     ],
     links: [

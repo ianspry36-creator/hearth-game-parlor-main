@@ -3,20 +3,27 @@ import { cn } from "@/lib/utils";
 
 export type SpeechBubbleTail = "down-left" | "down-right" | "up-left" | "up-center";
 
-const CORNER = 16;
-const TAIL_LEN = 8;
-const TAIL_W = 14;
+const CORNER = 18;
+const TAIL_LEN = 9;
+const TAIL_W = 16;
 const TAIL_OFFSET = 26;
+// How far each tail shoulder's control point extends horizontally. Matching it
+// to the tail length rounds the shoulders so the tail reads as one smooth
+// teardrop flowing out of the body, never a separate triangle glued on.
+const SHOULDER = 8;
 
 /**
- * Builds a single SVG path for a rounded speech bubble with a pointed tail.
- * The body and tail are drawn as one continuous outline so there is no seam
- * or separate square/diamond element.
+ * Builds a single SVG path for a rounded speech bubble with a smooth tail.
+ * The body and tail are a single continuous, tangent-continuous outline (all
+ * cubic béziers) — there is no second square/diamond/triangle element, so the
+ * cloud and its tail are literally one shape.
  */
 function buildPath(w: number, h: number, tail: SpeechBubbleTail): string {
   const r = CORNER;
+  const tl = TAIL_LEN;
+  const sh = SHOULDER;
   const down = tail === "down-left" || tail === "down-right";
-  const bodyTop = down ? 0 : TAIL_LEN;
+  const bodyTop = down ? 0 : tl;
   const bodyBot = bodyTop + h;
 
   const cx = down
@@ -32,27 +39,36 @@ function buildPath(w: number, h: number, tail: SpeechBubbleTail): string {
   const d: string[] = [];
 
   if (down) {
+    // Clockwise from the top-left, with the tail bulging out of the bottom edge.
     d.push(`M ${r} ${bodyTop}`);
+    d.push(`H ${w - r}`);
+    d.push(`Q ${w} ${bodyTop} ${w} ${bodyTop + r}`);
+    d.push(`V ${bodyBot - r}`);
+    d.push(`Q ${w} ${bodyBot} ${w - r} ${bodyBot}`);
+    d.push(`H ${x2}`);
+    // Right shoulder -> tip -> left shoulder, each shoulder keeping a horizontal
+    // tangent so it blends into the bottom edge without a hard corner.
+    d.push(`C ${x2 - sh} ${bodyBot} ${x2} ${bodyBot + tl} ${cx} ${bodyBot + tl}`);
+    d.push(`C ${x1} ${bodyBot + tl} ${x1 + sh} ${bodyBot} ${x1} ${bodyBot}`);
+    d.push(`H ${r}`);
+    d.push(`Q 0 ${bodyBot} 0 ${bodyBot - r}`);
+    d.push(`V ${bodyTop + r}`);
+    d.push(`Q 0 ${bodyTop} ${r} ${bodyTop}`);
   } else {
-    d.push(`M ${x1} ${bodyTop}`, `L ${cx} 0`, `L ${x2} ${bodyTop}`);
+    // Clockwise from the left shoulder, tail bulging out of the top edge.
+    d.push(`M ${x1} ${bodyTop}`);
+    d.push(`C ${x1 + sh} ${bodyTop} ${x1} 0 ${cx} 0`);
+    d.push(`C ${x2} 0 ${x2 - sh} ${bodyTop} ${x2} ${bodyTop}`);
+    d.push(`H ${w - r}`);
+    d.push(`Q ${w} ${bodyTop} ${w} ${bodyTop + r}`);
+    d.push(`V ${bodyBot - r}`);
+    d.push(`Q ${w} ${bodyBot} ${w - r} ${bodyBot}`);
+    d.push(`H ${r}`);
+    d.push(`Q 0 ${bodyBot} 0 ${bodyBot - r}`);
+    d.push(`V ${bodyTop + r}`);
+    d.push(`Q 0 ${bodyTop} ${r} ${bodyTop}`);
   }
 
-  // Top edge -> top-right corner -> right side -> bottom-right corner.
-  d.push(`H ${w - r}`);
-  d.push(`Q ${w} ${bodyTop} ${w} ${bodyTop + r}`);
-  d.push(`V ${bodyBot - r}`);
-  d.push(`Q ${w} ${bodyBot} ${w - r} ${bodyBot}`);
-
-  // Tail (only for down-pointing bubbles).
-  if (down) {
-    d.push(`H ${x2}`, `L ${cx} ${bodyBot + TAIL_LEN}`, `L ${x1} ${bodyBot}`);
-  }
-
-  // Bottom edge -> bottom-left corner -> left side -> top-left corner.
-  d.push(`H ${r}`);
-  d.push(`Q 0 ${bodyBot} 0 ${bodyBot - r}`);
-  d.push(`V ${bodyTop + r}`);
-  d.push(`Q 0 ${bodyTop} ${r} ${bodyTop}`);
   d.push("Z");
 
   return d.join(" ");
