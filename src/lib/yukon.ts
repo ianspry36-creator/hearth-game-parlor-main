@@ -180,3 +180,163 @@ export function autoComplete(state: GameState): GameState {
 export function cardsHome(state: GameState): number {
   return state.foundations.reduce((sum, pile) => sum + pile.length, 0);
 }
+
+/**
+ * A single atomic move the computer (or a hint) can make. These mirror the
+ * user-facing moves exactly: flip a face-down card, send a tableau card home,
+ * lift a group between tableau piles, or pull a foundation card back down.
+ */
+export type YukonMove =
+  | { kind: "flip"; index: number }
+  | { kind: "toFoundation"; from: number; foundation: number }
+  | { kind: "toTableau"; from: number; cardIndex: number; to: number }
+  | { kind: "fromFoundation"; foundation: number; to: number };
+
+/** Apply a move, returning a new state (the same reference if it is illegal). */
+export function applyMove(state: GameState, move: YukonMove): GameState {
+  switch (move.kind) {
+    case "flip":
+      return flipTableau(state, move.index);
+    case "toFoundation":
+      return moveTableauToFoundation(state, move.from, move.foundation);
+    case "toTableau":
+      return moveTableauToTableau(state, move.from, move.cardIndex, move.to);
+    case "fromFoundation":
+      return moveFoundationToTableau(state, move.foundation, move.to);
+  }
+}
+
+/**
+ * Every legal move from a state, ordered best-first for the solver: cards to
+ * the foundation first (always safe and helpful), then flips (they reveal new
+ * cards), then tableau moves (most helpful first), and finally foundation
+ * pull-backs, which are almost never needed but keep the search complete.
+ */
+export function legalMoves(state: GameState): YukonMove[] {
+  if (state.won) return [];
+  const foundation: YukonMove[] = [];
+  const flips: YukonMove[] = [];
+  const tableau: { move: YukonMove; score: number }[] = [];
+  const fromFoundation: YukonMove[] = [];
+
+  for (let i = 0; i < TABLEAU_COUNT; i++) {
+    const pile = state.tableau[i]!;
+    const top = pile.faceUp[pile.faceUp.length - 1];
+    if (top) {
+      const target = foundationTarget(top, state.foundations);
+      if (target !== null) foundation.push({ kind: "toFoundation", from: i, foundation: target });
+    }
+    if (pile.faceUp.length === 0 && pile.faceDown.length > 0)
+      flips.push({ kind: "flip", index: i });
+  }
+
+  for (let from = 0; from < TABLEAU_COUNT; from++) {
+    const src = state.tableau[from]!;
+    for (let cardIndex = 0; cardIndex < src.faceUp.length; cardIndex++) {
+      const moving = src.faceUp.slice(cardIndex);
+      for (let to = 0; to < TABLEAU_COUNT; to++) {
+        if (to === from) continue;
+        if (!canPlaceOnTableau(moving, state.tableau[to]!)) continue;
+        // Prefer moves that reveal a face-down card or clear a pile, and lean
+        // towards smaller groups so we bury fewer cards.
+        let score = 0;
+        if (cardIndex === 0 && src.faceDown.length > 0) score += 2;
+        else if (cardIndex === 0) score += 1;
+        if (moving.length === 1) score += 1;
+        tableau.push({ move: { kind: "toTableau", from, cardIndex, to }, score });
+      }
+    }
+  }
+  tableau.sort((a, b) => b.score - a.score);
+
+  for (let f = 0; f < FOUNDATION_SUITS.length; f++) {
+    const pile = state.foundations[f]!;
+    if (pile.length === 0) continue;
+    const card = pile[pile.length - 1]!;
+    for (let to = 0; to < TABLEAU_COUNT; to++) {
+      if (canPlaceOnTableau([card], state.tableau[to]!))
+        fromFoundation.push({ kind: "fromFoundation", foundation: f, to });
+    }
+  }
+
+  return [...foundation, ...flips, ...tableau.map((t) => t.move), ...fromFoundation];
+}
+
+/** The single most promising move — the greedy choice the solver tries first. */
+export function bestMove(state: GameState): YukonMove | null {
+  return legalMoves(state)[0] ?? null;
+}
+
+/** A canonical string for a state so the solver can detect (and skip) repeats. */
+function stateKey(state: GameState): string {
+  const tableau = state.tableau
+    .map(
+      (p) => p.faceDown.map((c) => c.id).join(",") + "#" + p.faceUp.map((c) => c.id).join(","),
+    )
+    .join("|");
+  const foundations = state.foundations
+    .map((pile) => pile.map((c) => c.id).join(","))
+    .join("|");
+  return tableau + "/" + foundations;
+}
+
+/** Greedily play the best move until the hand is finished or no move remains. */
+export function greedyMoves(state: GameState): YukonMove[] {
+  const moves: YukonMove[] = [];
+  const seen = new Set<string>();
+  let s = state;
+  while (!s.won && !canAutoComplete(s)) {
+    const key = stateKey(s);
+    if (seen.has(key)) break;
+    seen.add(key);
+    const move = bestMove(s);
+    if (!move) break;
+    const next = applyMove(s, move);
+    if (next === s) break;
+    moves.push(move);
+    s = next;
+  }
+  return moves;
+}
+
+/**
+ * Search for a winning sequence of moves. Uses iterative-deepening depth-first
+ * search with best-first move ordering, a node budget, and cycle detection.
+ * Returns the winning move list, or null if no solution is found within the
+ * budget (in which case a caller can fall back to {@link greedyMoves}).
+ */
+export function solve(state: GameState, budget = 300000): YukonMove[] | null {
+  if (state.won || canAutoComplete(state)) return [];
+  let nodes = 0;
+
+  const dfs = (
+    s: GameState,
+    depth: number,
+    path: YukonMove[],
+    visited: Set<string>,
+  ): YukonMove[] | null => {
+    if (nodes++ >= budget) return null;
+    if (s.won || canAutoComplete(s)) return path.slice();
+    if (depth <= 0) return null;
+    for (const move of legalMoves(s)) {
+      const next = applyMove(s, move);
+      if (next === s) continue;
+      const key = stateKey(next);
+      if (visited.has(key)) continue;
+      visited.add(key);
+      path.push(move);
+      const result = dfs(next, depth - 1, path, visited);
+      if (result) return result;
+      path.pop();
+      visited.delete(key);
+    }
+    return null;
+  };
+
+  for (let depth = 1; depth <= 400; depth++) {
+    if (nodes >= budget) break;
+    const result = dfs(state, depth, [], new Set([stateKey(state)]));
+    if (result) return result;
+  }
+  return null;
+}

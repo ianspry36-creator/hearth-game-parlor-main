@@ -497,7 +497,7 @@ function WarshipTable() {
       }}
       onNewGame={() => (isMulti ? navigate({ to: "/warship" }) : reset())}
       rail={null}
-      boxClassName="min-h-[32rem]"
+      boxClassName="min-h-[32rem] bg-[#00ff00]"
       menuExtra={
         <>
         <TurnOffTimerControl

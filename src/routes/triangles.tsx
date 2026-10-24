@@ -535,7 +535,7 @@ function TrianglesTable() {
       }
       // sm:pt-4 halves the space above the opponent box (p-5/sm:p-8 on the game
       // box puts 32px there from the sm breakpoint on).
-      boxClassName="px-2 sm:px-3 sm:pt-4"
+      boxClassName="px-2 sm:px-3 sm:pt-4 bg-[#00ff00]"
     >
       <FlagPicker open={flagOpen} onOpenChange={setFlagOpen} onSelect={setFlag} />
       <GameOverDialog
@@ -755,10 +755,13 @@ function TrianglesTable() {
                   y1={from.y}
                   x2={to.x}
                   y2={to.y}
+                  pathLength={1}
                   strokeWidth={5}
                   strokeLinecap="round"
                   className={
-                    owner === "human" ? "stroke-player-coral" : "stroke-player-teal"
+                    owner === "human"
+                      ? "stroke-player-coral"
+                      : "stroke-player-teal triangles-line-draw"
                   }
                 />
               );

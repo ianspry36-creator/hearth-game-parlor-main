@@ -561,7 +561,8 @@ body.menu-page {
  * full-bleed artwork instead of the dimmed ivory used on the plain backdrop. */
 :root[data-effect]:not([data-effect="none"]) .menu-heading,
 :root[data-effect]:not([data-effect="none"]) .menu-footer a,
-:root[data-effect]:not([data-effect="none"]) .menu-footer button {
+:root[data-effect]:not([data-effect="none"]) .menu-footer button,
+:root[data-effect]:not([data-effect="none"]) .menu-footer p {
   color: #fff;
 }
 
@@ -801,6 +802,36 @@ body.menu-page {
   animation: deal-in-player 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
+@keyframes deal-in-top {
+  0% {
+    opacity: 0;
+    transform: translateY(150px) scale(0.85);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@utility animate-deal-in-top {
+  animation: deal-in-top 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+
+@keyframes spread-out {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0.7);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@utility animate-spread {
+  animation: spread-out 0.675s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+
 @keyframes turn-over {
   0% {
     transform: rotateY(90deg) scale(0.96);
@@ -814,22 +845,6 @@ body.menu-page {
   animation: turn-over 0.32s ease-out both;
   transform-style: preserve-3d;
   backface-visibility: hidden;
-}
-
-@keyframes sort-slide {
-  0% {
-    transform: translateY(-14px) scale(0.94);
-  }
-  60% {
-    transform: translateY(3px) scale(1.02);
-  }
-  100% {
-    transform: translateY(0) scale(1);
-  }
-}
-
-@utility animate-sort {
-  animation: sort-slide 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
 }
 
 @keyframes lay-from-top {
@@ -1334,4 +1349,19 @@ body.menu-page {
   to {
     transform: rotate(-16deg);
   }
+}
+
+/* Triangles: an opponent's line draws itself in rather than popping on. */
+@keyframes triangles-line-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.triangles-line-draw {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: triangles-line-draw 0.45s ease-out forwards;
 }

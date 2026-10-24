@@ -175,6 +175,7 @@ export const ADA_SAD = dicebear("avataaars", "buzz-cut-turtleneck", {
 
 const KEY = "parlor.avatar";
 const CUSTOM_KEY = "parlor.avatar.custom";
+const LAST_BUILD_KEY = "parlor.avatar.last-build";
 
 export function readAvatar(): string {
   if (typeof window === "undefined") return AVATAR_OPTIONS[0]!.url;
@@ -196,8 +197,17 @@ export function writeAvatar(id: string) {
 export function writeCustomAvatar(url: string) {
   if (typeof window !== "undefined") {
     window.localStorage.setItem(CUSTOM_KEY, url);
+    window.localStorage.setItem(LAST_BUILD_KEY, url);
     window.localStorage.removeItem(KEY);
   }
+}
+
+/** The most recently saved Build-tab avatar, remembered even after the player
+ * switches to a People/Animals/Objects/Aliens portrait, so the Build tab can
+ * reopen on that same avatar instead of the defaults. */
+export function readLastBuildAvatar(): string | null {
+  if (typeof window === "undefined") return null;
+  return window.localStorage.getItem(LAST_BUILD_KEY);
 }
 
 /** The computer opponents a player can dress up with a robot portrait. */
@@ -208,7 +218,7 @@ export type BotId = "ada" | "ace" | "leo";
  * source file (minus the extension), so "Asmo", "astro boy", "c-3po", etc.
  */
 export const ROBOT_OPTIONS: AvatarOption[] = [
-  { id: "asmo", url: robotAsmo, label: "Asmo", category: "robots" },
+  { id: "asmo", url: robotAsmo, label: "Asimo", category: "robots" },
   { id: "astro-boy", url: robotAstroBoy, label: "Astro Boy", category: "robots" },
   { id: "awesom-o", url: robotAwesomO, label: "Awesom-o", category: "robots" },
   { id: "bender", url: robotBender, label: "Bender", category: "robots" },
@@ -292,8 +302,7 @@ export type BuildFeature =
   | "skinColor"
   | "eyes"
   | "mouth"
-  | "nose"
-  | "accessories"
+  | "glasses"
   | "clothes"
   | "clothesColor";
 
@@ -316,8 +325,7 @@ export const BUILD_FEATURES: { feature: BuildFeature; label: string }[] = [
   { feature: "skinColor", label: "Skin colour" },
   { feature: "eyes", label: "Eyes" },
   { feature: "mouth", label: "Mouth" },
-  { feature: "nose", label: "Nose" },
-  { feature: "accessories", label: "Glasses & earrings" },
+  { feature: "glasses", label: "Glasses" },
   { feature: "clothes", label: "Top style" },
   { feature: "clothesColor", label: "Clothes colour" },
 ];
@@ -377,7 +385,7 @@ export const BUILD_OPTIONS: Record<BuildFeature, BuildOption[]> = {
     { value: "beardLight", label: "Light beard" },
     { value: "beardMedium", label: "Medium beard" },
     { value: "beardMajestic", label: "Full beard" },
-    { value: "moustacheFancy", label: "Fancy moustache" },
+    { value: "moustacheFancy", label: "Handlebar moustache" },
     { value: "moustacheMagnum", label: "Magnum moustache" },
   ],
   skinColor: [
@@ -410,19 +418,14 @@ export const BUILD_OPTIONS: Record<BuildFeature, BuildOption[]> = {
     { value: "twinkle", label: "Twinkle" },
     { value: "vomit", label: "Vomit" },
   ],
-  nose: [
-    { value: "default", label: "Default" },
+  glasses: [
     { value: null, label: "None" },
-  ],
-  accessories: [
-    { value: null, label: "None" },
-    { value: "round", label: "Round glasses" },
-    { value: "prescription01", label: "Square glasses" },
+    { value: "round", label: "Round" },
+    { value: "prescription01", label: "Square" },
     { value: "prescription02", label: "Rectangular" },
     { value: "sunglasses", label: "Sunglasses" },
     { value: "wayfarers", label: "Wayfarers" },
     { value: "eyepatch", label: "Eyepatch" },
-    { value: "kurt", label: "Earrings" },
   ],
   clothes: [
     { value: "shirtCrewNeck", label: "Crew neck" },
@@ -462,14 +465,22 @@ export const BUILD_DEFAULTS: BuildSelection = {
   skinColor: "EDB98A",
   eyes: "default",
   mouth: "smile",
-  nose: "default",
-  accessories: null,
+  glasses: null,
   clothes: "shirtCrewNeck",
   clothesColor: "5199E4",
 };
 
 /** Fixed seed so the un-slidered features (skin, eyes, mouth) stay stable. */
 const BUILD_SEED = "parlor-build";
+
+/** True when a URL was produced by the Build tab (uses the fixed build seed). */
+export function isBuildAvatar(url: string): boolean {
+  try {
+    return new URL(url).searchParams.get("seed") === BUILD_SEED;
+  } catch {
+    return false;
+  }
+}
 
 /** Build a deterministic Avataaars URL from the player's slider selections. */
 export function buildAvatarUrl(selection: BuildSelection): string {
@@ -480,6 +491,8 @@ export function buildAvatarUrl(selection: BuildSelection): string {
     eyesProbability: "100",
     eyebrowsVariant: "default",
     eyebrowsProbability: "100",
+    noseVariant: "default",
+    noseProbability: "100",
     topVariant: top,
     topProbability: "100",
   };
@@ -488,12 +501,6 @@ export function buildAvatarUrl(selection: BuildSelection): string {
     params["mouthProbability"] = "100";
   } else {
     params["mouthProbability"] = "0";
-  }
-  if (selection.nose) {
-    params["noseVariant"] = selection.nose;
-    params["noseProbability"] = "100";
-  } else {
-    params["noseProbability"] = "0";
   }
   if (selection.clothes) {
     params["clothesVariant"] = selection.clothes;
@@ -508,8 +515,8 @@ export function buildAvatarUrl(selection: BuildSelection): string {
   } else {
     params["facialHairProbability"] = "0";
   }
-  if (selection.accessories) {
-    params["accessoriesVariant"] = selection.accessories;
+  if (selection.glasses) {
+    params["accessoriesVariant"] = selection.glasses;
     params["accessoriesProbability"] = "100";
   } else {
     params["accessoriesProbability"] = "0";
@@ -565,12 +572,7 @@ export function buildFeaturePreviewUrl(feature: BuildFeature, value: string | nu
       params["mouthVariant"] = value;
       params["mouthProbability"] = "100";
     }
-  } else if (feature === "nose") {
-    if (value) {
-      params["noseVariant"] = value;
-      params["noseProbability"] = "100";
-    }
-  } else if (feature === "accessories") {
+  } else if (feature === "glasses") {
     if (value) {
       params["accessoriesVariant"] = value;
       params["accessoriesProbability"] = "100";
@@ -636,11 +638,8 @@ export function buildSelectionFromUrl(url: string): BuildSelection {
   const mouth = params.get("mouthVariant");
   if (mouth) selection.mouth = mouth;
 
-  const nose = params.get("noseVariant");
-  if (nose) selection.nose = nose;
-
   const accessories = params.get("accessoriesVariant");
-  selection.accessories =
+  selection.glasses =
     params.get("accessoriesProbability") === "0" ? null : (accessories ?? null);
 
   const clothes = params.get("clothesVariant");

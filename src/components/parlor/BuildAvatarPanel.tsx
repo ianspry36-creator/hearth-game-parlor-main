@@ -5,7 +5,6 @@ import {
   BUILD_FEATURES,
   BUILD_OPTIONS,
   buildAvatarUrl,
-  buildFeaturePreviewUrl,
   buildSelectionFromUrl,
   writeCustomAvatar,
   type BuildFeature,
@@ -22,39 +21,17 @@ type Props = {
 
 type SliderProps = {
   label: string;
-  feature: BuildFeature;
   options: BuildOption[];
   value: string | null;
   onChange: (value: string | null) => void;
 };
 
-/** Tailwind transform that crops the DiceBear feature thumbnail to the part of
- * the canvas where that feature lives (head features vs. the torso for tops).
- * The face and body are hidden via a matching skin/background colour, so only
- * the feature itself shows. Colour features use swatches and skip this. */
-const FEATURE_CROP: Record<BuildFeature, string> = {
-  hat: "w-[170%] -translate-y-[8%]",
-  hairstyle: "w-[170%] -translate-y-[8%]",
-  hairColor: "",
-  facialHair: "w-[170%] -translate-y-[8%]",
-  skinColor: "",
-  eyes: "w-[170%] -translate-y-[8%]",
-  mouth: "w-[170%] -translate-y-[34%]",
-  nose: "w-[170%] -translate-y-[34%]",
-  accessories: "w-[170%] -translate-y-[8%]",
-  clothes: "w-[170%] -translate-y-[65%]",
-  clothesColor: "",
-};
-
 /** Shows one feature at a time, with arrows to step through its options. The
- * thumbnail is just that feature — a colour swatch or an isolated hat,
- * hairstyle, beard, pair of eyes, mouth, or item of clothing — not the full
- * avatar, so each choice reads clearly. */
-function BuildSlider({ label, feature, options, value, onChange }: SliderProps) {
+ * live preview reflects the current selection, so each row is just the
+ * feature's category name and its previous/next arrows. */
+function BuildSlider({ label, options, value, onChange }: SliderProps) {
   const found = options.findIndex((option) => option.value === value);
   const index = found < 0 ? 0 : found;
-  const current = options[index]!;
-  const isColour = current.swatch !== undefined;
 
   const step = (direction: 1 | -1) => {
     const next = (index + direction + options.length) % options.length;
@@ -62,55 +39,28 @@ function BuildSlider({ label, feature, options, value, onChange }: SliderProps) 
   };
 
   return (
-    <div>
-      <div className="mb-0.5 flex items-baseline justify-between">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-ivory/70">
-          {label}
-        </p>
-        <span className="text-[10px] tabular-nums text-ivory/40">
-          {index + 1} / {options.length}
-        </span>
-      </div>
+    <div className="flex items-center gap-1.5">
+      <button
+        type="button"
+        onClick={() => step(-1)}
+        aria-label={`Previous ${label}`}
+        className="grid size-4.5 shrink-0 place-items-center rounded-full text-ivory/70 ring-1 ring-gold/20 transition-colors hover:bg-gold/10 hover:text-ivory"
+      >
+        <ChevronLeft className="size-2.5" />
+      </button>
 
-      <div className="flex items-center gap-1">
-        <button
-          type="button"
-          onClick={() => step(-1)}
-          aria-label={`Previous ${label}`}
-          className="grid size-4.5 shrink-0 place-items-center rounded-full text-ivory/70 ring-1 ring-gold/20 transition-colors hover:bg-gold/10 hover:text-ivory"
-        >
-          <ChevronLeft className="size-2.5" />
-        </button>
+      <p className="min-w-0 flex-1 truncate text-center text-[10px] font-semibold uppercase tracking-[0.14em] text-ivory/70">
+        {label}
+      </p>
 
-        <div className="flex min-w-0 flex-1 flex-col items-center gap-0.5">
-          <div className="relative size-8 shrink-0 overflow-hidden rounded-full bg-gold/10 ring-2 ring-gold/40">
-            {isColour ? (
-              <span
-                className="absolute inset-0"
-                style={{ backgroundColor: current.swatch }}
-                aria-hidden="true"
-              />
-            ) : (
-              <img
-                src={buildFeaturePreviewUrl(feature, current.value)}
-                alt={current.label}
-                loading="lazy"
-                className={`absolute left-1/2 top-0 aspect-square max-w-none -translate-x-1/2 ${FEATURE_CROP[feature]}`}
-              />
-            )}
-          </div>
-          <span className="truncate text-[10px] text-ivory/80">{current.label}</span>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => step(1)}
-          aria-label={`Next ${label}`}
-          className="grid size-4.5 shrink-0 place-items-center rounded-full text-ivory/70 ring-1 ring-gold/20 transition-colors hover:bg-gold/10 hover:text-ivory"
-        >
-          <ChevronRight className="size-2.5" />
-        </button>
-      </div>
+      <button
+        type="button"
+        onClick={() => step(1)}
+        aria-label={`Next ${label}`}
+        className="grid size-4.5 shrink-0 place-items-center rounded-full text-ivory/70 ring-1 ring-gold/20 transition-colors hover:bg-gold/10 hover:text-ivory"
+      >
+        <ChevronRight className="size-2.5" />
+      </button>
     </div>
   );
 }
@@ -118,8 +68,8 @@ function BuildSlider({ label, feature, options, value, onChange }: SliderProps) 
 /**
  * The "Build" tab of the portrait picker. A large live preview sits on the
  * left; the right holds two columns of slider widgets for hat, hairstyle,
- * hair colour, facial hair, skin colour, eyes, mouth, nose, glasses &
- * earrings, top style, and clothes colour. Saving persists the result as the
+ * hair colour, facial hair, skin colour, eyes, mouth, glasses, top style,
+ * and clothes colour. Saving persists the result as the
  * player's avatar.
  */
 export function BuildAvatarPanel({ onSelect, onClose, initialUrl }: Props) {
@@ -159,12 +109,11 @@ export function BuildAvatarPanel({ onSelect, onClose, initialUrl }: Props) {
         </button>
       </div>
 
-      <div className="grid min-w-0 flex-1 grid-cols-1 gap-2 sm:grid-cols-2">
+      <div className="grid min-w-0 flex-1 grid-cols-1 gap-x-3.5 gap-y-2 sm:grid-cols-2">
         {BUILD_FEATURES.map(({ feature, label }) => (
           <BuildSlider
             key={feature}
             label={label}
-            feature={feature}
             options={BUILD_OPTIONS[feature]}
             value={selection[feature]}
             onChange={(value) => setFeature(feature, value)}

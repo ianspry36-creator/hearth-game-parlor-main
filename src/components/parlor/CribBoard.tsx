@@ -278,7 +278,7 @@ export function ScoreGrid({
           <PlayerFlag flag={playerFlag} />
           <span className="size-2.5 shrink-0 rounded-full bg-gold" />
         </span>
-        <span className="shrink-0 font-display text-lg text-black">{playerScore}</span>
+        <span className="shrink-0 text-lg font-bold text-black" style={{ fontFamily: '"Times New Roman", Times, serif' }}>{playerScore}</span>
       </div>
       <div className="flex items-center justify-between gap-2 bg-white px-3 py-2">
         <span className="flex min-w-0 items-center gap-2 text-sm">
@@ -291,7 +291,7 @@ export function ScoreGrid({
           <PlayerFlag flag={cpuFlag} hide={hideCpuFlag} />
           <span className="size-2.5 shrink-0 rounded-full bg-ivory ring-1 ring-black/25" />
         </span>
-        <span className="shrink-0 font-display text-lg">{cpuScore}</span>
+        <span className="shrink-0 text-lg font-bold" style={{ fontFamily: '"Times New Roman", Times, serif' }}>{cpuScore}</span>
       </div>
     </div>
   );

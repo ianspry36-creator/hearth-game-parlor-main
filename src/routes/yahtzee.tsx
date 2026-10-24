@@ -404,7 +404,14 @@ function YahtzeeTable() {
         draw: mine === theirs,
       };
     }
-    return { ...logged, turn: flip(current.turn), dice: blankDice(), rolls: 0 };
+    // Keep the last face values so the dice gather into the next player's keep
+    // area showing what was actually thrown, rather than resetting to ones.
+    return {
+      ...logged,
+      turn: flip(current.turn),
+      dice: current.dice.map((d) => ({ face: d.face, held: false })),
+      rolls: 0,
+    };
   };
 
   const myTurn = state.turn === "human" && state.phase === "play";
@@ -713,6 +720,12 @@ function YahtzeeTable() {
   const releasedCenterSpanElsRef = useRef<Map<number, HTMLElement>>(new Map());
   const justHeldRef = useRef<number[]>([]);
   const justReleasedRef = useRef<number[]>([]);
+  const prevRollsRef = useRef(state.rolls);
+  const prevTurnRef = useRef(state.turn);
+  const prevPhaseRef = useRef(state.phase);
+  const justRolledFirstRef = useRef<number[]>([]);
+  const justRerolledRef = useRef<number[]>([]);
+  const justGatheredRef = useRef<Array<{ index: number; fromSeat: boolean }>>([]);
 
   const heldNow = new Set<number>();
   const releasedNow = new Set<number>();
@@ -734,7 +747,103 @@ function YahtzeeTable() {
     justHeldRef.current = [...heldNow].sort((a, b) => a - b);
     justReleasedRef.current = [...releasedNow].sort((a, b) => a - b);
   }
+  // Detect whole-dice flights (throws and turn changes) so they can be
+  // animated in a layout effect, mirroring the existing held/released flights.
+  const prevRolls = prevRollsRef.current;
+  const prevTurn = prevTurnRef.current;
+  const prevPhase = prevPhaseRef.current;
+  if (state.phase === "play" && prevPhase === "play" && state.turn === prevTurn) {
+    if (prevRolls === 0 && state.rolls === 1) {
+      // First throw: the five staged dice fly from the keep area into the table.
+      justRolledFirstRef.current = state.dice.map((_, i) => i);
+    } else if (state.rolls === prevRolls + 1) {
+      // Re-throw: the dice still in the table fly to their fresh landing spots.
+      justRerolledRef.current = state.dice
+        .map((_, i) => i)
+        .filter((i) => !prevDiceRef.current[i]?.held);
+    }
+  } else if (
+    state.phase === "play" &&
+    prevPhase === "play" &&
+    state.turn !== prevTurn &&
+    state.rolls === 0
+  ) {
+    // Turn over: every die gathers into the next player's keep area.
+    justGatheredRef.current = state.dice.map((_, i) => ({
+      index: i,
+      fromSeat: Boolean(prevDiceRef.current[i]?.held),
+    }));
+  }
   prevDiceRef.current = state.dice;
+  prevRollsRef.current = state.rolls;
+  prevTurnRef.current = state.turn;
+  prevPhaseRef.current = state.phase;
+
+  // First throw: fly the five staged dice from the keep area into the table.
+  useLayoutEffect(() => {
+    justRolledFirstRef.current.forEach((i) => {
+      const el = releasedCenterSpanElsRef.current.get(i);
+      const from = seatRectsRef.current.get(i);
+      if (!el || !from) return;
+      const to = el.getBoundingClientRect();
+      const dx = from.left + from.width / 2 - (to.left + to.width / 2);
+      const dy = from.top + from.height / 2 - (to.top + to.height / 2);
+      const rot = scatterFor(i, state.dice[i]!.face).angle;
+      el.animate(
+        [
+          { opacity: 0, transform: `translate(${dx}px, ${dy}px) rotate(${rot}deg) scale(0.55)` },
+          { opacity: 1, transform: `translate(${dx * 0.1}px, ${dy * 0.1}px) rotate(${rot * 0.1}deg) scale(1.06)`, offset: 0.7 },
+          { opacity: 1, transform: "translate(0px, 0px) rotate(0deg) scale(1)" },
+        ],
+        { duration: 600, easing: "cubic-bezier(0.33, 0, 0.25, 1)", fill: "both" },
+      );
+    });
+    justRolledFirstRef.current = [];
+  });
+
+  // Re-throw: fly the dice still in the table to their new landing spots.
+  useLayoutEffect(() => {
+    justRerolledRef.current.forEach((i) => {
+      const el = releasedCenterSpanElsRef.current.get(i);
+      const from = centerRectsRef.current.get(i);
+      if (!el || !from) return;
+      const to = el.getBoundingClientRect();
+      const dx = from.left + from.width / 2 - (to.left + to.width / 2);
+      const dy = from.top + from.height / 2 - (to.top + to.height / 2);
+      const rot = scatterFor(i, state.dice[i]!.face).angle;
+      el.animate(
+        [
+          { opacity: 0, transform: `translate(${dx}px, ${dy}px) rotate(${rot}deg) scale(0.55)` },
+          { opacity: 1, transform: `translate(${dx * 0.1}px, ${dy * 0.1}px) rotate(${rot * 0.1}deg) scale(1.06)`, offset: 0.7 },
+          { opacity: 1, transform: "translate(0px, 0px) rotate(0deg) scale(1)" },
+        ],
+        { duration: 600, easing: "cubic-bezier(0.33, 0, 0.25, 1)", fill: "both" },
+      );
+    });
+    justRerolledRef.current = [];
+  });
+
+  // Turn over: gather every die into the next player's keep area.
+  useLayoutEffect(() => {
+    justGatheredRef.current.forEach(({ index: i, fromSeat }, slot) => {
+      const el = seatDieElsRef.current.get(i);
+      const from = fromSeat ? seatRectsRef.current.get(i) : centerRectsRef.current.get(i);
+      if (!el || !from) return;
+      const to = el.getBoundingClientRect();
+      const dx = from.left + from.width / 2 - (to.left + to.width / 2);
+      const dy = from.top + from.height / 2 - (to.top + to.height / 2);
+      const rot = scatterFor(i, state.dice[i]!.face).angle;
+      el.animate(
+        [
+          { opacity: 0, transform: `translate(${dx}px, ${dy}px) rotate(${rot}deg) scale(0.55)` },
+          { opacity: 1, transform: `translate(${dx * 0.1}px, ${dy * 0.1}px) rotate(${rot * 0.1}deg) scale(1.06)`, offset: 0.7 },
+          { opacity: 1, transform: "translate(0px, 0px) rotate(0deg) scale(1)" },
+        ],
+        { duration: 600, easing: "cubic-bezier(0.33, 0, 0.25, 1)", delay: slot * 80, fill: "both" },
+      );
+    });
+    justGatheredRef.current = [];
+  });
 
   useLayoutEffect(() => {
     // Record where each centre die currently sits so a held die can fly from
@@ -867,6 +976,9 @@ function YahtzeeTable() {
           ...keptDice.filter((i) => !heldOrderRef.current.includes(i)),
         ]
       : [];
+    // Before the opening throw, the five dice sit staged in the active seat's
+    // keep area, ready to fly onto the table.
+    const staged = active && state.phase === "play" && state.rolls === 0;
 
     const avatarBlock = (
       <div className="flex justify-center">
@@ -935,6 +1047,10 @@ function YahtzeeTable() {
         {kept.length > 0 ? (
           <div className="flex flex-wrap justify-center gap-3">
             {kept.map((i) => dieAt(i, false))}
+          </div>
+        ) : staged ? (
+          <div className="flex flex-wrap justify-center gap-3">
+            {state.dice.map((_, i) => dieAt(i, false))}
           </div>
         ) : state.phase === "rolloff" && rolloffValue !== null ? (
           <div>

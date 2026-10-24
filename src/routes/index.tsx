@@ -150,7 +150,7 @@ function Lobby() {
               return (
                 <div
                   key={game.id}
-                  className="group relative flex flex-col items-center rounded-2xl border border-gold/20 bg-surface/45 p-5 text-center transition-all hover:-translate-y-0.5 hover:border-gold/55 hover:bg-surface/65"
+                  className="group relative flex flex-col items-center rounded-2xl border border-gold/20 bg-surface p-5 text-center transition-all hover:-translate-y-0.5 hover:border-gold/55"
                 >
                   <button
                     type="button"

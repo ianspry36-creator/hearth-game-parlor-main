@@ -12,6 +12,20 @@ export interface BlogPost {
 
 export const BLOG_POSTS: BlogPost[] = [
   {
+    slug: "ada-lovelace-our-game-mascot",
+    title: "Ada Lovelace — Our Game Mascot",
+    publishedAt: "2026-10-08T18:00:00+01:00",
+    body: [
+      { type: "paragraph", text: `Augusta Ada King, Countess of Lovelace — known to history as Ada Lovelace — was born on 10 December 1815 in Piccadilly Terrace, Middlesex, England. She was the only legitimate child of the celebrated poet Lord George Gordon Byron and Anne Isabella Milbanke, a highly educated woman with a strong interest in mathematics.` },
+      { type: "paragraph", text: `Ada's parents separated just weeks after her birth, and Lord Byron left England permanently when Ada was only a few months old. She never saw her father again; he died in Greece when she was eight. Her mother, determined that Ada would not inherit Byron's emotional volatility, raised her with an unusually rigorous education in mathematics and science, deliberately steering her away from poetry and the arts. This early focus on logical thinking shaped Ada's intellectual identity and set the foundation for her future achievements.` },
+      { type: "paragraph", text: `As a young woman, Ada became fascinated by machines, engineering, and the emerging ideas of computation. Her curiosity led her to Charles Babbage, the inventor of the proposed Analytical Engine, a mechanical general-purpose computer far ahead of its time. Babbage recognized Ada's brilliance immediately, calling her the "Enchantress of Numbers." Their collaboration would become one of the most important partnerships in the early history of computing.` },
+      { type: "paragraph", text: `In 1843, Ada translated an article about Babbage's Analytical Engine written by Italian mathematician Luigi Menabrea. But her contribution went far beyond translation. Ada added a series of extensive Notes, which were three times longer than the original paper. In these notes, she described how the machine could be programmed to perform complex calculations, including a method for computing Bernoulli numbers — widely considered the first algorithm intended for implementation on a machine. This is why Ada Lovelace is often celebrated as the world's first computer programmer.` },
+      { type: "paragraph", text: `What made Ada truly visionary was her understanding that Babbage's machine could do more than arithmetic. She imagined that a sufficiently advanced machine could manipulate symbols, create music, and perhaps even engage in creative reasoning — ideas that foreshadow modern computing and artificial intelligence.` },
+      { type: "paragraph", text: `Ada married William King-Noel, who later became the 1st Earl of Lovelace, in 1835. She became Countess of Lovelace and had three children: Byron, Anne, and Ralph. Despite her responsibilities and periods of ill health, she continued her intellectual pursuits, maintaining correspondence with leading scientists and thinkers of her era.` },
+      { type: "paragraph", text: `Ada Lovelace died on 27 November 1852 at the age of 36. Though her life was short, her legacy is immense. Today she is celebrated as a pioneer of computing, a symbol of visionary thinking, and a reminder that imagination and mathematics can coexist powerfully.` },
+    ],
+  },
+  {
     slug: "history-of-playing-cards",
     title: "The History of Playing Cards",
     publishedAt: "2026-10-06T18:14:22+01:00",

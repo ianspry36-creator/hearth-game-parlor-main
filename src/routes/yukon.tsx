@@ -22,6 +22,7 @@ import { useSolitaireStats } from "@/lib/solitaireStats";
 import { useGameStarted } from "@/lib/games-started";
 import { RANK_LABEL, SUIT_SYMBOL, cardLabel, type Card } from "@/lib/cribbage";
 import {
+  applyMove,
   autoComplete,
   canAutoComplete,
   cardsHome,
@@ -29,12 +30,16 @@ import {
   FOUNDATION_SUITS,
   foundationTarget,
   freshGame,
+  greedyMoves,
   isRed,
+  legalMoves,
   moveFoundationToTableau,
   moveTableauToFoundation,
   moveTableauToTableau,
+  solve,
   type GameState,
   type TableauPile,
+  type YukonMove,
 } from "@/lib/yukon";
 import { mulberry32 } from "@/lib/random";
 import cardBackAsset from "@/assets/card-back.png";
@@ -86,6 +91,8 @@ type DragSource =
 
 // How long a card takes to fly onto a foundation after being clicked.
 const FLIGHT_MS = 350;
+// Pause between each computer move so the auto-play is easy to follow.
+const COMPUTER_STEP_MS = 1000;
 
 type FlyingCard = {
   key: number;
@@ -102,6 +109,7 @@ function YukonTable() {
   const [selection, setSelection] = useState<Selection>(null);
   const [confirming, setConfirming] = useState<"new" | "home" | null>(null);
   const [conceded, setConceded] = useState(false);
+  const [lost, setLost] = useState(false);
   const { recordResult } = useSolitaireStats(game.id);
   const { end, beginNew, recordAction } = useGameStarted(game.name);
   const prevWonRef = useRef(false);
@@ -183,29 +191,82 @@ function YukonTable() {
     setState(candidate);
   };
 
+  // --- Computer auto-play -------------------------------------------------
+  const [computerMoves, setComputerMoves] = useState<YukonMove[] | null>(null);
+  const computerStepRef = useRef(0);
+  const applyRef = useRef(apply);
+  applyRef.current = apply;
+  const animateToFoundationRef = useRef<(fromIndex: number, card: Card) => void>(() => {});
+
+  const startComputer = () => {
+    if (state.won || conceded || lost || computerMoves !== null) return;
+    const current = stateRef.current;
+    if (canAutoComplete(current)) {
+      apply(autoComplete(current));
+      return;
+    }
+    const solution = solve(current);
+    const moves = solution ?? greedyMoves(current);
+    computerStepRef.current = 0;
+    setComputerMoves(moves);
+  };
+
+  // Step through the computer's moves one at a time so the play stays visible.
+  useEffect(() => {
+    if (computerMoves === null) return;
+    if (state.won || computerStepRef.current >= computerMoves.length) {
+      setComputerMoves(null);
+      if (!state.won && legalMoves(state).length === 0) {
+        setLost(true);
+        recordResult("loss");
+        recordAction("other");
+        end("lost");
+      }
+      return;
+    }
+    const timer = setTimeout(() => {
+      const move = computerMoves[computerStepRef.current];
+      computerStepRef.current += 1;
+      if (!move) return;
+      if (move.kind === "toFoundation") {
+        const pile = stateRef.current.tableau[move.from];
+        const card = pile?.faceUp[pile.faceUp.length - 1];
+        if (card) {
+          animateToFoundationRef.current(move.from, card);
+          return;
+        }
+      }
+      applyRef.current(applyMove(stateRef.current, move));
+    }, COMPUTER_STEP_MS);
+    return () => clearTimeout(timer);
+  }, [computerMoves, state, recordResult, end, recordAction]);
+
   const reset = () => {
     setState(freshGame());
     setHistory([]);
     setFlying([]);
+    setComputerMoves(null);
     setSelection(null);
     setFinishedElapsed(null);
     setElapsed(0);
     startRef.current = 0;
     endedRef.current = false;
     setConceded(false);
+    setLost(false);
     recordAction("new game");
     beginNew();
   };
 
   const concede = () => {
-    if (state.won || conceded) return;
+    if (state.won || conceded || lost) return;
     recordResult("loss");
+    setComputerMoves(null);
     recordAction("concede");
     end("conceded");
     setConceded(true);
   };
 
-  const gameInProgress = state.moves > 0 && !state.won && !conceded;
+  const gameInProgress = state.moves > 0 && !state.won && !conceded && !lost;
   const confirmReset = () => (gameInProgress ? setConfirming("new") : reset());
   const confirmHome = () => {
     if (gameInProgress) {
@@ -217,8 +278,9 @@ function YukonTable() {
   };
 
   const undo = () => {
-    if (history.length === 0 || state.won || conceded) return;
+    if (history.length === 0 || state.won || conceded || lost) return;
     recordAction("undo");
+    setComputerMoves(null);
     const prev = history[history.length - 1]!;
     // Each undo counts as a move.
     setState({ ...prev, moves: prev.moves + 1 });
@@ -320,6 +382,8 @@ function YukonTable() {
       setState(committed);
     }, FLIGHT_MS);
   };
+
+  animateToFoundationRef.current = animateToFoundation;
 
   const clickFoundation = (index: number) => {
     if (suppressClickRef.current) {
@@ -525,9 +589,9 @@ function YukonTable() {
           <Button
             variant="parlorGhost"
             size="sm"
-            className={`ml-auto min-w-[96px] sm:min-w-[120px] ${history.length === 0 || state.won || conceded ? "" : "bg-[var(--yukon-undo-bg)] text-ink"}`}
+            className={`ml-auto min-w-[96px] sm:min-w-[120px] ${history.length === 0 || state.won || conceded || lost ? "" : "bg-[var(--yukon-undo-bg)] text-ink"}`}
             onClick={undo}
-            disabled={history.length === 0 || state.won || conceded}
+            disabled={history.length === 0 || state.won || conceded || lost}
           >
             Undo
           </Button>
@@ -608,6 +672,21 @@ function YukonTable() {
                 </div>
               </div>
             )}
+            {lost && (
+              <div className="absolute inset-0 z-10 grid place-items-center rounded-2xl bg-brand/80 p-6 backdrop-blur-sm">
+                <div className="space-y-4 text-center">
+                  <div className="text-5xl">🧱</div>
+                  <h2 className="font-display text-3xl font-bold text-red-300">No more moves</h2>
+                  <p className="mx-auto max-w-sm text-ivory/70">
+                    There are no legal moves left, so this hand can't be finished. Recorded as a
+                    loss.
+                  </p>
+                  <Button variant="parlor" onClick={reset}>
+                    Deal again
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
 
           <aside className="space-y-4">
@@ -619,9 +698,17 @@ function YukonTable() {
                 <Button variant="parlor" className="w-full" onClick={confirmReset}>
                   New game
                 </Button>
+                <Button
+                  variant="parlorOutline"
+                  className="w-full"
+                  onClick={startComputer}
+                  disabled={state.won || conceded || lost || computerMoves !== null}
+                >
+                  Computer
+                </Button>
                 <ConcedeButton
                   moves={state.moves}
-                  disabled={state.won || conceded}
+                  disabled={state.won || conceded || lost}
                   onConcede={concede}
                   className="w-full"
                 />
